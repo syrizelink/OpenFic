@@ -59,6 +59,12 @@ export interface Settings {
   indexRerankEnabled: boolean;
   defaultRerankModel: string;
   agentBypassToolApproval: boolean;
+  notificationsEnabled: boolean;
+  notifyOnCompletion: boolean;
+  notifyOnApproval: boolean;
+  notifyOnQuestion: boolean;
+  notifyOnError: boolean;
+  notifyOnlyWhenUnfocused: boolean;
   agentToolPermissions: AgentToolPermission[];
   auditPersistDetails: boolean;
   compressSystemPrompts: boolean;
@@ -113,6 +119,12 @@ export interface SettingsResponse {
   index_rerank_enabled: boolean;
   default_rerank_model: string;
   agent_bypass_tool_approval: boolean;
+  notifications_enabled: boolean;
+  notify_on_completion: boolean;
+  notify_on_approval: boolean;
+  notify_on_question: boolean;
+  notify_on_error: boolean;
+  notify_only_when_unfocused: boolean;
   agent_tool_permissions: Array<{
     tool_name: string;
     mode: AgentToolPermissionMode;
@@ -171,6 +183,12 @@ export interface SettingsUpdateRequest {
   index_rerank_enabled?: boolean;
   default_rerank_model?: string;
   agent_bypass_tool_approval?: boolean;
+  notifications_enabled?: boolean;
+  notify_on_completion?: boolean;
+  notify_on_approval?: boolean;
+  notify_on_question?: boolean;
+  notify_on_error?: boolean;
+  notify_only_when_unfocused?: boolean;
   agent_tool_permissions?: Array<{
     tool_name: string;
     mode: AgentToolPermissionMode;

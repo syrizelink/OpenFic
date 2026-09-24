@@ -1,5 +1,6 @@
 import {
   Brain,
+  Bell,
   Bot,
   Cable,
   Database,
@@ -20,6 +21,7 @@ export type SettingsCategory =
   | "general"
   | "personalization"
   | "editor"
+  | "notifications"
   | "connections"
   | "models"
   | "index"
@@ -53,6 +55,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "editor",
     icon: <Type size={16} />,
     labelKey: "settings.editor",
+  },
+  {
+    id: "notifications",
+    icon: <Bell size={16} />,
+    labelKey: "settings.notifications",
   },
   {
     id: "connections",

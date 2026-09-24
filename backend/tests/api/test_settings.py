@@ -123,6 +123,12 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["index_rerank_enabled"] is False
     assert data["default_rerank_model"] == ""
     assert data["agent_bypass_tool_approval"] is False
+    assert data["notifications_enabled"] is False
+    assert data["notify_on_completion"] is True
+    assert data["notify_on_approval"] is True
+    assert data["notify_on_question"] is True
+    assert data["notify_on_error"] is True
+    assert data["notify_only_when_unfocused"] is True
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
     assert data["audit_persist_details"] is False
     assert data["compress_system_prompts"] is False
@@ -510,6 +516,62 @@ async def test_changing_default_embedding_model_marks_retrieval_indexes_for_rebu
         await session.execute(select(RetrievalChapterIndexState))
     ).scalars().all()
     assert [row.status for row in rows] == ["needs_rebuild"]
+
+
+@pytest.mark.asyncio
+async def test_update_settings_notifications_enabled(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={"notifications_enabled": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["notifications_enabled"] is True
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.json()["notifications_enabled"] is True
+
+    disabled = await client.put(
+        "/api/v1/settings",
+        json={"notifications_enabled": False},
+    )
+    assert disabled.json()["notifications_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_settings_notification_events_independently(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={"notify_on_completion": False, "notify_on_approval": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["notify_on_completion"] is False
+    assert response.json()["notify_on_approval"] is False
+    assert response.json()["notify_on_question"] is True
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.json()["notify_on_completion"] is False
+    assert follow_up.json()["notify_on_approval"] is False
+    assert follow_up.json()["notify_on_question"] is True
+
+    updated = await client.put("/api/v1/settings", json={"notify_on_question": False})
+    assert updated.json()["notify_on_question"] is False
+    assert updated.json()["notify_on_completion"] is False
+
+    error_disabled = await client.put("/api/v1/settings", json={"notify_on_error": False})
+    assert error_disabled.json()["notify_on_error"] is False
+    assert error_disabled.json()["notify_on_question"] is False
+    assert (await client.get("/api/v1/settings")).json()["notify_on_error"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_settings_notification_focus_preference(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={"notify_only_when_unfocused": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["notify_only_when_unfocused"] is False
+    assert (await client.get("/api/v1/settings")).json()["notify_only_when_unfocused"] is False
 
 
 @pytest.mark.asyncio

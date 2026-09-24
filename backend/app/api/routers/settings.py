@@ -126,6 +126,11 @@ SETTING_KEY_EDITOR_AUTO_INDENT = "editor_auto_indent"
 SETTING_KEY_EDITOR_AUTO_CONVERT_PUNCTUATION = "editor_auto_convert_punctuation"
 SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS = "editor_auto_pair_symbols"
 SETTING_KEY_EDITOR_SHOW_LINE_NUMBERS = "editor_show_line_numbers"
+SETTING_KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED = "notify_only_when_unfocused"
+NOTIFICATION_EVENT_KEYS = (
+    "notify_on_completion", "notify_on_approval", "notify_on_question", "notify_on_error",
+)
 # 默认值
 DEFAULT_SETTINGS = {
     SETTING_KEY_LANGUAGE: "zh-CN",
@@ -168,6 +173,9 @@ DEFAULT_SETTINGS = {
     ),
     SETTING_KEY_DEFAULT_RERANK_MODEL: DEFAULT_INDEX_RERANK_MODEL,
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL: "false",
+    SETTING_KEY_NOTIFICATIONS_ENABLED: "false",
+    SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED: "true",
+    **{key: "true" for key in NOTIFICATION_EVENT_KEYS},
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
     SETTING_KEY_COMPACTION_MODEL_REASONING_EFFORT: DEFAULT_REASONING_EFFORT,
     SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
@@ -495,6 +503,36 @@ code_font_family=settings_dict.get(
             ),
             default=False,
         ),
+        notifications_enabled=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_NOTIFICATIONS_ENABLED,
+                DEFAULT_SETTINGS[SETTING_KEY_NOTIFICATIONS_ENABLED],
+            ),
+            default=False,
+        ),
+        notify_on_completion=_parse_bool_setting(
+            settings_dict.get("notify_on_completion", DEFAULT_SETTINGS["notify_on_completion"]),
+            default=True,
+        ),
+        notify_on_approval=_parse_bool_setting(
+            settings_dict.get("notify_on_approval", DEFAULT_SETTINGS["notify_on_approval"]),
+            default=True,
+        ),
+        notify_on_question=_parse_bool_setting(
+            settings_dict.get("notify_on_question", DEFAULT_SETTINGS["notify_on_question"]),
+            default=True,
+        ),
+        notify_on_error=_parse_bool_setting(
+            settings_dict.get("notify_on_error", DEFAULT_SETTINGS["notify_on_error"]),
+            default=True,
+        ),
+        notify_only_when_unfocused=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED,
+                DEFAULT_SETTINGS[SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED],
+            ),
+            default=True,
+        ),
         **{
             key: getattr(context_settings, key)
             for key in context_settings.__dataclass_fields__
@@ -731,6 +769,18 @@ async def update_settings(
             request.agent_bypass_tool_approval,
             ensure_ascii=False,
         )
+    if request.notifications_enabled is not None:
+        settings_to_update[SETTING_KEY_NOTIFICATIONS_ENABLED] = json.dumps(
+            request.notifications_enabled,
+        )
+    if request.notify_only_when_unfocused is not None:
+        settings_to_update[SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED] = json.dumps(
+            request.notify_only_when_unfocused,
+        )
+    for key in NOTIFICATION_EVENT_KEYS:
+        value = getattr(request, key)
+        if value is not None:
+            settings_to_update[key] = json.dumps(value)
     if request.agent_tool_permissions is not None:
         settings_to_update[SETTING_KEY_AGENT_TOOL_PERMISSIONS] = json.dumps(
             [item.model_dump(mode="json") for item in request.agent_tool_permissions],

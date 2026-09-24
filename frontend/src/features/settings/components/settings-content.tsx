@@ -31,6 +31,7 @@ import { EditorSettings } from "../components/editor-settings";
 import { GeneralSettings } from "../components/general-settings";
 import { IndexSettings } from "../components/index-settings";
 import { ModelsSettings } from "../components/models-settings";
+import { NotificationSettings } from "../components/notification-settings";
 import { PersonalizationSettings } from "../components/personalization-settings";
 import { RulesSettings } from "../components/rules-settings";
 import { SettingsSidebar } from "../components/settings-sidebar";
@@ -79,6 +80,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   general: "settings.general",
   personalization: "settings.personalization",
   editor: "settings.editor",
+  notifications: "settings.notifications",
   connections: "settings.connections",
   models: "settings.models",
   index: "settings.index",
@@ -194,6 +196,12 @@ export function SettingsContent({
         code_font_family: settings.codeFontFamily,
         base_font_size: settings.baseFontSize,
         editor_font_size: settings.editorFontSize,
+        notifications_enabled: settings.notificationsEnabled,
+        notify_on_completion: settings.notifyOnCompletion,
+        notify_on_approval: settings.notifyOnApproval,
+        notify_on_question: settings.notifyOnQuestion,
+        notify_on_error: settings.notifyOnError,
+        notify_only_when_unfocused: settings.notifyOnlyWhenUnfocused,
         agent_tool_permissions: settings.agentToolPermissions.map((item) => ({
           tool_name: item.toolName,
           mode: item.mode,
@@ -269,6 +277,7 @@ export function SettingsContent({
     activeCategory === "general" ||
     activeCategory === "personalization" ||
     activeCategory === "editor" ||
+    activeCategory === "notifications" ||
     activeCategory === "connections" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
@@ -294,6 +303,7 @@ export function SettingsContent({
 
       if (category === "general") removeQuery(["settings"]);
       if (category === "editor") removeQuery(["settings"]);
+      if (category === "notifications") removeQuery(["settings"]);
       if (category === "connections") {
         removeQuery(["model-providers"]);
         removeQuery(["model-provider-catalog"]);
@@ -434,6 +444,13 @@ export function SettingsContent({
               />
             ) : null}
             {activeCategory === "editor" ? <EditorSettings /> : null}
+            {activeCategory === "notifications" ? (
+              <NotificationSettings
+                settings={displaySettings}
+                isSaving={saveMutation.isPending}
+                onSettingsChange={handleSettingsChange}
+              />
+            ) : null}
             {activeCategory === "connections" ? (
               <ConnectionsSettings
                 isAgentSettingsLocked={isAgentSettingsLocked}

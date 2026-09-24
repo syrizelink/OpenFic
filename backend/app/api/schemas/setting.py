@@ -146,6 +146,12 @@ class SettingsResponse(BaseModel):
         default=False,
         description="是否全局放行 Agent 工具审批",
     )
+    notifications_enabled: bool = Field(default=False, description="是否启用会话系统通知")
+    notify_on_completion: bool = Field(default=True, description="会话完成时通知")
+    notify_on_approval: bool = Field(default=True, description="待审批时通知")
+    notify_on_question: bool = Field(default=True, description="待回答问题时通知")
+    notify_on_error: bool = Field(default=True, description="Agent 运行出错时通知")
+    notify_only_when_unfocused: bool = Field(default=True, description="仅在窗口未聚焦时通知")
     agent_tool_permissions: list[AgentToolPermissionItem] = Field(
         default_factory=list, description="Agent 工具权限设置"
     )
@@ -289,6 +295,12 @@ class SettingsUpdateRequest(BaseModel):
         default=None,
         description="是否全局放行 Agent 工具审批",
     )
+    notifications_enabled: bool | None = Field(default=None, description="是否启用会话系统通知")
+    notify_on_completion: bool | None = None
+    notify_on_approval: bool | None = None
+    notify_on_question: bool | None = None
+    notify_on_error: bool | None = None
+    notify_only_when_unfocused: bool | None = None
     agent_tool_permissions: list[AgentToolPermissionItem] | None = Field(
         default=None, description="Agent 工具权限设置"
     )

@@ -65,6 +65,12 @@ export function transformSettings(raw: SettingsResponse): Settings {
     indexRerankEnabled: raw.index_rerank_enabled ?? false,
     defaultRerankModel: raw.default_rerank_model || "",
     agentBypassToolApproval: raw.agent_bypass_tool_approval ?? false,
+    notificationsEnabled: raw.notifications_enabled ?? false,
+    notifyOnCompletion: raw.notify_on_completion ?? true,
+    notifyOnApproval: raw.notify_on_approval ?? true,
+    notifyOnQuestion: raw.notify_on_question ?? true,
+    notifyOnError: raw.notify_on_error ?? true,
+    notifyOnlyWhenUnfocused: raw.notify_only_when_unfocused ?? true,
     agentToolPermissions: (raw.agent_tool_permissions || []).map((item) => ({
       toolName: item.tool_name,
       mode: item.mode,

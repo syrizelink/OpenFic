@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 
 import { toast } from "@/components";
 import { useCharactersStore } from "@/features/characters/store/use-characters-store";
+import type { Settings } from "@/features/settings/lib/settings.types";
 import { useWorldInfoStore } from "@/features/world-info/store/use-world-info-store";
 import { invalidateWritingEditorEntityQueries } from "@/features/writing/hooks/use-writing-editor-entity";
 import { useTabsStore } from "@/features/writing/store/use-tabs-store";
@@ -42,6 +43,7 @@ import {
   submitAgentToolApproval,
 } from "@/lib/api-client";
 import type { CharacterListResponse } from "@/lib/character.types";
+import { showSystemNotification } from "@/lib/system-notification";
 import type { WorldInfoEntryBriefListResponse } from "@/lib/world-info.types";
 
 import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
@@ -50,6 +52,14 @@ import {
   requiresAgentAttachmentProcessing,
   isSupportedAgentImage,
 } from "../lib/agent-file-attachments";
+import {
+  getAgentNotificationType,
+  getLastAssistantOutput,
+  getLatestUserPrompt,
+  getQuestionNotificationBody,
+  isTerminalAgentError,
+  shouldShowAgentNotification,
+} from "../lib/agent-notifications";
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
 import {
   applyAgentTranscriptEventToLiveState,
@@ -605,18 +615,53 @@ export function useAgentSession({
     [projectId, queryClient],
   );
 
-  const commitTranscriptState = useCallback((nextState: AgentTranscriptState) => {
-    syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
-    setMessages(nextState.messages);
-    setStatus(nextState.status);
-    setIsRunning(nextState.isRunning);
-    setCurrentStage(nextState.currentStage);
-  }, []);
+  const commitTranscriptState = useCallback(
+    (nextState: AgentTranscriptState, errorDetail?: string) => {
+      const wasTerminalError = isTerminalAgentError(
+        transcriptStateRef.current.status,
+        nextState.status,
+      );
+      syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
+      setMessages(nextState.messages);
+      setStatus(nextState.status);
+      setIsRunning(nextState.isRunning);
+      setCurrentStage(nextState.currentStage);
+      const notificationSettings = wasTerminalError
+        ? queryClient.getQueryData<Settings>(["settings"])
+        : undefined;
+      const lastMessage = wasTerminalError ? nextState.messages.at(-1) : undefined;
+      if (
+        shouldShowAgentNotification(
+          notificationSettings?.notificationsEnabled ?? false,
+          notificationSettings?.notifyOnlyWhenUnfocused ?? true,
+          document.hasFocus(),
+        ) &&
+        notificationSettings?.notifyOnError &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          showSystemNotification(
+            getLatestUserPrompt(nextState.messages) || i18n.t("settings.notification.error"),
+            i18n.t("settings.notification.errorBody", {
+              error:
+                errorDetail ||
+                (lastMessage?.type === "error" ? lastMessage.content?.trim() : undefined) ||
+                i18n.t("assistant.agentRunFailed"),
+            }),
+          );
+        } catch {
+          // The OS may revoke notification access while the session is running.
+        }
+      }
+    },
+    [queryClient],
+  );
 
   const updateTranscriptState = useCallback(
-    (updater: (current: AgentTranscriptState) => AgentTranscriptState) => {
+    (updater: (current: AgentTranscriptState) => AgentTranscriptState, errorDetail?: string) => {
       const nextState = updater(transcriptStateRef.current);
-      commitTranscriptState(nextState);
+      commitTranscriptState(nextState, errorDetail);
     },
     [commitTranscriptState],
   );
@@ -744,13 +789,15 @@ export function useAgentSession({
           return;
         }
         if (trigger !== "manual" || transcriptStateRef.current.isRunning) {
-          updateTranscriptState((current) =>
-            failCompactionTranscriptState(
-              current,
-              typeof payload.session_id === "string"
-                ? payload.session_id
-                : (sessionIdRef.current ?? undefined),
-            ),
+          updateTranscriptState(
+            (current) =>
+              failCompactionTranscriptState(
+                current,
+                typeof payload.session_id === "string"
+                  ? payload.session_id
+                  : (sessionIdRef.current ?? undefined),
+              ),
+            message,
           );
         }
         return;
@@ -809,8 +856,52 @@ export function useAgentSession({
         setIsAttachmentProcessing(false);
       }
 
+      const previousStatus = transcriptStateRef.current.status;
       const result = applyTranscriptEvent(event);
       const message = result.message;
+      const notificationType = getAgentNotificationType(
+        event.type,
+        previousStatus,
+        result.state.status,
+      );
+      const notificationSettings = notificationType
+        ? queryClient.getQueryData<Settings>(["settings"])
+        : undefined;
+      if (
+        notificationType &&
+        shouldShowAgentNotification(
+          notificationSettings?.notificationsEnabled ?? false,
+          notificationSettings?.notifyOnlyWhenUnfocused ?? true,
+          document.hasFocus(),
+        ) &&
+        (notificationType === "completed"
+          ? notificationSettings?.notifyOnCompletion
+          : notificationType === "approval"
+            ? notificationSettings?.notifyOnApproval
+            : notificationSettings?.notifyOnQuestion) &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          showSystemNotification(
+            notificationType === "completed"
+              ? getLatestUserPrompt(result.state.messages) ||
+                  i18n.t("settings.notification.completed")
+              : i18n.t(`settings.notification.${notificationType}`),
+            notificationType === "completed"
+              ? getLastAssistantOutput(result.state.messages) ||
+                  i18n.t("settings.notification.completed")
+              : notificationType === "approval"
+                ? i18n.t("settings.notification.approvalBody", {
+                    toolName: message?.toolApproval?.tool_name || event.tool_name || "",
+                  })
+                : getQuestionNotificationBody(message?.questions ?? []) ||
+                  i18n.t("settings.notification.question"),
+          );
+        } catch {
+          // OS-level notification availability may change while the application is running.
+        }
+      }
       if (event.type === "task_completed" || event.type === "error") void refreshChanges();
 
       if (message?.interruptBatchId && typeof message.interruptBatchTotal === "number") {
