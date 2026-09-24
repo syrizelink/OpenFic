@@ -11,8 +11,9 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
 
-from app.agent_runtime.runner.session_runner import SessionRunner
+from app.agent_runtime.context.settings import ContextSettings
 from app.agent_runtime.context.types import ContextMessage
+from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.tools.base import AgentTool, HookResult
 from app.agent_runtime.tools.registry import ToolRegistry
 
@@ -156,6 +157,15 @@ class _OrchestratorApprovalTool(AgentTool):
 
 
 _ORCHESTRATOR_APPROVAL_TOOL_NAME = "orchestrator_approval_tool"
+
+
+@pytest.fixture(autouse=True)
+def mock_context_settings():
+    with patch(
+        "app.agent_runtime.graph.react_agent.load_context_settings",
+        new=AsyncMock(return_value=ContextSettings()),
+    ):
+        yield
 
 
 @pytest.mark.asyncio
