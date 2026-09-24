@@ -176,6 +176,9 @@ importers:
       colorjs.io:
         specifier: ^0.7.1
         version: 0.7.1
+      d3-force:
+        specifier: ^3.0.0
+        version: 3.0.0
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -303,6 +306,9 @@ importers:
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
+      '@types/d3-force':
+        specifier: ^3.0.10
+        version: 3.0.10
       '@types/diff-match-patch':
         specifier: ^1.0.36
         version: 1.0.36

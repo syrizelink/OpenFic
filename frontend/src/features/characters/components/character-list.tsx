@@ -15,6 +15,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   CheckSquare,
+  GitFork,
   ListChecks,
   Pencil,
   Plus,
@@ -23,6 +24,7 @@ import {
   StarOff,
   Trash2,
   UserRound,
+  BookOpen,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,16 +32,19 @@ import { useTranslation } from "react-i18next";
 
 import { ProjectSelectField, Spinner } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
-import type { CharacterListItem } from "@/lib/character.types";
+import type { CharacterGraph, CharacterListItem } from "@/lib/character.types";
 import type { Project } from "@/lib/project.types";
 import { formatRelativeTime } from "@/lib/time-utils";
 
+import { CharacterRelationships } from "./character-relationships";
 import { CharacterSearchPopover } from "./character-search-popover";
 
 const loadedAvatarUrls = new Set<string>();
 
 interface CharacterListProps {
   characters: CharacterListItem[];
+  graph: CharacterGraph | undefined;
+  view: "editor" | "graph";
   projectId: string;
   projects: Project[];
   currentProjectId: string;
@@ -48,6 +53,7 @@ interface CharacterListProps {
   isCreating?: boolean;
   onSelectProject: (projectId: string) => void;
   onCreateCharacter: () => void;
+  onToggleView: () => void;
   onSelectCharacter: (characterId: string) => void;
   onEditProfile: (character: CharacterListItem) => void;
   onDeleteCharacter: (character: CharacterListItem) => void;
@@ -125,6 +131,8 @@ function CharacterListAvatar({
 
 export function CharacterList({
   characters,
+  graph,
+  view,
   projectId,
   projects,
   currentProjectId,
@@ -133,6 +141,7 @@ export function CharacterList({
   isCreating = false,
   onSelectProject,
   onCreateCharacter,
+  onToggleView,
   onSelectCharacter,
   onEditProfile,
   onDeleteCharacter,
@@ -572,44 +581,71 @@ export function CharacterList({
               )}
             </Flex>
 
-            {isMultiSelect ? (
-              <Tooltip content={t("characters.deleteSelectedTooltip")}>
+            <Flex
+              gap="2"
+              align="center"
+              width="100%"
+            >
+              {isMultiSelect ? (
+                <Tooltip content={t("characters.deleteSelectedTooltip")}>
+                  <Button
+                    size="2"
+                    variant="solid"
+                    color="red"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setBatchDeleteDialogOpen(true)}
+                    className="characters-list-create-button"
+                  >
+                    <Trash2 size={16} />
+                    <Text
+                      size="2"
+                      ml="1"
+                    >
+                      {t("characters.deleteSelected")}
+                    </Text>
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Tooltip content={t("characters.newCharacter")}>
+                  <Button
+                    size="2"
+                    variant="soft"
+                    disabled={isCreating}
+                    onClick={onCreateCharacter}
+                    className="characters-list-create-button"
+                  >
+                    <Plus size={16} />
+                    <Text
+                      size="2"
+                      ml="1"
+                    >
+                      {t("characters.newCharacter")}
+                    </Text>
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip
+                content={t(
+                  view === "editor" ? "characters.graph.graphView" : "characters.graph.editorView",
+                )}
+              >
                 <IconButton
                   size="2"
-                  variant="solid"
-                  color="red"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => setBatchDeleteDialogOpen(true)}
-                  style={{ width: "100%" }}
+                  variant={view === "graph" ? "soft" : "ghost"}
+                  color={view === "graph" ? undefined : "gray"}
+                  highContrast={view !== "graph"}
+                  onClick={onToggleView}
+                  aria-label={t(
+                    view === "editor"
+                      ? "characters.graph.graphView"
+                      : "characters.graph.editorView",
+                  )}
+                  aria-pressed={view === "graph"}
                 >
-                  <Trash2 size={16} />
-                  <Text
-                    size="2"
-                    ml="1"
-                  >
-                    {t("characters.deleteSelected")}
-                  </Text>
+                  {view === "editor" ? <GitFork size={16} /> : <BookOpen size={16} />}
                 </IconButton>
               </Tooltip>
-            ) : (
-              <Tooltip content={t("characters.newCharacter")}>
-                <IconButton
-                  size="2"
-                  variant="soft"
-                  disabled={isCreating}
-                  onClick={onCreateCharacter}
-                  style={{ width: "100%" }}
-                >
-                  <Plus size={16} />
-                  <Text
-                    size="2"
-                    ml="1"
-                  >
-                    {t("characters.newCharacter")}
-                  </Text>
-                </IconButton>
-              </Tooltip>
-            )}
+            </Flex>
           </Flex>
         </Box>
 
@@ -762,13 +798,27 @@ export function CharacterList({
                           gap="1"
                           style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
                         >
-                          <Text
-                            size="2"
-                            weight="medium"
-                            className="characters-list-item-title"
+                          <Flex
+                            align="center"
+                            gap="2"
+                            className="characters-list-item-heading"
                           >
-                            {character.name}
-                          </Text>
+                            <Text
+                              size="2"
+                              weight="medium"
+                              className="characters-list-item-title"
+                            >
+                              {character.name}
+                            </Text>
+                            <CharacterRelationships
+                              characterId={character.id}
+                              count={
+                                graph?.nodes.find((node) => node.characterId === character.id)
+                                  ?.relationshipCount ?? character.relationshipCount
+                              }
+                              graph={graph}
+                            />
+                          </Flex>
                           <Flex gap="2">
                             <Text
                               size="1"

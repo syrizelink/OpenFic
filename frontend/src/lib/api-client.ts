@@ -131,6 +131,8 @@ import type { ChapterExport, ChapterExportCreate } from "./chapter-export.types"
 import type {
   Character,
   CharacterCreate,
+  CharacterGraph,
+  CharacterRelationship,
   CharacterListItem,
   CharacterSearchResponse,
   CharacterListResponse,
@@ -304,6 +306,7 @@ function transformCharacter(raw: Record<string, unknown>): Character {
     isFavorited: raw.is_favorited as boolean,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
+    relationshipCount: (raw.relationship_count as number) ?? 0,
   };
 }
 
@@ -317,7 +320,68 @@ function transformCharacterListItem(raw: Record<string, unknown>): CharacterList
     isFavorited: raw.is_favorited as boolean,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
+    relationshipCount: (raw.relationship_count as number) ?? 0,
   };
+}
+
+function transformRelationship(raw: Record<string, unknown>): CharacterRelationship {
+  return {
+    id: raw.id as string,
+    sourceCharacterId: raw.source_character_id as string,
+    targetCharacterId: raw.target_character_id as string,
+    name: raw.name as string,
+    description: raw.description as string,
+  };
+}
+
+export async function fetchCharacterGraph(projectId: string): Promise<CharacterGraph> {
+  const response = await apiClient.get(`/projects/${projectId}/character-graph`);
+  return {
+    nodes: response.data.nodes.map((node: Record<string, unknown>) => ({
+      characterId: node.character_id as string,
+      name: node.name as string,
+      imageUrl: resolveBackendUrl(node.image_url as string | null),
+      x: node.x as number | null,
+      y: node.y as number | null,
+      relationshipCount: node.relationship_count as number,
+    })),
+    relationships: response.data.relationships.map(transformRelationship),
+  };
+}
+
+export async function createCharacterRelationship(
+  projectId: string,
+  data: Omit<CharacterRelationship, "id">,
+): Promise<CharacterRelationship> {
+  const response = await apiClient.post(`/projects/${projectId}/character-relationships`, {
+    source_character_id: data.sourceCharacterId,
+    target_character_id: data.targetCharacterId,
+    name: data.name,
+    description: data.description,
+  });
+  return transformRelationship(response.data);
+}
+
+export async function updateCharacterRelationship(
+  id: string,
+  name: string,
+  description: string,
+): Promise<CharacterRelationship> {
+  const response = await apiClient.patch(`/character-relationships/${id}`, { name, description });
+  return transformRelationship(response.data);
+}
+
+export async function deleteCharacterRelationship(id: string): Promise<void> {
+  await apiClient.delete(`/character-relationships/${id}`);
+}
+
+export async function updateCharacterPosition(
+  projectId: string,
+  characterId: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  await apiClient.patch(`/projects/${projectId}/characters/${characterId}/position`, { x, y });
 }
 
 export async function fetchCharactersByProject(projectId: string): Promise<CharacterListResponse> {

@@ -1,4 +1,5 @@
 import json
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,6 +9,7 @@ from app.agent_runtime.revisions import (
     character_images_by_id,
     current_revision_id_from_state,
     record_character_diffs,
+    record_relationship_before,
 )
 from app.agent_runtime.tools.base import AgentTool
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
@@ -16,9 +18,9 @@ from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
-from app.storage.models.character import Character
-from app.storage.repos import character_repo
-from app.storage.services import character_service
+from app.storage.models.character import Character, CharacterRelationship
+from app.storage.repos import character_repo, character_relationship_repo
+from app.storage.services import character_service, character_relationship_service
 
 
 class ListCharactersInput(BaseModel):
@@ -61,6 +63,82 @@ class EditCharacterInput(BaseModel):
 
 class DeleteCharacterInput(BaseModel):
     name: str = Field(description="要删除的角色名称")
+
+
+class QueryRelationshipsInput(BaseModel):
+    name: str = Field(description="起点角色名称")
+    target_name: str | None = Field(default=None, description="可选的终点角色名称")
+    max_hops: int = Field(default=2, ge=1, le=4, description="最多经过的关系数，1-4")
+
+
+class CreateRelationshipInput(BaseModel):
+    source_name: str
+    target_name: str
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class EditRelationshipInput(BaseModel):
+    source_name: str
+    target_name: str
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class DeleteRelationshipInput(BaseModel):
+    source_name: str
+    target_name: str
+
+
+def find_relationship_paths(relations: list[CharacterRelationship], start: str, target: str | None, max_hops: int) -> list[list[CharacterRelationship]]:
+    paths: list[list[CharacterRelationship]] = []
+    queue: deque[tuple[str, list[CharacterRelationship], frozenset[str]]] = deque([(start, [], frozenset({start}))])
+    while queue and len(paths) < 100:
+        current, path, visited = queue.popleft()
+        if path and (target is None or current == target):
+            paths.append(path)
+        if len(path) >= max_hops or (target is not None and current == target):
+            continue
+        for relation in relations:
+            neighbor = relation.target_character_id if relation.source_character_id == current else relation.source_character_id if relation.target_character_id == current else None
+            if neighbor is not None and neighbor not in visited:
+                queue.append((neighbor, [*path, relation], visited | {neighbor}))
+    return paths[:100]
+
+
+def _direct_relationships(
+    relations: list[CharacterRelationship], character_id: str, names: dict[str, str]
+) -> list[dict]:
+    result = []
+    for relation in relations:
+        other_id = (
+            relation.target_character_id
+            if relation.source_character_id == character_id
+            else relation.source_character_id
+            if relation.target_character_id == character_id
+            else None
+        )
+        if other_id is None or (other_name := names.get(other_id)) is None:
+            continue
+        result.append(
+            {
+                "character_id": other_id,
+                "character_name": other_name,
+                "name": relation.name,
+                "description": relation.description,
+            }
+        )
+    return result
+
+
+async def _resolve_relationship(session, project_id: str, source_name: str, target_name: str) -> CharacterRelationship:
+    source = await _resolve_character_by_name(session, project_id, source_name)
+    target = await _resolve_character_by_name(session, project_id, target_name)
+    a, b = sorted((source.id, target.id))
+    relation = await character_relationship_repo.get_pair(session, project_id, a, b)
+    if relation is None:
+        raise ToolExecutionError("这两个角色之间不存在关系")
+    return relation
 
 
 @dataclass(frozen=True)
@@ -188,10 +266,12 @@ class ListCharactersTool(AgentTool):
         session = await create_session()
         try:
             characters = await _list_project_characters(session, self.project_id)
+            relations = await character_relationship_repo.list_for_project(session, self.project_id)
+            names = {character.id: character.name for character in characters}
             return json.dumps(
                 {
                     "characters": [
-                        {"name": character.name}
+                        {"id": character.id, "name": character.name, "relationships": _direct_relationships(relations, character.id, names)}
                         for character in characters
                     ]
                 },
@@ -212,10 +292,13 @@ class ReadCharacterTool(AgentTool):
         session = await create_session()
         try:
             character = await _resolve_character_by_name(session, self.project_id, name)
+            relations = await character_relationship_repo.list_for_project(session, self.project_id)
+            names = {item.id: item.name for item in await _list_project_characters(session, self.project_id)}
             return json.dumps(
                 {
                     "name": character.name,
                     "description": _format_content_with_line_numbers(character.description),
+                    "relationships": _direct_relationships(relations, character.id, names),
                 },
                 ensure_ascii=False,
             )
@@ -439,6 +522,9 @@ class DeleteCharacterTool(AgentTool):
                 character = await _resolve_character_by_name(session, self.project_id, name)
                 before = _preview_from_character(character)
                 before_images = character_images_by_id([character])
+                for relation in await character_relationship_repo.list_for_project(session, self.project_id):
+                    if character.id in (relation.source_character_id, relation.target_character_id):
+                        await record_relationship_before(session, revision_id, self.project_id, relation.id, relation)
                 await character_service.delete_character(session, character.id)
                 await record_character_diffs(
                     session,
@@ -459,6 +545,131 @@ class DeleteCharacterTool(AgentTool):
                 )
         except ToolExecutionError:
             raise
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@ToolRegistry.register
+class QueryCharacterRelationshipsTool(AgentTool):
+    name: str = "query_character_relationships"
+    description: str = (
+        "查询角色在关系图中的直接或多跳路径，最多四跳。返回的 paths 是路径列表，"
+        "每条路径由按顺序排列的关系列表组成，并非去重的关系清单。"
+        "不同路径可能共享同一条关系（例如单跳路径也是两跳路径的前缀），"
+        "同一关系重复出现在多个路径中不代表存在多条边。"
+        "指定 target_name 时仅返回到该角色的路径；未指定时返回从起点可达的路径。"
+    )
+    access_level: str = "readonly"
+    args_schema: type[BaseModel] = QueryRelationshipsInput
+
+    async def _execute(self, name: str, target_name: str | None = None, max_hops: int = 2) -> str:
+        session = await create_session()
+        try:
+            start = await _resolve_character_by_name(session, self.project_id, name)
+            target = await _resolve_character_by_name(session, self.project_id, target_name) if target_name else None
+            names = {character.id: character.name for character in await _list_project_characters(session, self.project_id)}
+            relations = await character_relationship_repo.list_for_project(session, self.project_id)
+            paths = find_relationship_paths(relations, start.id, target.id if target else None, max_hops)
+            result = []
+            for path in paths:
+                current = start.id
+                steps = []
+                for relation in path:
+                    next_id = relation.target_character_id if relation.source_character_id == current else relation.source_character_id
+                    steps.append(
+                        {
+                            "from": names[current],
+                            "to": names[next_id],
+                            "name": relation.name,
+                            "description": relation.description,
+                        }
+                    )
+                    current = next_id
+                result.append(steps)
+            return json.dumps({"paths": result, "truncated": len(paths) == 100}, ensure_ascii=False)
+        finally:
+            await session.close()
+
+
+@ToolRegistry.register
+class CreateCharacterRelationshipTool(AgentTool):
+    name: str = "create_character_relationship"
+    description: str = "建立两个角色之间唯一的无向关系。"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = CreateRelationshipInput
+
+    async def _execute(self, source_name: str, target_name: str, name: str, description: str = "") -> str:
+        revision_id = _require_revision_id(self._state)
+        session = await create_session()
+        try:
+            async with await keyed_lock(("characters", self.project_id)):
+                source = await _resolve_character_by_name(session, self.project_id, source_name)
+                target = await _resolve_character_by_name(session, self.project_id, target_name)
+                relation = await character_relationship_service.create_relationship(session, self.project_id, source.id, target.id, name, description)
+                await record_relationship_before(session, revision_id, self.project_id, relation.id, None)
+                await session.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "name": relation.name,
+                        "source": source.name,
+                        "target": target.name,
+                    },
+                    ensure_ascii=False,
+                )
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@ToolRegistry.register
+class EditCharacterRelationshipTool(AgentTool):
+    name: str = "edit_character_relationship"
+    description: str = "修改两个角色之间关系的名称与说明。"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = EditRelationshipInput
+
+    async def _execute(self, source_name: str, target_name: str, name: str, description: str = "") -> str:
+        revision_id = _require_revision_id(self._state)
+        session = await create_session()
+        try:
+            async with await keyed_lock(("characters", self.project_id)):
+                relation = await _resolve_relationship(session, self.project_id, source_name, target_name)
+                await record_relationship_before(session, revision_id, self.project_id, relation.id, relation)
+                updated = await character_relationship_service.update_relationship(session, relation.id, name, description)
+                await session.commit()
+                return json.dumps(
+                    {"success": True, "name": updated.name}, ensure_ascii=False
+                )
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@ToolRegistry.register
+class DeleteCharacterRelationshipTool(AgentTool):
+    name: str = "delete_character_relationship"
+    description: str = "删除两个角色之间的关系。"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = DeleteRelationshipInput
+
+    async def _execute(self, source_name: str, target_name: str) -> str:
+        revision_id = _require_revision_id(self._state)
+        session = await create_session()
+        try:
+            async with await keyed_lock(("characters", self.project_id)):
+                relation = await _resolve_relationship(session, self.project_id, source_name, target_name)
+                await record_relationship_before(session, revision_id, self.project_id, relation.id, relation)
+                await character_relationship_service.delete_relationship(session, relation.id)
+                await session.commit()
+                return json.dumps({"success": True}, ensure_ascii=False)
         except Exception:
             await session.rollback()
             raise

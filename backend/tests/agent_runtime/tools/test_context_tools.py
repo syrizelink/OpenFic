@@ -183,17 +183,20 @@ async def test_list_characters_returns_project_character_names() -> None:
         "app.agent_runtime.tools.impls.context.character.create_session"
     ) as mock_cs, patch(
         "app.agent_runtime.tools.impls.context.character.character_repo"
-    ) as mock_character_repo:
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_relationship_repo"
+    ) as mock_relationship_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_character_repo.list_all_by_project = AsyncMock(return_value=characters)
+        mock_relationship_repo.list_for_project = AsyncMock(return_value=[])
 
         result = await tool.ainvoke({})
 
     assert json.loads(result) == {
         "characters": [
-            {"name": "林舟"},
-            {"name": "沈墨"},
+            {"id": "char-1", "name": "林舟", "relationships": []},
+            {"id": "char-2", "name": "沈墨", "relationships": []},
         ]
     }
 
@@ -216,17 +219,34 @@ async def test_read_character_reads_description_by_name() -> None:
         "app.agent_runtime.tools.impls.context.character.create_session"
     ) as mock_cs, patch(
         "app.agent_runtime.tools.impls.context.character.character_repo"
-    ) as mock_character_repo:
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_relationship_repo"
+    ) as mock_relationship_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_character_repo.list_all_by_project = AsyncMock(return_value=characters)
+        mock_relationship_repo.list_for_project = AsyncMock(return_value=[])
 
         result = await tool.ainvoke({"name": "林舟"})
 
     assert json.loads(result) == {
         "name": "林舟",
         "description": "1|主角\n2|旧友",
+        "relationships": [],
     }
+
+
+def test_relationship_paths_traverse_multiple_hops_without_cycles() -> None:
+    from app.agent_runtime.tools.impls.context.character import find_relationship_paths
+
+    relations = [
+        SimpleNamespace(id="r1", source_character_id="a", target_character_id="b", name="朋友"),
+        SimpleNamespace(id="r2", source_character_id="b", target_character_id="c", name="同盟"),
+        SimpleNamespace(id="r3", source_character_id="c", target_character_id="a", name="亲属"),
+    ]
+    paths = find_relationship_paths(relations, "a", "c", 2)
+    assert [[edge.id for edge in path] for path in paths] == [["r3"], ["r1", "r2"]]
+    assert find_relationship_paths(relations, "a", "c", 1) == [[relations[2]]]
 
 
 @pytest.mark.asyncio
@@ -241,6 +261,8 @@ async def test_create_character_returns_diff() -> None:
         description="主角",
         image_path=None,
         is_favorited=False,
+        graph_x=None,
+        graph_y=None,
     )
 
     with patch(
@@ -251,12 +273,15 @@ async def test_create_character_returns_diff() -> None:
         "app.agent_runtime.tools.impls.context.character.character_service"
     ) as mock_character_service, patch(
         "app.agent_runtime.tools.impls.context.character.record_character_diffs"
-    ) as mock_record_diffs:
+    ) as mock_record_diffs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_relationship_repo"
+    ) as mock_relationship_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_character_repo.list_all_by_project = AsyncMock(return_value=[])
         mock_character_service.create_character = AsyncMock(return_value=created)
         mock_record_diffs.return_value = ["char-1"]
+        mock_relationship_repo.list_for_project = AsyncMock(return_value=[])
 
         result = await tool.ainvoke({"name": "林舟", "description": "主角"})
 
@@ -374,6 +399,8 @@ async def test_edit_character_replaces_description_text() -> None:
         name="林舟",
         description="主角",
         is_favorited=False,
+        graph_x=None,
+        graph_y=None,
     )
     updated_character = SimpleNamespace(
         id="char-1",
@@ -381,6 +408,8 @@ async def test_edit_character_replaces_description_text() -> None:
         name="林舟",
         description="主角与旧友",
         is_favorited=True,
+        graph_x=None,
+        graph_y=None,
     )
 
     with patch(
@@ -473,6 +502,8 @@ async def test_delete_character_removes_name() -> None:
         name="林舟",
         description="主角",
         is_favorited=False,
+        graph_x=None,
+        graph_y=None,
     )
 
     with patch(
@@ -483,12 +514,15 @@ async def test_delete_character_removes_name() -> None:
         "app.agent_runtime.tools.impls.context.character.character_service"
     ) as mock_character_service, patch(
         "app.agent_runtime.tools.impls.context.character.record_character_diffs"
-    ) as mock_record_diffs:
+    ) as mock_record_diffs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_relationship_repo"
+    ) as mock_relationship_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_character_repo.list_all_by_project = AsyncMock(return_value=[character])
         mock_character_service.delete_character = AsyncMock(return_value=None)
         mock_record_diffs.return_value = ["char-1"]
+        mock_relationship_repo.list_for_project = AsyncMock(return_value=[])
 
         result = await tool.ainvoke({"name": "林舟"})
 

@@ -1,0 +1,225 @@
+.character-graph {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  background: var(--color-background);
+}
+.character-graph .react-flow {
+  --xy-node-color: var(--theme-foreground);
+  --xy-edge-label-color: var(--theme-foreground);
+  --xy-controls-button-color: var(--theme-foreground);
+  --xy-controls-button-color-hover: var(--theme-foreground);
+  background: var(--color-background);
+  color: var(--theme-foreground);
+}
+.character-graph .react-flow__edge-path {
+  stroke: var(--accent-9);
+  stroke-width: 2;
+}
+.character-graph .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--accent-11);
+  stroke-width: 3;
+}
+.character-graph .react-flow__edge-textbg {
+  fill: var(--color-panel-solid);
+}
+.character-graph .react-flow__edge-text {
+  fill: var(--theme-foreground);
+}
+.character-graph .react-flow__controls,
+.character-graph .react-flow__minimap {
+  background: var(--color-panel-solid);
+  border: 1px solid var(--gray-a5);
+  box-shadow: none;
+}
+.character-graph .react-flow__controls button {
+  background: var(--color-panel-solid);
+  border-color: var(--gray-a5);
+  color: var(--theme-foreground);
+}
+.character-graph .react-flow__controls button svg {
+  fill: none;
+}
+.character-graph .react-flow__minimap-mask {
+  fill: var(--gray-a4);
+}
+.character-graph .react-flow__minimap-node {
+  fill: var(--accent-8);
+}
+.character-graph .react-flow__background pattern circle {
+  fill: var(--theme-border);
+}
+.character-graph-search-bar {
+  position: absolute;
+  box-sizing: border-box;
+  z-index: 5;
+  top: 12px;
+  left: 12px;
+  width: min(480px, calc(100% - 24px));
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  background: var(--color-panel-solid);
+  box-shadow: 0 4px 16px var(--gray-a4);
+}
+.character-graph-search-bar .rt-TextFieldRoot {
+  min-width: 0;
+  flex: 1;
+}
+.character-graph-search-count {
+  flex-shrink: 0;
+  min-width: 36px;
+  color: var(--gray-11);
+  text-align: center;
+}
+.character-graph-hint {
+  position: absolute;
+  z-index: 2;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gray-11);
+  pointer-events: none;
+}
+.character-graph-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 144px;
+  max-width: 220px;
+  padding: 9px 12px;
+  border-radius: var(--radius-3);
+  border: 1px solid var(--gray-a7);
+  background: var(--color-panel-solid);
+  box-shadow: 0 2px 8px var(--gray-a4);
+  color: var(--theme-foreground);
+}
+.react-flow__node.selected .character-graph-node {
+  border-color: var(--accent-9);
+  box-shadow: 0 0 0 2px var(--accent-a5);
+}
+.react-flow__node.character-graph-search-match .character-graph-node {
+  border-color: var(--accent-9);
+  box-shadow: 0 0 0 2px var(--accent-a5);
+}
+.react-flow__node.character-graph-search-active .character-graph-node {
+  border-color: var(--accent-11);
+  box-shadow: 0 0 0 3px var(--accent-a7);
+}
+.character-graph-avatar-frame {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.character-graph-avatar {
+  position: absolute;
+  inset: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--accent-a4);
+  color: var(--theme-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.character-graph-avatar--in,
+.react-flow__node.character-graph-entering,
+.react-flow__edge.character-graph-entering {
+  animation: character-graph-enter 360ms ease-out both;
+}
+.character-graph-avatar--waiting {
+  opacity: 0;
+}
+.character-graph-avatar--out,
+.react-flow__node.character-graph-exiting,
+.react-flow__edge.character-graph-exiting {
+  animation: character-graph-exit 360ms ease-in both;
+  pointer-events: none;
+}
+.react-flow__node.character-graph-entering .character-graph-node {
+  animation: character-graph-grow 360ms ease-out both;
+}
+.react-flow__node.character-graph-exiting .character-graph-node {
+  animation: character-graph-shrink 360ms ease-in both;
+}
+@keyframes character-graph-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes character-graph-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes character-graph-grow {
+  from {
+    scale: 0.92;
+  }
+  to {
+    scale: 1;
+  }
+}
+@keyframes character-graph-shrink {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 0.92;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .character-graph-avatar--in,
+  .character-graph-avatar--out,
+  .react-flow__node.character-graph-entering,
+  .react-flow__node.character-graph-exiting,
+  .react-flow__edge.character-graph-entering,
+  .react-flow__edge.character-graph-exiting {
+    animation: none;
+  }
+  .react-flow__node.character-graph-entering .character-graph-node,
+  .react-flow__node.character-graph-exiting .character-graph-node {
+    animation: none;
+  }
+}
+.character-graph-node-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.character-graph-count {
+  color: var(--theme-muted-foreground);
+  font-size: 11px;
+}
+.character-graph .react-flow__handle {
+  width: 9px;
+  height: 9px;
+  background: var(--accent-9);
+  border: 2px solid var(--color-panel-solid);
+}
+@media (max-width: 767px) {
+  .character-graph-search-bar {
+    top: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+    padding: 4px;
+  }
+  .character-graph .react-flow__minimap {
+    display: none;
+  }
+}

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.core.storage import delete_cover_file, save_cover_file
 from app.storage.models.project import Project
-from app.storage.repos import chapter_repo, project_repo, volume_repo
+from app.storage.repos import chapter_repo, character_relationship_repo, project_repo, volume_repo
 from app.storage.services import task_service, volume_service
 from app.storage.services.revision_service import delete_revision_data_by_project
 
@@ -168,6 +168,8 @@ async def delete_project(session: AsyncSession, project_id: str) -> None:
         NotFoundError: 项目不存在。
     """
     project = await get_project(session, project_id)
+
+    await character_relationship_repo.remove_for_project(session, project_id)
 
     await task_service.delete_all_tasks(session, project_id)
     await delete_revision_data_by_project(session, project_id)

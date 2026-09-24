@@ -19,6 +19,7 @@ import {
   createCharacter,
   deleteCharacter,
   fetchCharacter,
+  fetchCharacterGraph,
   fetchCharactersByProject,
   fetchProjects,
   updateCharacter,
@@ -28,6 +29,7 @@ import { getPreference, setPreference } from "@/lib/local-db";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 import { CharacterEditor } from "../components/character-editor";
+import { CharacterGraphView } from "../components/character-graph";
 import { CharacterList } from "../components/character-list";
 import { CharacterProfileDialog } from "../components/character-profile-dialog";
 import { useCharactersStore } from "../store/use-characters-store";
@@ -50,6 +52,7 @@ function toCharacterListItem(character: Character): CharacterListItem {
     isFavorited: character.isFavorited,
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
+    relationshipCount: character.relationshipCount,
   };
 }
 
@@ -74,8 +77,9 @@ export function CharactersPage() {
     setCurrentCharacter,
     setListOpen,
   } = useCharactersStore();
+  const [view, setView] = useState<"editor" | "graph">("editor");
   const mobileSidebarSwipeRef = useMobileSidebarSwipe({
-    isEnabled: isMobile && Boolean(currentProjectId),
+    isEnabled: isMobile && Boolean(currentProjectId) && view === "editor",
     isOpen: isListOpen,
     onOpen: () => setListOpen(true),
     onClose: () => setListOpen(false),
@@ -138,6 +142,11 @@ export function CharactersPage() {
   });
 
   const characters = useMemo(() => charactersData?.items ?? [], [charactersData?.items]);
+  const { data: graphData } = useQuery({
+    queryKey: ["character-graph", currentProjectId],
+    queryFn: () => fetchCharacterGraph(currentProjectId!),
+    enabled: !!currentProjectId,
+  });
 
   useEffect(() => {
     const restoreCharacter = async () => {
@@ -240,6 +249,7 @@ export function CharactersPage() {
         character,
       );
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       setCurrentCharacter(character.id);
       toast.success(t("characters.created"));
     },
@@ -269,6 +279,7 @@ export function CharactersPage() {
         character,
       );
       queryClient.invalidateQueries({ queryKey: ["characters", character.projectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", character.projectId] });
       setProfileCharacter(null);
     },
     onError: (error) => {
@@ -315,6 +326,7 @@ export function CharactersPage() {
       }
       await removeCharacterCaches(currentProjectId, [characterId]);
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       setDeleteCharacterTarget(null);
       toast.success(t("characters.deleted"));
     },
@@ -331,6 +343,7 @@ export function CharactersPage() {
       }
       await removeCharacterCaches(currentProjectId, characterIds);
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       toast.success(t("characters.deleted"));
     },
   });
@@ -367,20 +380,24 @@ export function CharactersPage() {
     queryClient.removeQueries({ queryKey: ["character", characterId] });
     setCurrentCharacter(characterId);
     setSelectedCharacterLoadVersion((prev) => prev + 1);
+    setView("editor");
     setListOpen(false);
   };
 
   const list = (
     <CharacterList
       characters={characters}
+      graph={graphData}
+      view={view}
       projectId={currentProjectId ?? ""}
-      selectedCharacterId={currentCharacterId}
+      selectedCharacterId={view === "graph" ? null : currentCharacterId}
       isLoading={isCharactersLoading}
       isCreating={createMutation.isPending}
       projects={projects}
       currentProjectId={currentProjectId ?? ""}
       onSelectProject={handleSelectProject}
       onCreateCharacter={handleCreateCharacter}
+      onToggleView={() => setView((previous) => (previous === "editor" ? "graph" : "editor"))}
       onSelectCharacter={handleSelectCharacter}
       onEditProfile={setProfileCharacter}
       onDeleteCharacter={setDeleteCharacterTarget}
@@ -395,17 +412,43 @@ export function CharactersPage() {
   );
 
   const editorContent = (
-    <CharacterEditor
-      key={selectedCharacter?.id ?? "empty"}
-      character={selectedCharacter ?? null}
-      isSaving={updateMutation.isPending}
-      isLoading={shouldShowCharacterEditorLoading(Boolean(selectedCharacter), isCharacterLoading)}
-      isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
-      onSave={async (data) => {
-        if (!selectedCharacter) return;
-        await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
-      }}
-    />
+    <Flex
+      direction="column"
+      className="characters-main-view"
+    >
+      {view === "graph" && currentProjectId ? (
+        <CharacterGraphView
+          projectId={currentProjectId}
+          isLocked={assistantState.isAgentRunning}
+          onSelectCharacter={(id) => {
+            handleSelectCharacter(id);
+            setView("editor");
+          }}
+        />
+      ) : (
+        <Flex
+          direction="column"
+          className="characters-main-editor"
+        >
+          <Box className="characters-editor-content">
+            <CharacterEditor
+              key={selectedCharacter?.id ?? "empty"}
+              character={selectedCharacter ?? null}
+              isSaving={updateMutation.isPending}
+              isLoading={shouldShowCharacterEditorLoading(
+                Boolean(selectedCharacter),
+                isCharacterLoading,
+              )}
+              isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
+              onSave={async (data) => {
+                if (!selectedCharacter) return;
+                await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
+              }}
+            />
+          </Box>
+        </Flex>
+      )}
+    </Flex>
   );
 
   return (

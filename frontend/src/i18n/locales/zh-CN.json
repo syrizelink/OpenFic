@@ -172,7 +172,38 @@
     "created": "角色已创建",
     "deleted": "角色已删除",
     "nameExists": "角色名称已存在",
-    "updateFailed": "角色保存失败"
+    "updateFailed": "角色保存失败",
+    "graph": {
+      "editorView": "编辑",
+      "graphView": "关系图谱",
+      "relationshipCount": "{{count}} 个关系",
+      "noRelationships": "暂无关系",
+      "noDescription": "暂无说明",
+      "search": "查找角色",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fit": "适配视图",
+      "autoLayout": "自动排布",
+      "autoLayoutFailed": "自动排布失败",
+      "expandRelationship": "展开关系说明",
+      "collapseRelationship": "收起关系说明",
+      "lock": "锁定图谱",
+      "unlock": "解锁图谱",
+      "searchResults": "{{current}} / {{total}}",
+      "previous": "上一个结果",
+      "next": "下一个结果",
+      "locate": "定位",
+      "empty": "创建角色后即可建立关系",
+      "loadFailed": "图谱加载失败，点击重试",
+      "duplicate": "这两个角色已有关系",
+      "create": "建立关系",
+      "edit": "编辑关系",
+      "name": "关系名称",
+      "description": "关系说明（可选）",
+      "deleteConfirm": "确定删除这条关系吗？",
+      "saveFailed": "关系或位置保存失败",
+      "deleteFailed": "关系删除失败"
+    }
   },
   "import": {
     "title": "导入项目",
@@ -836,6 +867,22 @@
       "deleteCharacter": {
         "name": "删除角色",
         "description": "删除一个指定角色"
+      },
+      "queryCharacterRelationships": {
+        "name": "查询角色关系",
+        "description": "查询角色间最多四跳的关系路径"
+      },
+      "createCharacterRelationship": {
+        "name": "建立角色关系",
+        "description": "在两个角色之间建立一条关系"
+      },
+      "editCharacterRelationship": {
+        "name": "编辑角色关系",
+        "description": "修改角色关系的名称和说明"
+      },
+      "deleteCharacterRelationship": {
+        "name": "删除角色关系",
+        "description": "删除两个角色之间的关系"
       },
       "listWorldEntries": {
         "name": "列出世界书条目",
@@ -2257,6 +2304,15 @@
       "createCharacter": "创建角色",
       "editCharacter": "编辑角色",
       "deleteCharacter": "删除角色",
+      "queryCharacterRelationships": "查询角色关系",
+      "createCharacterRelationship": "建立角色关系",
+      "editCharacterRelationship": "编辑角色关系",
+      "deleteCharacterRelationship": "删除角色关系",
+      "charactersInRelationship": "关联角色",
+      "relationshipName": "关系名称",
+      "relationshipPaths": "关系路径",
+      "noRelationshipPaths": "未找到关系路径",
+      "noRelationshipPathsDescription": "指定跳数内没有可达的角色关系。",
       "characterCount": "{{count}} 个角色",
       "noCharacterInfo": "未返回角色信息",
       "noCharacterInfoDescription": "这次工具结果没有返回可显示的角色信息。",

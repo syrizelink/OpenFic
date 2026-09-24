@@ -588,6 +588,7 @@ export function useAgentSession({
   const invalidateCharacterQueries = useCallback(
     (targetCharacterId?: string, operation?: string) => {
       queryClient.invalidateQueries({ queryKey: ["characters", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", projectId] });
       if (!targetCharacterId) return;
 
       if (operation === "delete") {

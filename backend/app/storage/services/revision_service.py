@@ -22,6 +22,7 @@ from app.storage.models.project import Project
 from app.storage.models.revision import Revision
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.revision_character_snapshot import RevisionCharacterSnapshot
+from app.storage.models.character import RevisionCharacterRelationshipSnapshot
 from app.storage.models.revision_content_blob import RevisionContentBlob
 from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
@@ -37,6 +38,7 @@ _REVISION_CHILD_MODELS = (
     RevisionNoteSnapshot,
     RevisionNoteCategorySnapshot,
     RevisionCharacterSnapshot,
+    RevisionCharacterRelationshipSnapshot,
     RevisionWorldEntrySnapshot,
 )
 

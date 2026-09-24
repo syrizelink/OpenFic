@@ -14,7 +14,7 @@ from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
 from app.agent_runtime.persistence.model import AgentAttachment, AgentContextCompaction, AgentRunMessage
-from app.storage.models.character import Character
+from app.storage.models.character import Character, CharacterRelationship, RevisionCharacterRelationshipSnapshot
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.models.commit import Commit
@@ -54,6 +54,8 @@ __all__ = [
     "BackgroundJobEvent",
     "BackgroundJobItem",
     "Character",
+    "CharacterRelationship",
+    "RevisionCharacterRelationshipSnapshot",
     "Chapter",
     "ChapterSummary",
     "Commit",

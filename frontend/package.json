@@ -69,6 +69,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "colorjs.io": "^0.7.1",
+    "d3-force": "^3.0.0",
     "date-fns": "^4.1.0",
     "dexie": "^4.4.2",
     "diff": "^8.0.4",
@@ -113,6 +114,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@types/d3-force": "^3.0.10",
     "@types/diff-match-patch": "^1.0.36",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",

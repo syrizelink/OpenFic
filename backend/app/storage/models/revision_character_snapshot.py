@@ -29,5 +29,7 @@ class RevisionCharacterSnapshot(SQLModel, table=True):
         description="角色描述的内容寻址 blob id(长文本时使用)",
     )
     is_favorited: bool | None = Field(default=None)
+    graph_x: float | None = Field(default=None)
+    graph_y: float | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

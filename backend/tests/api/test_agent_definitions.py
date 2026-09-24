@@ -57,6 +57,7 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     assert "chapter_read" in keys
     assert "chapter_write" in keys
     assert "character_read" in keys
+    assert "character_relationship" in keys
     assert "character_write" in keys
     assert "web_fetch" in keys
 
@@ -88,6 +89,20 @@ async def test_list_agent_tool_categories(client: AsyncClient):
         "key": "character_write",
         "name": "角色写入",
         "tool_keys": ["create_character", "edit_character", "delete_character"],
+    }
+
+    character_relationship = next(
+        item for item in data["categories"] if item["key"] == "character_relationship"
+    )
+    assert character_relationship == {
+        "key": "character_relationship",
+        "name": "角色关系",
+        "tool_keys": [
+            "query_character_relationships",
+            "create_character_relationship",
+            "edit_character_relationship",
+            "delete_character_relationship",
+        ],
     }
 
 

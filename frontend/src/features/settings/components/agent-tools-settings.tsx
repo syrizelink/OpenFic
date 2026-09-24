@@ -151,6 +151,22 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.deleteCharacter.name",
     description: "settings.agentTool.deleteCharacter.description",
   },
+  query_character_relationships: {
+    name: "settings.agentTool.queryCharacterRelationships.name",
+    description: "settings.agentTool.queryCharacterRelationships.description",
+  },
+  create_character_relationship: {
+    name: "settings.agentTool.createCharacterRelationship.name",
+    description: "settings.agentTool.createCharacterRelationship.description",
+  },
+  edit_character_relationship: {
+    name: "settings.agentTool.editCharacterRelationship.name",
+    description: "settings.agentTool.editCharacterRelationship.description",
+  },
+  delete_character_relationship: {
+    name: "settings.agentTool.deleteCharacterRelationship.name",
+    description: "settings.agentTool.deleteCharacterRelationship.description",
+  },
   list_world_entries: {
     name: "settings.agentTool.listWorldEntries.name",
     description: "settings.agentTool.listWorldEntries.description",

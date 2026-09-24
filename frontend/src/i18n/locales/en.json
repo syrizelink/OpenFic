@@ -172,7 +172,38 @@
     "created": "Character created",
     "deleted": "Character deleted",
     "nameExists": "Character name already exists",
-    "updateFailed": "Failed to save character"
+    "updateFailed": "Failed to save character",
+    "graph": {
+      "editorView": "Editor",
+      "graphView": "Relationships",
+      "relationshipCount": "{{count}} relationships",
+      "noRelationships": "No relationships yet",
+      "noDescription": "No description",
+      "search": "Find a character",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit view",
+      "autoLayout": "Auto arrange",
+      "autoLayoutFailed": "Could not arrange the graph",
+      "expandRelationship": "Expand relationship details",
+      "collapseRelationship": "Collapse relationship details",
+      "lock": "Lock graph",
+      "unlock": "Unlock graph",
+      "searchResults": "{{current}} / {{total}}",
+      "previous": "Previous result",
+      "next": "Next result",
+      "locate": "Locate",
+      "empty": "Create characters to start connecting them",
+      "loadFailed": "Could not load graph. Retry",
+      "duplicate": "These characters already have a relationship",
+      "create": "Create relationship",
+      "edit": "Edit relationship",
+      "name": "Relationship name",
+      "description": "Description (optional)",
+      "deleteConfirm": "Delete this relationship?",
+      "saveFailed": "Failed to save relationship or position",
+      "deleteFailed": "Failed to delete relationship"
+    }
   },
   "import": {
     "title": "Import Project",
@@ -836,6 +867,22 @@
       "deleteCharacter": {
         "name": "Delete Character",
         "description": "Delete a specified character."
+      },
+      "queryCharacterRelationships": {
+        "name": "Query Character Relationships",
+        "description": "Find relationship paths up to four hops between characters."
+      },
+      "createCharacterRelationship": {
+        "name": "Create Character Relationship",
+        "description": "Create a relationship between two characters."
+      },
+      "editCharacterRelationship": {
+        "name": "Edit Character Relationship",
+        "description": "Change a relationship's name and description."
+      },
+      "deleteCharacterRelationship": {
+        "name": "Delete Character Relationship",
+        "description": "Delete a relationship between two characters."
       },
       "listWorldEntries": {
         "name": "List World Entries",
@@ -2194,6 +2241,15 @@
       "createCharacter": "Create character",
       "editCharacter": "Edit character",
       "deleteCharacter": "Delete character",
+      "queryCharacterRelationships": "Query character relationships",
+      "createCharacterRelationship": "Create character relationship",
+      "editCharacterRelationship": "Edit character relationship",
+      "deleteCharacterRelationship": "Delete character relationship",
+      "charactersInRelationship": "Characters",
+      "relationshipName": "Relationship",
+      "relationshipPaths": "Relationship paths",
+      "noRelationshipPaths": "No relationship paths found",
+      "noRelationshipPathsDescription": "No characters are reachable within the requested number of hops.",
       "characterCount": "{{count}} characters",
       "noCharacterInfo": "No character info returned",
       "noCharacterInfoDescription": "This tool result does not include displayable character info.",

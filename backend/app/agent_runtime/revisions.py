@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 import json
 from typing import Literal
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
 from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_parent_revisions
@@ -15,7 +17,7 @@ from app.agent_runtime.persistence.model import AgentRunMessage
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
-from app.storage.models.character import Character
+from app.storage.models.character import Character, CharacterRelationship, RevisionCharacterRelationshipSnapshot
 from app.storage.models.commit import Commit
 from app.storage.models.note import Note
 from app.storage.models.note import NoteCategory
@@ -31,6 +33,7 @@ from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import (
     chapter_repo,
     character_repo,
+    character_relationship_repo,
     commit_repo,
     note_category_repo,
     note_repo,
@@ -100,6 +103,8 @@ class CharacterImage:
     name: str
     description: str
     is_favorited: bool
+    graph_x: float | None
+    graph_y: float | None
 
 
 @dataclass(frozen=True)
@@ -668,6 +673,8 @@ def _image_from_character(character: Character) -> CharacterImage:
         name=character.name,
         description=character.description,
         is_favorited=character.is_favorited,
+        graph_x=character.graph_x,
+        graph_y=character.graph_y,
     )
 
 
@@ -682,6 +689,8 @@ def _image_from_character_snapshot(
         name=snapshot.name or "",
         description=snapshot.description or "",
         is_favorited=snapshot.is_favorited if snapshot.is_favorited is not None else False,
+        graph_x=snapshot.graph_x,
+        graph_y=snapshot.graph_y,
     )
 
 
@@ -709,6 +718,8 @@ async def _snapshot_from_character_image(
         description=description,
         description_blob_id=description_blob_id,
         is_favorited=image.is_favorited,
+        graph_x=image.graph_x,
+        graph_y=image.graph_y,
     )
 def _character_has_changed(
     before: CharacterImage | None,
@@ -839,6 +850,27 @@ async def record_agent_activity_for_change(
     )
 
 
+async def record_relationship_before(
+    session: AsyncSession, revision_id: str, project_id: str,
+    relationship_id: str, before: CharacterRelationship | None,
+) -> None:
+    existing = await session.execute(select(RevisionCharacterRelationshipSnapshot).where(
+        col(RevisionCharacterRelationshipSnapshot.revision_id) == revision_id,
+        col(RevisionCharacterRelationshipSnapshot.relationship_id) == relationship_id,
+    ))
+    if existing.scalar_one_or_none() is not None:
+        return
+    session.add(RevisionCharacterRelationshipSnapshot(
+        revision_id=revision_id, project_id=project_id, relationship_id=relationship_id,
+        exists=before is not None,
+        source_character_id=before.source_character_id if before else None,
+        target_character_id=before.target_character_id if before else None,
+        name=before.name if before else None,
+        description=before.description if before else None,
+    ))
+    await session.flush()
+
+
 async def rollback_revision_for_session(
     session: AsyncSession,
     *,
@@ -863,6 +895,7 @@ async def rollback_revision_for_session(
     restore_by_category: dict[str, RevisionNoteCategorySnapshot] = {}
     restore_by_world_entry: dict[str, RevisionWorldEntrySnapshot] = {}
     restore_by_character: dict[str, RevisionCharacterSnapshot] = {}
+    restore_by_relationship: dict[str, RevisionCharacterRelationshipSnapshot] = {}
     for revision in revisions:
         snapshots = await revision_chapter_snapshot_repo.list_by_revision(
             session, revision.id
@@ -895,6 +928,13 @@ async def rollback_revision_for_session(
             restore_by_character.setdefault(
                 character_snapshot.character_id, character_snapshot
             )
+        relationship_snapshots = await session.execute(
+            select(RevisionCharacterRelationshipSnapshot).where(
+                col(RevisionCharacterRelationshipSnapshot.revision_id) == revision.id
+            )
+        )
+        for snapshot in relationship_snapshots.scalars():
+            restore_by_relationship.setdefault(snapshot.relationship_id, snapshot)
 
     restored_message_content = ""
     restored_attachments: list[dict] = []
@@ -1143,14 +1183,40 @@ async def rollback_revision_for_session(
                     name=after_character_image.name,
                     description=after_character_image.description,
                     is_favorited=after_character_image.is_favorited,
+                    graph_x=after_character_image.graph_x,
+                    graph_y=after_character_image.graph_y,
                 ),
             )
         else:
             current_character.name = after_character_image.name
             current_character.description = after_character_image.description
             current_character.is_favorited = after_character_image.is_favorited
+            current_character.graph_x = after_character_image.graph_x
+            current_character.graph_y = after_character_image.graph_y
             current_character.updated_at = datetime.now(UTC)
             await character_repo.update(session, current_character)
+
+    for snapshot in restore_by_relationship.values():
+        current = await character_relationship_repo.get(session, snapshot.relationship_id)
+        if not snapshot.exists:
+            if current is not None:
+                await session.delete(current)
+        elif snapshot.source_character_id and snapshot.target_character_id and snapshot.name is not None:
+            if current is None:
+                current = CharacterRelationship(
+                    id=snapshot.relationship_id, project_id=snapshot.project_id,
+                    source_character_id=snapshot.source_character_id,
+                    target_character_id=snapshot.target_character_id,
+                    name=snapshot.name, description=snapshot.description or "",
+                )
+            else:
+                current.source_character_id = snapshot.source_character_id
+                current.target_character_id = snapshot.target_character_id
+                current.name = snapshot.name
+                current.description = snapshot.description or ""
+            session.add(current)
+        affected_characters.extend(filter(None, (snapshot.source_character_id, snapshot.target_character_id)))
+    await session.flush()
 
     await refresh_project_stats(session, target.project_id)
     await compaction_repo.delete_intersecting_or_after(
