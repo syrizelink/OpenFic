@@ -485,6 +485,22 @@ class TestAgentAPI:
                 "is_readonly": False,
             },
             {
+                "key": "query_character_relationships",
+                "is_readonly": True,
+            },
+            {
+                "key": "create_character_relationship",
+                "is_readonly": False,
+            },
+            {
+                "key": "edit_character_relationship",
+                "is_readonly": False,
+            },
+            {
+                "key": "delete_character_relationship",
+                "is_readonly": False,
+            },
+            {
                 "key": "list_world_entries",
                 "is_readonly": True,
             },

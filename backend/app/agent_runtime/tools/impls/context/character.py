@@ -72,22 +72,22 @@ class QueryRelationshipsInput(BaseModel):
 
 
 class CreateRelationshipInput(BaseModel):
-    source_name: str
-    target_name: str
-    name: str = Field(min_length=1, max_length=200)
-    description: str = ""
+    source_name: str = Field(description="关系起点角色名称")
+    target_name: str = Field(description="关系终点角色名称")
+    name: str = Field(min_length=1, max_length=200, description="关系名称")
+    description: str = Field(default="", description="关系说明")
 
 
 class EditRelationshipInput(BaseModel):
-    source_name: str
-    target_name: str
-    name: str = Field(min_length=1, max_length=200)
-    description: str = ""
+    source_name: str = Field(description="关系起点角色名称")
+    target_name: str = Field(description="关系终点角色名称")
+    name: str = Field(min_length=1, max_length=200, description="关系名称")
+    description: str = Field(default="", description="关系说明")
 
 
 class DeleteRelationshipInput(BaseModel):
-    source_name: str
-    target_name: str
+    source_name: str = Field(description="关系起点角色名称")
+    target_name: str = Field(description="关系终点角色名称")
 
 
 def find_relationship_paths(relations: list[CharacterRelationship], start: str, target: str | None, max_hops: int) -> list[list[CharacterRelationship]]:
