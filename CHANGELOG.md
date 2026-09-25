@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.12.0](https://github.com/syrizelink/OpenFic/compare/v0.11.1...v0.12.0) (2026-09-25)
+
+
+### ✨ 新功能
+
+* **agent:** 增加 Agent 附件处理与文件读取工具 ([#406](https://github.com/syrizelink/OpenFic/issues/406)) ([cc0d0ab](https://github.com/syrizelink/OpenFic/commit/cc0d0ab01abe8fe24c1799641035ffa453fa3294))
+* **agent:** 支持运行时裁剪旧工具输出 ([#414](https://github.com/syrizelink/OpenFic/issues/414)) ([3a5c97a](https://github.com/syrizelink/OpenFic/commit/3a5c97ad3ab80c65c3a2a0570e6809c68c70ce1c))
+* **agent:** 新增 Agent 会话事件的系统通知功能 ([#417](https://github.com/syrizelink/OpenFic/issues/417)) ([d0e344b](https://github.com/syrizelink/OpenFic/commit/d0e344bff90d2af02ae3229dcc0bc03df4e4a5d5))
+* **character:** 添加角色关系图谱 ([#413](https://github.com/syrizelink/OpenFic/issues/413)) ([88feeb3](https://github.com/syrizelink/OpenFic/commit/88feeb30c28b132a216a8825b336889e7152992d))
+* **frontend:** 增加自定义主题设置 ([#398](https://github.com/syrizelink/OpenFic/issues/398)) ([5cd2241](https://github.com/syrizelink/OpenFic/commit/5cd2241a14d4df586af5eea754a83b6de17baa12))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复写入工具并发覆盖问题 ([#401](https://github.com/syrizelink/OpenFic/issues/401)) ([a979652](https://github.com/syrizelink/OpenFic/commit/a979652595b6c2f3740b4222be31b4fc82030094))
+* **agent:** 记录连接异常原因并避免 TLS 证书错误触发重试 ([#410](https://github.com/syrizelink/OpenFic/issues/410)) ([27a565f](https://github.com/syrizelink/OpenFic/commit/27a565fac0daf700956b66c012c33b7639495bdc))
+* **agent:** 适配 OpenCode Go 提供商模型请求头 ([#418](https://github.com/syrizelink/OpenFic/issues/418)) ([2e15207](https://github.com/syrizelink/OpenFic/commit/2e15207f75ca7080fe0108e06da5f1ba7fab578e))
+* **backend:** 修复 Anthropic 兼容提供商错误回退到 OpenAI 协议的问题 ([#408](https://github.com/syrizelink/OpenFic/issues/408)) ([2ba74af](https://github.com/syrizelink/OpenFic/commit/2ba74af69ccd36af9644c5b8282ac8537be8a050))
+* **frontend:** 修复工具栏滑动误触发移动端侧栏手势的问题 ([#395](https://github.com/syrizelink/OpenFic/issues/395)) ([284cf6b](https://github.com/syrizelink/OpenFic/commit/284cf6bf0c5c98f6ed36ae38db9f7f5225d62b87))
+* **frontend:** 修复模型名称变化导致 LLM 统计图表重复键的问题 ([#402](https://github.com/syrizelink/OpenFic/issues/402)) ([a22269c](https://github.com/syrizelink/OpenFic/commit/a22269c09e69bc0856db64bd212ac3bf8ac05a1a))
+* **frontend:** 修复部分异常的编辑器行为影响移动端体验的问题 ([#407](https://github.com/syrizelink/OpenFic/issues/407)) ([73c50c0](https://github.com/syrizelink/OpenFic/commit/73c50c091b1a6946e730551a88fbced1b66ac366))
+
+
+### 🔧 杂项
+
+* **agent:** 允许在设置各类模型默认值时设置推理强度 ([#416](https://github.com/syrizelink/OpenFic/issues/416)) ([ffaf732](https://github.com/syrizelink/OpenFic/commit/ffaf732a52d8be821fa78181585d0776241549c2))
+* **agent:** 增加 Agent 会话消息导航 ([#404](https://github.com/syrizelink/OpenFic/issues/404)) ([af02d4a](https://github.com/syrizelink/OpenFic/commit/af02d4ac86d60eb8b29232fd9b97a3f1051515af))
+* **agent:** 增加 Agent 输入框引用面板 ([#409](https://github.com/syrizelink/OpenFic/issues/409)) ([5fbbad0](https://github.com/syrizelink/OpenFic/commit/5fbbad0c01599d6d75c59705a1fa395a8a32cdae))
+* **agent:** 增加上下文压缩与裁剪设置 ([#415](https://github.com/syrizelink/OpenFic/issues/415)) ([a36c3e9](https://github.com/syrizelink/OpenFic/commit/a36c3e93f8ca77d1a919a212427a3f4a62d84911))
+* **summary:** 增加摘要设置 ([#400](https://github.com/syrizelink/OpenFic/issues/400)) ([afb0264](https://github.com/syrizelink/OpenFic/commit/afb02649081140fb70e80dca2fe7b1fc108f95b4))
+* 调整部分不合规范的UI样式细节 ([#405](https://github.com/syrizelink/OpenFic/issues/405)) ([bf8e227](https://github.com/syrizelink/OpenFic/commit/bf8e22758dd8c79202573b762697b63adf5ec677))
+
 ## [0.11.1](https://github.com/syrizelink/OpenFic/compare/v0.11.0...v0.11.1) (2026-09-09)
 
 
