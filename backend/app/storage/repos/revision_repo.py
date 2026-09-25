@@ -83,15 +83,25 @@ async def list_by_agent_session_from_seq(
     session: AsyncSession,
     agent_session_id: str,
     user_message_seq: int,
+    *,
+    include_rolled_back: bool = False,
 ) -> list[Revision]:
-    """List non-rollback agent revisions from a user message seq onward."""
-    result = await session.execute(
+    """List non-rollback agent revisions from a user message seq onward.
+
+    include_rolled_back 供回滚重入使用：部分失败的回滚（数据层已提交、
+    checkpoint 清理未完成）重做时，已标记 rolled_back 的 revision 也要
+    纳入，否则子代理清理边界无法重算。
+    """
+    query = (
         select(Revision)
         .where(col(Revision.agent_session_id) == agent_session_id)
         .where(col(Revision.revision_type) == "agent")
-        .where(col(Revision.status) != "rolled_back")
         .where(col(Revision.user_message_seq) >= user_message_seq)
-        .order_by(col(Revision.user_message_seq).asc(), col(Revision.created_at).asc())
+    )
+    if not include_rolled_back:
+        query = query.where(col(Revision.status) != "rolled_back")
+    result = await session.execute(
+        query.order_by(col(Revision.user_message_seq).asc(), col(Revision.created_at).asc())
     )
     return list(result.scalars().all())
 
