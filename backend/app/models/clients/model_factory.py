@@ -30,6 +30,7 @@ from app.models.helpers.openrouter_attribution import (
     OPENROUTER_APP_TITLE,
     OPENROUTER_APP_URL,
 )
+from app.models.helpers.requesty_attribution import get_requesty_attribution_headers
 
 
 @dataclass
@@ -132,6 +133,8 @@ def _is_opencode_provider(config: ModelConfig) -> bool:
 
 def _model_request_headers(config: ModelConfig) -> dict[str, str]:
     headers = dict(config.custom_headers or {})
+    if config.provider_type == "requesty":
+        headers = {**get_requesty_attribution_headers(), **headers}
     _set_header(headers, "User-Agent", _application_user_agent())
     is_opencode_provider = _is_opencode_provider(config)
     if is_opencode_provider:

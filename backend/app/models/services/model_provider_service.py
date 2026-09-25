@@ -42,6 +42,8 @@ def _get_model_discovery_provider_type(provider_type: str) -> str:
         return "openai-compatible-responses"
     if provider_type == "gemini-compatible":
         return "gemini-compatible"
+    if provider_type == "requesty":
+        return "requesty"
     return "openai-compatible"
 
 
