@@ -23,6 +23,7 @@ from app.models.adapters.openai_compat_family import (
 from app.models.adapters.openai_compatible import OpenAICompatibleAdapter
 from app.models.adapters.openai_responses_compatible import OpenAIResponsesCompatibleAdapter
 from app.models.adapters.openrouter import OpenRouterAdapter
+from app.models.adapters.requesty import RequestyAdapter
 
 __all__ = [
     "BaseAdapter",
@@ -41,5 +42,6 @@ __all__ = [
     "OpenAICompatibleAdapter",
     "OpenAIResponsesCompatibleAdapter",
     "OpenRouterAdapter",
+    "RequestyAdapter",
 ]
 

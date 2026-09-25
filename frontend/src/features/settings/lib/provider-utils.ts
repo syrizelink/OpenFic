@@ -9,6 +9,7 @@ import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "
 const EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES = new Set<ProviderType>([
   "openai",
   "openrouter",
+  "requesty",
   "openai-compatible",
   "ollama",
   "nvidia-ai-endpoints",
@@ -54,6 +55,7 @@ export function getProviderDisplayName(providerType: string): string {
     "nvidia-ai-endpoints": "NVIDIA AI Endpoints",
     cohere: "Cohere",
     openrouter: "OpenRouter",
+    requesty: "Requesty",
     "amazon-nova": "Amazon Nova",
     deepseek: "DeepSeek",
     "openai-compatible": "OpenAI Compatible",

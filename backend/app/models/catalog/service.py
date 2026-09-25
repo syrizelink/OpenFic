@@ -61,6 +61,7 @@ _PROVIDER_DEFINITIONS: tuple[_ProviderDefinition, ...] = (
     _ProviderDefinition("nvidia-ai-endpoints", "nvidia"),
     _ProviderDefinition("cohere", "cohere"),
     _ProviderDefinition("openrouter", "openrouter"),
+    _ProviderDefinition("requesty", "requesty"),
     _ProviderDefinition("amazon-nova", "nova"),
     _ProviderDefinition("deepseek", "deepseek"),
 )
