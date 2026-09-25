@@ -235,6 +235,7 @@ async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
         "reasoning_effort": "high",
     }
     captured_states: list[dict[str, Any]] = []
+    captured_configs: list[Any] = []
 
     runner = SubagentRunner(
         session_factory=db_session_factory,
@@ -265,7 +266,7 @@ async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
     )
     monkeypatch.setattr(
         "app.agent_runtime.runner.subagent_runner.create_chat_model",
-        lambda _config: object(),
+        lambda config: captured_configs.append(config) or object(),
     )
     monkeypatch.setattr(
         "app.agent_runtime.runner.subagent_runner.create_react_agent",
@@ -273,7 +274,7 @@ async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
     )
 
     graph, model_config = await runner._build_graph(
-        SimpleNamespace(agent_key="configured-subagent"),
+        SimpleNamespace(agent_key="configured-subagent", child_thread_id="child-thread"),
         definition,
         {"model_config": dict(parent_config)},
     )
@@ -281,6 +282,7 @@ async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
     assert graph is not None
     assert model_config == resolved_config
     assert captured_states == [{"model_config": resolved_config}]
+    assert captured_configs[0].session_id == "child-thread"
 
 
 @pytest.mark.asyncio

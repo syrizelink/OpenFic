@@ -102,6 +102,61 @@ async def test_primary_tool_names_forward_explicit_skill_references() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_primary_node_passes_agent_session_id_to_model_config() -> None:
+    from app.agent_runtime.graph.orchestrator.graph import primary_node
+
+    captured_configs = []
+
+    class _Graph:
+        async def ainvoke(self, *_args, **_kwargs):
+            return {}
+
+    state = {
+        "session_id": "agent-session-1",
+        "task_id": "task-1",
+        "project_id": "project-1",
+        "model_config": {
+            "provider_type": "openai-compatible",
+            "base_url": "https://gateway.example/v1",
+            "api_key": "test-key",
+            "model_id": "test-model",
+            "max_context_tokens": 8000,
+        },
+        "agent_key": "build",
+        "messages": [],
+        "user_request": "continue",
+        "user_attachments": [],
+        "is_completed": False,
+        "error": None,
+        "retry_count": 0,
+        "current_revision_id": None,
+    }
+    config = {"configurable": {"model_config": state["model_config"]}}
+
+    with (
+        patch(
+            "app.agent_runtime.graph.orchestrator.graph.create_chat_model",
+            side_effect=lambda model_config: captured_configs.append(model_config) or object(),
+        ),
+        patch(
+            "app.agent_runtime.graph.orchestrator.graph._primary_tool_names",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.graph.orchestrator.graph._primary_build_hooks",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.graph.orchestrator.graph.create_react_agent",
+            return_value=_Graph(),
+        ),
+    ):
+        await primary_node(state, config)
+
+    assert captured_configs[0].session_id == "agent-session-1"
+
+
 def test_session_runner_constructor_no_longer_accepts_mode():
     with pytest.raises(TypeError):
         SessionRunner(

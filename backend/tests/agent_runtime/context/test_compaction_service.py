@@ -313,6 +313,7 @@ async def test_compact_window_uses_selected_light_model(
         model_reference=model_reference,
     )
     assert selected_configs[0].model_id == "light-llm"
+    assert selected_configs[0].session_id == "session_test"
     assert selected_configs[0].reasoning_effort == "high"
     record_lookup.assert_awaited_once_with(
         db_session, "light-record" if model_reference == "__system_light_model__" else model_reference

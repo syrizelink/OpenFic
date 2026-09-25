@@ -150,7 +150,9 @@ async def primary_node(
     )
     if not isinstance(runtime_model_config, dict):
         raise ValueError("Agent 运行时模型配置不可用")
-    model_config = ModelConfig(**to_client_model_config(runtime_model_config))
+    client_model_config = to_client_model_config(runtime_model_config)
+    client_model_config["session_id"] = state.get("session_id")
+    model_config = ModelConfig(**client_model_config)
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "build")
     referenced_skill_ids = _primary_referenced_skill_ids(state)

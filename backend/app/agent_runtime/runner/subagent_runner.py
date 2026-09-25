@@ -437,7 +437,11 @@ class SubagentRunner:
             tools=await self._build_tools(definition, runtime_state),
             termination=TerminationCondition(mode="no_tool_call"),
         )
-        model = create_chat_model(ModelConfig(**to_client_model_config(model_config)))
+        client_model_config = to_client_model_config(model_config)
+        session_id = runtime_state.get("session_id") or getattr(row, "child_thread_id", None)
+        if session_id:
+            client_model_config["session_id"] = session_id
+        model = create_chat_model(ModelConfig(**client_model_config))
         graph = create_react_agent(
             agent_config,
             model=model,

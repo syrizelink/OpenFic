@@ -129,7 +129,8 @@ def test_create_chat_model_gemini_compatible_uses_custom_native_client():
     assert isinstance(model, ChatGoogleGenerativeAI)
     assert model.base_url == {"api_endpoint": "https://gateway.example/gemini"}
     assert model.api_version == "v1beta"
-    assert model.additional_headers == {"X-Provider-Token": "custom-token"}
+    assert model.additional_headers["X-Provider-Token"] == "custom-token"
+    assert model.additional_headers["User-Agent"].startswith("OpenFic/")
     assert model.thinking_level == "high"
     assert model.max_retries == 0
 
@@ -156,6 +157,101 @@ def test_create_chat_model_custom_providers_send_custom_headers():
 
     assert openai_model.default_headers["X-Provider-Token"] == "custom-token"
     assert anthropic_model.default_headers["X-Provider-Token"] == "custom-token"
+    assert openai_model.default_headers["User-Agent"].startswith("OpenFic/")
+    assert anthropic_model.default_headers["User-Agent"].startswith("OpenFic/")
+
+
+def test_create_chat_model_adds_versioned_application_user_agent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "app_name", "OpenFic")
+    monkeypatch.setattr(settings, "app_version", "0.11.1")
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="opencode",
+            base_url="https://opencode.example/v1",
+            api_key="test-key",
+            model_id="custom-model",
+            session_id="agent-session-1",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+
+    assert model.default_headers["User-Agent"] == "OpenFic/0.11.1"
+    assert model.default_headers["X-Provider-Token"] == "custom-token"
+
+
+@pytest.mark.parametrize("provider_type", ["opencode", "opencode-go"])
+def test_create_chat_model_adds_opencode_session_header(provider_type: str) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url="https://opencode.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
+def test_create_chat_model_adds_opencode_headers_for_openai_compatible_endpoint() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert model.default_headers["User-Agent"] == "OpenFic/0.11.1"
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
+def test_create_chat_model_generates_opencode_session_when_not_provided() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key="test-key",
+            model_id="test-model",
+        )
+    )
+
+    assert model.default_headers["x-opencode-session"]
+
+
+def test_create_chat_model_does_not_add_opencode_header_to_other_providers() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert "x-opencode-session" not in model.default_headers
+
+
+def test_create_chat_model_adds_application_user_agent_to_non_opencode_provider() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+        )
+    )
+
+    assert model.default_headers["User-Agent"].startswith("OpenFic/")
 
 
 def test_create_chat_model_with_temperature():
