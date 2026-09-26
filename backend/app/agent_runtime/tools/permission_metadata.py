@@ -45,6 +45,7 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
     "list_volumes": ToolPermissionMetadata("list_volumes", "allow"),
     "list_world_entries": ToolPermissionMetadata("list_world_entries", "allow"),
     "move_chapter_to_volume": ToolPermissionMetadata("move_chapter_to_volume", "ask"),
+    "reorder_chapters": ToolPermissionMetadata("reorder_chapters", "ask"),
     "move_note": ToolPermissionMetadata("move_note", "ask"),
     "notify_subagent": ToolPermissionMetadata("notify_subagent", "allow"),
     "read_chapter": ToolPermissionMetadata("read_chapter", "allow"),
