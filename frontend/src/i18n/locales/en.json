@@ -1123,6 +1123,7 @@
     "webSearchProviderSearxng": "SearXNG",
     "webSearchProviderSerper": "Serper",
     "webSearchProviderTavily": "Tavily",
+    "webSearchProviderYoucom": "You.com",
     "webSearchProviderZhipu": "Zhipu AI",
     "webSearchFieldDdgsBackend": "DDGS backend",
     "webSearchFieldJinaBaseUrl": "Jina endpoint",

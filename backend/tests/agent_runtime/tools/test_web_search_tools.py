@@ -78,6 +78,7 @@ class TestProviderRegistry:
             "searxng",
             "serper",
             "tavily",
+            "youcom",
             "zhipu",
         }
 
@@ -441,6 +442,53 @@ class TestHttpProviders:
 
     @pytest.mark.asyncio
     @respx.mock
+    async def test_youcom_parses_web_results(self) -> None:
+        provider = get_provider("youcom")()
+        route = respx.post("https://ydc-index.io/v1/search").mock(
+            return_value=Response(
+                200,
+                json={
+                    "results": {
+                        "web": [
+                            {
+                                "title": "t",
+                                "url": "https://u",
+                                "description": "d",
+                                "snippets": ["s"],
+                            }
+                        ]
+                    }
+                },
+            )
+        )
+        response = await provider.search("q", _provider_config())
+        assert route.called
+        assert route.calls[0].request.headers["x-api-key"] == "test-key"
+        assert json.loads(route.calls[0].request.read())["count"] == 8
+        assert response.results[0].url == "https://u"
+        assert response.results[0].snippet == "d"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_youcom_falls_back_to_snippets(self) -> None:
+        provider = get_provider("youcom")()
+        respx.post("https://ydc-index.io/v1/search").mock(
+            return_value=Response(
+                200,
+                json={
+                    "results": {
+                        "web": [
+                            {"title": "t", "url": "https://u", "snippets": ["s1", "s2"]}
+                        ]
+                    }
+                },
+            )
+        )
+        response = await provider.search("q", _provider_config())
+        assert response.results[0].snippet == "s1"
+
+    @pytest.mark.asyncio
+    @respx.mock
     async def test_searxng_requires_base_url(self) -> None:
         provider = get_provider("searxng")()
         with pytest.raises(ToolExecutionError, match="searxng_base_url"):
@@ -688,7 +736,7 @@ class TestProviderKeyValidation:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "name",
-        ["brave", "exa", "jina", "perplexity", "serper", "tavily", "zhipu"],
+        ["brave", "exa", "jina", "perplexity", "serper", "tavily", "youcom", "zhipu"],
     )
     async def test_providers_require_api_key(self, name: str) -> None:
         provider = get_provider(name)()
