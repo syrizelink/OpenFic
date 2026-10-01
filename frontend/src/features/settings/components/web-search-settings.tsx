@@ -65,6 +65,7 @@ const PROVIDER_LABEL_KEY_MAP: Record<string, string> = {
   searxng: "settings.webSearchProviderSearxng",
   serper: "settings.webSearchProviderSerper",
   tavily: "settings.webSearchProviderTavily",
+  youcom: "settings.webSearchProviderYoucom",
   zhipu: "settings.webSearchProviderZhipu",
 };
 
