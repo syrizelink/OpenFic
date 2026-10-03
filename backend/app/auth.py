@@ -80,6 +80,7 @@ class AuthMiddleware:
         if path.startswith(f"{self.api_prefix}/auth/") or path in {
             f"{self.api_prefix}/health",
             f"{self.api_prefix}/health/shutdown",
+            f"{self.api_prefix}/openai-codex/auth/callback",
         } or not path.startswith(self._protected_prefixes):
             await self.app(scope, receive, send)
             return

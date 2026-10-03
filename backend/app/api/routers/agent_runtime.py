@@ -82,6 +82,7 @@ from app.api.schemas.agent import (
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
+from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
 from app.models.clients.model_params import normalize_reasoning_effort
 from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
@@ -533,10 +534,13 @@ async def _resolve_model_config(
         raise NotFoundError(f"模型提供商不存在：{model.provider_id}")
 
     encryption_service = EncryptionService(settings.encryption_key)
-    try:
-        api_key = encryption_service.decrypt(provider.api_key_encrypted)
-    except Exception as exc:
-        raise ValueError("API密钥解密失败") from exc
+    if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+        api_key = ""
+    else:
+        try:
+            api_key = encryption_service.decrypt(provider.api_key_encrypted)
+        except Exception as exc:
+            raise ValueError("API密钥解密失败") from exc
 
     custom_headers = ModelProviderService(
         encryption_service
@@ -554,13 +558,16 @@ async def _resolve_model_config(
                 effort_setting.value if effort_setting else None
             )
             break
-    return await _build_model_config(
+    model_config = await _build_model_config(
         model,
         provider,
         api_key,
         reasoning_effort,
         custom_headers,
     )
+    if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+        model_config["provider_id"] = provider.id
+    return model_config
 
 
 async def _resolve_legacy_model_config(

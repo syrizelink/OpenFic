@@ -66,7 +66,7 @@ apiClient.interceptors.response.use(
       handleAuthenticationFailure();
     }
     // 开发环境记录错误日志
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && !error.config?.url?.includes("/openai-codex/")) {
       console.error("API Error:", error);
     }
     return Promise.reject(error);

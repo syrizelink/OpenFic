@@ -28,6 +28,7 @@ from app.agent_runtime.persistence.compaction_types import (
 from app.agent_runtime.persistence.errors import PersistenceWriteError
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 from app.models.clients.model_params import normalize_reasoning_effort
+from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
 from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
 from app.core.encryption import EncryptionService
@@ -176,7 +177,11 @@ async def compact_window(
             effective_model_config = {
                 "provider_type": provider.provider_type,
                 "base_url": provider.url,
-                "api_key": encryption.decrypt(provider.api_key_encrypted),
+                "api_key": (
+                    ""
+                    if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+                    else encryption.decrypt(provider.api_key_encrypted)
+                ),
                 "model_id": record.model_id,
                 **({"custom_headers": headers} if headers else {}),
                 "temperature": record.temperature,
@@ -189,6 +194,8 @@ async def compact_window(
                 "presence_penalty": record.presence_penalty,
                 "repetition_penalty": record.repetition_penalty,
             }
+            if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+                effective_model_config["provider_id"] = provider.id
             if model_reference in {DEFAULT_MODEL_REFERENCE, LIGHT_MODEL_REFERENCE}:
                 effort_setting = await setting_repo.get_by_key(
                     db_session,

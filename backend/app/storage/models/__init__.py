@@ -5,6 +5,7 @@
 
 from app.models.entities.model import Model
 from app.models.entities.model_provider import ModelProvider
+from app.models.entities.model_provider_oauth_registration import ModelProviderOAuthRegistration
 from app.background.jobs.models import (
     BackgroundJob,
     BackgroundJobEvent,
@@ -61,6 +62,7 @@ __all__ = [
     "Commit",
     "Model",
     "ModelProvider",
+    "ModelProviderOAuthRegistration",
     "Note",
     "NoteCategory",
     "Project",

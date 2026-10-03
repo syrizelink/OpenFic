@@ -191,6 +191,19 @@ async def test_auth_keeps_health_check_public() -> None:
     assert response.status_code == 200
 
 
+async def test_openai_codex_callback_does_not_require_browser_application_cookie() -> None:
+    app = _create_auth_test_app("secret")
+
+    @app.app.get("/api/v1/openai-codex/auth/callback")
+    async def callback() -> dict[str, str]:
+        return {"status": "state-validation-required"}
+
+    response = await _request(app, "GET", "/api/v1/openai-codex/auth/callback")
+    assert response.status_code == 200
+    start = await _request(app, "POST", "/api/v1/openai-codex/auth/start")
+    assert start.status_code == 401
+
+
 async def test_auth_rejects_websocket_with_unauthorized_response() -> None:
     app = _create_auth_test_app("secret")
     sent_messages: list[dict[str, object]] = []

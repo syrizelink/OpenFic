@@ -17,6 +17,12 @@ from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.models.adapters.anthropic_compatible import ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
 from app.models.catalog import CatalogMatch, ModelProviderCatalogService
+from app.models.services.openai_codex_service import (
+    OPENAI_CODEX_API_BASE_URL,
+    OPENAI_CODEX_PROVIDER_TYPE,
+    OpenAICodexCredentialStore,
+    get_openai_codex_access_token,
+)
 from app.models.entities.model_provider import ModelProvider
 from app.models.registry import AdapterRegistry
 from app.models.repos import model_provider_repo
@@ -42,6 +48,8 @@ def _get_model_discovery_provider_type(provider_type: str) -> str:
         return "openai-compatible-responses"
     if provider_type == "gemini-compatible":
         return "gemini-compatible"
+    if provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+        return OPENAI_CODEX_PROVIDER_TYPE
     return "openai-compatible"
 
 
@@ -90,6 +98,8 @@ class ModelProviderService:
     ) -> list[str]:
         if provider.is_builtin:
             return ["embedding", "rerank"]
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            return ["llm"]
         if provider.provider_type == "gemini-compatible":
             return ["llm"]
         if catalog_match is None:
@@ -104,6 +114,8 @@ class ModelProviderService:
         provider: ModelProvider,
         catalog_match: CatalogMatch | None = None,
     ) -> str | None:
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            return "/icons/model/catalog/openai.svg"
         if catalog_match is None:
             catalog_match = await self.get_catalog_match(provider)
         return catalog_match.icon_path if catalog_match else None
@@ -214,6 +226,8 @@ class ModelProviderService:
         Returns:
             创建的提供商实例。
         """
+        if provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            raise ValueError("OpenAI Codex 必须通过 OAuth 授权创建")
         url = await self._resolve_provider_url(provider_type, url)
 
         # 加密 API Key
@@ -237,6 +251,8 @@ class ModelProviderService:
         return provider
 
     async def _resolve_provider_url(self, provider_type: str, url: str) -> str:
+        if provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            return OPENAI_CODEX_API_BASE_URL
         if provider_type in {
             "openai-compatible",
             "openai-compatible-responses",
@@ -285,6 +301,8 @@ class ModelProviderService:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         if existing.is_builtin:
             raise ValueError("内置提供商不允许编辑")
+        if existing.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            raise ValueError("OpenAI Codex 连接必须通过 OAuth 重新授权或断开")
 
         # 加密 API Key（如果提供）
         encrypted_key = None
@@ -325,13 +343,16 @@ class ModelProviderService:
         await session.commit()
         return provider
 
-    async def delete_provider(self, session: AsyncSession, provider_id: str) -> None:
+    async def delete_provider(self, session: AsyncSession, provider_id: str) -> bool:
         """
         删除提供商。
 
         Args:
             session: 数据库 session。
             provider_id: 提供商 ID。
+
+        Returns:
+            是否确认 OAuth 撤销；无需撤销授权的提供商返回 True。
 
         Raises:
             NotFoundError: 如果提供商不存在。
@@ -342,10 +363,13 @@ class ModelProviderService:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         if provider.is_builtin:
             raise ValueError("内置提供商不允许删除")
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            return await OpenAICodexCredentialStore(self.encryption_service).revoke_and_delete(session, provider)
         success = await model_provider_repo.delete_by_id(session, provider_id)
         if not success:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         await session.commit()
+        return True
 
     # ========================
     # API Key 操作
@@ -437,6 +461,20 @@ class ModelProviderService:
         """
         if provider.is_builtin:
             return self._builtin_available_models(task_type)
+
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            if task_type != "llm":
+                raise ValueError(
+                    f"Provider '{provider.provider_type}' does not support task_type '{task_type}'"
+                )
+            access_token = await get_openai_codex_access_token(provider.id)
+            adapter = AdapterRegistry.get_adapter(OPENAI_CODEX_PROVIDER_TYPE)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                return await adapter.get_llm_models(
+                    client,
+                    OPENAI_CODEX_API_BASE_URL,
+                    access_token,
+                )
 
         logger.info(
             f"Fetching available models for provider={provider.provider_type}, task_type={task_type}"

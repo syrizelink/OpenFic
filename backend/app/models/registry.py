@@ -18,6 +18,7 @@ from app.models.adapters.gemini_compatible import GeminiCompatibleAdapter
 from app.models.adapters.google_genai import GoogleGenAIAdapter
 from app.models.adapters.mistral import MistralAdapter
 from app.models.adapters.openai import OpenAIAdapter
+from app.models.adapters.openai_codex import OpenAICodexAdapter
 from app.models.adapters.openai_compat_family import (
     AmazonNovaAdapter,
     CohereAdapter,
@@ -38,6 +39,7 @@ class AdapterRegistry:
     # Adapter映射关系：provider_type -> Adapter类
     _registry: dict[str, Type[BaseAdapter]] = {
         "openai": OpenAIAdapter,
+        "openai-codex": OpenAICodexAdapter,
         "anthropic": AnthropicAdapter,
         "anthropic-compatible": AnthropicCompatibleAdapter,
         "gemini-compatible": GeminiCompatibleAdapter,

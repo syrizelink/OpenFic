@@ -9,12 +9,24 @@ import httpx
 import pytest
 import respx
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.models.repos import model_provider_repo
 
 _OPENAI_ICON_URL = "/icons/model/catalog/openai.svg"
 _OPENROUTER_ICON_URL = "/icons/model/catalog/openrouter.svg"
+
+
+@pytest.fixture
+async def _replace_memory_connection(db_engine: AsyncEngine) -> None:
+    await db_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_provider_list_recovers_after_connection_replacement(_replace_memory_connection, client: AsyncClient):
+    response = await client.get("/api/v1/model-providers")
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.asyncio

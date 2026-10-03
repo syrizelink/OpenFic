@@ -38,6 +38,7 @@ class ModelConfig:
     base_url: str
     api_key: str
     model_id: str
+    provider_id: str | None = None
     custom_headers: dict[str, str] | None = None
     session_id: str | None = None
     max_context_tokens: int | None = None
@@ -398,6 +399,18 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         return ChatOpenAI(
             **_openai_compatible_kwargs(config),
             use_responses_api=True,
+        )
+
+    if provider == "openai-codex":
+        from app.models.clients.openai_codex import OpenAICodexChatModel
+
+        return OpenAICodexChatModel(
+            model=config.model_id,
+            api_key=config.api_key,
+            provider_id=config.provider_id,
+            base_url=config.base_url or "https://api.openai.com/v1",
+            reasoning_effort=reasoning_effort,
+            default_headers=_model_request_headers(config),
         )
 
     if provider == "nvidia-ai-endpoints":

@@ -710,6 +710,16 @@ export function registerIpc(context: IpcContext): void {
     context.shellWindow()?.close();
   });
   ipcMain.handle(IpcChannels.openProjectHome, () => shell.openExternal(PROJECT_HOME_URL));
+  ipcMain.handle(IpcChannels.openOpenAICodexAuthorization, async (_event, value: unknown) => {
+    if (typeof value !== "string") throw new Error("Invalid OpenAI Codex authorization URL");
+    const url = new URL(value);
+    if (
+      url.origin !== "https://auth.openai.com" ||
+      url.pathname !== "/api/accounts/authorize" ||
+      url.username || url.password
+    ) throw new Error("Invalid OpenAI Codex authorization URL");
+    await shell.openExternal(url.href);
+  });
   ipcMain.handle(IpcChannels.reportBug, () => shell.openExternal(BUG_REPORT_URL));
   ipcMain.handle(IpcChannels.suggestFeature, () => shell.openExternal(FEATURE_SUGGESTION_URL));
 }

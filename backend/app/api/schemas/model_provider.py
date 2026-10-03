@@ -38,6 +38,18 @@ class ModelProviderResponse(BaseModel):
     )
     icon_path: str | None = Field(description="Catalog 图标路径")
     is_builtin: bool = Field(default=False, description="是否为内置提供商")
+    account_email: str | None = Field(
+        default=None,
+        description="OpenAI Codex 账户邮箱（不包含令牌）",
+    )
+    account_connected: bool | None = Field(
+        default=None,
+        description="OpenAI Codex 是否仍有可用授权",
+    )
+    openai_codex_access_enabled: bool | None = Field(
+        default=None,
+        description="OpenAI Codex 是否授予 direct token scope",
+    )
     catalog_match: CatalogMatchResponse | None = Field(
         default=None, description="匹配到的 catalog 提供商元数据"
     )

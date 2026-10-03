@@ -12,6 +12,7 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Response,
     status,
 )
 from loguru import logger
@@ -28,6 +29,10 @@ from app.api.schemas.model_provider import (
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.models.catalog import ModelProviderCatalogService
+from app.models.services.openai_codex_service import (
+    OPENAI_CODEX_PROVIDER_TYPE,
+    get_openai_codex_credentials,
+)
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.settings import settings
@@ -90,6 +95,7 @@ async def _build_provider_response(
     icon_path = await service.get_effective_icon_path(
         provider, catalog_match=catalog_match
     )
+    credentials = get_openai_codex_credentials(provider, service.encryption_service)
 
     return ModelProviderResponse(
         id=provider.id,
@@ -100,6 +106,9 @@ async def _build_provider_response(
         supported_task_types=supported_task_types,
         icon_path=icon_path,
         is_builtin=provider.is_builtin,
+        account_email=credentials.email if credentials else None,
+        account_connected=credentials.is_connected if credentials else None,
+        openai_codex_access_enabled=credentials.openai_codex_access_enabled if credentials else None,
         catalog_match=(
             CatalogMatchResponse.model_validate(catalog_match.model_dump())
             if catalog_match is not None
@@ -274,7 +283,7 @@ async def delete_provider(
     provider_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
-) -> None:
+) -> Response:
     """
     删除提供商。
 
@@ -290,7 +299,11 @@ async def delete_provider(
     logger.info(f"删除提供商: {provider_id}")
 
     try:
-        await service.delete_provider(session, provider_id)
+        revocation_confirmed = await service.delete_provider(session, provider_id)
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT,
+            headers={"X-OAuth-Revocation-Confirmed": str(revocation_confirmed).lower()},
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:
@@ -392,6 +405,22 @@ async def get_provider_models(
             return ModelProviderValidateResponse(
                 success=True,
                 message="获取模型列表成功",
+                models=[AvailableModel.model_validate(model) for model in enriched_models],
+            )
+
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+            models = await service.get_available_models(
+                provider=provider,
+                task_type=task_type,
+            )
+            enriched_models = await service.enrich_models_with_catalog_metadata(
+                provider=provider,
+                task_type=task_type,
+                models=models,
+            )
+            return ModelProviderValidateResponse(
+                success=True,
+                message="获取模型列表成功" if models else "账户目录没有可用模型",
                 models=[AvailableModel.model_validate(model) for model in enriched_models],
             )
 

@@ -14,6 +14,27 @@ from app.models.registry import AdapterRegistry
 from app.models.services.model_provider_service import ModelProviderService
 
 
+@pytest.mark.asyncio
+async def test_oauth_registrations_are_isolated_by_provider_type_and_issuer(session):
+    from sqlmodel import SQLModel
+
+    assert "model_provider_oauth_registrations" in SQLModel.metadata.tables
+    from app.models.repos import model_provider_oauth_registration_repo as registration_repo
+
+    scopes = [("openai-codex", "https://auth.openai.com"), ("other-provider", "https://auth.openai.com"), ("openai-codex", "https://other.example.com")]
+    for index, (provider_type, issuer) in enumerate(scopes):
+        await registration_repo.save_verified(session, provider_type=provider_type, issuer=issuer,
+            client_id="same-client-id", subject=f"subject-{index}", email="same@example.com", provider_id=None)
+    for index, (provider_type, issuer) in enumerate(scopes):
+        registrations = await registration_repo.get_all(session, provider_type=provider_type, issuer=issuer)
+        assert len(registrations) == 1
+        assert registrations[0].subject == f"subject-{index}"
+        assert not {"access_token", "refresh_token", "id_token"} & registrations[0].model_dump().keys()
+    with pytest.raises(ValueError, match="identity"):
+        await registration_repo.save_verified(session, provider_type=scopes[0][0], issuer=scopes[0][1],
+            client_id="same-client-id", subject="wrong-subject", email="same@example.com", provider_id=None)
+
+
 _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
     "freemodel",
     "minimax",
@@ -23,6 +44,16 @@ _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
     "subconscious",
     "thinkingmachines",
 ]
+
+
+@pytest.mark.asyncio
+async def test_oauth_codex_provider_uses_openai_icon():
+    service = ModelProviderService(EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ="))
+    provider = ModelProvider(
+        name="OpenAI Codex", provider_type="openai-codex", url="https://api.openai.com/v1",
+        api_key_encrypted="",
+    )
+    assert await service.get_effective_icon_path(provider) == "/icons/model/catalog/openai.svg"
 
 
 class _FakeAdapter:

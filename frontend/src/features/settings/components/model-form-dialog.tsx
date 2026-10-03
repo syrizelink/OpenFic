@@ -285,16 +285,27 @@ export function ModelFormDialog({
     void loadModelsForProvider(providerId, taskType as TaskType);
   }, [loadModelsForProvider, providerId, taskType]);
 
-  // 提供商或任务类型变化时，使用 catalog 模型作为默认候选来源
+  // 先使用 catalog；没有 catalog 的账户提供商直接回退到账户远程目录。
   useEffect(() => {
     if (!open || !selectedProvider) {
       return;
     }
 
     queueMicrotask(() => {
-      void loadCatalogModelsForProvider(selectedProvider, taskType as TaskType);
+      if (selectedCatalogProviderType || selectedProvider.providerType !== "openai-codex") {
+        void loadCatalogModelsForProvider(selectedProvider, taskType as TaskType);
+      } else {
+        void loadModelsForProvider(selectedProvider.id, taskType as TaskType);
+      }
     });
-  }, [loadCatalogModelsForProvider, open, selectedProvider, taskType]);
+  }, [
+    loadCatalogModelsForProvider,
+    loadModelsForProvider,
+    open,
+    selectedCatalogProviderType,
+    selectedProvider,
+    taskType,
+  ]);
 
   // 仅在创建表单没有提供商时清空模型选择。
   // 编辑表单的 reset() 会在 watch 值同步前触发，不能据此清空已保存的模型 ID。

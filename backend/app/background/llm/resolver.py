@@ -14,6 +14,7 @@ from app.memory.summary_config import (
 )
 from app.models.clients import LLMClient, LLMConfig
 from app.models.clients.model_params import ReasoningEffort, normalize_reasoning_effort
+from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
 from app.models.entities.model import Model
 from app.models.entities.model_provider import ModelProvider
 from app.models.repos import model_provider_repo, model_repo
@@ -85,7 +86,11 @@ async def resolve_background_llm(
         raise BackgroundModelUnavailableError(f"模型提供商不存在: {model.provider_id}")
 
     encryption_service = EncryptionService(settings.encryption_key)
-    api_key = encryption_service.decrypt(provider.api_key_encrypted)
+    api_key = (
+        ""
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+        else encryption_service.decrypt(provider.api_key_encrypted)
+    )
     custom_headers = ModelProviderService(
         encryption_service
     ).get_decrypted_custom_headers(provider)
@@ -97,6 +102,11 @@ async def resolve_background_llm(
                 base_url=provider.url,
                 api_key=api_key,
                 model_id=model.model_id,
+                provider_id=(
+                    provider.id
+                    if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+                    else None
+                ),
                 custom_headers=custom_headers or None,
                 temperature=model.temperature,
                 top_p=model.top_p,

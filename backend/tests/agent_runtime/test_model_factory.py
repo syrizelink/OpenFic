@@ -61,6 +61,24 @@ def test_create_chat_model_openai_returns_chat_openai():
     assert model.request_timeout == (10.0, 600.0)
 
 
+def test_create_chat_model_openai_codex_uses_dynamic_provider_reference():
+    from app.models.clients.openai_codex import OpenAICodexChatModel
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-codex",
+            base_url="https://api.openai.com/v1",
+            api_key="",
+            provider_id="provider-1",
+            model_id="gpt-visible",
+        )
+    )
+
+    assert isinstance(model, OpenAICodexChatModel)
+    assert model.provider_id == "provider-1"
+    assert model.api_key == ""
+
+
 def test_create_chat_model_anthropic_uses_native_client():
     config = ModelConfig(
         provider_type="anthropic",
@@ -200,6 +218,8 @@ def test_create_chat_model_adds_opencode_session_header(provider_type: str) -> N
 
 
 def test_create_chat_model_adds_opencode_headers_for_openai_compatible_endpoint() -> None:
+    from app.settings import settings
+
     model = create_chat_model(
         ModelConfig(
             provider_type="openai-compatible",
@@ -210,7 +230,7 @@ def test_create_chat_model_adds_opencode_headers_for_openai_compatible_endpoint(
         )
     )
 
-    assert model.default_headers["User-Agent"] == "OpenFic/0.11.1"
+    assert model.default_headers["User-Agent"] == f"{settings.app_name}/{settings.app_version}"
     assert model.default_headers["x-opencode-session"] == "agent-session-1"
 
 

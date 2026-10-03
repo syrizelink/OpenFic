@@ -38,6 +38,7 @@ export const IpcChannels = {
   openProjectHome: "help:open-project-home",
   reportBug: "help:report-bug",
   suggestFeature: "help:suggest-feature",
+  openOpenAICodexAuthorization: "auth:open-openai-codex-authorization",
   getZoomFactor: "zoom:get-factor",
   saveZoomFactor: "zoom:save-factor",
   zoomFactorChanged: "zoom:changed",
