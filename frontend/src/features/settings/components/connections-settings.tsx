@@ -4,13 +4,23 @@
  * 外部连接设置面板，管理模型服务提供商连接。
  */
 
-import { Box, Flex, Text, Button, IconButton, Tooltip, TextArea, Select } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, IconButton, Tooltip, TextArea } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit, Component, RefreshCw } from "lucide-react";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  Component,
+  RefreshCw,
+  Square,
+  ChevronRight,
+  ChevronDown,
+  Info,
+} from "lucide-react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components";
+import { LabeledSelect, Spinner } from "@/components";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import { getApiBaseUrl } from "@/lib/api-client";
@@ -27,6 +37,10 @@ import {
   fetchOpenAICodexAuthStatus,
   completeOpenAICodexAuth,
   fetchOpenAICodexRegistrations,
+  deleteOpenAICodexRegistration,
+  cancelOpenAICodexAuth,
+  type OpenAICodexRegistration,
+  type OpenAICodexAuthorizationStatus,
 } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
 import {
@@ -42,11 +56,18 @@ interface ConnectionsSettingsProps {
   isAgentSettingsLockLoading: boolean;
 }
 
+interface OpenAICodexAuthAttempt {
+  id: string | null;
+  popup: Window | null;
+  cancelRequested: boolean;
+  cancelling: boolean;
+}
+
 export function ConnectionsSettings({
   isAgentSettingsLocked,
   isAgentSettingsLockLoading,
 }: ConnectionsSettingsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -59,6 +80,94 @@ export function ConnectionsSettings({
   const [callbackError, setCallbackError] = useState("");
   const [isCallbackSubmitting, setIsCallbackSubmitting] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState("");
+  const [deletingRegistration, setDeletingRegistration] = useState<OpenAICodexRegistration | null>(
+    null,
+  );
+  const [isOAuthStarting, setIsOAuthStarting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [hasCancelError, setHasCancelError] = useState(false);
+  const isOAuthAuthenticating =
+    isOAuthStarting || authorizationId !== null || isCancelling || hasCancelError;
+  const mountedRef = useRef(true);
+  const authAttemptRef = useRef<OpenAICodexAuthAttempt | null>(null);
+  const finishAuthAttempt = useCallback(
+    (attempt: OpenAICodexAuthAttempt, status: OpenAICodexAuthorizationStatus) => {
+      if (authAttemptRef.current !== attempt) return;
+      authAttemptRef.current = null;
+      attempt.popup?.close();
+      queryClient.invalidateQueries({ queryKey: ["model-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["model-provider-models"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      queryClient.invalidateQueries({ queryKey: ["openai-codex-registrations"] });
+      if (status.status === "success") toast.success(i18n.t("connections.openaiCodexConnected"));
+      if (!mountedRef.current) return;
+      setAuthorizationId(null);
+      setIsOAuthStarting(false);
+      setIsCancelling(false);
+      setHasCancelError(false);
+      setManualCallbackOpen(false);
+      setCallbackUrl("");
+      setCallbackError("");
+      setIsCallbackSubmitting(false);
+      if (status.status === "success") {
+        setSelectedRegistration(status.registration_id ?? "");
+        setFormOpen(false);
+        setEditingConnection(null);
+      }
+    },
+    [queryClient, i18n],
+  );
+  const cancelAuthAttempt = useCallback(
+    async (attempt = authAttemptRef.current) => {
+      if (!attempt || attempt.cancelling) return;
+      attempt.cancelRequested = true;
+      attempt.popup?.close();
+      if (mountedRef.current && authAttemptRef.current === attempt) {
+        setIsCancelling(true);
+        setHasCancelError(false);
+        setManualCallbackOpen(false);
+        setCallbackUrl("");
+        setCallbackError("");
+        setIsCallbackSubmitting(false);
+      }
+      // Keep the attempt until the start response supplies an id and DELETE confirms termination.
+      if (!attempt.id) return;
+      attempt.cancelling = true;
+      try {
+        const status = await cancelOpenAICodexAuth(attempt.id);
+        if (status.status === "pending") throw new Error("Authorization cancellation unconfirmed");
+        finishAuthAttempt(attempt, status);
+      } catch {
+        if (authAttemptRef.current !== attempt) return;
+        if (mountedRef.current) {
+          setAuthorizationId(attempt.id);
+          setIsOAuthStarting(false);
+          setHasCancelError(true);
+        }
+        toast.error(
+          i18n.t(
+            mountedRef.current
+              ? "connections.openaiCodexCancelFailed"
+              : "connections.openaiCodexCancelUnconfirmed",
+          ),
+        );
+      } finally {
+        attempt.cancelling = false;
+        if (mountedRef.current && authAttemptRef.current === attempt) setIsCancelling(false);
+      }
+    },
+    [finishAuthAttempt, i18n],
+  );
+  const handleCancelAuthorization = useCallback(() => {
+    void cancelAuthAttempt();
+  }, [cancelAuthAttempt]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      void cancelAuthAttempt();
+    };
+  }, [cancelAuthAttempt]);
   const {
     data: registrations = [],
     isLoading: isRegistrationsLoading,
@@ -68,18 +177,20 @@ export function ConnectionsSettings({
     queryFn: fetchOpenAICodexRegistrations,
     enabled: formOpen && !editingConnection,
   });
-  const registrationSelection =
-    selectedRegistration || (registrations.length === 1 ? registrations[0].client_id : "");
+  const registrationSelection = selectedRegistration;
   const backendHostname = new URL(getApiBaseUrl(), window.location.href).hostname;
   const isLocalBackend = ["localhost", "127.0.0.1"].includes(backendHostname);
 
   const { data: authorizationStatus, error: authorizationError } = useQuery({
     queryKey: ["openai-codex-auth", authorizationId],
     queryFn: () => fetchOpenAICodexAuthStatus(authorizationId!),
-    enabled: authorizationId !== null,
+    enabled: authorizationId !== null && !isCancelling && !hasCancelError,
     retry: false,
     refetchInterval: (query) =>
-      !query.state.error && (!query.state.data || query.state.data.status === "pending")
+      authAttemptRef.current?.id === authorizationId &&
+      !authAttemptRef.current?.cancelRequested &&
+      !query.state.error &&
+      (!query.state.data || query.state.data.status === "pending")
         ? 1000
         : false,
   });
@@ -87,39 +198,39 @@ export function ConnectionsSettings({
   useEffect(() => {
     if (!isAgentSettingsLocked) return;
     setFormOpen(false);
-    setEditingConnection(null);
+    if (!authAttemptRef.current) setEditingConnection(null);
     setDeletingConnection(null);
-    setManualCallbackOpen(false);
-    setCallbackUrl("");
-  }, [isAgentSettingsLocked]);
+    setDeletingRegistration(null);
+    handleCancelAuthorization();
+  }, [isAgentSettingsLocked, handleCancelAuthorization]);
 
   useEffect(() => {
-    if (!authorizationId) return;
+    const attempt = authAttemptRef.current;
+    if (!authorizationId || attempt?.id !== authorizationId || attempt.cancelRequested) return;
     if (!authorizationError && (!authorizationStatus || authorizationStatus.status === "pending"))
       return;
-    setAuthorizationId(null);
-    setManualCallbackOpen(false);
-    setCallbackUrl("");
-    setCallbackError("");
-    setSelectedRegistration(authorizationStatus?.registration_id ?? "");
-    queryClient.invalidateQueries({ queryKey: ["openai-codex-registrations"] });
-    queryClient.invalidateQueries({ queryKey: ["model-providers"] });
-    queryClient.invalidateQueries({ queryKey: ["model-provider-models"] });
-    if (authorizationStatus?.status === "success") {
-      setFormOpen(false);
-      setEditingConnection(null);
-      toast.success(t("connections.openaiCodexConnected"));
+    if (authorizationError) {
+      handleCancelAuthorization();
     } else {
+      finishAuthAttempt(attempt, authorizationStatus!);
+    }
+    if (
+      authorizationError ||
+      (authorizationStatus?.status !== "success" && authorizationStatus?.status !== "cancelled")
+    ) {
       toast.error(t("connections.openaiCodexAuthFailed"));
     }
-  }, [authorizationId, authorizationStatus, authorizationError, queryClient, t]);
+  }, [
+    authorizationId,
+    authorizationStatus,
+    authorizationError,
+    t,
+    handleCancelAuthorization,
+    finishAuthAttempt,
+  ]);
 
   // 获取所有连接
-  const {
-    data: connections,
-    isLoading: isConnectionsLoading,
-    isFetching: isConnectionsFetching,
-  } = useQuery({
+  const { data: connections, isLoading: isConnectionsLoading } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
   });
@@ -167,6 +278,8 @@ export function ConnectionsSettings({
     onSuccess: (revocationConfirmed) => {
       queryClient.invalidateQueries({ queryKey: ["model-providers"] });
       queryClient.invalidateQueries({ queryKey: ["openai-codex-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["model-provider-models"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
       if (deletingConnection?.providerType === "openai-codex" && !revocationConfirmed) {
         toast.error(t("connections.openaiCodexRevocationUnconfirmed"));
       } else {
@@ -179,27 +292,54 @@ export function ConnectionsSettings({
     },
   });
 
-  const openAICodexAuthMutation = useMutation({
-    mutationFn: startOpenAICodexAuth,
+  const deleteRegistrationMutation = useMutation({
+    mutationFn: deleteOpenAICodexRegistration,
+    onSuccess: (revocationConfirmed) => {
+      queryClient.invalidateQueries({ queryKey: ["model-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["model-provider-models"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      queryClient.invalidateQueries({ queryKey: ["openai-codex-registrations"] });
+      setSelectedRegistration("");
+      setDeletingRegistration(null);
+      if (revocationConfirmed) {
+        toast.success(t("connections.deleteSuccess"));
+      } else {
+        toast.error(t("connections.openaiCodexRegistrationRevocationUnconfirmed"));
+      }
+    },
+    onError: () => toast.error(t("connections.deleteFailed")),
   });
 
   // 打开创建对话框
   const handleCreate = useCallback(() => {
-    if (!authorizationId) {
+    if (authAttemptRef.current) {
+      setDefaultProviderType("openai-codex");
+    } else {
       setEditingConnection(null);
       setDefaultProviderType("");
       setSelectedRegistration("");
     }
     setFormOpen(true);
-  }, [authorizationId]);
+  }, []);
 
   const handleOpenAICodexAuth = useCallback(
     async (providerId?: string) => {
+      if (authAttemptRef.current || isAgentSettingsLocked) return;
       setDefaultProviderType("openai-codex");
       const desktopHost = window.openficDesktopHost;
       const popup = desktopHost ? null : window.open("about:blank", "_blank");
+      const attempt: OpenAICodexAuthAttempt = {
+        id: null,
+        popup,
+        cancelRequested: false,
+        cancelling: false,
+      };
+      authAttemptRef.current = attempt;
+      setIsOAuthStarting(true);
+      setCallbackUrl("");
+      setCallbackError("");
       try {
-        const authorization = await openAICodexAuthMutation.mutateAsync(
+        const authorization = await startOpenAICodexAuth(
           providerId
             ? { provider_id: providerId }
             : registrationSelection === "new"
@@ -208,58 +348,92 @@ export function ConnectionsSettings({
                 ? { registration_id: registrationSelection }
                 : {},
         );
+        attempt.id = authorization.authorization_id;
+        if (authAttemptRef.current !== attempt || attempt.cancelRequested || !mountedRef.current) {
+          await cancelAuthAttempt(attempt);
+          return;
+        }
         if (desktopHost) {
           await desktopHost.openOpenAICodexAuthorization(authorization.authorization_url);
-        } else if (popup) {
+        } else if (popup && !popup.closed) {
           popup.opener = null;
           popup.location.href = authorization.authorization_url;
         } else {
           throw new Error("Authorization popup was blocked");
         }
+        if (authAttemptRef.current !== attempt || attempt.cancelRequested || !mountedRef.current)
+          return;
         setAuthorizationId(authorization.authorization_id);
         setCallbackUrl("");
         setCallbackError("");
         if (!isLocalBackend) setManualCallbackOpen(true);
       } catch {
         popup?.close();
-        toast.error(t("connections.openaiCodexAuthFailed"));
+        if (authAttemptRef.current !== attempt) return;
+        if (attempt.id && attempt.cancelRequested) return;
+        const wasCancelled = attempt.cancelRequested;
+        if (attempt.id) {
+          await cancelAuthAttempt(attempt);
+        } else {
+          authAttemptRef.current = null;
+          if (mountedRef.current) {
+            setIsOAuthStarting(false);
+            setIsCancelling(false);
+          }
+        }
+        if (!wasCancelled) toast.error(t("connections.openaiCodexAuthFailed"));
+      } finally {
+        if (authAttemptRef.current === attempt && mountedRef.current) setIsOAuthStarting(false);
       }
     },
-    [openAICodexAuthMutation, isLocalBackend, registrationSelection, t],
+    [isAgentSettingsLocked, isLocalBackend, registrationSelection, t, cancelAuthAttempt],
   );
 
   const handleManualCallbackOpenChange = (open: boolean) => {
     if (isCallbackSubmitting) return;
     setManualCallbackOpen(open);
-    setCallbackUrl("");
-    setCallbackError("");
   };
 
   const handleFormOpenChange = (open: boolean) => {
     if (!open) {
-      setCallbackUrl("");
-      setCallbackError("");
+      handleCancelAuthorization();
+      setDeletingRegistration(null);
     }
     setFormOpen(open);
   };
 
   const handleManualCallbackSubmit = async () => {
-    if (!authorizationId || !callbackUrl.trim() || isAgentSettingsLocked) return;
+    const attempt = authAttemptRef.current;
+    if (
+      !authorizationId ||
+      attempt?.id !== authorizationId ||
+      attempt.cancelRequested ||
+      !callbackUrl.trim() ||
+      isAgentSettingsLocked ||
+      isCallbackSubmitting
+    )
+      return;
     setIsCallbackSubmitting(true);
     setCallbackError("");
     try {
       await completeOpenAICodexAuth(authorizationId, callbackUrl.trim());
+      if (authAttemptRef.current !== attempt || attempt.cancelRequested || !mountedRef.current)
+        return;
       setCallbackUrl("");
       await queryClient.invalidateQueries({ queryKey: ["openai-codex-auth", authorizationId] });
     } catch {
+      if (authAttemptRef.current !== attempt || attempt.cancelRequested || !mountedRef.current)
+        return;
       setCallbackError(t("connections.openaiCodexCallbackFailed"));
     } finally {
-      setIsCallbackSubmitting(false);
+      if (authAttemptRef.current === attempt && !attempt.cancelRequested && mountedRef.current)
+        setIsCallbackSubmitting(false);
     }
   };
 
   // 打开编辑对话框
   const handleEdit = useCallback((connection: ModelProvider) => {
+    if (authAttemptRef.current) return;
     setEditingConnection(connection);
     setFormOpen(true);
   }, []);
@@ -292,10 +466,7 @@ export function ConnectionsSettings({
   }, [deletingConnection, deleteMutation]);
 
   const isContentLoading =
-    isConnectionsLoading ||
-    isConnectionsFetching ||
-    isCatalogProvidersLoading ||
-    isAgentSettingsLockLoading;
+    isConnectionsLoading || isCatalogProvidersLoading || isAgentSettingsLockLoading;
 
   if (isContentLoading) {
     return (
@@ -464,11 +635,7 @@ export function ConnectionsSettings({
                         variant="ghost"
                         color="gray"
                         onClick={() => handleEdit(connection)}
-                        disabled={
-                          isAgentSettingsLocked ||
-                          (connection.providerType === "openai-codex" &&
-                            (openAICodexAuthMutation.isPending || authorizationId !== null))
-                        }
+                        disabled={isAgentSettingsLocked || isOAuthAuthenticating}
                         aria-label={t("connections.editConnection")}
                       >
                         <Edit size={16} />
@@ -528,9 +695,7 @@ export function ConnectionsSettings({
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
         isAgentSettingsLocked={isAgentSettingsLocked}
-        isOAuthAuthenticating={
-          openAICodexAuthMutation.isPending || authorizationId !== null || isCallbackSubmitting
-        }
+        isOAuthAuthenticating={isOAuthAuthenticating || isCallbackSubmitting}
         defaultProviderType={defaultProviderType}
         oauthContent={
           <Flex
@@ -539,50 +704,47 @@ export function ConnectionsSettings({
             data-slot="provider-oauth-authentication"
           >
             {editingConnection?.accountEmail && (
-              <Text size="2">{editingConnection.accountEmail}</Text>
+              <Text size="2">
+                {t("connections.openaiCodexCurrentAccount", {
+                  account: editingConnection.accountEmail,
+                })}
+              </Text>
             )}
             {!editingConnection && registrations.length > 0 && (
-              <Flex
-                direction="column"
-                gap="2"
-              >
-                <Text
-                  as="label"
-                  htmlFor="openai-codex-registration"
-                  size="2"
-                  weight="medium"
-                >
-                  {t("connections.openaiCodexSavedRegistration")}
-                </Text>
-                <Select.Root
-                  value={registrationSelection}
-                  onValueChange={setSelectedRegistration}
-                  disabled={
-                    isAgentSettingsLocked ||
-                    authorizationId !== null ||
-                    openAICodexAuthMutation.isPending
-                  }
-                >
-                  <Select.Trigger
-                    id="openai-codex-registration"
-                    placeholder={t("connections.openaiCodexChooseRegistration")}
-                  />
-                  <Select.Content>
-                    {registrations.map((registration) => (
-                      <Select.Item
-                        key={registration.client_id}
-                        value={registration.client_id}
+              <LabeledSelect
+                label={t("connections.openaiCodexSavedRegistration")}
+                placeholder={t("connections.openaiCodexChooseRegistration")}
+                value={registrationSelection}
+                onChange={setSelectedRegistration}
+                disabled={
+                  isAgentSettingsLocked ||
+                  isOAuthAuthenticating ||
+                  deleteRegistrationMutation.isPending
+                }
+                options={[
+                  ...registrations.map((registration) => ({
+                    value: registration.client_id,
+                    label: `${registration.email || t("connections.openaiCodexPendingRegistration")} (${registration.client_id.slice(-8)})`,
+                    actions: (
+                      <IconButton
+                        type="button"
+                        variant="ghost"
+                        color="red"
+                        aria-label={`${t("connections.openaiCodexDeleteRegistration")} ${registration.email || registration.client_id}`}
+                        disabled={
+                          isAgentSettingsLocked ||
+                          isOAuthAuthenticating ||
+                          deleteRegistrationMutation.isPending
+                        }
+                        onClick={() => setDeletingRegistration(registration)}
                       >
-                        {registration.email || t("connections.openaiCodexPendingRegistration")} (
-                        {registration.client_id.slice(-8)})
-                      </Select.Item>
-                    ))}
-                    <Select.Item value="new">
-                      {t("connections.openaiCodexNewRegistration")}
-                    </Select.Item>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
+                        <Trash2 size={16} />
+                      </IconButton>
+                    ),
+                  })),
+                  { value: "new", label: t("connections.openaiCodexNewRegistration") },
+                ]}
+              />
             )}
             {!editingConnection && registrationsError && (
               <Text
@@ -595,21 +757,51 @@ export function ConnectionsSettings({
             )}
             <Button
               type="button"
-              onClick={() => void handleOpenAICodexAuth(editingConnection?.id)}
+              color={isOAuthAuthenticating ? "red" : undefined}
+              onClick={
+                isOAuthAuthenticating
+                  ? handleCancelAuthorization
+                  : () => void handleOpenAICodexAuth(editingConnection?.id)
+              }
               disabled={
-                isAgentSettingsLocked ||
-                openAICodexAuthMutation.isPending ||
-                authorizationId !== null ||
-                (!editingConnection &&
-                  (isRegistrationsLoading ||
-                    Boolean(registrationsError) ||
-                    (registrations.length > 1 && !registrationSelection)))
+                isOAuthAuthenticating
+                  ? isCancelling
+                  : isAgentSettingsLocked ||
+                    isOAuthAuthenticating ||
+                    deleteRegistrationMutation.isPending ||
+                    deletingRegistration !== null ||
+                    (!editingConnection &&
+                      (isRegistrationsLoading ||
+                        Boolean(registrationsError) ||
+                        (registrations.length > 0 && !registrationSelection)))
               }
             >
-              {openAICodexAuthMutation.isPending ? <Spinner size={18} /> : <RefreshCw size={16} />}
-              {t("connections.signInWithChatGPT")}
+              {isOAuthAuthenticating ? (
+                <Square
+                  size={16}
+                  fill="currentColor"
+                />
+              ) : (
+                <RefreshCw size={16} />
+              )}
+              {t(
+                isOAuthAuthenticating
+                  ? "connections.openaiCodexCancelAuthorization"
+                  : editingConnection
+                    ? "connections.openaiCodexReauthorize"
+                    : "connections.signInWithChatGPT",
+              )}
             </Button>
-            {authorizationId && (
+            {hasCancelError && (
+              <Text
+                size="2"
+                color="red"
+                role="alert"
+              >
+                {t("connections.openaiCodexCancelFailed")}
+              </Text>
+            )}
+            {authorizationId && !isCancelling && !hasCancelError && (
               <Text
                 size="2"
                 color="gray"
@@ -618,81 +810,119 @@ export function ConnectionsSettings({
                 {t("connections.openaiCodexWaiting")}
               </Text>
             )}
-            {authorizationId && !manualCallbackOpen && (
-              <Button
-                type="button"
-                variant="soft"
-                onClick={() => handleManualCallbackOpenChange(true)}
-                disabled={isAgentSettingsLocked}
-              >
-                {t("connections.openaiCodexManualCallback")}
-              </Button>
-            )}
-            {authorizationId && manualCallbackOpen && (
-              <Flex
-                direction="column"
-                gap="3"
-              >
-                <Text
-                  size="2"
-                  color="gray"
-                >
-                  {t("connections.openaiCodexCallbackDescription")}
-                </Text>
-                <Text
-                  as="label"
-                  htmlFor="openai-codex-callback-url"
-                  size="2"
-                  weight="medium"
-                >
-                  {t("connections.openaiCodexCallbackLabel")}
-                </Text>
-                <TextArea
-                  id="openai-codex-callback-url"
-                  value={callbackUrl}
-                  onChange={(event) => setCallbackUrl(event.target.value)}
-                  placeholder="http://127.0.0.1:…/api/v1/openai-codex/auth/callback?…"
-                  rows={4}
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={isCallbackSubmitting || isAgentSettingsLocked}
-                  aria-invalid={Boolean(callbackError)}
-                  aria-describedby={callbackError ? "openai-codex-callback-error" : undefined}
-                />
-                <Text
-                  size="1"
-                  color="gray"
-                >
-                  {t("connections.openaiCodexCallbackSensitive")}
-                </Text>
-                {callbackError && (
-                  <Text
-                    id="openai-codex-callback-error"
-                    size="2"
-                    color="red"
-                    role="alert"
-                  >
-                    {callbackError}
-                  </Text>
-                )}
+            {authorizationId && !isCancelling && !hasCancelError && (
+              <>
                 <Button
                   type="button"
-                  onClick={() => void handleManualCallbackSubmit()}
-                  disabled={!callbackUrl.trim() || isCallbackSubmitting || isAgentSettingsLocked}
+                  variant="ghost"
+                  className="connection-form-dialog__callback-toggle"
+                  onClick={() => handleManualCallbackOpenChange(!manualCallbackOpen)}
+                  disabled={isAgentSettingsLocked || isCallbackSubmitting}
+                  aria-expanded={manualCallbackOpen}
+                  aria-controls="openai-codex-manual-callback"
                 >
-                  {isCallbackSubmitting && <Spinner size={18} />}
-                  {t("connections.openaiCodexCallbackSubmit")}
+                  {manualCallbackOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  {t("connections.openaiCodexManualCallback")}
                 </Button>
-              </Flex>
+                <Box id="openai-codex-manual-callback">
+                  {manualCallbackOpen && (
+                    <Flex
+                      direction="column"
+                      gap="3"
+                    >
+                      <Flex
+                        align="center"
+                        gap="1"
+                      >
+                        <Text
+                          as="label"
+                          htmlFor="openai-codex-callback-url"
+                          size="2"
+                          weight="medium"
+                        >
+                          {t("connections.openaiCodexCallbackLabel")}
+                        </Text>
+                        <Tooltip
+                          content={
+                            <Flex
+                              direction="column"
+                              gap="2"
+                            >
+                              {t("connections.openaiCodexCallbackHelp")
+                                .split("\n")
+                                .map((paragraph) => (
+                                  <Text key={paragraph}>{paragraph}</Text>
+                                ))}
+                            </Flex>
+                          }
+                        >
+                          <button
+                            type="button"
+                            className="advanced-settings-info-button"
+                            aria-label={`${t("connections.openaiCodexCallbackLabel")} ${t("topbar.help")}`}
+                          >
+                            <Info size={14} />
+                          </button>
+                        </Tooltip>
+                      </Flex>
+                      <TextArea
+                        id="openai-codex-callback-url"
+                        value={callbackUrl}
+                        onChange={(event) => setCallbackUrl(event.target.value)}
+                        placeholder="http://127.0.0.1:…/api/v1/openai-codex/auth/callback?…"
+                        rows={4}
+                        autoComplete="off"
+                        spellCheck={false}
+                        disabled={isCallbackSubmitting || isAgentSettingsLocked}
+                        aria-invalid={Boolean(callbackError)}
+                        aria-describedby={callbackError ? "openai-codex-callback-error" : undefined}
+                      />
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
+                        {t("connections.openaiCodexCallbackSensitive")}
+                      </Text>
+                      {callbackError && (
+                        <Text
+                          id="openai-codex-callback-error"
+                          size="2"
+                          color="red"
+                          role="alert"
+                        >
+                          {callbackError}
+                        </Text>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() => void handleManualCallbackSubmit()}
+                        disabled={
+                          !callbackUrl.trim() || isCallbackSubmitting || isAgentSettingsLocked
+                        }
+                      >
+                        {isCallbackSubmitting && <Spinner size={18} />}
+                        {t("connections.openaiCodexCallbackSubmit")}
+                      </Button>
+                    </Flex>
+                  )}
+                </Box>
+              </>
             )}
-            {!isLocalBackend && (
-              <Text
-                size="1"
-                color="gray"
-              >
-                {t("connections.openaiCodexRemoteInstructions")}
-              </Text>
-            )}
+            <ConfirmDialog
+              open={deletingRegistration !== null}
+              onOpenChange={(open) => !open && setDeletingRegistration(null)}
+              title={t("connections.openaiCodexDeleteRegistration")}
+              description={t("connections.openaiCodexDeleteRegistrationConfirm", {
+                account: deletingRegistration?.email || deletingRegistration?.client_id,
+              })}
+              onConfirm={() => {
+                if (!deletingRegistration || isAgentSettingsLocked) return;
+                deleteRegistrationMutation.mutate(deletingRegistration.client_id);
+              }}
+              confirmText={t("common.delete")}
+              cancelText={t("common.cancel")}
+              loading={deleteRegistrationMutation.isPending}
+            />
           </Flex>
         }
       />

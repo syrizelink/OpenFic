@@ -25,6 +25,7 @@ from app.agent_runtime.persistence.model import (
     PlanTodoRecord,
 )
 from app.agent_runtime.runner.session_runner import SessionRunner
+from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.storage.models.chapter import Chapter
 from app.storage.models.project import Project
 from app.storage.models.task import Task
@@ -177,16 +178,27 @@ async def _record_event(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("provider_type, expected_cost", [("openai", 0.0032), ("openai-codex", 0.0)])
 async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
     db_session: AsyncSession,
     state: AgentRuntimeState,
     window: CompactionWindow,
     monkeypatch: pytest.MonkeyPatch,
+    provider_type: str,
+    expected_cost: float,
 ) -> None:
+    state["model_config"].update({
+        "provider_type": provider_type,
+        "input_price": 2.0, "output_price": 8.0,
+        "cache_read_price": 0.5, "cache_write_price": 1.0,
+    })
     fake_model = FakeModel(
         _ai_message(
             "  摘要正文  ",
-            {"input_tokens": 100, "output_tokens": 20},
+            {
+                "input_tokens": 1000, "output_tokens": 200,
+                "input_token_details": {"cache_read": 200, "cache_write": 100},
+            },
         ),
     )
     events: list[tuple[str, dict[str, Any]]] = []
@@ -221,16 +233,24 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
     assert events[-1][0] == "agent:compaction_success"
     assert "summary" not in events[-1][1]
     assert usage_events[0]["usage_kind"] == "compaction"
-    assert usage_events[0]["usage"]["input_tokens"] == 100
-    assert usage_events[0]["usage"]["output_tokens"] == 20
+    assert usage_events[0]["usage"]["input_tokens"] == 1000
+    assert usage_events[0]["usage"]["output_tokens"] == 200
+    assert usage_events[0]["usage"]["input_token_details"]["cache_write"] == 100
+    assert usage_events[0]["billing_config"] == {
+        "provider_type": provider_type,
+        "input_price": 2.0, "output_price": 8.0,
+        "cache_read_price": 0.5, "cache_write_price": 1.0,
+    }
     normalized_usage = SessionRunner(
         session_id=state["session_id"],
         task_id=state["task_id"],
         model_config=state["model_config"],
         project_id=state["project_id"],
     )._normalize_usage_event(usage_events[0])
-    assert normalized_usage["token_input"] == 100
-    assert normalized_usage["token_output"] == 20
+    assert normalized_usage["token_input"] == 1000
+    assert normalized_usage["token_output"] == 200
+    assert normalized_usage["token_cache"] == 200
+    assert normalized_usage["cost"] == expected_cost
 
     rows = await compaction_repo.list_by_session(db_session, state["session_id"])
     assert [row.summary for row in rows] == ["摘要正文"]
@@ -256,26 +276,38 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model_reference", ["__system_light_model__", "dedicated-model-record"])
+@pytest.mark.parametrize("model_reference", ["__system_light_model__", "__system_default_model__", "dedicated-model-record"])
+@pytest.mark.parametrize("agent_provider, compaction_provider, expected_cost", [
+    ("openai", "openai-codex", 0.0),
+    ("openai-codex", "openai", 0.0032),
+    ("openai", "openai", 0.0032),
+])
 async def test_compact_window_uses_selected_light_model(
     db_session: AsyncSession,
     state: AgentRuntimeState,
     window: CompactionWindow,
     monkeypatch: pytest.MonkeyPatch,
     model_reference: str,
+    agent_provider: str, compaction_provider: str, expected_cost: float,
 ) -> None:
     selected_configs: list[object] = []
+    usage_events: list[dict[str, Any]] = []
+    state["model_config"]["provider_type"] = agent_provider
+    state["model_config"]["output_price"] = 1000.0
 
     def fake_factory(config):
         selected_configs.append(config)
-        return FakeModel(_ai_message("摘要正文"))
+        return FakeModel(_ai_message("摘要正文", {
+            "input_tokens": 1000, "output_tokens": 200,
+            "input_token_details": {"cache_read": 200, "cache_write": 100},
+        }))
 
     monkeypatch.setattr(
         "app.agent_runtime.context.compaction.service.prompt_chain_service.get_latest_version_with_entries_or_default",
         AsyncMock(return_value=_prompt_version()),
     )
     async def lookup_setting(_session, key: str):
-        return SimpleNamespace(value="light-record" if key == "light_model" else "high")
+        return SimpleNamespace(value="light-record" if key in {"light_model", "default_model"} else "high")
 
     setting_lookup = AsyncMock(side_effect=lookup_setting)
     monkeypatch.setattr(
@@ -286,6 +318,7 @@ async def test_compact_window_uses_selected_light_model(
         provider_id="provider", model_id="light-llm", temperature=None,
         top_p=None, top_k=None, min_p=None, top_a=None, max_tokens=None,
         frequency_penalty=None, presence_penalty=None, repetition_penalty=None,
+        input_price=2.0, output_price=8.0, cache_read_price=0.5, cache_write_price=1.0,
     ))
     monkeypatch.setattr(
         "app.agent_runtime.context.compaction.service.model_repo.get_by_id",
@@ -294,7 +327,7 @@ async def test_compact_window_uses_selected_light_model(
     monkeypatch.setattr(
         "app.agent_runtime.context.compaction.service.model_provider_repo.get_by_id",
         AsyncMock(return_value=SimpleNamespace(
-            provider_type="openai", url="https://example.test", api_key_encrypted="key",
+            id="provider", provider_type=compaction_provider, url="https://example.test", api_key_encrypted="key",
         )),
     )
     monkeypatch.setattr(
@@ -311,15 +344,38 @@ async def test_compact_window_uses_selected_light_model(
     await compact_window(
         db_session, state=state, window=window, trigger="manual",
         model_reference=model_reference,
+        usage_sink=usage_events.append,
     )
     assert selected_configs[0].model_id == "light-llm"
     assert selected_configs[0].session_id == "session_test"
     assert selected_configs[0].reasoning_effort == "high"
     record_lookup.assert_awaited_once_with(
-        db_session, "light-record" if model_reference == "__system_light_model__" else model_reference
+        db_session, "light-record" if model_reference in {"__system_light_model__", "__system_default_model__"} else model_reference
     )
     if model_reference == "dedicated-model-record":
         setting_lookup.assert_awaited_once_with(db_session, "compaction_model_reasoning_effort")
+    assert usage_events[0]["billing_config"] == {
+        "provider_type": compaction_provider,
+        "input_price": 2.0, "output_price": 8.0,
+        "cache_read_price": 0.5, "cache_write_price": 1.0,
+    }
+    main_runner = SessionRunner(
+        session_id=state["session_id"], task_id=state["task_id"],
+        model_config=state["model_config"],
+    )
+    child_runner = SubagentRunner(
+        session_factory=lambda: db_session, model_config=state["model_config"],
+        project_id=state["project_id"],
+    )
+    for normalized in (
+        main_runner._normalize_usage_event(usage_events[0]),
+        child_runner._normalize_usage_event(state["session_id"], usage_events[0]),
+    ):
+        assert normalized["cost"] == expected_cost
+        assert normalized["token_input"] == 1000
+        assert normalized["token_output"] == 200
+        assert normalized["token_cache"] == 200
+        assert "billing_config" not in normalized
 
 
 @pytest.mark.asyncio

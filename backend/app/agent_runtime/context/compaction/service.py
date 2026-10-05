@@ -183,6 +183,10 @@ async def compact_window(
                     else encryption.decrypt(provider.api_key_encrypted)
                 ),
                 "model_id": record.model_id,
+                "input_price": record.input_price,
+                "output_price": record.output_price,
+                "cache_read_price": record.cache_read_price,
+                "cache_write_price": record.cache_write_price,
                 **({"custom_headers": headers} if headers else {}),
                 "temperature": record.temperature,
                 "top_p": record.top_p,
@@ -308,6 +312,7 @@ async def compact_window(
         usage_sink,
         _usage_payload(
             usage=usage,
+            model_config=effective_model_config,
             session_id=session_id,
             task_id=task_id,
             trigger=trigger,
@@ -468,6 +473,7 @@ def _token_counts(usage: dict[str, Any] | None) -> tuple[int, int, int]:
 def _usage_payload(
     *,
     usage: dict[str, Any] | None,
+    model_config: Mapping[str, Any],
     session_id: str,
     task_id: str,
     trigger: CompactionTrigger,
@@ -481,6 +487,18 @@ def _usage_payload(
     usage_dict.setdefault("cache_read_tokens", token_cache)
     return {
         "usage_kind": "compaction",
+        "billing_config": {
+            "provider_type": str(model_config.get("provider_type") or ""),
+            **{
+                key: float(model_config.get(key) or 0)
+                for key in (
+                    "input_price",
+                    "output_price",
+                    "cache_read_price",
+                    "cache_write_price",
+                )
+            },
+        },
         "session_id": session_id,
         "task_id": task_id,
         "trigger": trigger,

@@ -208,6 +208,9 @@ async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMe
             )
         elif part.role == "assistant":
             kwargs: dict = {}
+            responses_output = _message_metadata(row).get("responses_output")
+            if row.status == "complete" and isinstance(responses_output, list) and responses_output:
+                kwargs["responses_output"] = responses_output
             if idx == last_assistant_with_reasoning_idx and row.reasoning:
                 kwargs["reasoning_content"] = row.reasoning
             ai_msg = AIMessage(

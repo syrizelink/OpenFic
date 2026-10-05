@@ -709,6 +709,11 @@ class SubagentRunner:
         model_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         active_model_config = model_config if model_config is not None else self.model_config
+        billing_config = (
+            event_data["billing_config"]
+            if event_data.get("usage_kind") == "compaction"
+            else active_model_config
+        )
         usage = event_data.get("usage") if isinstance(event_data, dict) else None
         usage_dict = usage if isinstance(usage, dict) else {}
         token_input = int(
@@ -730,14 +735,15 @@ class SubagentRunner:
         if token_cache_write == 0:
             token_cache_write = max(int(usage_dict.get("token_cache_write") or 0), 0)
         call_cost = calculate_llm_call_cost(
+            provider_type=str(billing_config.get("provider_type") or ""),
             token_input=token_input,
             token_output=token_output,
             token_cache=token_cache,
             token_cache_write=token_cache_write,
-            input_price=float(active_model_config.get("input_price") or 0),
-            output_price=float(active_model_config.get("output_price") or 0),
-            cache_read_price=float(active_model_config.get("cache_read_price") or 0),
-            cache_write_price=float(active_model_config.get("cache_write_price") or 0),
+            input_price=float(billing_config.get("input_price") or 0),
+            output_price=float(billing_config.get("output_price") or 0),
+            cache_read_price=float(billing_config.get("cache_read_price") or 0),
+            cache_write_price=float(billing_config.get("cache_write_price") or 0),
         )
         return {
             "session_id": session_id,

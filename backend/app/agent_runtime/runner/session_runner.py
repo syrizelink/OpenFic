@@ -429,6 +429,11 @@ class SessionRunner:
         return checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
 
     def _normalize_usage_event(self, event_data: dict) -> dict:
+        billing_config = (
+            event_data["billing_config"]
+            if event_data.get("usage_kind") == "compaction"
+            else self.model_config
+        )
         usage = event_data.get("usage") if isinstance(event_data, dict) else None
         usage_dict = usage if isinstance(usage, dict) else {}
         token_input = int(
@@ -450,14 +455,15 @@ class SessionRunner:
         if token_cache_write == 0:
             token_cache_write = max(int(usage_dict.get("token_cache_write") or 0), 0)
         call_cost = calculate_llm_call_cost(
+            provider_type=str(billing_config.get("provider_type") or ""),
             token_input=token_input,
             token_output=token_output,
             token_cache=token_cache,
             token_cache_write=token_cache_write,
-            input_price=float(self.model_config.get("input_price") or 0),
-            output_price=float(self.model_config.get("output_price") or 0),
-            cache_read_price=float(self.model_config.get("cache_read_price") or 0),
-            cache_write_price=float(self.model_config.get("cache_write_price") or 0),
+            input_price=float(billing_config.get("input_price") or 0),
+            output_price=float(billing_config.get("output_price") or 0),
+            cache_read_price=float(billing_config.get("cache_read_price") or 0),
+            cache_write_price=float(billing_config.get("cache_write_price") or 0),
         )
         return {
             "session_id": self.session_id,

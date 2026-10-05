@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
+import httpx
+import respx
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.messages.tool import invalid_tool_call
 from langgraph.errors import GraphInterrupt
@@ -13,10 +15,106 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence import persister as persister_module
 from app.agent_runtime.persistence.persister import MessagePersister
+from app.agent_runtime.persistence.loader import load_history
+from app.models.clients.openai_codex import OpenAICodexChatModel
 
 
 def _stream_event(event: str, **data) -> dict:
     return {"event": event, **data}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_second_result", [True, False])
+@respx.mock
+async def test_codex_output_survives_database_history_and_payload(
+    db_session: AsyncSession, db_session_factory, sample_task, has_second_result: bool,
+):
+    sid = "session_codex_database"
+    output = [
+        {"type": "reasoning", "id": "rs_1", "summary": [],
+         "encrypted_content": "encrypted-first", "status": "completed"},
+        {"type": "function_call", "id": "fc_1", "call_id": "call_1",
+         "name": "lookup", "namespace": "openfic", "arguments": '{"query":"first"}'},
+        {"type": "reasoning", "id": "rs_2", "summary": [],
+         "encrypted_content": "encrypted-second", "status": "completed"},
+        {"type": "function_call", "id": "fc_2", "call_id": "call_2",
+         "name": "lookup", "namespace": "openfic", "arguments": '{"query":"second"}'},
+    ]
+    model = OpenAICodexChatModel(model="gpt-visible", api_key="access-token")
+    respx.post("https://api.openai.com/v1/responses").mock(
+        return_value=httpx.Response(200, text='data: ' + json.dumps({
+            "type": "response.completed", "response": {"id": "resp_db", "output": output},
+        }) + '\n\n')
+    )
+    response = await model.ainvoke([])
+    persister = MessagePersister(
+        session_id=sid, task_id=sample_task.id, project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    await persister.handle({"event": "on_chat_model_start", "run_id": "first", "data": {}})
+    await persister.handle({
+        "event": "on_chat_model_end", "run_id": "first", "data": {"output": response},
+    })
+    for call_id in ["call_1", "call_2"] if has_second_result else ["call_1"]:
+        await persister.handle({
+            "event": "on_tool_end", "name": "lookup", "metadata": {"tool_call_id": call_id},
+            "data": {"output": "Found " + call_id},
+        })
+    await persister.handle({"event": "on_chat_model_start", "run_id": "second", "data": {}})
+    final_output = [
+        {"type": "reasoning", "id": "rs_final", "summary": [],
+         "encrypted_content": "encrypted-final"},
+        {"type": "message", "id": "msg_final", "role": "assistant",
+         "content": [{"type": "output_text", "text": "Answer", "annotations": []}]},
+    ]
+    await persister.handle({
+        "event": "on_chat_model_end", "run_id": "second", "data": {"output": AIMessage(
+            content="Answer", additional_kwargs={"responses_output": final_output},
+        )},
+    })
+    await persister.finalize(reason="cancelled")
+    await repo.insert_message(
+        db_session, session_id=sid, task_id=sample_task.id, project_id=sample_task.project_id,
+        role="user", status="sent", content="Continue",
+    )
+    # Use a fresh session so ORM identity state cannot hide a missing DB write.
+    async with db_session_factory() as restored_session:
+        rows = await repo.list_by_session(restored_session, sid)
+        assert rows[0].metadata["responses_output"] == output
+        assert rows[-2].metadata["responses_output"] == final_output
+        history = await load_history(restored_session, sid)
+    assert history[0].additional_kwargs["responses_output"] == output
+    assert history[-2].additional_kwargs["responses_output"] == final_output
+    payload = model._build_payload(history, None)
+    kept_output = output if has_second_result else output[:3]
+    assert payload["input"][:len(kept_output)] == kept_output
+    assert [item["call_id"] for item in payload["input"] if item["type"] == "function_call"] == (
+        ["call_1", "call_2"] if has_second_result else ["call_1"]
+    )
+    assert payload["input"][-3:-1] == final_output
+    assert payload["input"][-1]["content"] == "Continue"
+
+
+@pytest.mark.asyncio
+async def test_persister_keeps_encrypted_reasoning_only_complete_response(
+    db_session: AsyncSession, db_session_factory, sample_task,
+):
+    sid = "session_codex_reasoning_only"
+    output = [{"type": "reasoning", "id": "rs_only", "summary": [],
+               "encrypted_content": "encrypted-only"}]
+    persister = MessagePersister(
+        session_id=sid, task_id=sample_task.id, project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    await persister.handle({"event": "on_chat_model_start", "data": {}})
+    await persister.handle({
+        "event": "on_chat_model_end", "data": {"output": AIMessage(
+            content="", additional_kwargs={"responses_output": output},
+        )},
+    })
+    rows = await repo.list_by_session(db_session, sid)
+    assert len(rows) == 1
+    assert rows[0].metadata["responses_output"] == output
 
 
 @pytest.mark.asyncio

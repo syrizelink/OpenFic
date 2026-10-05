@@ -16,7 +16,7 @@ class OpenAICodexAuthStartResponse(BaseModel):
 
 
 class OpenAICodexAuthStatusResponse(BaseModel):
-    status: Literal["pending", "success", "error", "expired"]
+    status: Literal["pending", "success", "error", "expired", "cancelled"]
     provider_id: str | None = None
     registration_id: str | None = None
 

@@ -143,9 +143,11 @@ def cli_database_template(tmp_path_factory):
     return path
 
 
+@pytest.mark.parametrize("missing_scope", [False, True])
+@pytest.mark.parametrize("connected", [False, True])
 @pytest.mark.parametrize("reauthorize", [False, True])
 @pytest.mark.parametrize("first_exchange_fails", [False, True])
-def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch, tmp_path, cli_database_template, reauthorize, first_exchange_fails):
+def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch, tmp_path, cli_database_template, reauthorize, first_exchange_fails, missing_scope, connected):
     import app.models.services.openai_codex_service as plan
     from app.storage import database
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -170,9 +172,28 @@ def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch,
         scopes=frozenset(plan.OPENAI_CODEX_SCOPES),
     )
     output = tmp_path / "credential.ofc"
+    from dataclasses import replace
+    previous = replace(credentials, scopes=frozenset() if missing_scope else credentials.scopes)
     if reauthorize:
-        output.write_text(plan.encrypt_portable_credentials(credentials, "passphrase"))
+        output.write_text(plan.encrypt_portable_credentials(previous, "passphrase"))
+    if connected:
+        from app.core.encryption import EncryptionService
+        from app.models.entities.model_provider import ModelProvider
+        from app.settings import settings
+
+        async def seed():
+            async with await create_session() as session:
+                provider = ModelProvider(id="auth-provider", name="Plan", url=plan.OPENAI_CODEX_API_BASE_URL,
+                                         api_key_encrypted="", provider_type=plan.OPENAI_CODEX_PROVIDER_TYPE)
+                plan.OpenAICodexCredentialStore(EncryptionService(settings.encryption_key)).write(
+                    provider, replace(previous, refresh_token="previous-refresh"),
+                )
+                session.add(provider)
+                await session.commit()
+
+        asyncio.run(seed())
     monkeypatch.setenv("OPENFIC_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(plan, "BACKEND_DATA_DIR", tmp_path)
     monkeypatch.setattr(cli, "getpass", lambda _prompt: "passphrase")
     handlers = []
     server = SimpleNamespace(
@@ -202,11 +223,13 @@ def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch,
 
     def open_browser(url):
         params = parse_qs(urlsplit(url).query)
+        needs_consent = (reauthorize or connected) and missing_scope and (not authorization_requests or first_exchange_fails)
+        assert params.get("prompt") == (["consent"] if needs_consent else None)
         redirect = urlsplit(params["redirect_uri"][0])
         assert redirect.path == plan.OPENAI_CODEX_CALLBACK_PATH
-        is_returning = reauthorize or bool(authorization_requests)
+        is_returning = reauthorize or connected or bool(authorization_requests)
         assert params["client_id"] == ["oaiapp_test" if is_returning else "dynamic_agent_client"]
-        if is_returning and output.exists():
+        if is_returning and (output.exists() or connected):
             assert params["id_token_hint"] == ["id-token"]
             assert "agent_name_hint" not in params
         authorization_requests.append(params)
@@ -248,3 +271,124 @@ def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch,
     assert initialize.await_count == 2
     assert authorization_requests[1]["client_id"] == ["oaiapp_test"]
     assert authorization_requests[0]["state"] != authorization_requests[1]["state"]
+    if connected:
+        from app.models.repos import model_provider_repo
+
+        async def verify_updated():
+            try:
+                async with await create_session() as session:
+                    provider = await model_provider_repo.get_by_id(session, "auth-provider")
+                    assert plan.OpenAICodexCredentialStore(EncryptionService(settings.encryption_key)).read(provider) == credentials
+            finally:
+                await engine.dispose()
+
+        asyncio.run(verify_updated())
+
+
+@pytest.mark.parametrize("imported_refresh", ["rotated", "old"])
+@pytest.mark.parametrize("concurrent_rotation", [False, True])
+def test_cli_import_preserves_existing_rotated_credentials(monkeypatch, tmp_path, cli_database_template, imported_refresh, concurrent_rotation):
+    from dataclasses import replace
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from app.core.encryption import EncryptionService
+    from app.models.entities.model_provider import ModelProvider
+    from app.models.repos import model_provider_repo
+    from app.settings import settings
+    from app.storage import database
+    import app.models.services.openai_codex_service as plan
+
+    shutil.copyfile(cli_database_template, tmp_path / "cli.db")
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'cli.db'}")
+    store = plan.OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+    credentials = plan.OpenAICodexCredentials(
+        client_id="oaiapp_import", ext_agent_host_id="host", issuer=plan.OPENAI_CODEX_ISSUER,
+        subject="subject", email=None, id_token="id", access_token="fresh",
+        refresh_token="rotated", token_type="Bearer", expires_at=datetime.now(UTC) + timedelta(hours=1),
+        scopes=frozenset(plan.OPENAI_CODEX_SCOPES),
+    )
+
+    async def create_session():
+        return AsyncSession(engine, expire_on_commit=False)
+
+    async def seed():
+        async with await create_session() as session:
+            provider = ModelProvider(id="import-provider", name="Plan", url=plan.OPENAI_CODEX_API_BASE_URL,
+                                     api_key_encrypted="", provider_type=plan.OPENAI_CODEX_PROVIDER_TYPE)
+            store.write(provider, credentials)
+            session.add(provider)
+            await session.commit()
+
+    asyncio.run(seed())
+    source = tmp_path / "credential.ofc"
+    source.write_text(plan.encrypt_portable_credentials(
+        replace(credentials, refresh_token=imported_refresh, access_token="file-access"), "passphrase",
+    ))
+    monkeypatch.setattr(database, "init_db", AsyncMock())
+    monkeypatch.setattr(database, "create_session", create_session)
+    monkeypatch.setattr(database, "close_db", engine.dispose)
+    monkeypatch.setattr(cli, "getpass", lambda _prompt: "passphrase")
+    monkeypatch.setenv("OPENFIC_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(plan, "BACKEND_DATA_DIR", tmp_path)
+    args = cli.build_parser().parse_args(["openai-codex", "import", "--input", str(source)])
+    child = None
+    if concurrent_rotation:
+        import subprocess
+
+        script = '''
+import asyncio
+from pathlib import Path
+import sqlite3
+import sys
+import app.models.services.openai_codex_service as plan
+
+async def main():
+    plan.BACKEND_DATA_DIR = Path(sys.argv[1])
+    async with plan.openai_codex_credential_lock("oaiapp_import", "subject"):
+        print("locked", flush=True)
+        encrypted = await asyncio.to_thread(sys.stdin.readline)
+        with sqlite3.connect(plan.BACKEND_DATA_DIR / "cli.db") as connection:
+            connection.execute("UPDATE model_providers SET credentials_encrypted=? WHERE id=?",
+                (encrypted.strip(), "import-provider"))
+
+asyncio.run(main())
+'''
+        child = subprocess.Popen(
+            ["uv", "run", "python", "-c", script, str(tmp_path)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        assert child.stdout.readline() == "locked\n"
+        credentials = replace(credentials, refresh_token="concurrent-rotation")
+        original_sleep = asyncio.sleep
+        released = False
+
+        async def release_refresh(delay):
+            nonlocal released
+            if not released:
+                released = True
+                child.stdin.write(store.encryption_service.encrypt(credentials.to_json()) + "\n")
+                child.stdin.flush()
+            await original_sleep(delay)
+
+        monkeypatch.setattr(plan.asyncio, "sleep", release_refresh)
+    try:
+        if imported_refresh == "old" or concurrent_rotation:
+            with pytest.raises(RuntimeError, match="重新授权"):
+                cli.handle_openai_codex_import(args)
+        else:
+            cli.handle_openai_codex_import(args)
+    finally:
+        if child is not None:
+            if not released and child.poll() is None:
+                child.kill()
+            _stdout, stderr = child.communicate(timeout=30)
+            assert child.returncode == 0, stderr
+
+    async def verify():
+        try:
+            async with await create_session() as session:
+                provider = await model_provider_repo.get_by_id(session, "import-provider")
+                assert store.read(provider) == credentials
+        finally:
+            await engine.dispose()
+
+    asyncio.run(verify())

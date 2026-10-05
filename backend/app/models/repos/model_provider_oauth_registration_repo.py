@@ -25,6 +25,17 @@ async def get_for_provider(
     return result.scalars().first()
 
 
+async def delete_by_client_id(
+    session: AsyncSession, *, provider_type: str, issuer: str, client_id: str,
+) -> None:
+    registration = await get_by_client_id(
+        session, provider_type=provider_type, issuer=issuer, client_id=client_id,
+    )
+    if registration is not None:
+        await session.delete(registration)
+        await session.flush()
+
+
 async def get_all(
     session: AsyncSession, *, provider_type: str, issuer: str,
 ) -> list[ModelProviderOAuthRegistration]:

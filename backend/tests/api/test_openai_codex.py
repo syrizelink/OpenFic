@@ -3,6 +3,7 @@ import shutil
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import base64
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
@@ -23,6 +24,7 @@ from app.models.services.openai_codex_service import (
     OPENAI_CODEX_TOKEN_ENDPOINT,
     OpenAICodexCredentials,
     OpenAICodexCredentialStore,
+    OpenAICodexOAuthClient,
 )
 from app.models.repos import model_provider_repo
 from app.settings import settings
@@ -49,9 +51,11 @@ async def credential_database_template(tmp_path_factory):
 
 
 @pytest_asyncio.fixture
-async def credential_runtime(tmp_path, credential_database_template):
+async def credential_runtime(tmp_path, credential_database_template, monkeypatch):
     from app.api.routers.openai_codex import router
     from app.api.routers.model_providers import router as provider_router
+
+    monkeypatch.setattr("app.api.routers.openai_codex._PENDING_TRANSACTIONS_LOCK", asyncio.Lock())
 
     path = tmp_path / "credentials.db"
     shutil.copyfile(credential_database_template, path)
@@ -59,7 +63,8 @@ async def credential_runtime(tmp_path, credential_database_template):
     try:
         async with AsyncSession(engine, expire_on_commit=False) as session:
             async def runtime_session():
-                yield session
+                async with AsyncSession(engine, expire_on_commit=False) as request_session:
+                    yield request_session
 
             app = FastAPI()
             app.include_router(router, prefix="/api/v1")
@@ -98,8 +103,74 @@ async def test_openai_codex_auth_start_uses_loopback_redirect(client):
     assert redirect_uri.startswith("http://127.0.0.1:")
     assert "localhost" not in redirect_uri
     assert "access_token" not in payload["authorization_url"]
+    assert "prompt" not in parse_qs(urlsplit(payload["authorization_url"]).query)
     progress = await client.get(f"/api/v1/openai-codex/auth/status/{payload['authorization_id']}")
     assert progress.json()["status"] == "pending"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("environment_port", "arguments", "expected_port"),
+    [
+        ("49152", ["uvicorn", "--port", "8001"], 49152),
+        (None, ["uvicorn", "--port", "8001"], 8001),
+        (None, ["uvicorn", "--port=8002"], 8002),
+        (None, ["uvicorn"], 8000),
+    ],
+)
+async def test_auth_start_uses_server_binding_port(
+    credential_runtime, monkeypatch, environment_port, arguments, expected_port,
+):
+    client, _session = credential_runtime
+    monkeypatch.setattr(settings, "port", 8000)
+    monkeypatch.setattr("sys.argv", arguments)
+    if environment_port is None:
+        monkeypatch.delenv("OPENFIC_SERVER_PORT", raising=False)
+    else:
+        monkeypatch.setenv("OPENFIC_SERVER_PORT", environment_port)
+
+    response = await client.post("/api/v1/openai-codex/auth/start", json={})
+
+    assert response.status_code == 200
+    query = parse_qs(urlsplit(response.json()["authorization_url"]).query)
+    assert query["redirect_uri"] == [
+        f"http://127.0.0.1:{expected_port}/api/v1/openai-codex/auth/callback"
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("selection", ["provider", "registration", "automatic"])
+@pytest.mark.parametrize("has_scope", [False, True])
+async def test_reauthorization_requests_consent_only_for_missing_scope(
+    credential_runtime, selection, has_scope,
+):
+    client, session = credential_runtime
+    provider = await model_provider_repo.create(
+        session, "Codex", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE,
+    )
+    credentials = _credentials()
+    if not has_scope:
+        credentials = replace(credentials, scopes=frozenset({"openid"}))
+    OpenAICodexCredentialStore(EncryptionService(settings.encryption_key)).write(provider, credentials)
+    await session.commit()
+    request = {}
+    if selection == "provider":
+        request["provider_id"] = provider.id
+    elif selection == "registration":
+        request["registration_id"] = credentials.client_id
+
+    with patch.object(
+        OpenAICodexOAuthClient, "create_transaction",
+        wraps=OpenAICodexOAuthClient().create_transaction,
+    ) as create:
+        response = await client.post("/api/v1/openai-codex/auth/start", json=request)
+
+    assert response.status_code == 200
+    assert create.call_args.kwargs.get("force_consent") is (not has_scope)
+    query = parse_qs(urlsplit(response.json()["authorization_url"]).query)
+    assert query["client_id"] == [credentials.client_id]
+    assert "chatgpt.tokens.use.direct" in query["scope"][0].split()
+    assert query.get("prompt") == (None if has_scope else ["consent"])
 
 
 @pytest.mark.asyncio
@@ -180,6 +251,9 @@ async def test_openai_codex_callback_validates_and_stores_new_registration(clien
     replay = await client.get("/api/v1/openai-codex/auth/callback", params={"state": state, "code": "replay"})
     assert replay.status_code == 400
     assert exchange.call_count == 1
+    cancelled = await client.delete(f"/api/v1/openai-codex/auth/{state}")
+    assert cancelled.status_code == 200
+    assert cancelled.json() == progress.json()
     replay_manual = await client.post("/api/v1/openai-codex/auth/complete", json={
         "authorization_id": state,
         "callback_url": authorize_params["redirect_uri"][0] + "?" + urlencode(params),
@@ -363,8 +437,8 @@ async def test_refresh_rotation_is_serialized_across_database_sessions(credentia
     async with AsyncSession(session.bind, expire_on_commit=False) as first:
         async with AsyncSession(session.bind, expire_on_commit=False) as second:
             results = await asyncio.gather(
-                store._refresh_with_database_lock(first, provider_id),
-                store._refresh_with_database_lock(second, provider_id),
+                store._refresh_with_account_lock(first, provider_id),
+                store._refresh_with_account_lock(second, provider_id),
             )
     assert refresh.call_count == 1
     assert [result.refresh_token for result in results] == ["new-refresh", "new-refresh"]
@@ -472,3 +546,373 @@ async def test_deleted_registration_reauthorization_keeps_verified_identity(cred
         assert registration.provider_id == providers[0].id
     else:
         assert registration.provider_id is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("credential_state", ["orphan", "corrupt", "disconnected", "revoke-failed", "revoked"])
+@respx.mock
+async def test_forget_registration_removes_local_account(credential_runtime, credential_state):
+    from app.models.repos import model_provider_oauth_registration_repo as registrations
+
+    client, session = credential_runtime
+    provider_id = None
+    if credential_state != "orphan":
+        provider = await model_provider_repo.create(session, "Codex", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+        provider_id = provider.id
+        store = OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+        if credential_state == "corrupt":
+            provider.credentials_encrypted = "invalid-ciphertext"
+        else:
+            store.write(provider, _credentials().without_tokens() if credential_state == "disconnected" else _credentials())
+        await registrations.save_verified(session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer="https://auth.openai.com", client_id="oaiapp_test", subject="subject", email=None, provider_id=provider_id)
+    else:
+        await registrations.save_issued(session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer="https://auth.openai.com", client_id="oaiapp_test")
+    await session.commit()
+    start = await client.post("/api/v1/openai-codex/auth/start", json={"registration_id": "oaiapp_test"})
+    state = start.json()["authorization_id"]
+    if credential_state in {"revoke-failed", "revoked"}:
+        respx.get("https://auth.openai.com/.well-known/openid-configuration").mock(return_value=httpx.Response(200, json={"revocation_endpoint": "https://auth.openai.com/revoke"}))
+        respx.post("https://auth.openai.com/revoke").mock(return_value=httpx.Response(400 if credential_state == "revoke-failed" else 200))
+    response = await client.delete("/api/v1/openai-codex/registrations/oaiapp_test")
+    assert response.status_code == 204
+    assert response.content == b""
+    assert response.headers["X-OAuth-Revocation-Confirmed"] == str(credential_state in {"disconnected", "revoked"}).lower()
+    assert (await client.get("/api/v1/openai-codex/registrations")).json() == []
+    if provider_id:
+        assert await model_provider_repo.get_by_id(session, provider_id) is None
+    assert (await client.get(f"/api/v1/openai-codex/auth/status/{state}")).json()["status"] == "cancelled"
+    assert (await client.get("/api/v1/openai-codex/auth/callback", params={"state": state, "code": "late"})).status_code == 400
+    assert (await client.delete("/api/v1/openai-codex/registrations/oaiapp_test")).status_code == 204
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_interrupted_forgetting_clears_deleting_marker(credential_runtime):
+    client, session = credential_runtime
+    store = OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+    provider = await model_provider_repo.create(session, "Target", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+    store.write(provider, _credentials())
+    await session.commit()
+    start = await client.post("/api/v1/openai-codex/auth/start", json={"provider_id": provider.id})
+    state = start.json()["authorization_id"]
+    revoking = asyncio.Event()
+    release = asyncio.Event()
+
+    async def revoke(_request):
+        revoking.set()
+        await release.wait()
+        return httpx.Response(200)
+
+    respx.get("https://auth.openai.com/.well-known/openid-configuration").mock(return_value=httpx.Response(200, json={"revocation_endpoint": "https://auth.openai.com/revoke"}))
+    respx.post("https://auth.openai.com/revoke").mock(side_effect=revoke)
+    deleting = asyncio.create_task(client.delete("/api/v1/openai-codex/registrations/oaiapp_test"))
+    try:
+        await asyncio.wait_for(revoking.wait(), timeout=5)
+        deleting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await deleting
+    finally:
+        release.set()
+        if not deleting.done():
+            await deleting
+    retry = await client.post("/api/v1/openai-codex/auth/start", json={"registration_id": "oaiapp_test"})
+    assert retry.status_code == 200
+    assert (await client.get(f"/api/v1/openai-codex/auth/status/{state}")).json()["status"] == "cancelled"
+    assert (await client.delete("/api/v1/openai-codex/registrations/oaiapp_test")).status_code == 204
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cancel_pending_is_idempotent_and_rejects_late_callbacks(credential_runtime, monkeypatch):
+    client, session = credential_runtime
+    start = await client.post("/api/v1/openai-codex/auth/start", json={})
+    state = start.json()["authorization_id"]
+
+    async def locked(_session):
+        return True
+
+    monkeypatch.setattr("app.api.agent_settings_lock.has_active_agent_sessions", locked)
+    for _ in range(2):
+        response = await client.delete(f"/api/v1/openai-codex/auth/{state}")
+        assert response.status_code == 200
+        assert response.json()["status"] == "cancelled"
+    callback = await client.get("/api/v1/openai-codex/auth/callback", params={"state": state, "code": "late", "client_id": "oaiapp_test"})
+    assert callback.status_code == 400
+    assert await model_provider_repo.get_all(session) == []
+    assert (await client.get(f"/api/v1/openai-codex/auth/status/{state}")).json()["status"] == "cancelled"
+    assert (await client.delete("/api/v1/openai-codex/auth/unknown")).json()["status"] == "expired"
+
+
+@pytest.mark.asyncio
+async def test_forget_registration_respects_settings_lock(credential_runtime, monkeypatch):
+    from app.models.repos import model_provider_oauth_registration_repo as registrations
+
+    client, session = credential_runtime
+    await registrations.save_issued(session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer="https://auth.openai.com", client_id="oaiapp_test")
+    await session.commit()
+
+    async def locked(_session):
+        return True
+
+    monkeypatch.setattr("app.api.agent_settings_lock.has_active_agent_sessions", locked)
+    response = await client.delete("/api/v1/openai-codex/registrations/oaiapp_test")
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "agent_settings_locked"
+    assert await registrations.get_by_client_id(session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer="https://auth.openai.com", client_id="oaiapp_test") is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["cancel", "forget"])
+@pytest.mark.parametrize("exchange_fails", [False, True])
+@respx.mock
+async def test_cancel_during_token_exchange_prevents_provider_commit(credential_runtime, monkeypatch, action, exchange_fails):
+    client, session = credential_runtime
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def exchange(_request):
+        started.set()
+        await release.wait()
+        return httpx.Response(400 if exchange_fails else 200, json={"access_token": "access", "refresh_token": "refresh", "id_token": "id", "scope": "chatgpt.tokens.use.direct"})
+
+    async def verify(*_args, **_kwargs):
+        return {"sub": "subject"}
+
+    monkeypatch.setattr("app.models.services.openai_codex_service.verify_openai_codex_id_token", verify)
+    respx.post(OPENAI_CODEX_TOKEN_ENDPOINT).mock(side_effect=exchange)
+    start = await client.post("/api/v1/openai-codex/auth/start", json={})
+    state = start.json()["authorization_id"]
+    callback = asyncio.create_task(client.get("/api/v1/openai-codex/auth/callback", params={"state": state, "code": "code", "client_id": "oaiapp_test"}))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=5)
+        path = f"auth/{state}" if action == "cancel" else "registrations/oaiapp_test"
+        response = await client.delete(f"/api/v1/openai-codex/{path}")
+        assert response.status_code == (200 if action == "cancel" else 204)
+    finally:
+        release.set()
+        completed = await callback
+    assert completed.status_code == 400
+    assert await model_provider_repo.get_all(session) == []
+    assert (await client.get(f"/api/v1/openai-codex/auth/status/{state}")).json()["status"] == "cancelled"
+    if action == "forget":
+        assert (await client.get("/api/v1/openai-codex/registrations")).json() == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["auth/unknown", "registrations/oaiapp_test"])
+async def test_oauth_delete_endpoints_require_authentication(path):
+    from app.api.routers.openai_codex import router
+    from app.auth import AuthMiddleware, AuthService
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    app.add_middleware(AuthMiddleware, auth_service=AuthService("password"), api_prefix="/api/v1")
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        assert (await client.delete(f"/api/v1/openai-codex/{path}")).status_code == 401
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cancel_waits_for_final_commit_and_keeps_success(credential_runtime, monkeypatch):
+    client, session = credential_runtime
+    committing = asyncio.Event()
+    release = asyncio.Event()
+    original_commit = AsyncSession.commit
+    callback = None
+    callback_commits = 0
+
+    async def controlled_commit(current):
+        nonlocal callback_commits
+        if asyncio.current_task() is callback:
+            callback_commits += 1
+            if callback_commits == 2:
+                committing.set()
+                await release.wait()
+        await original_commit(current)
+
+    async def verify(*_args, **_kwargs):
+        return {"sub": "subject"}
+
+    monkeypatch.setattr(AsyncSession, "commit", controlled_commit)
+    monkeypatch.setattr("app.models.services.openai_codex_service.verify_openai_codex_id_token", verify)
+    respx.post(OPENAI_CODEX_TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json={
+        "access_token": "access", "refresh_token": "refresh", "id_token": "id", "scope": "chatgpt.tokens.use.direct",
+    }))
+    start = await client.post("/api/v1/openai-codex/auth/start", json={})
+    state = start.json()["authorization_id"]
+    callback = asyncio.create_task(client.get("/api/v1/openai-codex/auth/callback", params={"state": state, "code": "code", "client_id": "oaiapp_test"}))
+    cancellation = None
+    try:
+        await asyncio.wait_for(committing.wait(), timeout=5)
+        cancellation = asyncio.create_task(client.delete(f"/api/v1/openai-codex/auth/{state}"))
+        await asyncio.sleep(0)
+        assert not cancellation.done()
+    finally:
+        release.set()
+        completed = await callback
+        cancelled = await cancellation if cancellation else None
+    assert completed.status_code == 200
+    assert cancelled is not None and cancelled.status_code == 200
+    assert cancelled.json()["status"] == "success"
+    providers = await model_provider_repo.get_all(session)
+    assert len(providers) == 1
+    assert cancelled.json()["provider_id"] == providers[0].id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wait_at", ["revoke", "account-lock"])
+@respx.mock
+async def test_forgetting_account_does_not_block_other_authorizations(credential_runtime, monkeypatch, wait_at):
+    from contextlib import asynccontextmanager
+    from app.models.services import openai_codex_service
+
+    client, session = credential_runtime
+    store = OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+    target = await model_provider_repo.create(session, "Target", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+    store.write(target, _credentials())
+    other = await model_provider_repo.create(session, "Other", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+    store.write(other, replace(_credentials(), client_id="oaiapp_other"))
+    await session.commit()
+    target_id = target.id
+    before = await client.post("/api/v1/openai-codex/auth/start", json={"registration_id": "oaiapp_test"})
+    target_state = before.json()["authorization_id"]
+    other_start = await client.post("/api/v1/openai-codex/auth/start", json={"registration_id": "oaiapp_other"})
+    other_state = other_start.json()["authorization_id"]
+    fresh = await client.post("/api/v1/openai-codex/auth/start", json={"new_registration": True})
+    fresh_state = fresh.json()["authorization_id"]
+    waiting = asyncio.Event()
+    release = asyncio.Event()
+    original_lock = openai_codex_service.openai_codex_credential_lock
+
+    @asynccontextmanager
+    async def controlled_lock(client_id, subject):
+        async with original_lock(client_id, subject):
+            if client_id == "oaiapp_test":
+                waiting.set()
+                await release.wait()
+            yield
+
+    async def revoke(_request):
+        if wait_at == "revoke":
+            waiting.set()
+            await release.wait()
+        return httpx.Response(200)
+
+    if wait_at == "account-lock":
+        monkeypatch.setattr(openai_codex_service, "openai_codex_credential_lock", controlled_lock)
+    respx.get("https://auth.openai.com/.well-known/openid-configuration").mock(return_value=httpx.Response(200, json={"revocation_endpoint": "https://auth.openai.com/revoke"}))
+    respx.post("https://auth.openai.com/revoke").mock(side_effect=revoke)
+    deleting = asyncio.create_task(client.delete("/api/v1/openai-codex/registrations/oaiapp_test"))
+    try:
+        await asyncio.wait_for(waiting.wait(), timeout=5)
+        progress = await asyncio.wait_for(client.get(f"/api/v1/openai-codex/auth/status/{other_state}"), timeout=1)
+        assert progress.json()["status"] == "pending"
+        cancellation = await asyncio.wait_for(client.delete(f"/api/v1/openai-codex/auth/{other_state}"), timeout=1)
+        assert cancellation.json()["status"] == "cancelled"
+        start = await asyncio.wait_for(client.post("/api/v1/openai-codex/auth/start", json={"registration_id": "oaiapp_other"}), timeout=1)
+        assert start.status_code == 200
+        for selection in ({"registration_id": "oaiapp_test"}, {"provider_id": target_id}):
+            rejected = await asyncio.wait_for(client.post("/api/v1/openai-codex/auth/start", json=selection), timeout=1)
+            assert rejected.status_code == 409
+        duplicate = await asyncio.wait_for(client.delete("/api/v1/openai-codex/registrations/oaiapp_test"), timeout=1)
+        assert duplicate.status_code == 409
+        callback = await asyncio.wait_for(client.get("/api/v1/openai-codex/auth/callback", params={"state": fresh_state, "code": "late", "client_id": "oaiapp_test"}), timeout=1)
+        assert callback.status_code == 400
+        assert (await client.get(f"/api/v1/openai-codex/auth/status/{fresh_state}")).json()["status"] == "cancelled"
+        assert (await client.get(f"/api/v1/openai-codex/auth/status/{target_state}")).json()["status"] == "cancelled"
+    finally:
+        release.set()
+        response = await deleting
+    assert response.status_code == 204
+    assert [item["client_id"] for item in (await client.get("/api/v1/openai-codex/registrations")).json()] == ["oaiapp_other"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failed_token", [None, "refresh-first", "refresh-second"])
+@respx.mock
+async def test_forget_registration_removes_all_matching_providers(credential_runtime, failed_token):
+    client, session = credential_runtime
+    store = OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+    target_ids = []
+    for token in ("refresh-first", "refresh-second"):
+        provider = await model_provider_repo.create(session, token, OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+        store.write(provider, replace(_credentials(), refresh_token=token))
+        target_ids.append(provider.id)
+    other = await model_provider_repo.create(session, "Other", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+    store.write(other, replace(_credentials(), client_id="oaiapp_other"))
+    other_id = other.id
+    await session.commit()
+    assert len((await client.get("/api/v1/openai-codex/registrations")).json()) == 2
+    respx.get("https://auth.openai.com/.well-known/openid-configuration").mock(return_value=httpx.Response(200, json={"revocation_endpoint": "https://auth.openai.com/revoke"}))
+
+    async def revoke(request):
+        token = parse_qs(request.content.decode())["token"][0]
+        return httpx.Response(400 if token == failed_token else 200)
+
+    revocation = respx.post("https://auth.openai.com/revoke").mock(side_effect=revoke)
+    response = await client.delete("/api/v1/openai-codex/registrations/oaiapp_test")
+    assert response.status_code == 204
+    assert response.headers["X-OAuth-Revocation-Confirmed"] == str(failed_token is None).lower()
+    assert revocation.call_count == 2
+    assert {parse_qs(call.request.content.decode())["token"][0] for call in revocation.calls} == {"refresh-first", "refresh-second"}
+    for provider_id in target_ids:
+        assert await model_provider_repo.get_by_id(session, provider_id) is None
+    assert await model_provider_repo.get_by_id(session, other_id) is not None
+    for _ in range(2):
+        registrations = (await client.get("/api/v1/openai-codex/registrations")).json()
+        assert [item["client_id"] for item in registrations] == ["oaiapp_other"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_listing_during_deletion_does_not_restore_registration(credential_runtime, monkeypatch):
+    client, session = credential_runtime
+    store = OpenAICodexCredentialStore(EncryptionService(settings.encryption_key))
+    provider = await model_provider_repo.create(session, "Target", OPENAI_CODEX_API_BASE_URL, "", OPENAI_CODEX_PROVIDER_TYPE)
+    store.write(provider, _credentials())
+    await session.commit()
+    await client.get("/api/v1/openai-codex/registrations")
+    revoking = asyncio.Event()
+    release_revocation = asyncio.Event()
+    listing_loaded = asyncio.Event()
+    release_listing = asyncio.Event()
+    locally_deleted = asyncio.Event()
+    original_get_all = model_provider_repo.get_all
+    original_forget = OpenAICodexCredentialStore.forget_registration
+    listing = None
+
+    async def controlled_get_all(current):
+        providers = await original_get_all(current)
+        if asyncio.current_task() is listing:
+            listing_loaded.set()
+            await release_listing.wait()
+        return providers
+
+    async def controlled_forget(current_store, current, client_id):
+        confirmed = await original_forget(current_store, current, client_id)
+        locally_deleted.set()
+        return confirmed
+
+    async def revoke(_request):
+        revoking.set()
+        await release_revocation.wait()
+        return httpx.Response(200)
+
+    monkeypatch.setattr(model_provider_repo, "get_all", controlled_get_all)
+    monkeypatch.setattr(OpenAICodexCredentialStore, "forget_registration", controlled_forget)
+    respx.get("https://auth.openai.com/.well-known/openid-configuration").mock(return_value=httpx.Response(200, json={"revocation_endpoint": "https://auth.openai.com/revoke"}))
+    respx.post("https://auth.openai.com/revoke").mock(side_effect=revoke)
+    deleting = asyncio.create_task(client.delete("/api/v1/openai-codex/registrations/oaiapp_test"))
+    try:
+        await asyncio.wait_for(revoking.wait(), timeout=5)
+        listing = asyncio.create_task(client.get("/api/v1/openai-codex/registrations"))
+        await asyncio.wait_for(listing_loaded.wait(), timeout=5)
+        release_revocation.set()
+        await asyncio.wait_for(locally_deleted.wait(), timeout=5)
+    finally:
+        release_revocation.set()
+        release_listing.set()
+        if listing is not None:
+            await listing
+        await deleting
+    assert (await client.get("/api/v1/openai-codex/registrations")).json() == []

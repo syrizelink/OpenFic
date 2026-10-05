@@ -15,7 +15,6 @@ from langchain_core.messages import (
     BaseMessage,
     SystemMessage,
     ToolMessage,
-    message_chunk_to_message,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.tools import BaseTool
@@ -76,15 +75,62 @@ class OpenAICodexChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         del stop, run_manager
-        chunks: list[AIMessageChunk] = []
+        content: list[str] = []
+        reasoning: list[str] = []
+        additional_kwargs: dict[str, Any] = {}
+        response_metadata: dict[str, Any] = {}
+        usage_metadata = None
+        tool_calls: dict[int | None, dict[str, Any]] = {}
+        has_chunks = False
         async for generation_chunk in self._astream(messages, **kwargs):
-            chunks.append(cast(AIMessageChunk, generation_chunk.message))
-        if not chunks:
+            has_chunks = True
+            chunk = cast(AIMessageChunk, generation_chunk.message)
+            content.append(_text_content(chunk.content))
+            for key, value in chunk.additional_kwargs.items():
+                if key == "reasoning_content" and isinstance(value, str):
+                    reasoning.append(value)
+                else:
+                    additional_kwargs[key] = value
+            response_metadata.update(chunk.response_metadata)
+            if chunk.usage_metadata is not None:
+                usage_metadata = chunk.usage_metadata
+            for call_chunk in chunk.tool_call_chunks:
+                call = tool_calls.setdefault(
+                    call_chunk.get("index"), {"id": None, "name": "", "arguments": []}
+                )
+                if call_chunk.get("id") is not None:
+                    call["id"] = call_chunk["id"]
+                if call_chunk.get("name") is not None:
+                    call["name"] = call_chunk["name"]
+                if call_chunk.get("args") is not None:
+                    call["arguments"].append(call_chunk["args"])
+        if not has_chunks:
             raise OpenAICodexResponseError("Responses 流未返回任何消息")
-        message = chunks[0]
-        for chunk in chunks[1:]:
-            message = message + chunk
-        return ChatResult(generations=[ChatGeneration(message=message_chunk_to_message(message))])
+        if reasoning:
+            additional_kwargs["reasoning_content"] = "".join(reasoning)
+        valid_calls: list[dict[str, Any]] = []
+        invalid_calls: list[dict[str, Any]] = []
+        for call in tool_calls.values():
+            arguments = "".join(call["arguments"])
+            try:
+                parsed = json.loads(arguments or "{}")
+                if not isinstance(parsed, dict):
+                    raise ValueError("Responses 工具参数必须是 JSON 对象")
+            except ValueError:
+                invalid_calls.append({
+                    "id": call["id"], "name": call["name"], "args": arguments, "error": None,
+                })
+            else:
+                valid_calls.append({"id": call["id"], "name": call["name"], "args": parsed})
+        message = AIMessage(
+            content="".join(content),
+            additional_kwargs=additional_kwargs,
+            response_metadata=response_metadata,
+            usage_metadata=usage_metadata,
+            tool_calls=valid_calls,
+            invalid_tool_calls=invalid_calls,
+        )
+        return ChatResult(generations=[ChatGeneration(message=message)])
 
     def _generate(
         self,
@@ -123,6 +169,7 @@ class OpenAICodexChatModel(BaseChatModel):
         completed = False
         tool_calls: dict[str, dict[str, Any]] = {}
         item_call_ids: dict[str, str] = {}
+        output_items: dict[int, dict[str, Any]] = {}
         async with httpx.AsyncClient(timeout=timeout) as client:
             async with client.stream(
                 "POST",
@@ -159,7 +206,7 @@ class OpenAICodexChatModel(BaseChatModel):
                                     "id": call_id,
                                     "name": name,
                                     "index": index,
-                                    "arguments": "",
+                                    "arguments": [],
                                 }
                                 if isinstance(item.get("id"), str):
                                     item_call_ids[item["id"]] = call_id
@@ -180,7 +227,8 @@ class OpenAICodexChatModel(BaseChatModel):
                             call = tool_calls.get(call_id)
                             if call is None:
                                 raise OpenAICodexResponseError("Responses 工具参数缺少对应调用")
-                            call["arguments"] += delta
+                            if delta:
+                                call["arguments"].append(delta)
                             yield _generation_chunk(
                                 tool_call_chunks=[
                                     {
@@ -198,7 +246,7 @@ class OpenAICodexChatModel(BaseChatModel):
                             and isinstance(arguments, str)
                             and not call["arguments"]
                         ):
-                            call["arguments"] = arguments
+                            call["arguments"].append(arguments)
                             yield _generation_chunk(
                                 tool_call_chunks=[
                                     {
@@ -207,6 +255,11 @@ class OpenAICodexChatModel(BaseChatModel):
                                     }
                                 ]
                             )
+                    elif event_type == "response.output_item.done":
+                        item = event.get("item")
+                        index = event.get("output_index")
+                        if isinstance(item, dict) and isinstance(index, int):
+                            output_items[index] = item
                     elif event_type == "response.completed":
                         response_payload = event.get("response")
                         if isinstance(response_payload, dict):
@@ -242,7 +295,11 @@ class OpenAICodexChatModel(BaseChatModel):
                             }
                             if isinstance(usage, dict):
                                 metadata["usage"] = usage
+                            output = response_payload.get("output")
+                            if not isinstance(output, list):
+                                output = [output_items[index] for index in sorted(output_items)]
                             yield _generation_chunk(
+                                additional_kwargs={"responses_output": output} if output else {},
                                 response_metadata=metadata,
                                 usage_metadata=_usage_metadata(usage),
                                 chunk_position="last",
@@ -284,6 +341,7 @@ class OpenAICodexChatModel(BaseChatModel):
             "input": input_items,
             "store": False,
             "stream": True,
+            "include": ["reasoning.encrypted_content"],
         }
         if instructions:
             payload["instructions"] = "\n\n".join(instructions)
@@ -357,6 +415,17 @@ def _message_to_responses_items(message: BaseMessage) -> list[dict[str, Any]]:
                 "output": _text_content(message.content),
             }
         ]
+
+    if isinstance(message, AIMessage):
+        output = message.additional_kwargs.get("responses_output")
+        if isinstance(output, list) and output:
+            call_ids = {call.get("id") for call in message.tool_calls if call.get("id")}
+            return [
+                dict(item)
+                for item in output
+                if isinstance(item, dict)
+                and (item.get("type") != "function_call" or item.get("call_id") in call_ids)
+            ]
 
     role = "assistant" if isinstance(message, AIMessage) else "user"
     content = _responses_content(message.content, role)

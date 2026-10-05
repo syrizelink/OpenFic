@@ -91,7 +91,7 @@ export function getProviderUrl(
 
 export function resolveProviderCatalogType(provider: ModelProvider): string | null {
   if (provider.providerType === "openai-codex") {
-    return null;
+    return "openai";
   }
   if (isCustomProviderType(provider.providerType)) {
     return provider.catalogMatch?.catalogProviderType ?? null;

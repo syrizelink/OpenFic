@@ -294,7 +294,7 @@ export interface OpenAICodexAuthorization {
 }
 
 export interface OpenAICodexAuthorizationStatus {
-  status: "pending" | "success" | "error" | "expired";
+  status: "pending" | "success" | "error" | "expired" | "cancelled";
   provider_id: string | null;
   registration_id: string | null;
 }
@@ -314,6 +314,22 @@ export interface OpenAICodexAuthOptions {
 
 export async function fetchOpenAICodexRegistrations(): Promise<OpenAICodexRegistration[]> {
   const response = await apiClient.get<OpenAICodexRegistration[]>("/openai-codex/registrations");
+  return response.data;
+}
+
+export async function deleteOpenAICodexRegistration(clientId: string): Promise<boolean> {
+  const response = await apiClient.delete(
+    `/openai-codex/registrations/${encodeURIComponent(clientId)}`,
+  );
+  return response.headers["x-oauth-revocation-confirmed"] === "true";
+}
+
+export async function cancelOpenAICodexAuth(
+  authorizationId: string,
+): Promise<OpenAICodexAuthorizationStatus> {
+  const response = await apiClient.delete<OpenAICodexAuthorizationStatus>(
+    `/openai-codex/auth/${encodeURIComponent(authorizationId)}`,
+  );
   return response.data;
 }
 

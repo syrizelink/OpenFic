@@ -6,9 +6,12 @@ import asyncio
 import base64
 from binascii import Error as Base64Error
 from collections import defaultdict
+from collections.abc import AsyncIterator, Collection
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 import hashlib
+import errno
 import json
 import os
 from pathlib import Path
@@ -22,7 +25,6 @@ import jwt
 import jwt.algorithms
 from cryptography.fernet import Fernet, InvalidToken
 from loguru import logger
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import EncryptionService
@@ -238,6 +240,7 @@ class OpenAICodexOAuthTransaction:
     login_hint: str | None
     expires_at: datetime
     expected_subject: str | None = None
+    force_consent: bool = False
 
 
 def parse_openai_codex_callback(
@@ -295,6 +298,7 @@ def build_authorization_url(
     agent_name_hint: str | None = None,
     id_token_hint: str | None = None,
     login_hint: str | None = None,
+    force_consent: bool = False,
 ) -> str:
     if not redirect_uri.startswith("http://127.0.0.1:"):
         raise ValueError("OpenAI Codex OAuth must use a 127.0.0.1 loopback redirect")
@@ -316,6 +320,8 @@ def build_authorization_url(
         params["id_token_hint"] = id_token_hint
     if login_hint:
         params["login_hint"] = login_hint
+    if force_consent:
+        params["prompt"] = "consent"
     return f"{OPENAI_CODEX_AUTHORIZATION_ENDPOINT}?{urlencode(params)}"
 
 
@@ -436,6 +442,7 @@ class OpenAICodexOAuthClient:
         id_token_hint: str | None = None,
         login_hint: str | None = None,
         expected_subject: str | None = None,
+        force_consent: bool = False,
     ) -> OpenAICodexOAuthTransaction:
         verifier = _new_urlsafe_value(64)
         return OpenAICodexOAuthTransaction(
@@ -451,6 +458,7 @@ class OpenAICodexOAuthClient:
             login_hint=login_hint,
             expires_at=_utc_now() + OPENAI_CODEX_TRANSACTION_TTL,
             expected_subject=expected_subject,
+            force_consent=force_consent,
         )
 
     def authorization_url(self, transaction: OpenAICodexOAuthTransaction) -> str:
@@ -467,6 +475,7 @@ class OpenAICodexOAuthClient:
             agent_name_hint=OPENAI_CODEX_AGENT_NAME if is_initial_registration else None,
             id_token_hint=transaction.id_token_hint,
             login_hint=transaction.login_hint,
+            force_consent=transaction.force_consent,
         )
 
     def validate_callback_client_id(
@@ -581,6 +590,42 @@ def _oauth_error_message(response: httpx.Response) -> str:
     return f"OAuth 请求失败: HTTP {response.status_code}"
 
 
+@asynccontextmanager
+async def openai_codex_credential_lock(client_id: str, subject: str) -> AsyncIterator[None]:
+    """Serialize one registration across local processes without a DB transaction."""
+    key = hashlib.sha256(json.dumps([OPENAI_CODEX_ISSUER, client_id, subject]).encode()).hexdigest()
+    directory = BACKEND_DATA_DIR / "openai-codex-locks"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(directory / f"{key}.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            # Windows locks a byte range, including a byte beyond EOF.
+            def acquire() -> None:
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            def acquire() -> None:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+        while True:
+            try:
+                acquire()
+                break
+            except OSError as exc:
+                if exc.errno not in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+                    raise
+                await asyncio.sleep(0.05)
+        yield
+    finally:
+        # Closing also releases the OS lock on cancellation or process exit.
+        # Keep the inode: unlinking permits waiters to lock different files.
+        os.close(descriptor)
+
+
 class OpenAICodexCredentialStore:
     """Persist encrypted credentials and serialize refreshes per registration."""
 
@@ -619,7 +664,7 @@ class OpenAICodexCredentialStore:
                 if credentials.has_fresh_access_token():
                     return credentials.access_token or ""
 
-                credentials = await self._refresh_with_database_lock(
+                credentials = await self._refresh_with_account_lock(
                     session,
                     provider_id,
                 )
@@ -629,14 +674,28 @@ class OpenAICodexCredentialStore:
             finally:
                 await session.close()
 
-    async def _refresh_with_database_lock(
+    async def _refresh_with_account_lock(
         self,
         session: AsyncSession,
         provider_id: str,
     ) -> OpenAICodexCredentials:
         from app.models.repos import model_provider_repo
 
-        await self._lock_session(session)
+        provider = await model_provider_repo.get_by_id(session, provider_id)
+        if provider is None:
+            raise OpenAICodexReauthorizationRequired("OpenAI Codex 提供商不存在")
+        credentials = self.read(provider)
+        await session.rollback()
+        async with openai_codex_credential_lock(credentials.client_id, credentials.subject):
+            try:
+                return await self._refresh_locked(session, provider_id)
+            finally:
+                await session.rollback()
+
+    async def _refresh_locked(
+        self, session: AsyncSession, provider_id: str,
+    ) -> OpenAICodexCredentials:
+        from app.models.repos import model_provider_repo
 
         provider = await model_provider_repo.get_by_id(session, provider_id)
         if provider is None:
@@ -647,6 +706,7 @@ class OpenAICodexCredentialStore:
             return credentials
         if not credentials.refresh_token:
             raise OpenAICodexReauthorizationRequired("OpenAI Codex refresh token 已失效")
+        await session.commit()
 
         try:
             payload = await self._refresh_token(credentials)
@@ -700,11 +760,6 @@ class OpenAICodexCredentialStore:
             raise OpenAICodexScopeError("OpenAI Codex 使用权限未授予")
         return refreshed
 
-    async def _lock_session(self, session: AsyncSession) -> None:
-        if session.get_bind().dialect.name == "sqlite":
-            await session.rollback()
-            await session.execute(text("BEGIN IMMEDIATE"))
-
     async def _refresh_token(self, credentials: OpenAICodexCredentials) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -723,7 +778,9 @@ class OpenAICodexCredentialStore:
             raise OpenAICodexOAuthError("刷新响应格式无效")
         return payload
 
-    async def list_registrations(self, session: AsyncSession) -> list[ModelProviderOAuthRegistration]:
+    async def list_registrations(
+        self, session: AsyncSession, *, deleting_client_ids: Collection[str] = (),
+    ) -> list[ModelProviderOAuthRegistration]:
         from app.models.repos import model_provider_oauth_registration_repo, model_provider_repo
 
         for provider in await model_provider_repo.get_all(session):
@@ -733,11 +790,46 @@ class OpenAICodexCredentialStore:
                 credentials = self.read(provider)
             except OpenAICodexError:
                 continue
+            if credentials.client_id in deleting_client_ids:
+                continue
             await save_openai_codex_registration(session, credentials, provider.id)
         await session.commit()
         return await model_provider_oauth_registration_repo.get_all(
             session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer=OPENAI_CODEX_ISSUER,
         )
+
+    async def forget_registration(self, session: AsyncSession, client_id: str) -> bool:
+        from app.models.repos import model_provider_oauth_registration_repo, model_provider_repo
+
+        registration = await model_provider_oauth_registration_repo.get_by_client_id(
+            session, provider_type=OPENAI_CODEX_PROVIDER_TYPE,
+            issuer=OPENAI_CODEX_ISSUER, client_id=client_id,
+        )
+        linked_provider_id = registration.provider_id if registration is not None else None
+        provider_ids = []
+        for provider in await model_provider_repo.get_all(session):
+            if provider.provider_type != OPENAI_CODEX_PROVIDER_TYPE:
+                continue
+            credentials = get_openai_codex_credentials(provider, self.encryption_service)
+            if credentials is not None:
+                if credentials.issuer != OPENAI_CODEX_ISSUER or credentials.client_id != client_id:
+                    continue
+            elif provider.id != linked_provider_id:
+                continue
+            provider_ids.append(provider.id)
+        confirmed = bool(provider_ids)
+        for provider_id in provider_ids:
+            provider = await model_provider_repo.get_by_id(session, provider_id)
+            if provider is not None:
+                confirmed = await self.revoke_and_delete(session, provider) and confirmed
+            else:
+                confirmed = False
+        await model_provider_oauth_registration_repo.delete_by_client_id(
+            session, provider_type=OPENAI_CODEX_PROVIDER_TYPE,
+            issuer=OPENAI_CODEX_ISSUER, client_id=client_id,
+        )
+        await session.commit()
+        return confirmed
 
     async def revoke_and_delete(self, session: AsyncSession, provider: ModelProvider) -> bool:
         from app.core.errors import NotFoundError
@@ -745,30 +837,43 @@ class OpenAICodexCredentialStore:
 
         provider_id = provider.id
         async with _REFRESH_LOCKS[provider_id]:
-            await self._lock_session(session)
-            current = await model_provider_repo.get_by_id(session, provider_id)
-            if current is None:
-                raise NotFoundError(f"Provider with id {provider_id} not found")
-            confirmed = True
-            if current.credentials_encrypted:
+            try:
+                credentials = self.read(provider)
+            except OpenAICodexError:
+                credentials = None
+            await session.rollback()
+            async with openai_codex_credential_lock(
+                credentials.client_id if credentials else provider_id,
+                credentials.subject if credentials else "",
+            ):
                 try:
-                    credentials = self.read(current)
-                except OpenAICodexError:
-                    confirmed = False
-                else:
-                    await save_openai_codex_registration(session, credentials, None)
-                    if credentials.refresh_token:
+                    current = await model_provider_repo.get_by_id(session, provider_id)
+                    if current is None:
+                        raise NotFoundError(f"Provider with id {provider_id} not found")
+                    confirmed = True
+                    credentials = None
+                    if current.credentials_encrypted:
+                        try:
+                            credentials = self.read(current)
+                        except OpenAICodexError:
+                            confirmed = False
+                    await session.commit()
+                    if credentials and credentials.refresh_token:
                         confirmed = await self._revoke_refresh_token(credentials)
-            registration = await model_provider_oauth_registration_repo.get_for_provider(
-                session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer=OPENAI_CODEX_ISSUER, provider_id=provider_id,
-            )
-            if registration is not None:
-                registration.provider_id = None
-                session.add(registration)
-            if not await model_provider_repo.delete_by_id(session, provider_id):
-                raise NotFoundError(f"Provider with id {provider_id} not found")
-            await session.commit()
-            return confirmed
+                    if credentials:
+                        await save_openai_codex_registration(session, credentials, None)
+                    registration = await model_provider_oauth_registration_repo.get_for_provider(
+                        session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer=OPENAI_CODEX_ISSUER, provider_id=provider_id,
+                    )
+                    if registration is not None:
+                        registration.provider_id = None
+                        session.add(registration)
+                    if not await model_provider_repo.delete_by_id(session, provider_id):
+                        raise NotFoundError(f"Provider with id {provider_id} not found")
+                    await session.commit()
+                    return confirmed
+                finally:
+                    await session.rollback()
 
     async def _revoke_refresh_token(self, credentials: OpenAICodexCredentials) -> bool:
         try:

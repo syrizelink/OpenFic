@@ -203,10 +203,6 @@ export function ModelFormDialog({
     () => providers?.find((p) => p.id === providerId),
     [providers, providerId],
   );
-  const selectedCatalogProviderType = useMemo(
-    () => (selectedProvider ? resolveProviderCatalogType(selectedProvider) : null),
-    [selectedProvider],
-  );
   const selectedProviderSupportsEmbeddingDimensions = useMemo(
     () => (selectedProvider ? supportsEmbeddingDimensions(selectedProvider.providerType) : false),
     [selectedProvider],
@@ -285,27 +281,16 @@ export function ModelFormDialog({
     void loadModelsForProvider(providerId, taskType as TaskType);
   }, [loadModelsForProvider, providerId, taskType]);
 
-  // 先使用 catalog；没有 catalog 的账户提供商直接回退到账户远程目录。
+  // 默认使用 catalog；账户远程目录由手动刷新加载。
   useEffect(() => {
     if (!open || !selectedProvider) {
       return;
     }
 
     queueMicrotask(() => {
-      if (selectedCatalogProviderType || selectedProvider.providerType !== "openai-codex") {
-        void loadCatalogModelsForProvider(selectedProvider, taskType as TaskType);
-      } else {
-        void loadModelsForProvider(selectedProvider.id, taskType as TaskType);
-      }
+      void loadCatalogModelsForProvider(selectedProvider, taskType as TaskType);
     });
-  }, [
-    loadCatalogModelsForProvider,
-    loadModelsForProvider,
-    open,
-    selectedCatalogProviderType,
-    selectedProvider,
-    taskType,
-  ]);
+  }, [loadCatalogModelsForProvider, open, selectedProvider, taskType]);
 
   // 仅在创建表单没有提供商时清空模型选择。
   // 编辑表单的 reset() 会在 watch 值同步前触发，不能据此清空已保存的模型 ID。
@@ -664,7 +649,7 @@ export function ModelFormDialog({
                 )}
                 {selectedProvider &&
                   isCustomProviderType(selectedProvider.providerType) &&
-                  !selectedCatalogProviderType &&
+                  !resolveProviderCatalogType(selectedProvider) &&
                   !loadingModels && (
                     <Text
                       size="1"

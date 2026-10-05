@@ -23,6 +23,31 @@
   width: 100%;
 }
 
+[data-slot="select-option-with-actions"] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+[data-slot="select-option-with-actions"] > .rt-SelectItem,
+[data-slot="select-option-with-actions"] > .searchable-select-item {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-slot="select-option-actions"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  flex-shrink: 0;
+}
+
+[data-slot="select-option-actions"] :focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 2px;
+}
+
 .select-option-main {
   min-width: 0;
 }

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Agent LLM usage cost tests."""
 
+import pytest
+
 from app.agent_runtime.usage_cost import (
     calculate_llm_call_cost,
     extract_cache_read_tokens,
@@ -9,8 +11,10 @@ from app.agent_runtime.usage_cost import (
 from app.agent_runtime.runner.session_runner import SessionRunner
 
 
-def test_calculate_llm_call_cost_splits_cached_tokens() -> None:
+@pytest.mark.parametrize("provider_type, expected", [("openai", 0.0032), ("openai-codex", 0.0)])
+def test_calculate_llm_call_cost_splits_cached_tokens(provider_type, expected) -> None:
     cost = calculate_llm_call_cost(
+        provider_type=provider_type,
         token_input=1_000,
         token_output=200,
         token_cache=200,
@@ -21,7 +25,7 @@ def test_calculate_llm_call_cost_splits_cached_tokens() -> None:
         cache_write_price=1.0,
     )
 
-    assert cost == 0.0032
+    assert cost == expected
 
 
 def test_extract_cache_write_tokens_accepts_provider_usage_shapes() -> None:
@@ -48,11 +52,13 @@ def test_extract_cache_read_tokens_falls_back_when_top_level_value_is_zero() -> 
     ) == 7
 
 
-def test_session_runner_includes_cache_write_price_in_call_cost() -> None:
+@pytest.mark.parametrize("provider_type, expected", [("openai", 0.0032), ("openai-codex", 0.0)])
+def test_session_runner_includes_cache_write_price_in_call_cost(provider_type, expected) -> None:
     runner = SessionRunner(
         session_id="session-cost",
         task_id="task-cost",
         model_config={
+            "provider_type": provider_type,
             "max_context_tokens": 128000,
             "input_price": 2.0,
             "output_price": 8.0,
@@ -72,4 +78,6 @@ def test_session_runner_includes_cache_write_price_in_call_cost() -> None:
     )
 
     assert normalized["token_cache"] == 200
-    assert normalized["cost"] == 0.0032
+    assert normalized["token_input"] == 1000
+    assert normalized["token_output"] == 200
+    assert normalized["cost"] == expected

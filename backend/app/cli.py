@@ -104,10 +104,11 @@ def handle_openai_codex_auth(args: argparse.Namespace) -> None:
             encrypt_portable_credentials,
             get_openai_codex_host_id,
             OpenAICodexCredentialStore,
+            openai_codex_credential_lock,
             save_openai_codex_registration,
         )
         from app.core.encryption import EncryptionService
-        from app.models.repos import model_provider_oauth_registration_repo
+        from app.models.repos import model_provider_oauth_registration_repo, model_provider_repo
         from app.settings import settings
         from app.storage.database import create_session
 
@@ -126,6 +127,7 @@ def handle_openai_codex_auth(args: argparse.Namespace) -> None:
             if source_path else None
         )
         session = await create_session()
+        known_credentials = previous
         try:
             registrations = await OpenAICodexCredentialStore(EncryptionService(settings.encryption_key)).list_registrations(session)
             registration = None
@@ -139,6 +141,12 @@ def handle_openai_codex_auth(args: argparse.Namespace) -> None:
                 if len(registrations) > 1:
                     raise RuntimeError("存在多个 OAuth 注册，请用 --input 选择已有凭据，或用 --new-account 明确添加新账户")
                 registration = registrations[0] if registrations else None
+                if registration and registration.provider_id:
+                    provider = await model_provider_repo.get_by_id(session, registration.provider_id)
+                    if provider is not None:
+                        known_credentials = OpenAICodexCredentialStore(
+                            EncryptionService(settings.encryption_key),
+                        ).read(provider)
         finally:
             await session.close()
         oauth = OpenAICodexOAuthClient()
@@ -193,9 +201,10 @@ def handle_openai_codex_auth(args: argparse.Namespace) -> None:
             redirect_uri=f"http://127.0.0.1:{port}{OPENAI_CODEX_CALLBACK_PATH}",
             ext_agent_host_id=get_openai_codex_host_id(data_dir),
             expected_client_id=registration.client_id if registration else OPENAI_CODEX_DYNAMIC_CLIENT_ID,
-            id_token_hint=previous.id_token if previous else None,
+            id_token_hint=known_credentials.id_token if known_credentials else None,
             login_hint=registration.email if registration else None,
             expected_subject=registration.subject if registration else None,
+            force_consent=bool(known_credentials and not known_credentials.openai_codex_access_enabled),
         )
         try:
             webbrowser.open(oauth.authorization_url(transaction))
@@ -234,11 +243,17 @@ def handle_openai_codex_auth(args: argparse.Namespace) -> None:
                 raise RuntimeError("账户未授予 OpenAI Codex 直接访问权限")
             session = await create_session()
             try:
-                retained = await model_provider_oauth_registration_repo.get_by_client_id(
-                    session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer=OPENAI_CODEX_ISSUER, client_id=credentials.client_id,
-                )
-                await save_openai_codex_registration(session, credentials, retained.provider_id if retained else None)
-                await session.commit()
+                async with openai_codex_credential_lock(credentials.client_id, credentials.subject):
+                    retained = await model_provider_oauth_registration_repo.get_by_client_id(
+                        session, provider_type=OPENAI_CODEX_PROVIDER_TYPE, issuer=OPENAI_CODEX_ISSUER, client_id=credentials.client_id,
+                    )
+                    if retained and retained.provider_id:
+                        provider = await model_provider_repo.get_by_id(session, retained.provider_id)
+                        if provider is not None:
+                            OpenAICodexCredentialStore(EncryptionService(settings.encryption_key)).write(provider, credentials)
+                            session.add(provider)
+                    await save_openai_codex_registration(session, credentials, retained.provider_id if retained else None)
+                    await session.commit()
             finally:
                 await session.close()
             _write_private_file(
@@ -277,6 +292,7 @@ def handle_openai_codex_import(args: argparse.Namespace) -> None:
         decrypt_portable_credentials,
         get_openai_codex_host_id,
         save_openai_codex_registration,
+        openai_codex_credential_lock,
     )
     from app.core.encryption import EncryptionService
     from app.models.repos import model_provider_repo
@@ -299,34 +315,42 @@ def handle_openai_codex_import(args: argparse.Namespace) -> None:
                 credentials,
                 ext_agent_host_id=get_openai_codex_host_id(),
             )
-            provider = None
-            for candidate in await model_provider_repo.get_all(session):
-                if candidate.provider_type != OPENAI_CODEX_PROVIDER_TYPE:
-                    continue
-                try:
-                    candidate_credentials = store.read(candidate)
-                except Exception:
-                    continue
-                if (
-                    candidate_credentials.client_id == imported.client_id
-                    and candidate_credentials.subject == imported.subject
-                ):
-                    provider = candidate
-                    break
-            if provider is None:
-                provider = await model_provider_repo.create(
-                    session=session,
-                    name=openai_codex_provider_name(imported),
-                    url=OPENAI_CODEX_API_BASE_URL,
-                    api_key_encrypted="",
-                    provider_type=OPENAI_CODEX_PROVIDER_TYPE,
-                )
-            provider.name = openai_codex_provider_name(imported)
-            store.write(provider, imported)
-            session.add(provider)
-            await save_openai_codex_registration(session, imported, provider.id)
-            await session.commit()
-            return provider.id
+            async with openai_codex_credential_lock(imported.client_id, imported.subject):
+                provider = None
+                for candidate in await model_provider_repo.get_all(session):
+                    if candidate.provider_type != OPENAI_CODEX_PROVIDER_TYPE:
+                        continue
+                    try:
+                        candidate_credentials = store.read(candidate)
+                    except Exception:
+                        continue
+                    if (
+                        candidate_credentials.client_id == imported.client_id
+                        and candidate_credentials.subject == imported.subject
+                    ):
+                        provider = candidate
+                        if candidate_credentials.refresh_token:
+                            if candidate_credentials.refresh_token == imported.refresh_token:
+                                return provider.id
+                            raise RuntimeError(
+                                "本机已有该账户的有效凭据，不能用不同的 refresh token 覆盖；"
+                                "请使用 openfic openai-codex auth --input 重新授权后更新凭据",
+                            )
+                        break
+                if provider is None:
+                    provider = await model_provider_repo.create(
+                        session=session,
+                        name=openai_codex_provider_name(imported),
+                        url=OPENAI_CODEX_API_BASE_URL,
+                        api_key_encrypted="",
+                        provider_type=OPENAI_CODEX_PROVIDER_TYPE,
+                    )
+                provider.name = openai_codex_provider_name(imported)
+                store.write(provider, imported)
+                session.add(provider)
+                await save_openai_codex_registration(session, imported, provider.id)
+                await session.commit()
+                return provider.id
         finally:
             await session.close()
             await close_db()
