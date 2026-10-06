@@ -39,6 +39,7 @@ import {
 import { getAgentRunningStatus } from "./agent-running-status";
 import { AgentStatusMessage } from "./agent-status-message";
 import {
+  buildAgentRoundChangeSummaries,
   buildAgentMessageBlocks,
   getAgentRoundToolbarTargets,
   getVisibleAgentMessageBlocks,
@@ -145,58 +146,6 @@ function isAgentBlockDisplayMessage(
   return (
     message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end"
   );
-}
-
-function hasRunningAgentMessage(block: AgentMessageBlock): boolean {
-  return (
-    block.type === "agent" &&
-    block.messages.some((message) =>
-      Boolean(message.isStreaming || message.status === "running" || message.status === "pending"),
-    )
-  );
-}
-
-function buildAgentRoundChangeSummaries(
-  blocks: AgentMessageBlock[],
-  visibleBlocks: AgentMessageBlock[],
-  changes?: AgentSessionChanges | null,
-): Map<string, AgentChangeSummary> {
-  const visibleBlockIds = new Set(visibleBlocks.map((block) => block.id));
-  const rounds = new Map<
-    string,
-    { blocks: AgentMessageBlock[]; visibleBlocks: AgentMessageBlock[] }
-  >();
-
-  for (const block of blocks) {
-    if (!block.agentRoundId) continue;
-    let round = rounds.get(block.agentRoundId);
-    if (!round) {
-      round = { blocks: [], visibleBlocks: [] };
-      rounds.set(block.agentRoundId, round);
-    }
-    round.blocks.push(block);
-    if (visibleBlockIds.has(block.id)) round.visibleBlocks.push(block);
-  }
-
-  const summaries = new Map<string, AgentChangeSummary>();
-  rounds.forEach((round) => {
-    const agentBlocks = round.blocks.filter((block) => block.type === "agent");
-    if (agentBlocks.length === 0 || agentBlocks.some(hasRunningAgentMessage)) return;
-    const anchorBlock = round.visibleBlocks.at(-1);
-    if (!anchorBlock) return;
-
-    const sourceRevisionId = agentBlocks.find((block) => block.sourceRevisionId)?.sourceRevisionId;
-    const sourceUserMessageId = round.blocks.find((block) => block.type === "user")?.messages[0]
-      ?.id;
-    const summary = changes?.turns.find(
-      (turn) =>
-        (Boolean(sourceRevisionId) && turn.revisionId === sourceRevisionId) ||
-        (Boolean(sourceUserMessageId) && turn.userMessageId === sourceUserMessageId),
-    )?.changes;
-    if (!summary) return;
-    if (summary.itemCount > 0) summaries.set(anchorBlock.id, summary);
-  });
-  return summaries;
 }
 
 function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockDisplayMessage[]) {
@@ -579,8 +528,8 @@ export function AgentMessages({
     [navigationItems],
   );
   const changeSummaryByAnchorId = useMemo(
-    () => buildAgentRoundChangeSummaries(messageBlocks, visibleMessageBlocks, changes),
-    [changes, messageBlocks, visibleMessageBlocks],
+    () => buildAgentRoundChangeSummaries(messageBlocks, visibleMessageBlocks, changes, isRunning),
+    [changes, isRunning, messageBlocks, visibleMessageBlocks],
   );
   const toolbarTargets = useMemo(
     () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, isRunning),
