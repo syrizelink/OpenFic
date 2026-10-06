@@ -33,7 +33,7 @@
   width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  background: var(--gray-a3);
+  background: var(--theme-panel-background);
   border-radius: var(--radius-2);
   margin-bottom: 8px;
   border: 2px solid transparent;
@@ -46,8 +46,8 @@
 }
 
 .project-grid-selector__cover[data-state="selected"] {
-  border-color: var(--accent-9);
-  box-shadow: 0 0 0 2px var(--accent-a3);
+  border-color: var(--theme-hover-background);
+  box-shadow: 0 0 0 2px var(--theme-list-hover-background);
 }
 
 .project-grid-selector__card:not([data-disabled="true"]):hover

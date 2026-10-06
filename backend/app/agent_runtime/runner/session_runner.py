@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context import ContextBuildError, build_context_parts
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
+from app.agent_runtime.context.settings import load_context_settings
 from app.agent_runtime.context.compaction.window import (
     CompactionNoWindowError,
     select_compaction_window,
@@ -23,6 +24,7 @@ from app.agent_runtime.context.helpers import (
 )
 from app.audit import AuditContext
 from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
+from app.agent_runtime.graph.llm_invoke import format_error_message
 from app.agent_runtime.graph.react_agent import _to_history_dict
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.model_config import without_api_key
@@ -286,8 +288,7 @@ class SessionRunner:
 
     @staticmethod
     def _exception_reason(exc: Exception) -> str:
-        reason = str(exc).strip()
-        return reason or exc.__class__.__name__
+        return format_error_message(exc)
 
     async def _handle_stream_failure(
         self,
@@ -428,6 +429,11 @@ class SessionRunner:
         return checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
 
     def _normalize_usage_event(self, event_data: dict) -> dict:
+        billing_config = (
+            event_data["billing_config"]
+            if event_data.get("usage_kind") == "compaction"
+            else self.model_config
+        )
         usage = event_data.get("usage") if isinstance(event_data, dict) else None
         usage_dict = usage if isinstance(usage, dict) else {}
         token_input = int(
@@ -449,14 +455,15 @@ class SessionRunner:
         if token_cache_write == 0:
             token_cache_write = max(int(usage_dict.get("token_cache_write") or 0), 0)
         call_cost = calculate_llm_call_cost(
+            provider_type=str(billing_config.get("provider_type") or ""),
             token_input=token_input,
             token_output=token_output,
             token_cache=token_cache,
             token_cache_write=token_cache_write,
-            input_price=float(self.model_config.get("input_price") or 0),
-            output_price=float(self.model_config.get("output_price") or 0),
-            cache_read_price=float(self.model_config.get("cache_read_price") or 0),
-            cache_write_price=float(self.model_config.get("cache_write_price") or 0),
+            input_price=float(billing_config.get("input_price") or 0),
+            output_price=float(billing_config.get("output_price") or 0),
+            cache_read_price=float(billing_config.get("cache_read_price") or 0),
+            cache_write_price=float(billing_config.get("cache_write_price") or 0),
         )
         return {
             "session_id": self.session_id,
@@ -783,11 +790,15 @@ class SessionRunner:
                 session,
                 self.session_id,
             )
+            context_settings = await load_context_settings(session)
             try:
                 window = select_compaction_window(
                     history,
                     existing_compactions,
                     int(self.model_config["max_context_tokens"]),
+                    tail_token_budget=context_settings.compaction_tail_token_budget,
+                    tail_window_ratio=context_settings.compaction_tail_window_ratio,
+                    min_compactable_tokens=context_settings.compaction_min_compactable_tokens,
                 )
             except CompactionNoWindowError as exc:
                 raise CompactionError(
@@ -803,6 +814,7 @@ class SessionRunner:
                 event_sink=self._emit_agent_event,
                 usage_sink=self._emit_persisted_task_usage_events,
                 model_config=self.model_config,
+                model_reference=context_settings.compaction_model,
             )
             return {
                 "compaction_id": result.id,

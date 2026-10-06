@@ -8,6 +8,7 @@
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
+  background: var(--color-background);
 }
 
 .import-skill-upload-icon {

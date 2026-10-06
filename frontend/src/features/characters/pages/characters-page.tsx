@@ -11,6 +11,7 @@ import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   batchDeleteCharacters,
@@ -18,6 +19,7 @@ import {
   createCharacter,
   deleteCharacter,
   fetchCharacter,
+  fetchCharacterGraph,
   fetchCharactersByProject,
   fetchProjects,
   updateCharacter,
@@ -27,6 +29,7 @@ import { getPreference, setPreference } from "@/lib/local-db";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 import { CharacterEditor } from "../components/character-editor";
+import { CharacterGraphView } from "../components/character-graph";
 import { CharacterList } from "../components/character-list";
 import { CharacterProfileDialog } from "../components/character-profile-dialog";
 import { useCharactersStore } from "../store/use-characters-store";
@@ -38,8 +41,6 @@ const LAST_PROJECT_KEY = "characters.lastProjectId";
 const LAST_CHARACTER_KEY = "characters.lastCharacterId";
 const PANEL_LAYOUT_KEY = "panel-layout.characters";
 const PANEL_IDS = ["characters-list", "characters-editor", "characters-right"];
-const MotionBox = motion.create(Box);
-const MOBILE_SIDEBAR_WIDTH = 320;
 
 function toCharacterListItem(character: Character): CharacterListItem {
   return {
@@ -51,6 +52,7 @@ function toCharacterListItem(character: Character): CharacterListItem {
     isFavorited: character.isFavorited,
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
+    relationshipCount: character.relationshipCount,
   };
 }
 
@@ -75,6 +77,13 @@ export function CharactersPage() {
     setCurrentCharacter,
     setListOpen,
   } = useCharactersStore();
+  const [view, setView] = useState<"editor" | "graph">("editor");
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile && Boolean(currentProjectId) && view === "editor",
+    isOpen: isListOpen,
+    onOpen: () => setListOpen(true),
+    onClose: () => setListOpen(false),
+  });
   const [profileCharacter, setProfileCharacter] = useState<CharacterListItem | null>(null);
   const [deleteCharacterTarget, setDeleteCharacterTarget] = useState<CharacterListItem | null>(
     null,
@@ -133,6 +142,11 @@ export function CharactersPage() {
   });
 
   const characters = useMemo(() => charactersData?.items ?? [], [charactersData?.items]);
+  const { data: graphData } = useQuery({
+    queryKey: ["character-graph", currentProjectId],
+    queryFn: () => fetchCharacterGraph(currentProjectId!),
+    enabled: !!currentProjectId,
+  });
 
   useEffect(() => {
     const restoreCharacter = async () => {
@@ -235,6 +249,7 @@ export function CharactersPage() {
         character,
       );
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       setCurrentCharacter(character.id);
       toast.success(t("characters.created"));
     },
@@ -264,6 +279,7 @@ export function CharactersPage() {
         character,
       );
       queryClient.invalidateQueries({ queryKey: ["characters", character.projectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", character.projectId] });
       setProfileCharacter(null);
     },
     onError: (error) => {
@@ -310,6 +326,7 @@ export function CharactersPage() {
       }
       await removeCharacterCaches(currentProjectId, [characterId]);
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       setDeleteCharacterTarget(null);
       toast.success(t("characters.deleted"));
     },
@@ -326,6 +343,7 @@ export function CharactersPage() {
       }
       await removeCharacterCaches(currentProjectId, characterIds);
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
+      queryClient.invalidateQueries({ queryKey: ["character-graph", currentProjectId] });
       toast.success(t("characters.deleted"));
     },
   });
@@ -362,20 +380,24 @@ export function CharactersPage() {
     queryClient.removeQueries({ queryKey: ["character", characterId] });
     setCurrentCharacter(characterId);
     setSelectedCharacterLoadVersion((prev) => prev + 1);
+    setView("editor");
     setListOpen(false);
   };
 
   const list = (
     <CharacterList
       characters={characters}
+      graph={graphData}
+      view={view}
       projectId={currentProjectId ?? ""}
-      selectedCharacterId={currentCharacterId}
+      selectedCharacterId={view === "graph" ? null : currentCharacterId}
       isLoading={isCharactersLoading}
       isCreating={createMutation.isPending}
       projects={projects}
       currentProjectId={currentProjectId ?? ""}
       onSelectProject={handleSelectProject}
       onCreateCharacter={handleCreateCharacter}
+      onToggleView={() => setView((previous) => (previous === "editor" ? "graph" : "editor"))}
       onSelectCharacter={handleSelectCharacter}
       onEditProfile={setProfileCharacter}
       onDeleteCharacter={setDeleteCharacterTarget}
@@ -390,22 +412,49 @@ export function CharactersPage() {
   );
 
   const editorContent = (
-    <CharacterEditor
-      key={selectedCharacter?.id ?? "empty"}
-      character={selectedCharacter ?? null}
-      isSaving={updateMutation.isPending}
-      isLoading={shouldShowCharacterEditorLoading(Boolean(selectedCharacter), isCharacterLoading)}
-      isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
-      onSave={async (data) => {
-        if (!selectedCharacter) return;
-        await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
-      }}
-    />
+    <Flex
+      direction="column"
+      className="characters-main-view"
+    >
+      {view === "graph" && currentProjectId ? (
+        <CharacterGraphView
+          projectId={currentProjectId}
+          isLocked={assistantState.isAgentRunning}
+          onSelectCharacter={(id) => {
+            handleSelectCharacter(id);
+            setView("editor");
+          }}
+        />
+      ) : (
+        <Flex
+          direction="column"
+          className="characters-main-editor"
+        >
+          <Box className="characters-editor-content">
+            <CharacterEditor
+              key={selectedCharacter?.id ?? "empty"}
+              character={selectedCharacter ?? null}
+              isSaving={updateMutation.isPending}
+              isLoading={shouldShowCharacterEditorLoading(
+                Boolean(selectedCharacter),
+                isCharacterLoading,
+              )}
+              isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
+              onSave={async (data) => {
+                if (!selectedCharacter) return;
+                await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
+              }}
+            />
+          </Box>
+        </Flex>
+      )}
+    </Flex>
   );
 
   return (
     <Flex
-      className="characters-page"
+      {...mobileSidebarSwipeRef}
+      className="characters-page mobile-sidebar-swipe-surface"
       direction="column"
     >
       {currentProjectId && !isMobile && panelLayout.isLoaded ? (
@@ -470,6 +519,8 @@ export function CharactersPage() {
                 <Tooltip content={t("characters.listTitle")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="2"
                     aria-label={t("characters.listTitle")}
                     onClick={() => setListOpen(!isListOpen)}
@@ -482,6 +533,8 @@ export function CharactersPage() {
               <Tooltip content={t("assistant.mobileTitle")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   aria-label={t("assistant.mobileTitle")}
                   onClick={openAssistantSidebar}
@@ -502,19 +555,12 @@ export function CharactersPage() {
               style={{ pointerEvents: isListOpen ? "auto" : "none" }}
             />
 
-            <MotionBox
-              initial={false}
-              animate={{ x: isListOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="characters-page-mobile-sidebar-sheet"
-              style={{
-                width: MOBILE_SIDEBAR_WIDTH,
-                minWidth: MOBILE_SIDEBAR_WIDTH,
-                pointerEvents: isListOpen ? "auto" : "none",
-              }}
+            <Box
+              className="mobile-sidebar-sheet characters-page-mobile-sidebar-sheet"
+              data-open={String(isListOpen)}
             >
               {list}
-            </MotionBox>
+            </Box>
           </Box>
         </Box>
       ) : currentProjectId ? (

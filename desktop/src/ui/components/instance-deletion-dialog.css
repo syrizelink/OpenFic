@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgb(0 0 0 / 0.4);
+  background: var(--color-overlay);
   animation: instance-deletion-overlay-in 160ms ease;
 }
 
@@ -25,7 +25,7 @@
   border: 1px solid var(--gray-a6);
   border-radius: 14px;
   background: var(--color-panel-solid);
-  box-shadow: 0 16px 48px rgb(0 0 0 / 0.25);
+  box-shadow: 0 16px 48px var(--black-a6);
   animation: instance-deletion-dialog-in 180ms ease;
 }
 
@@ -37,7 +37,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .instance-deletion-head h2 {
@@ -85,7 +85,7 @@
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  color: var(--red-11, #b91c1c) !important;
+  color: var(--red-11) !important;
   font-family: inherit !important;
   font-size: 12px !important;
 }
@@ -166,14 +166,14 @@
 }
 
 .instance-deletion-button-danger {
-  border-color: var(--red-9, #dc2626);
-  background: var(--red-9, #dc2626);
-  color: #fff;
+  border-color: var(--red-9);
+  background: var(--red-9);
+  color: var(--red-contrast);
 }
 
 .instance-deletion-button-danger:hover {
-  border-color: var(--red-10, #b91c1c);
-  background: var(--red-10, #b91c1c);
+  border-color: var(--red-10);
+  background: var(--red-10);
 }
 
 @keyframes instance-deletion-overlay-in {

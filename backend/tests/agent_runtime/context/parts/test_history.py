@@ -156,6 +156,30 @@ async def test_history_preserves_user_xml_when_session_unavailable():
     assert result[0].content == raw[0]["content"]
 
 
+async def test_history_adds_text_attachment_reference_without_file_content():
+    raw = [
+        {
+            "role": "user",
+            "content": "总结这个文件",
+            "additional_kwargs": {
+                "openfic_attachments": [
+                    {
+                        "id": "file-1",
+                        "file_name": "notes.txt",
+                        "mime_type": "text/plain",
+                    }
+                ]
+            },
+        }
+    ]
+
+    result = await build_history(raw)
+
+    assert result[0].attachments == [
+        {"type": "text", "text": "[附件: notes.txt (id: file-1)]"}
+    ]
+
+
 async def test_history_compiles_skill_commands_for_llm_context_when_session_available():
     raw = [{
         "role": "user",

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
 
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
@@ -676,7 +677,7 @@ async def reorder_chapters(
         NotFoundError: 章节不存在或不属于指定卷。
         ValueError: 章节数量不匹配。
     """
-    chapters = await chapter_repo.get_by_ids(session, chapter_ids)
+    chapters = await chapter_repo.get_metadata_by_ids(session, chapter_ids)
     chapter_map = {c.id: c for c in chapters}
 
     if len(chapters) != len(chapter_ids):
@@ -687,13 +688,20 @@ async def reorder_chapters(
         if chapter.volume_id != volume_id:
             raise ValueError(f"章节 {chapter.id} 不属于卷 {volume_id}")
 
-    orders: dict[str, int] = {}
-    for idx, cid in enumerate(chapter_ids, start=1):
-        orders[cid] = idx
+    orders = {
+        chapter_id: new_order
+        for new_order, chapter_id in enumerate(chapter_ids, start=1)
+        if chapter_map[chapter_id].order != new_order
+    }
 
-    await chapter_repo.update_orders(session, orders)
+    updated_at = await chapter_repo.update_orders(session, orders)
+    if updated_at is not None:
+        for chapter_id, chapter_order in orders.items():
+            chapter = chapter_map[chapter_id]
+            set_committed_value(chapter, "order", chapter_order)
+            set_committed_value(chapter, "updated_at", updated_at)
 
-    updated_chapters = await chapter_repo.get_by_ids(session, chapter_ids)
+    updated_chapters = chapters
     order_lookup = {cid: idx for idx, cid in enumerate(chapter_ids)}
     updated_chapters.sort(key=lambda c: order_lookup.get(c.id, 0))
     return updated_chapters

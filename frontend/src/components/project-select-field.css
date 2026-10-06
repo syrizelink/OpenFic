@@ -18,6 +18,17 @@
   padding-right: 32px;
 }
 
+.project-select-field__input.rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
+  box-shadow: inset 0 0 0 var(--text-field-border-width) var(--theme-hover-background);
+}
+
+.project-select-field__input.rt-TextFieldRoot:hover,
+.project-select-field__input.rt-TextFieldRoot:focus-within {
+  box-shadow: inset 0 0 0 var(--text-field-border-width) var(--theme-hover-background);
+}
+
 .project-select-field__trigger[data-disabled="true"] .project-select-field__input {
   cursor: not-allowed;
 }

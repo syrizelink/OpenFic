@@ -350,3 +350,12 @@ async def delete_all_long_term_summaries_by_project(
         )
     )
     await session.flush()
+
+
+async def delete_all_long_term_summaries(session: AsyncSession) -> None:
+    await session.execute(
+        sql_delete(ChapterSummary).where(
+            col(ChapterSummary.summary_type) == SUMMARY_TYPE_LONG_TERM,
+        )
+    )
+    await session.flush()

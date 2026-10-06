@@ -92,7 +92,7 @@
 .chapter-export-volume-row:hover,
 .chapter-export-chapter-row:hover,
 .chapter-export-chapter-row:has(.chapter-export-tree-button[data-active="true"]) {
-  background: var(--accent-a3);
+  background: var(--theme-hover-background);
   color: var(--gray-12);
 }
 

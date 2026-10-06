@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@/lib/agent.types";
 import type { TaskListItem, TaskMessage } from "@/lib/task.types";
 
-import { normalizeAgentImageAttachments } from "./agent-image-attachments";
+import { normalizeAgentAttachments } from "./agent-file-attachments";
 import { parseUtcTimestamp } from "./date-utils";
 import { isRecord, normalizeToolResult } from "./tool-result-normalization";
 
@@ -226,7 +226,7 @@ export function buildAgentMessagesFromTaskMessages(
           correlationId: msg.correlationId,
           timestamp,
           content,
-          attachments: normalizeAgentImageAttachments(payload.attachments),
+          attachments: normalizeAgentAttachments(payload.attachments),
           agent: msg.agentId as AgentMessage["agent"],
         });
         return;
@@ -243,7 +243,7 @@ export function buildAgentMessagesFromTaskMessages(
           correlationId: msg.correlationId,
           timestamp: msg.role === "assistant" ? assistantTimestamp : timestamp,
           content,
-          attachments: normalizeAgentImageAttachments(payload.attachments),
+          attachments: normalizeAgentAttachments(payload.attachments),
           revisionId,
           isCheckpoint: Boolean(revisionId),
         });
@@ -372,7 +372,7 @@ export function buildAgentMessagesFromTaskMessages(
         correlationId: msg.correlationId,
         timestamp,
         content,
-        attachments: normalizeAgentImageAttachments(payload.attachments),
+        attachments: normalizeAgentAttachments(payload.attachments),
         revisionId,
         isCheckpoint: Boolean(revisionId),
       });

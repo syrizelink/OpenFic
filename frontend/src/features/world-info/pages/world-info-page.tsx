@@ -19,6 +19,7 @@ import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   fetchWorldInfoByProject,
@@ -53,8 +54,6 @@ const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
 const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
 const PANEL_LAYOUT_KEY = "panel-layout.world-info";
 const PANEL_IDS = ["left-sidebar", "editor", "right-sidebar"];
-const MotionBox = motion.create(Box);
-const MOBILE_SIDEBAR_WIDTH = 320;
 
 function generateUniqueEntryName(baseName: string, entries: WorldInfoEntryBrief[]): string {
   const normalizedName = baseName.trim();
@@ -85,6 +84,12 @@ export function WorldInfoPage() {
     setSidebarOpen,
     setFromWriting,
   } = useWorldInfoStore();
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile && Boolean(currentProjectId),
+    isOpen: sidebarOpen,
+    onOpen: () => setSidebarOpen(true),
+    onClose: () => setSidebarOpen(false),
+  });
 
   // 删除确认对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -735,6 +740,8 @@ export function WorldInfoPage() {
 
   return (
     <Flex
+      {...mobileSidebarSwipeRef}
+      className="mobile-sidebar-swipe-surface"
       direction="column"
       style={{
         height: "100%",
@@ -819,6 +826,8 @@ export function WorldInfoPage() {
                     <Tooltip content={t("worldInfo.entries")}>
                       <IconButton
                         variant="ghost"
+                        color="gray"
+                        highContrast
                         size="2"
                         aria-label={t("worldInfo.entries")}
                         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -831,6 +840,8 @@ export function WorldInfoPage() {
                   <Tooltip content={t("assistant.mobileTitle")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="2"
                       aria-label={t("assistant.mobileTitle")}
                       onClick={openAssistantSidebar}
@@ -856,19 +867,12 @@ export function WorldInfoPage() {
                   style={{ pointerEvents: sidebarOpen ? "auto" : "none" }}
                 />
 
-                <MotionBox
-                  initial={false}
-                  animate={{ x: sidebarOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  className="world-info-page-mobile-sidebar-sheet"
-                  style={{
-                    width: MOBILE_SIDEBAR_WIDTH,
-                    minWidth: MOBILE_SIDEBAR_WIDTH,
-                    pointerEvents: sidebarOpen ? "auto" : "none",
-                  }}
+                <Box
+                  className="mobile-sidebar-sheet world-info-page-mobile-sidebar-sheet"
+                  data-open={String(sidebarOpen)}
                 >
                   {sidebarContent}
-                </MotionBox>
+                </Box>
               </Box>
             </Flex>
           ) : currentProjectId ? (

@@ -3,6 +3,8 @@
 
 from pydantic import BaseModel, Field
 
+from app.models.clients.model_params import ReasoningEffort, ReasoningEffortInput
+
 
 class AgentDefinitionResponse(BaseModel):
     key: str
@@ -11,6 +13,7 @@ class AgentDefinitionResponse(BaseModel):
     kind: str
     prompt_agent_name: str
     model_id: str | None = None
+    reasoning_effort: ReasoningEffort | None = None
     enabled_tool_categories: list[str] = Field(default_factory=list)
     enabled_skills: list[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
@@ -28,6 +31,7 @@ class AgentDefinitionCreateRequest(BaseModel):
     kind: str = Field(..., max_length=20)
     prompt_agent_name: str = Field(..., max_length=50)
     model_id: str | None = Field(default=None, max_length=100)
+    reasoning_effort: ReasoningEffortInput | None = None
     enabled_tool_categories: list[str] = Field(default_factory=list)
     enabled_skills: list[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
@@ -44,6 +48,7 @@ class AgentDefinitionUpdateRequest(BaseModel):
     kind: str | None = Field(default=None, max_length=20)
     prompt_agent_name: str | None = Field(default=None, max_length=50)
     model_id: str | None = Field(default=None, max_length=100)
+    reasoning_effort: ReasoningEffortInput | None = None
     enabled_tool_categories: list[str] | None = None
     enabled_skills: list[str] | None = None
     metadata: dict | None = None

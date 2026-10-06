@@ -78,7 +78,8 @@ export function SidebarBrand({
           width: isExpanded ? SIDEBAR_EXPANDED_WIDTH - 72 : SIDEBAR_ITEM_HEIGHT,
           cursor: "pointer",
           borderRadius: "var(--radius-3)",
-          backgroundColor: !isExpanded && isHovered ? "var(--gray-a3)" : "transparent",
+          backgroundColor:
+            !isExpanded && isHovered ? "var(--theme-hover-background)" : "transparent",
           justifyContent: "flex-start",
           overflow: "hidden",
           position: "relative",
@@ -146,7 +147,9 @@ export function SidebarBrand({
           <Tooltip content={collapseLabel}>
             <IconButton
               variant="ghost"
+              color="gray"
               size="2"
+              className="app-sidebar-action-button"
               onClick={onToggleExpanded}
               aria-label={collapseLabel}
               style={{ ...sidebarActionButtonStyle, cursor: "pointer" }}

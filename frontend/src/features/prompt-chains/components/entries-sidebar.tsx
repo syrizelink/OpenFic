@@ -158,6 +158,8 @@ export function EntriesSidebar({
             <Tooltip content={t("promptChains.resetToDefault")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("promptChains.resetToDefault")}
                 onClick={() => setIsResetDialogOpen(true)}

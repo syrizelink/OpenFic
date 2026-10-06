@@ -63,7 +63,7 @@
 }
 
 .prompt-chain-version-history-row[data-current="true"] {
-  background: var(--accent-a3);
+  background: var(--gray-a5);
 }
 
 .prompt-chain-version-history-row[data-state="truncated"] {

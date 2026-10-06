@@ -1,10 +1,13 @@
 export const SETTINGS_ROUTE_CATEGORIES = [
   "general",
+  "personalization",
   "editor",
+  "notifications",
   "connections",
   "models",
   "index",
   "context",
+  "summary",
   "agent-tools",
   "web-search",
   "rules",

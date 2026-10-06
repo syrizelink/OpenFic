@@ -1,3 +1,8 @@
+.rt-DialogOverlay:has(.settings-dialog-surface),
+.rt-DialogOverlay:has(.settings-dialog-surface) .rt-DialogScroll {
+  overflow: hidden;
+}
+
 .rt-DialogContent.settings-dialog-surface {
   position: relative;
   width: min(1180px, calc(100vw - 72px));
@@ -59,7 +64,7 @@
   width: 216px;
   flex-shrink: 0;
   border-right: 1px solid var(--gray-a4);
-  background: var(--gray-a2);
+  background: var(--theme-sidebar-background);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -423,13 +428,13 @@
 }
 
 .agent-definition-item--active {
-  background: var(--accent-a4);
-  color: var(--accent-11);
+  background: var(--gray-a3);
+  color: var(--gray-12);
 }
 
 .agent-definition-item--active:hover,
 .agent-definition-item--active.agent-definition-item--menu-open {
-  background: var(--accent-a4);
+  background: var(--gray-a3);
 }
 
 .agent-definition-item-content {
@@ -581,7 +586,7 @@
 }
 
 .settings-sidebar-item:hover {
-  background: var(--gray-a3);
+  background: var(--accent-a2);
   color: var(--gray-12);
 }
 
@@ -591,7 +596,7 @@
 }
 
 .settings-sidebar-item--active {
-  background: var(--gray-a3);
+  background: var(--accent-a3);
   color: var(--gray-12);
 }
 
@@ -615,20 +620,26 @@
   border: 0;
 }
 
-.font-size-field .font-size-stepper {
+.settings-number-field .settings-number-stepper {
   visibility: hidden;
 }
 
-.font-size-field:hover .font-size-stepper,
-.font-size-field:focus-within .font-size-stepper {
+.settings-number-field:hover .settings-number-stepper,
+.settings-number-field:focus-within .settings-number-stepper {
   visibility: visible;
 }
 
-.font-size-stepper-slot {
+@media (hover: none) {
+  .settings-number-field .settings-number-stepper {
+    visibility: visible;
+  }
+}
+
+.settings-number-stepper-slot {
   padding-right: 0 !important;
 }
 
-.font-size-stepper-btn {
+.settings-number-stepper-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -640,19 +651,21 @@
   background: transparent;
   color: var(--gray-9);
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
-.font-size-stepper-btn:hover:not(:disabled) {
+.settings-number-stepper-btn:hover:not(:disabled) {
   background: var(--gray-a3);
   color: var(--gray-12);
 }
 
-.font-size-stepper-btn:focus-visible {
+.settings-number-stepper-btn:focus-visible {
   outline: 2px solid var(--accent-8);
   outline-offset: -2px;
 }
 
-.font-size-stepper-btn:disabled {
+.settings-number-stepper-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -686,6 +699,7 @@
 @media (max-width: 767px) {
   .rt-DialogOverlay:has(.settings-dialog-surface) {
     padding: 0 !important;
+    overflow: hidden;
   }
 
   .rt-DialogContent.settings-dialog-surface {
@@ -702,6 +716,7 @@
     margin: 0;
     border-radius: 0;
     transform: none;
+    overflow: hidden;
   }
 
   .rt-reset.rt-BaseButton.rt-IconButton.settings-dialog-main-close {
@@ -782,12 +797,16 @@
     color: currentColor;
   }
 
-  .skills-settings--settings .skills-settings-list-item,
+  .skills-settings--settings .skills-settings-list-item {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .skills-settings--settings .skills-settings-list-item--selected,
   .skills-settings--settings .skills-settings-list-item--selected:hover,
   .skills-settings--settings
     .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
-    background: transparent;
+    background: var(--gray-a3);
     color: var(--gray-12);
   }
 
@@ -797,11 +816,15 @@
     background: var(--gray-a3);
   }
 
-  .agent-definition-item,
+  .agent-definition-item {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .agent-definition-item--active,
   .agent-definition-item--active:hover,
   .agent-definition-item--active.agent-definition-item--menu-open {
-    background: transparent;
+    background: var(--gray-a3);
     color: var(--gray-12);
   }
 

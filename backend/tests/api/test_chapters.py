@@ -6,11 +6,15 @@ Chapter API 测试。
 import pytest
 from httpx import AsyncClient
 
+from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
+from app.storage.models.project import Project
+from app.storage.models.volume import Volume
 from app.storage.repos.chapter_summary_repo import (
     SUMMARY_STATUS_READY,
     SUMMARY_TYPE_LONG_TERM,
 )
+from app.storage.services import chapter_service
 
 
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
@@ -536,6 +540,36 @@ async def test_reorder_chapters(client: AsyncClient) -> None:
     items = _chapters_from_tree(tree)
     assert [item["id"] for item in items] == new_order
     assert [item["order"] for item in items] == [1, 2, 3, 4]
+
+
+@pytest.mark.asyncio
+async def test_reorder_only_updates_chapters_whose_order_changed(client: AsyncClient, session, monkeypatch):
+    project = Project(title="排序测试项目")
+    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    chapters = [
+        Chapter(project_id=project.id, volume_id=volume.id, title=f"第{index}章", order=index)
+        for index in range(1, 4)
+    ]
+    session.add(project)
+    session.add(volume)
+    session.add_all(chapters)
+    await session.flush()
+
+    captured_orders: dict[str, int] = {}
+
+    async def capture_orders(_session, orders):
+        captured_orders.update(orders)
+        return None
+
+    monkeypatch.setattr(chapter_service.chapter_repo, "update_orders", capture_orders)
+
+    await chapter_service.reorder_chapters(
+        session,
+        volume.id,
+        [chapters[1].id, chapters[0].id, chapters[2].id],
+    )
+
+    assert captured_orders == {chapters[1].id: 1, chapters[0].id: 2}
 
 
 @pytest.mark.asyncio

@@ -115,6 +115,8 @@ export function AdvancedParamsSection<T extends FieldValues>({
       <Button
         type="button"
         variant="soft"
+        color="gray"
+        highContrast
         onClick={() => setShowAdvanced(!showAdvanced)}
         style={{ justifyContent: "flex-start" }}
       >

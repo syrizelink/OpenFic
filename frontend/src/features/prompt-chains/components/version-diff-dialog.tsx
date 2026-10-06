@@ -446,6 +446,8 @@ export function VersionDiffDialog({
             <IconButton
               size="1"
               variant="ghost"
+              color="gray"
+              highContrast
               style={{ cursor: "pointer" }}
             >
               {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -783,6 +785,8 @@ export function VersionDiffDialog({
           <Dialog.Close>
             <Button
               variant="ghost"
+              color="gray"
+              highContrast
               size="1"
             >
               <X size={16} />

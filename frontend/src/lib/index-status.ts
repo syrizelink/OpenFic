@@ -79,15 +79,20 @@ export async function stopProjectIndex(projectId: string): Promise<void> {
   await apiClient.post(`/projects/${projectId}/retrieval/index/stop`);
 }
 
-/** 索引状态对应的展示颜色（Radix 颜色变量）。 */
+/** 索引状态对应的 Radix 颜色名称。 */
+export type IndexStatusColor = "green" | "blue" | "red" | "amber" | "gray";
+
+export function getIndexStatusColorName(status: IndexStatus | null | undefined): IndexStatusColor {
+  if (status === "fresh") return "green";
+  if (status === "indexing") return "blue";
+  if (status === "failed") return "red";
+  if (status === "stale" || status === "no_index" || status === "not_configured") return "amber";
+  if (status === "needs_rebuild") return "red";
+  return "gray";
+}
+
 export function getIndexStatusColor(status: IndexStatus | null | undefined): string {
-  if (status === "fresh") return "var(--green-9)";
-  if (status === "indexing") return "var(--blue-9)";
-  if (status === "failed") return "var(--red-9)";
-  if (status === "stale" || status === "no_index" || status === "not_configured")
-    return "var(--amber-9)";
-  if (status === "needs_rebuild") return "var(--red-9)";
-  return "var(--gray-9)";
+  return `var(--${getIndexStatusColorName(status)}-9)`;
 }
 
 /**

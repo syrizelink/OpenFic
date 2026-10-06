@@ -52,6 +52,7 @@ async def create(
     api_key_encrypted: str,
     provider_type: str,
     custom_headers_encrypted: str = "",
+    credentials_encrypted: str = "",
 ) -> ModelProvider:
     """
     创建提供商。
@@ -71,6 +72,7 @@ async def create(
         url=url,
         api_key_encrypted=api_key_encrypted,
         custom_headers_encrypted=custom_headers_encrypted,
+        credentials_encrypted=credentials_encrypted,
         provider_type=provider_type,
     )
     session.add(provider)

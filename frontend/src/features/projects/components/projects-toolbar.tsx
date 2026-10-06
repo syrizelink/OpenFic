@@ -83,6 +83,7 @@ export function ProjectsToolbar({
         >
           {/* 搜索 */}
           <TextField.Root
+            className="projects-search-input"
             placeholder={t("projects.searchPlaceholder")}
             size="2"
             value={searchQuery}
@@ -182,6 +183,8 @@ export function ProjectsToolbar({
             <Tooltip content={t("projects.newProject")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("projects.newProject")}
                 onClick={onCreateClick}
@@ -192,6 +195,8 @@ export function ProjectsToolbar({
             <Tooltip content={t("projects.import")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("projects.import")}
                 onClick={onImportClick}
@@ -207,6 +212,7 @@ export function ProjectsToolbar({
           gap="2"
         >
           <TextField.Root
+            className="projects-search-input"
             placeholder={t("projects.searchPlaceholder")}
             size="2"
             value={searchQuery}
@@ -223,6 +229,8 @@ export function ProjectsToolbar({
               <DropdownMenu.Trigger>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   aria-label={currentSortLabel}
                 >
@@ -249,6 +257,8 @@ export function ProjectsToolbar({
           >
             <IconButton
               variant="ghost"
+              color="gray"
+              highContrast
               size="2"
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
             >

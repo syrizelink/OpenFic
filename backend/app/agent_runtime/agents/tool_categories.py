@@ -15,6 +15,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
         "web_search": ("web_search",),
         "web_fetch": ("web_fetch",),
         "plan": ("write_plan",),
+        "file_read": ("list_file", "read_file"),
         "chapter_read": (
             "list_volumes",
             "list_chapters",
@@ -27,6 +28,12 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "read_range_summaries",
         ),
         "character_read": ("list_characters", "read_character"),
+        "character_relationship": (
+            "query_character_relationships",
+            "create_character_relationship",
+            "edit_character_relationship",
+            "delete_character_relationship",
+        ),
         "character_write": (
             "create_character",
             "edit_character",
@@ -70,9 +77,11 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "web_search": "联网搜索",
         "web_fetch": "网页读取",
         "plan": "计划",
+        "file_read": "附件读取",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",
         "character_read": "角色读取",
+        "character_relationship": "角色关系",
         "character_write": "角色写入",
         "world_read": "世界书读取",
         "world_write": "世界书写入",

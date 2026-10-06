@@ -25,6 +25,11 @@
   flex: 1;
 }
 
+.prompt-editor-entry-name-input.rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
 .prompt-editor-frame {
   box-sizing: border-box;
   border: 1px solid var(--gray-a5);

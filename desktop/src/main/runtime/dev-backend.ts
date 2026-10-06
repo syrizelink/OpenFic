@@ -1,7 +1,7 @@
 import { app } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { DesktopInstance } from "../../shared/config.js";
+import { isDesktopInstanceAppearance, type DesktopInstance, type DesktopInstanceAppearance } from "../../shared/config.js";
 import { findFreePort } from "../ports.js";
 import { startBackendProcess, type BackendProcessHandle } from "../process.js";
 import { throwIfAborted, waitForBackend } from "../health.js";
@@ -32,17 +32,47 @@ function getDevStatePath(): string {
   return path.join(app.getAppPath(), "..", "tmp", "dev-instance.json");
 }
 
+interface DevInstanceState {
+  dataDir?: unknown;
+  appearance?: unknown;
+  fontFamily?: unknown;
+  codeFontFamily?: unknown;
+  themeVariables?: unknown;
+}
+
+async function readDevInstanceState(): Promise<DevInstanceState> {
+  try {
+    const raw = await readFile(getDevStatePath(), "utf-8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as DevInstanceState;
+  } catch {
+    // 状态文件不存在或损坏时回退到默认配置
+  }
+  return {};
+}
+
+async function writeDevInstanceState(state: DevInstanceState): Promise<void> {
+  await mkdir(path.dirname(getDevStatePath()), { recursive: true });
+  await writeFile(getDevStatePath(), `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+}
+
 export async function readDevInstanceDataDir(): Promise<string> {
   const override = process.env.OPENFIC_DEV_DATA_DIR;
   if (override) return path.resolve(override);
-  try {
-    const raw = await readFile(getDevStatePath(), "utf-8");
-    const parsed = JSON.parse(raw) as { dataDir?: unknown };
-    if (typeof parsed.dataDir === "string" && parsed.dataDir) return parsed.dataDir;
-  } catch {
-    // 状态文件不存在或损坏时回退到默认目录
-  }
+  const state = await readDevInstanceState();
+  if (typeof state.dataDir === "string" && state.dataDir) return state.dataDir;
   return getDevDataDir();
+}
+
+export async function readDevInstanceAppearance(): Promise<DesktopInstanceAppearance> {
+  const state = await readDevInstanceState();
+  const appearance = {
+    appearance: state.appearance,
+    fontFamily: state.fontFamily,
+    codeFontFamily: state.codeFontFamily,
+    themeVariables: state.themeVariables,
+  };
+  return isDesktopInstanceAppearance(appearance) ? appearance : {};
 }
 
 export function isDevInstance(instance: DesktopInstance): boolean {
@@ -58,12 +88,32 @@ export async function createDevInstance(): Promise<DesktopInstance> {
     autoStartLocal: true,
     installDir: path.join(app.getAppPath(), "..", "backend"),
     dataDir: await readDevInstanceDataDir(),
+    ...(await readDevInstanceAppearance()),
   };
 }
 
 export async function persistDevInstanceDataDir(dataDir: string): Promise<void> {
-  await mkdir(path.dirname(getDevStatePath()), { recursive: true });
-  await writeFile(getDevStatePath(), `${JSON.stringify({ dataDir }, null, 2)}\n`, "utf-8");
+  const state = await readDevInstanceState();
+  await writeDevInstanceState({ ...state, dataDir });
+}
+
+export async function persistDevInstanceAppearance(appearance: DesktopInstanceAppearance): Promise<void> {
+  const currentAppearance = await readDevInstanceAppearance();
+  const nextAppearance: DesktopInstanceAppearance = {
+    ...currentAppearance,
+    ...(appearance.appearance === undefined ? {} : { appearance: appearance.appearance }),
+    ...(appearance.fontFamily === undefined ? {} : { fontFamily: appearance.fontFamily }),
+    ...(appearance.codeFontFamily === undefined ? {} : { codeFontFamily: appearance.codeFontFamily }),
+    ...(appearance.themeVariables === undefined ? {} : { themeVariables: appearance.themeVariables }),
+  };
+  const state = await readDevInstanceState();
+  await writeDevInstanceState({
+    ...state,
+    ...(nextAppearance.appearance === undefined ? {} : { appearance: nextAppearance.appearance }),
+    ...(nextAppearance.fontFamily === undefined ? {} : { fontFamily: nextAppearance.fontFamily }),
+    ...(nextAppearance.codeFontFamily === undefined ? {} : { codeFontFamily: nextAppearance.codeFontFamily }),
+    ...(nextAppearance.themeVariables === undefined ? {} : { themeVariables: nextAppearance.themeVariables }),
+  });
 }
 
 export interface DevBackendResult {

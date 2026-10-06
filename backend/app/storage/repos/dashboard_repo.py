@@ -230,11 +230,8 @@ async def get_stats(
     date_expression = func.strftime("%Y-%m-%d", filtered.c.created_at)
     model_id_expression = func.nullif(filtered.c.model_id, "")
     model_key_expression = func.coalesce(model_id_expression, literal("unknown"))
-    model_label_expression = func.coalesce(
-        func.nullif(filtered.c.model_name, ""),
-        model_id_expression,
-        literal("unknown"),
-    )
+    model_name_expression = func.nullif(filtered.c.model_name, "")
+    model_label_aggregate = func.coalesce(func.max(model_name_expression), model_key_expression)
     project_id_expression = func.nullif(filtered.c.project_id, "")
     project_key_expression = func.coalesce(project_id_expression, literal("unknown"))
     project_label_expression = func.coalesce(
@@ -262,7 +259,7 @@ async def get_stats(
         literal("model_time_series").label("kind"),
         date_expression.label("date"),
         model_key_expression.label("key"),
-        model_label_expression.label("label"),
+        model_label_aggregate.label("label"),
         func.count(filtered.c.id).label("calls"),
         func.coalesce(func.sum(filtered.c.tokens_total), 0).label("tokens_total"),
         func.coalesce(func.avg(filtered.c.latency_ms), 0).label("avg_latency_ms"),
@@ -273,13 +270,12 @@ async def get_stats(
     ).select_from(filtered).group_by(
         date_expression,
         model_key_expression,
-        model_label_expression,
     )
     model_breakdown_query = select(
         literal("model_breakdown").label("kind"),
         _null_value("date", String()),
         model_key_expression.label("key"),
-        model_label_expression.label("label"),
+        model_label_aggregate.label("label"),
         func.count(filtered.c.id).label("calls"),
         func.coalesce(func.sum(filtered.c.tokens_total), 0).label("tokens_total"),
         _null_value("avg_latency_ms", Float()),
@@ -287,7 +283,7 @@ async def get_stats(
         _null_value("tokens_input_total", Integer()),
         _null_value("tokens_output_total", Integer()),
         _null_value("success_total", Integer()),
-    ).select_from(filtered).group_by(model_key_expression, model_label_expression)
+    ).select_from(filtered).group_by(model_key_expression)
     project_breakdown_query = select(
         literal("project_breakdown").label("kind"),
         _null_value("date", String()),
@@ -510,10 +506,13 @@ async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRow
         select(
             literal("model_options").label("kind"),
             col(LLMAuditLog.model_id).label("value"),
-            func.coalesce(col(LLMAuditLog.model_name), col(LLMAuditLog.model_id)).label("label"),
+            func.coalesce(
+                func.max(func.nullif(col(LLMAuditLog.model_name), "")),
+                col(LLMAuditLog.model_id),
+            ).label("label"),
         )
         .where(col(LLMAuditLog.model_id).is_not(None))
-        .distinct(),
+        .group_by(col(LLMAuditLog.model_id)),
     ]
     result = await session.execute(union_all(*option_queries))
     simple_values: dict[str, list[str]] = {

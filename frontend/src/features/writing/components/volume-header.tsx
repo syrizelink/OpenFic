@@ -219,7 +219,7 @@ export function VolumeHeader({
         transition={VOLUME_HEADER_TRANSITION}
         style={{
           borderTop: "1px solid var(--gray-a4)",
-          background: "var(--gray-2)",
+          background: "var(--theme-sidebar-background)",
           overflow: "hidden",
           position: "relative",
         }}
@@ -232,7 +232,7 @@ export function VolumeHeader({
           style={{
             position: "absolute",
             inset: 0,
-            background: "var(--gray-a2)",
+            background: "color-mix(in srgb, var(--theme-hover-background) 8%, transparent)",
             pointerEvents: "none",
           }}
         />
@@ -250,7 +250,7 @@ export function VolumeHeader({
             bottom: 0,
             left: 0,
             height: 1,
-            background: "var(--gray-a3)",
+            background: "var(--theme-hover-background)",
             transformOrigin: "left center",
             pointerEvents: "none",
           }}

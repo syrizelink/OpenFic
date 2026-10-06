@@ -27,6 +27,14 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.askUser.name",
     description: "settings.agentTool.askUser.description",
   },
+  list_file: {
+    name: "settings.agentTool.listFile.name",
+    description: "settings.agentTool.listFile.description",
+  },
+  read_file: {
+    name: "settings.agentTool.readFile.name",
+    description: "settings.agentTool.readFile.description",
+  },
   write_plan: {
     name: "settings.agentTool.writePlan.name",
     description: "settings.agentTool.writePlan.description",
@@ -142,6 +150,22 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
   delete_character: {
     name: "settings.agentTool.deleteCharacter.name",
     description: "settings.agentTool.deleteCharacter.description",
+  },
+  query_character_relationships: {
+    name: "settings.agentTool.queryCharacterRelationships.name",
+    description: "settings.agentTool.queryCharacterRelationships.description",
+  },
+  create_character_relationship: {
+    name: "settings.agentTool.createCharacterRelationship.name",
+    description: "settings.agentTool.createCharacterRelationship.description",
+  },
+  edit_character_relationship: {
+    name: "settings.agentTool.editCharacterRelationship.name",
+    description: "settings.agentTool.editCharacterRelationship.description",
+  },
+  delete_character_relationship: {
+    name: "settings.agentTool.deleteCharacterRelationship.name",
+    description: "settings.agentTool.deleteCharacterRelationship.description",
   },
   list_world_entries: {
     name: "settings.agentTool.listWorldEntries.name",

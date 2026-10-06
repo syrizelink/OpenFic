@@ -30,6 +30,7 @@ import { useAppShell } from "@/features/app-shell";
 import { appendMentionMarkup } from "@/features/assistant/lib/mention-text";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
 import { fetchSettings, updateSettings } from "@/features/settings/lib/settings-api";
+import type { Settings } from "@/features/settings/lib/settings.types";
 import { useSummaryPanel } from "@/features/writing/hooks/use-summaries";
 import { useVolumeTree } from "@/features/writing/hooks/use-volumes";
 import { getAgentDisplayDescription, getAgentIconColor } from "@/lib/agent-branding";
@@ -50,6 +51,7 @@ import {
   fetchTask,
   subscribeBackgroundEvents,
 } from "@/lib/api-client";
+import { normalizeReasoningEffort, REASONING_EFFORT_VALUES } from "@/lib/reasoning-effort";
 import type { TaskListItem } from "@/lib/task.types";
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
 
@@ -59,8 +61,8 @@ import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
 import {
   createRestoredPendingAgentAttachments,
-  type PendingAgentImageAttachment,
-} from "../lib/agent-image-attachments";
+  type PendingAgentAttachment,
+} from "../lib/agent-file-attachments";
 import { loadAgentTaskBundle } from "../lib/agent-task-bundle";
 import {
   createConversationStackState,
@@ -195,19 +197,32 @@ function buildSubagentChanges(
   };
 }
 
-function getStoredReasoningEffort(modelId: string): ReasoningEffort {
-  if (typeof window === "undefined" || !modelId) return "medium";
+function getStoredReasoningEffort(modelId: string): ReasoningEffort | null {
+  if (typeof window === "undefined" || !modelId) return null;
   try {
     const stored = JSON.parse(
       window.localStorage.getItem(ASSISTANT_REASONING_EFFORT_STORAGE_KEY) ?? "{}",
     ) as Record<string, string>;
     const value = stored[modelId];
-    return ["off", "low", "medium", "high", "xhigh", "max"].includes(value)
-      ? (value as ReasoningEffort)
-      : "medium";
+    if (value === "off" || REASONING_EFFORT_VALUES.includes(value as ReasoningEffort)) {
+      return normalizeReasoningEffort(value);
+    }
+    return null;
   } catch {
-    return "medium";
+    return null;
   }
+}
+
+function getInitialReasoningEffort(modelId: string, settings?: Settings): ReasoningEffort {
+  const stored = getStoredReasoningEffort(modelId);
+  if (stored) return stored;
+  if (modelId && modelId === settings?.defaultModel) {
+    return settings.defaultModelReasoningEffort;
+  }
+  if (modelId && modelId === settings?.lightModel) {
+    return settings.lightModelReasoningEffort;
+  }
+  return "medium";
 }
 
 function getSubagentStatusLabel(
@@ -325,7 +340,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     );
     const [activeSubagents, setActiveSubagents] = useState<ActiveSubagentState[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
+    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
     const [isSessionChangesOpen, setIsSessionChangesOpen] = useState(false);
     const [sessionChangesDialogSummary, setSessionChangesDialogSummary] =
@@ -424,7 +439,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       [effectiveModelId, llmModelOptions],
     );
     const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(() =>
-      getStoredReasoningEffort(effectiveModelId),
+      getInitialReasoningEffort(effectiveModelId, settings),
     );
     const isToolApprovalBypassEnabled = settings?.agentBypassToolApproval ?? false;
     const agentSidebarRef = useRef<ReturnType<typeof useAgentSidebar> | null>(null);
@@ -454,8 +469,15 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     }, [selectedAgentKey]);
 
     useEffect(() => {
-      setReasoningEffort(getStoredReasoningEffort(effectiveModelId));
-    }, [effectiveModelId]);
+      setReasoningEffort(getInitialReasoningEffort(effectiveModelId, settings));
+    }, [
+      effectiveModelId,
+      settings?.defaultModel,
+      settings?.defaultModelReasoningEffort,
+      settings?.lightModel,
+      settings?.lightModelReasoningEffort,
+      settings,
+    ]);
 
     const handleAgentTaskTitleUpdated = useCallback(
       (taskId: string, title: string, updatedAt?: string) => {
@@ -1362,6 +1384,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           >
             <IconButton
               variant="ghost"
+              color="gray"
+              highContrast
               size="2"
               onClick={onClose}
               aria-label={t("common.close")}
@@ -1392,6 +1416,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               >
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={handleHeaderBack}
                   aria-label={headerBackLabel}
@@ -1473,24 +1499,28 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     <FileDiff size={16} />
                   </IconButton>
                 </Tooltip>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={openAllTasks}
-                  aria-label={t("assistant.history")}
-                >
-                  <History size={16} />
-                </IconButton>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={backToTaskList}
-                  aria-label={t("assistant.newTask")}
-                >
-                  <SquarePen size={16} />
-                </IconButton>
+                <Tooltip content={t("assistant.history")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={openAllTasks}
+                    aria-label={t("assistant.history")}
+                  >
+                    <History size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("assistant.newTask")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={backToTaskList}
+                    aria-label={t("assistant.newTask")}
+                  >
+                    <SquarePen size={16} />
+                  </IconButton>
+                </Tooltip>
               </Flex>
             </Flex>
             <Flex
@@ -1746,6 +1776,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     id: crypto.randomUUID(),
                     file,
                     previewUrl: URL.createObjectURL(file),
+                    status: "pending" as const,
                   })),
                 ]);
               }}

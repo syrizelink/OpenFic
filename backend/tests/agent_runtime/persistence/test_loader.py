@@ -214,7 +214,7 @@ async def test_delete_attachments_for_task_removes_files_and_records(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
+async def test_cleanup_orphaned_agent_attachment_files_keeps_message_referenced_files(
     db_session: AsyncSession,
     sample_task,
     monkeypatch: pytest.MonkeyPatch,
@@ -244,6 +244,16 @@ async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
             height=3,
         )
     )
+    await repo.insert_message(
+        db_session,
+        session_id=session_id,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="user",
+        content="请参考附件",
+        status="sent",
+        metadata={"attachments": [{"id": "attachment-kept"}]},
+    )
     await db_session.commit()
 
     deleted = await cleanup_orphaned_agent_attachment_files(db_session)
@@ -252,6 +262,43 @@ async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
     assert kept_path.exists()
     assert not orphan_path.exists()
     assert not orphan_path.parent.exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_agent_attachment_files_removes_unreferenced_records_and_files(
+    db_session: AsyncSession,
+    sample_task,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    storage_name = f"{sample_task.agent_session_id}/orphan.png"
+    orphan_path = tmp_path / storage_name
+    orphan_path.parent.mkdir()
+    orphan_path.write_bytes(b"orphan")
+    db_session.add(
+        AgentAttachment(
+            id="unreferenced-attachment",
+            session_id=sample_task.agent_session_id,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            storage_name=storage_name,
+            file_name="orphan.png",
+            mime_type="image/png",
+            size_bytes=6,
+            width=2,
+            height=3,
+        )
+    )
+    await db_session.commit()
+
+    await cleanup_orphaned_agent_attachment_files(db_session)
+    await db_session.commit()
+
+    assert not orphan_path.exists()
+    assert await db_session.get(AgentAttachment, "unreferenced-attachment") is None
 
 
 @pytest.mark.asyncio
@@ -517,6 +564,41 @@ async def test_load_history_adds_openfic_response_metadata_for_seq_and_tool_name
 
 
 @pytest.mark.asyncio
+async def test_load_history_restores_pruned_tool_metadata(
+    db_session: AsyncSession, sample_task
+):
+    sid = "session_pruned_metadata"
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        content="calling",
+        status="complete",
+        tool_calls=[{"id": "c1", "name": "read_chapter", "args": {}}],
+    )
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="chapter body",
+        status="complete",
+        tool_call_id="c1",
+        tool_name="read_chapter",
+        metadata={"pruned": True},
+    )
+
+    messages = await load_history(db_session, sid)
+
+    assert isinstance(messages[1], ToolMessage)
+    assert messages[1].content == "chapter body"
+    assert messages[1].response_metadata["openfic_pruned"] is True
+
+
+@pytest.mark.asyncio
 async def test_load_history_drops_orphan_tool(db_session: AsyncSession, sample_task):
     sid = "session_a"
     await repo.insert_message(
@@ -632,6 +714,10 @@ async def test_load_history_reasoning_only_on_latest_assistant(
     db_session: AsyncSession, sample_task
 ):
     sid = "session_a"
+    first_output = [{"type": "reasoning", "id": "rs_first", "summary": [],
+                     "encrypted_content": "encrypted-first"}]
+    second_output = [{"type": "reasoning", "id": "rs_second", "summary": [],
+                      "encrypted_content": "encrypted-second"}]
     await repo.insert_message(
         db_session,
         session_id=sid,
@@ -641,6 +727,7 @@ async def test_load_history_reasoning_only_on_latest_assistant(
         content="first",
         reasoning="thinking-1",
         status="complete",
+        metadata={"responses_output": first_output},
     )
     await repo.insert_message(
         db_session,
@@ -651,11 +738,14 @@ async def test_load_history_reasoning_only_on_latest_assistant(
         content="second",
         reasoning="thinking-2",
         status="complete",
+        metadata={"responses_output": second_output},
     )
     msgs = await load_history(db_session, sid)
     assert len(msgs) == 2
     assert "reasoning_content" not in msgs[0].additional_kwargs
     assert msgs[1].additional_kwargs["reasoning_content"] == "thinking-2"
+    assert msgs[0].additional_kwargs["responses_output"] == first_output
+    assert msgs[1].additional_kwargs["responses_output"] == second_output
 
 
 @pytest.mark.asyncio
@@ -672,6 +762,8 @@ async def test_load_history_partial_assistant_and_aborted_tool_kept(
         content="half",
         status="partial",
         tool_calls=[{"id": "c1", "name": "n", "args": {}}],
+        metadata={"responses_output": [{"type": "reasoning", "id": "rs_partial",
+                                        "summary": [], "encrypted_content": "unfinished"}]},
     )
     await repo.insert_message(
         db_session,
@@ -687,6 +779,7 @@ async def test_load_history_partial_assistant_and_aborted_tool_kept(
     msgs = await load_history(db_session, sid)
     assert len(msgs) == 2
     assert isinstance(msgs[0], AIMessage) and msgs[0].content == "half"
+    assert "responses_output" not in msgs[0].additional_kwargs
     assert len(msgs[0].tool_calls) == 1
     tc0 = msgs[0].tool_calls[0]
     assert tc0["id"] == "c1"

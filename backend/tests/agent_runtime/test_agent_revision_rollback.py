@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
-from app.agent_runtime.persistence.model import AgentAttachment
+from app.agent_runtime.persistence.model import AgentAttachment, AgentRunMessage
 from app.agent_runtime.persistence import repo as message_repo
 from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
@@ -234,6 +234,83 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
         (inserted_id, False),
         ("chap-2", True),
     }
+
+
+@pytest.mark.asyncio
+async def test_rollback_clears_prune_marks_created_by_rolled_back_revision(revision_db):
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+
+    async with revision_db() as session:
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="初始请求",
+        )
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="assistant",
+            status="complete",
+            content="调用工具",
+            tool_calls=[{"id": "old-call", "name": "read_chapter", "args": {}}],
+        )
+        old_tool = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="tool",
+            status="complete",
+            content="完整旧工具输出",
+            tool_call_id="old-call",
+            tool_name="read_chapter",
+        )
+        target_user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="需要回滚的请求",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=target_user.id,
+            user_message_seq=target_user.seq,
+            message="用户消息: 需要回滚的请求",
+            pre_run_checkpoint_id=None,
+            graph_thread_id="sess-1",
+        )
+        await message_repo.mark_tool_messages_pruned(
+            session,
+            session_id="sess-1",
+            tool_call_ids=[old_tool.tool_call_id or ""],
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+        await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+        restored_tool = await session.get(AgentRunMessage, old_tool.id)
+        assert restored_tool is not None
+        assert restored_tool.content == "完整旧工具输出"
+        assert json.loads(restored_tool.message_metadata or "{}") == {}
+        assert await session.get(AgentRunMessage, target_user.id) is None
 
 
 @pytest.mark.asyncio
@@ -518,6 +595,126 @@ async def test_rollback_preserves_target_message_attachments_for_resending(revis
 
     async with revision_db() as session:
         assert await session.get(AgentAttachment, "attachment-1") is not None
+
+
+@pytest.mark.asyncio
+async def test_rollback_defers_removed_message_attachment_cleanup_until_startup(
+    revision_db,
+    monkeypatch,
+    tmp_path,
+):
+    from app.agent_runtime.attachments import cleanup_orphaned_agent_attachment_files
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    target_path = tmp_path / "sess-1" / "target.png"
+    removed_path = tmp_path / "sess-1" / "removed.png"
+    target_path.parent.mkdir()
+    target_path.write_bytes(b"target")
+    removed_path.write_bytes(b"removed")
+    target_metadata = {
+        "id": "target-attachment",
+        "storage_name": "sess-1/target.png",
+        "file_name": "target.png",
+        "mime_type": "image/png",
+        "size_bytes": 6,
+        "width": 2,
+        "height": 3,
+        "url": "/agent-attachments/sess-1/target.png",
+    }
+    removed_metadata = {
+        "id": "removed-attachment",
+        "storage_name": "sess-1/removed.png",
+        "file_name": "removed.png",
+        "mime_type": "image/png",
+        "size_bytes": 7,
+        "width": 2,
+        "height": 3,
+        "url": "/agent-attachments/sess-1/removed.png",
+    }
+
+    async with revision_db() as session:
+        session.add_all(
+            [
+                AgentAttachment(
+                    id="target-attachment",
+                    session_id="sess-1",
+                    task_id="task-1",
+                    project_id="proj-1",
+                    storage_name=target_metadata["storage_name"],
+                    file_name="target.png",
+                    mime_type="image/png",
+                    size_bytes=6,
+                    width=2,
+                    height=3,
+                ),
+                AgentAttachment(
+                    id="removed-attachment",
+                    session_id="sess-1",
+                    task_id="task-1",
+                    project_id="proj-1",
+                    storage_name=removed_metadata["storage_name"],
+                    file_name="removed.png",
+                    mime_type="image/png",
+                    size_bytes=7,
+                    width=2,
+                    height=3,
+                ),
+            ]
+        )
+        target_message = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="请参考目标图片",
+            metadata={"attachments": [target_metadata]},
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=target_message.id,
+            user_message_seq=target_message.seq,
+            message="用户消息: 请参考目标图片",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="后续消息",
+            metadata={"attachments": [removed_metadata]},
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert result.restored_attachments == [target_metadata]
+    async with revision_db() as session:
+        assert await session.get(AgentAttachment, "target-attachment") is not None
+        assert await session.get(AgentAttachment, "removed-attachment") is not None
+        await cleanup_orphaned_agent_attachment_files(session)
+        await session.commit()
+        assert await session.get(AgentAttachment, "target-attachment") is None
+        assert await session.get(AgentAttachment, "removed-attachment") is None
+
+    assert not target_path.exists()
+    assert not removed_path.exists()
 
 
 @pytest.mark.asyncio
@@ -1382,6 +1579,110 @@ async def test_rollback_revision_restores_created_characters(revision_db):
         character_after = await character_repo.get_by_id(session, character_id)
 
     assert character_after is None
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_removes_created_character_relationship(revision_db):
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+    from app.agent_runtime.tools.impls.context.character import CreateCharacterRelationshipTool
+    from app.storage.repos import character_relationship_repo
+
+    async with revision_db() as session:
+        session.add(Character(id="char-2", project_id="proj-1", name="第二角色"))
+        user = await message_repo.insert_message(
+            session, session_id="sess-1", task_id="task-1", project_id="proj-1",
+            role="user", status="sent", content="建立关系",
+        )
+        revision = await begin_user_revision(
+            session, project_id="proj-1", task_id="task-1", agent_session_id="sess-1",
+            user_message_id=user.id, user_message_seq=user.seq, message="用户消息: 建立关系",
+            pre_run_checkpoint_id="cp-before", graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = CreateCharacterRelationshipTool(_state={
+        "session_id": "sess-1", "task_id": "task-1", "project_id": "proj-1",
+        "current_revision_id": revision.id,
+    })
+    result = json.loads(await tool.ainvoke({
+        "source_name": "已有角色", "target_name": "第二角色", "name": "朋友",
+    }))
+    assert result["success"] is True
+
+    async with revision_db() as session:
+        assert len(await character_relationship_repo.list_for_project(session, "proj-1")) == 1
+        await rollback_revision_for_session(session, agent_session_id="sess-1", revision_id=revision.id)
+        await session.commit()
+
+    async with revision_db() as session:
+        assert await character_relationship_repo.list_for_project(session, "proj-1") == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["edit", "delete"])
+async def test_rollback_revision_restores_existing_character_relationship(revision_db, operation):
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+    from app.agent_runtime.tools.impls.context.character import EditCharacterRelationshipTool, DeleteCharacterRelationshipTool
+    from app.storage.repos import character_relationship_repo
+    from app.storage.services import character_relationship_service
+
+    async with revision_db() as session:
+        session.add(Character(id="char-2", project_id="proj-1", name="第二角色"))
+        await session.flush()
+        relation = await character_relationship_service.create_relationship(session, "proj-1", "char-1", "char-2", "旧关系", "原说明")
+        relation_id = relation.id
+        user = await message_repo.insert_message(
+            session, session_id="sess-1", task_id="task-1", project_id="proj-1",
+            role="user", status="sent", content="修改关系",
+        )
+        revision = await begin_user_revision(
+            session, project_id="proj-1", task_id="task-1", agent_session_id="sess-1",
+            user_message_id=user.id, user_message_seq=user.seq, message="用户消息: 修改关系",
+            pre_run_checkpoint_id="cp-before", graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool_class = EditCharacterRelationshipTool if operation == "edit" else DeleteCharacterRelationshipTool
+    tool = tool_class(_state={
+        "session_id": "sess-1", "task_id": "task-1", "project_id": "proj-1", "current_revision_id": revision.id,
+    })
+    args = {"source_name": "已有角色", "target_name": "第二角色"}
+    if operation == "edit":
+        args.update(name="新关系", description="新说明")
+    assert json.loads(await tool.ainvoke(args))["success"] is True
+
+    async with revision_db() as session:
+        await rollback_revision_for_session(session, agent_session_id="sess-1", revision_id=revision.id)
+        await session.commit()
+
+    async with revision_db() as session:
+        restored = await character_relationship_repo.get(session, relation_id)
+        assert restored is not None
+        assert (restored.name, restored.description) == ("旧关系", "原说明")
+
+
+@pytest.mark.asyncio
+async def test_agent_queries_character_relationship_paths(revision_db):
+    from app.agent_runtime.tools.impls.context.character import QueryCharacterRelationshipsTool, ReadCharacterTool
+    from app.storage.services import character_relationship_service
+
+    async with revision_db() as session:
+        session.add_all([
+            Character(id="char-2", project_id="proj-1", name="中转"),
+            Character(id="char-3", project_id="proj-1", name="终点"),
+        ])
+        await session.flush()
+        await character_relationship_service.create_relationship(session, "proj-1", "char-1", "char-2", "朋友")
+        await character_relationship_service.create_relationship(session, "proj-1", "char-2", "char-3", "同盟")
+        await session.commit()
+
+    state = {"session_id": "sess-1", "project_id": "proj-1"}
+    read = json.loads(await ReadCharacterTool(_state=state).ainvoke({"name": "已有角色"}))
+    assert read["relationships"][0]["character_name"] == "中转"
+    query = json.loads(await QueryCharacterRelationshipsTool(_state=state).ainvoke({
+        "name": "已有角色", "target_name": "终点", "max_hops": 2,
+    }))
+    assert [step["name"] for step in query["paths"][0]] == ["朋友", "同盟"]
 
 
 @pytest.mark.asyncio

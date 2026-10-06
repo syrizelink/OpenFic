@@ -5,9 +5,10 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-  getIndexStatusColor,
+  getIndexStatusColorName,
   useStartProjectIndex,
   useStopProjectIndex,
+  type IndexStatusColor,
   type ProjectIndexStatus,
 } from "@/lib/index-status";
 
@@ -90,7 +91,7 @@ function ProjectIndexAccordionItem({
   const total = group.units.reduce((sum, unit) => sum + unit.total, 0);
   const progressText =
     total === 0 ? t("index.status.no_chapters") : t("index.progress", { indexed, total });
-  const color = getIndexStatusColor(group.status);
+  const color = getIndexStatusColorName(group.status);
 
   return (
     <Box className="project-index-list-item">
@@ -173,7 +174,7 @@ function IndexUnitRow({
   const startMutation = useStartProjectIndex(projectId);
   const stopMutation = useStopProjectIndex(projectId);
   const shouldReduceMotion = useReducedMotion();
-  const color = getIndexStatusColor(unit.status);
+  const color = getIndexStatusColorName(unit.status);
   const progress =
     unit.total > 0 ? Math.min(100, Math.max(0, (unit.indexed / unit.total) * 100)) : 0;
   const progressText =
@@ -270,7 +271,7 @@ function IndexStatusBadge({
   color,
 }: {
   status: ProjectIndexStatus["status"];
-  color: string;
+  color: IndexStatusColor;
 }) {
   const { t } = useTranslation();
 
@@ -278,7 +279,7 @@ function IndexStatusBadge({
     <Badge
       size="1"
       variant="soft"
-      style={{ color }}
+      color={color}
     >
       {t(`index.status.${status}` as const)}
     </Badge>

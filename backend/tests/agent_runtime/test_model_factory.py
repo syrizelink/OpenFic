@@ -6,6 +6,17 @@ from app.agent_runtime.model_config import to_client_model_config, without_api_k
 from app.models.clients.model_factory import create_chat_model, ModelConfig
 
 
+_ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
+    "freemodel",
+    "minimax",
+    "minimax-cn",
+    "minimax-coding-plan",
+    "minimax-cn-coding-plan",
+    "subconscious",
+    "thinkingmachines",
+]
+
+
 def test_to_client_model_config_excludes_internal_model_record_id():
     config = to_client_model_config(
         {
@@ -50,6 +61,24 @@ def test_create_chat_model_openai_returns_chat_openai():
     assert model.request_timeout == (10.0, 600.0)
 
 
+def test_create_chat_model_openai_codex_uses_dynamic_provider_reference():
+    from app.models.clients.openai_codex import OpenAICodexChatModel
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-codex",
+            base_url="https://api.openai.com/v1",
+            api_key="",
+            provider_id="provider-1",
+            model_id="gpt-visible",
+        )
+    )
+
+    assert isinstance(model, OpenAICodexChatModel)
+    assert model.provider_id == "provider-1"
+    assert model.api_key == ""
+
+
 def test_create_chat_model_anthropic_uses_native_client():
     config = ModelConfig(
         provider_type="anthropic",
@@ -83,6 +112,24 @@ def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custo
     assert model.max_retries == 0
 
 
+@pytest.mark.parametrize("provider_type", _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES)
+def test_create_chat_model_uses_anthropic_client_for_anthropic_catalog_provider(
+    provider_type: str,
+):
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="custom-model",
+        )
+    )
+
+    from langchain_anthropic import ChatAnthropic
+
+    assert isinstance(model, ChatAnthropic)
+
+
 def test_create_chat_model_gemini_compatible_uses_custom_native_client():
     config = ModelConfig(
         provider_type="gemini-compatible",
@@ -100,7 +147,8 @@ def test_create_chat_model_gemini_compatible_uses_custom_native_client():
     assert isinstance(model, ChatGoogleGenerativeAI)
     assert model.base_url == {"api_endpoint": "https://gateway.example/gemini"}
     assert model.api_version == "v1beta"
-    assert model.additional_headers == {"X-Provider-Token": "custom-token"}
+    assert model.additional_headers["X-Provider-Token"] == "custom-token"
+    assert model.additional_headers["User-Agent"].startswith("OpenFic/")
     assert model.thinking_level == "high"
     assert model.max_retries == 0
 
@@ -127,6 +175,103 @@ def test_create_chat_model_custom_providers_send_custom_headers():
 
     assert openai_model.default_headers["X-Provider-Token"] == "custom-token"
     assert anthropic_model.default_headers["X-Provider-Token"] == "custom-token"
+    assert openai_model.default_headers["User-Agent"].startswith("OpenFic/")
+    assert anthropic_model.default_headers["User-Agent"].startswith("OpenFic/")
+
+
+def test_create_chat_model_adds_versioned_application_user_agent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "app_name", "OpenFic")
+    monkeypatch.setattr(settings, "app_version", "0.11.1")
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="opencode",
+            base_url="https://opencode.example/v1",
+            api_key="test-key",
+            model_id="custom-model",
+            session_id="agent-session-1",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+
+    assert model.default_headers["User-Agent"] == "OpenFic/0.11.1"
+    assert model.default_headers["X-Provider-Token"] == "custom-token"
+
+
+@pytest.mark.parametrize("provider_type", ["opencode", "opencode-go"])
+def test_create_chat_model_adds_opencode_session_header(provider_type: str) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url="https://opencode.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
+def test_create_chat_model_adds_opencode_headers_for_openai_compatible_endpoint() -> None:
+    from app.settings import settings
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert model.default_headers["User-Agent"] == f"{settings.app_name}/{settings.app_version}"
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
+def test_create_chat_model_generates_opencode_session_when_not_provided() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key="test-key",
+            model_id="test-model",
+        )
+    )
+
+    assert model.default_headers["x-opencode-session"]
+
+
+def test_create_chat_model_does_not_add_opencode_header_to_other_providers() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+            session_id="agent-session-1",
+        )
+    )
+
+    assert "x-opencode-session" not in model.default_headers
+
+
+def test_create_chat_model_adds_application_user_agent_to_non_opencode_provider() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="test-model",
+        )
+    )
+
+    assert model.default_headers["User-Agent"].startswith("OpenFic/")
 
 
 def test_create_chat_model_with_temperature():
@@ -201,14 +346,14 @@ def test_create_chat_model_sends_non_default_advanced_params():
     }
 
 
-def test_create_chat_model_omits_disabled_reasoning_effort():
+def test_create_chat_model_omits_auto_reasoning_effort():
     model = create_chat_model(
         ModelConfig(
             provider_type="openai-compatible",
             base_url="https://custom.api/v1",
             api_key="sk-test",
             model_id="new-reasoning-model",
-            reasoning_effort="off",
+            reasoning_effort="auto",
         )
     )
 
@@ -218,14 +363,14 @@ def test_create_chat_model_omits_disabled_reasoning_effort():
     }
 
 
-def test_create_chat_model_deepseek_omits_disabled_reasoning_effort():
+def test_create_chat_model_deepseek_omits_auto_reasoning_effort():
     model = create_chat_model(
         ModelConfig(
             provider_type="deepseek",
             base_url="https://api.deepseek.com",
             api_key="sk-test",
             model_id="deepseek-reasoner",
-            reasoning_effort="off",
+            reasoning_effort="auto",
         )
     )
 

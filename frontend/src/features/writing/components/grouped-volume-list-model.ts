@@ -16,6 +16,7 @@ export type GroupedVolumeListItem =
 interface BuildGroupedVolumeListModelParams {
   volumes: VolumeWithChapters[];
   expandedVolumeIds: Set<string>;
+  chapterOrderMap?: Readonly<Record<string, number>>;
 }
 
 interface GetCollapseScrollGroupIndexParams {
@@ -35,6 +36,7 @@ export interface GroupedVolumeListModel {
   items: GroupedVolumeListItem[];
   groupCounts: number[];
   chapterById: Map<string, ChapterListItem>;
+  chapterIndexById: Map<string, number>;
   keyByInternalIndex: Map<number, string>;
   getChapterScrollIndex: (chapterId: string) => number | undefined;
 }
@@ -71,9 +73,9 @@ export function shouldAnchorCollapsedGroupScroll({
 
 export function getSortedVolumeChapters(
   chapters: ChapterListItem[],
-  dragOrderMap: Readonly<Record<string, number>>,
+  dragOrderMap?: Readonly<Record<string, number>>,
 ): ChapterListItem[] {
-  if (Object.keys(dragOrderMap).length === 0) {
+  if (!dragOrderMap || Object.keys(dragOrderMap).length === 0) {
     return chapters;
   }
 
@@ -103,16 +105,20 @@ export function getGroupedVolumeListStructureSignature(
 export function buildGroupedVolumeListModel({
   volumes,
   expandedVolumeIds,
+  chapterOrderMap,
 }: BuildGroupedVolumeListModelParams): GroupedVolumeListModel {
   const items: GroupedVolumeListItem[] = [];
   const groupCounts: number[] = [];
   const chapterById = new Map<string, ChapterListItem>();
+  const chapterIndexById = new Map<string, number>();
   const chapterScrollIndexById = new Map<string, number>();
   const keyByInternalIndex = new Map<number, string>();
   let itemIndex = 0;
   let internalIndex = 0;
 
   for (const volume of volumes) {
+    const chapters = getSortedVolumeChapters(volume.chapters, chapterOrderMap);
+
     keyByInternalIndex.set(internalIndex, `volume:${volume.id}`);
     internalIndex += 1;
 
@@ -125,7 +131,7 @@ export function buildGroupedVolumeListModel({
       continue;
     }
 
-    if (volume.chapters.length === 0) {
+    if (chapters.length === 0) {
       items.push({
         type: "empty",
         key: `empty:${volume.id}`,
@@ -138,14 +144,15 @@ export function buildGroupedVolumeListModel({
       continue;
     }
 
-    groupCounts.push(volume.chapters.length);
-    for (const chapter of volume.chapters) {
+    groupCounts.push(chapters.length);
+    for (const [chapterIndex, chapter] of chapters.entries()) {
       items.push({
         type: "chapter",
         key: `chapter:${chapter.id}`,
         volumeId: volume.id,
         chapter,
       });
+      chapterIndexById.set(chapter.id, chapterIndex);
       keyByInternalIndex.set(internalIndex, `chapter:${chapter.id}`);
       chapterScrollIndexById.set(chapter.id, itemIndex);
       internalIndex += 1;
@@ -157,6 +164,7 @@ export function buildGroupedVolumeListModel({
     items,
     groupCounts,
     chapterById,
+    chapterIndexById,
     keyByInternalIndex,
     getChapterScrollIndex: (chapterId) => chapterScrollIndexById.get(chapterId),
   };

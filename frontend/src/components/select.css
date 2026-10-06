@@ -1,3 +1,18 @@
+.select-trigger--background {
+  background: var(--color-background) !important;
+  background-image: none !important;
+}
+
+.select-trigger--background::before {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.select-trigger--surface {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+}
+
 .select-option-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6,6 +21,31 @@
 
 .select-option-row {
   width: 100%;
+}
+
+[data-slot="select-option-with-actions"] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+[data-slot="select-option-with-actions"] > .rt-SelectItem,
+[data-slot="select-option-with-actions"] > .searchable-select-item {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-slot="select-option-actions"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  flex-shrink: 0;
+}
+
+[data-slot="select-option-actions"] :focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 2px;
 }
 
 .select-option-main {
@@ -133,7 +173,8 @@
 }
 
 .searchable-select-item[data-state="checked"] {
-  background: var(--accent-a3);
+  background: var(--gray-a5);
+  color: var(--gray-12);
 }
 
 .searchable-select-item:disabled {

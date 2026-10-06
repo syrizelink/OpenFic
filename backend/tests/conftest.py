@@ -30,6 +30,7 @@ from app.api.routers import (
     chapter_context,
     chapter_exports,
     chapters,
+    openai_codex,
     commands,
     dashboard,
     health,
@@ -102,6 +103,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(settings.router, prefix="/api/v1")
     test_app.include_router(import_router.router, prefix="/api/v1")
     test_app.include_router(model_providers.router, prefix="/api/v1")
+    test_app.include_router(openai_codex.router, prefix="/api/v1")
     test_app.include_router(model_provider_catalog.router, prefix="/api/v1")
     test_app.include_router(models.router, prefix="/api/v1")
     test_app.include_router(prompt_chains.router, prefix="/api/v1")
@@ -150,6 +152,7 @@ async def db_engine():
     )
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        conn.info["test_schema_ready"] = True
     yield engine
     await engine.dispose()
 
@@ -167,7 +170,10 @@ async def client(_test_app: FastAPI, db_engine) -> AsyncGenerator[AsyncClient, N
     """每个测试的 HTTP 客户端。通过连接级事务实现隔离。"""
     global _per_test_session
     async with db_engine.begin() as setup_conn:
-        await setup_conn.run_sync(SQLModel.metadata.create_all)
+        # Cancelled SQLite IO can replace the connection and lose its in-memory schema.
+        if not setup_conn.info.get("test_schema_ready"):
+            await setup_conn.run_sync(SQLModel.metadata.create_all)
+            setup_conn.info["test_schema_ready"] = True
 
     async with db_engine.connect() as conn:
         await conn.begin()

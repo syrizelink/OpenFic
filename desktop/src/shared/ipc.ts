@@ -1,8 +1,9 @@
-import type { DesktopConfig, DesktopInstance } from "./config.js";
+import type { DesktopConfig, DesktopInstance, DesktopInstanceAppearance } from "./config.js";
 
 export const IpcChannels = {
   getConfig: "config:get",
   saveConfig: "config:save",
+  saveInstanceAppearance: "instance:save-appearance",
   initializeApp: "app:initialize",
   cancelStartup: "app:cancel-startup",
   ensureInstanceSession: "app:ensure-instance-session",
@@ -37,6 +38,7 @@ export const IpcChannels = {
   openProjectHome: "help:open-project-home",
   reportBug: "help:report-bug",
   suggestFeature: "help:suggest-feature",
+  openOpenAICodexAuthorization: "auth:open-openai-codex-authorization",
   getZoomFactor: "zoom:get-factor",
   saveZoomFactor: "zoom:save-factor",
   zoomFactorChanged: "zoom:changed",
@@ -69,6 +71,10 @@ export interface SetupProgressEvent {
 
 export interface SaveConfigRequest {
   config: DesktopConfig;
+}
+
+export interface SaveInstanceAppearanceRequest extends DesktopInstanceAppearance {
+  instanceId: string;
 }
 
 export interface SaveZoomFactorRequest {

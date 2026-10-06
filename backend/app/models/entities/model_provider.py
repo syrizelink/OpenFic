@@ -35,6 +35,10 @@ class ModelProvider(SQLModel, table=True):
         default="",
         sa_column=Column(Text, nullable=False),
     )
+    credentials_encrypted: str = Field(
+        default="",
+        sa_column=Column(Text, nullable=False),
+    )
     provider_type: str = Field(
         max_length=50,
         description=(

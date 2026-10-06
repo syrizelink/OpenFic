@@ -561,8 +561,10 @@ async def rollback_child_runs_for_parent_revisions(
         )
     )
     grouped: dict[str, AgentChildRunRequest] = {}
+    requests_by_child: dict[str, list[AgentChildRunRequest]] = {}
     for request_row in result.scalars().all():
         grouped.setdefault(request_row.child_run_id, request_row)
+        requests_by_child.setdefault(request_row.child_run_id, []).append(request_row)
 
     checkpoint_boundaries: list[tuple[str, str | None]] = []
     child_run_ids: list[str] = []
@@ -574,6 +576,15 @@ async def rollback_child_runs_for_parent_revisions(
         child_run_ids.append(child_run_id)
 
         if first_request.child_user_message_seq is not None:
+            await message_repo.clear_tool_message_prune_marks(
+                session,
+                session_id=row.child_thread_id,
+                revision_ids=[
+                    request.parent_revision_id
+                    for request in requests_by_child[child_run_id]
+                    if request.parent_revision_id
+                ],
+            )
             await message_repo.delete_from_seq(
                 session,
                 row.child_thread_id,

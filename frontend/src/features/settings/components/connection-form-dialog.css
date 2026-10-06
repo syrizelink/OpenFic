@@ -7,6 +7,13 @@
   padding-right: var(--space-1);
 }
 
+.connection-form-dialog__callback-toggle {
+  margin: 0;
+  width: 100%;
+  justify-content: flex-start !important;
+  text-align: left;
+}
+
 .connection-form-dialog__header-row {
   width: 100%;
   min-width: 0;

@@ -17,6 +17,7 @@ from app.agent_runtime.agents.definitions import (
 from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.context.helpers import extract_referenced_skill_ids
+from app.agent_runtime.graph.llm_invoke import format_error_message
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import MessagePersister
@@ -57,6 +58,7 @@ from app.agent_runtime.usage_cost import (
 )
 from app.core.encryption import EncryptionService
 from app.models.clients.model_factory import ModelConfig, create_chat_model
+from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
 from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
 from app.socket import emit
@@ -70,6 +72,7 @@ from app.settings import settings
 from app.storage.database import _get_session_factory, create_session
 from app.storage.repos import setting_repo
 from app.storage.services import task_service
+from app.models.clients.model_params import normalize_reasoning_effort
 
 
 SYSTEM_DEFAULT_MODEL_REFERENCE = "__system_default_model__"
@@ -132,6 +135,13 @@ async def _read_setting_model_id(session: Any, key: str) -> str | None:
     return value or None
 
 
+async def _read_setting_reasoning_effort(session: Any, key: str) -> str | None:
+    setting = await setting_repo.get_by_key(session, key)
+    if setting is None or not setting.value:
+        return None
+    return normalize_reasoning_effort(setting.value)
+
+
 async def _resolve_model_record_id(
     session: Any,
     *,
@@ -174,7 +184,11 @@ async def _build_model_config_from_record(session: Any, record_id: str) -> dict[
         return None
 
     encryption_service = EncryptionService(settings.encryption_key)
-    api_key = encryption_service.decrypt(provider.api_key_encrypted)
+    api_key = (
+        ""
+        if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+        else encryption_service.decrypt(provider.api_key_encrypted)
+    )
     custom_headers = ModelProviderService(
         encryption_service
     ).get_decrypted_custom_headers(provider)
@@ -183,6 +197,11 @@ async def _build_model_config_from_record(session: Any, record_id: str) -> dict[
         "base_url": provider.url,
         "api_key": api_key,
         "model_id": model.model_id,
+        **(
+            {"provider_id": provider.id}
+            if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+            else {}
+        ),
         **({"custom_headers": custom_headers} if custom_headers else {}),
         "max_context_tokens": model.context_length,
         "input_price": getattr(model, "input_price", 0.0),
@@ -206,6 +225,7 @@ async def _resolve_agent_model_config(
     *,
     configured_model_id: str | None,
     inherited_config: dict[str, Any],
+    configured_reasoning_effort: str | None = None,
 ) -> dict[str, Any]:
     """Resolve the model config a subagent should use.
 
@@ -221,7 +241,20 @@ async def _resolve_agent_model_config(
     if record_id:
         resolved = await _build_model_config_from_record(session, record_id)
         if resolved is not None:
-            reasoning_effort = inherited_config.get("reasoning_effort")
+            if configured_model_id == SYSTEM_LIGHT_MODEL_REFERENCE:
+                reasoning_effort = await _read_setting_reasoning_effort(
+                    session,
+                    "light_model_reasoning_effort",
+                )
+            elif configured_model_id in (None, "", SYSTEM_DEFAULT_MODEL_REFERENCE):
+                reasoning_effort = await _read_setting_reasoning_effort(
+                    session,
+                    "default_model_reasoning_effort",
+                )
+            elif isinstance(configured_reasoning_effort, str):
+                reasoning_effort = configured_reasoning_effort
+            else:
+                reasoning_effort = inherited_config.get("reasoning_effort")
             if isinstance(reasoning_effort, str):
                 resolved["reasoning_effort"] = reasoning_effort
             return resolved
@@ -397,11 +430,6 @@ class SubagentRunner:
         definition: AgentDefinition,
         runtime_state: dict[str, Any],
     ):
-        agent_config = ReactAgentConfig(
-            name=row.agent_key,
-            tools=await self._build_tools(definition, runtime_state),
-            termination=TerminationCondition(mode="no_tool_call"),
-        )
         model_config = dict(self.model_config)
         session = await _open_session(self.session_factory)
         try:
@@ -409,10 +437,21 @@ class SubagentRunner:
                 session,
                 configured_model_id=definition.model_id,
                 inherited_config=model_config,
+                configured_reasoning_effort=definition.reasoning_effort,
             )
         finally:
             await _close_session(session)
-        model = create_chat_model(ModelConfig(**to_client_model_config(model_config)))
+        runtime_state["model_config"] = model_config
+        agent_config = ReactAgentConfig(
+            name=row.agent_key,
+            tools=await self._build_tools(definition, runtime_state),
+            termination=TerminationCondition(mode="no_tool_call"),
+        )
+        client_model_config = to_client_model_config(model_config)
+        session_id = runtime_state.get("session_id") or getattr(row, "child_thread_id", None)
+        if session_id:
+            client_model_config["session_id"] = session_id
+        model = create_chat_model(ModelConfig(**client_model_config))
         graph = create_react_agent(
             agent_config,
             model=model,
@@ -670,6 +709,11 @@ class SubagentRunner:
         model_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         active_model_config = model_config if model_config is not None else self.model_config
+        billing_config = (
+            event_data["billing_config"]
+            if event_data.get("usage_kind") == "compaction"
+            else active_model_config
+        )
         usage = event_data.get("usage") if isinstance(event_data, dict) else None
         usage_dict = usage if isinstance(usage, dict) else {}
         token_input = int(
@@ -691,14 +735,15 @@ class SubagentRunner:
         if token_cache_write == 0:
             token_cache_write = max(int(usage_dict.get("token_cache_write") or 0), 0)
         call_cost = calculate_llm_call_cost(
+            provider_type=str(billing_config.get("provider_type") or ""),
             token_input=token_input,
             token_output=token_output,
             token_cache=token_cache,
             token_cache_write=token_cache_write,
-            input_price=float(active_model_config.get("input_price") or 0),
-            output_price=float(active_model_config.get("output_price") or 0),
-            cache_read_price=float(active_model_config.get("cache_read_price") or 0),
-            cache_write_price=float(active_model_config.get("cache_write_price") or 0),
+            input_price=float(billing_config.get("input_price") or 0),
+            output_price=float(billing_config.get("output_price") or 0),
+            cache_read_price=float(billing_config.get("cache_read_price") or 0),
+            cache_write_price=float(billing_config.get("cache_write_price") or 0),
         )
         return {
             "session_id": session_id,
@@ -1025,16 +1070,17 @@ class SubagentRunner:
                 audit_context,
             )
         except Exception as exc:
+            error = format_error_message(exc)
             refreshed = await self._complete_request(
                 row,
                 request_row,
-                error=str(exc),
+                error=error,
             )
             await self._publish_parent_subagent_status_row(
                 refreshed,
                 request_kind=request_row.request_kind,
             )
-            return {"error": str(exc)}
+            return {"error": error}
 
         interrupts = _extract_interrupts(result_state)
         if interrupts:

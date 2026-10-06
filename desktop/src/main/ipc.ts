@@ -23,6 +23,7 @@ import {
   type ReportErrorPayload,
   type RestoreDataRequest,
   type SaveConfigRequest,
+  type SaveInstanceAppearanceRequest,
   type SaveZoomFactorRequest,
   type StartLocalBackendRequest,
   type SwitchInstanceRequest,
@@ -49,7 +50,7 @@ import { createStartupProgressTracker, getStartupProgress } from "./startup-prog
 import { appendLog, exportLogs } from "./logging.js";
 import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
-import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
+import { isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 
 const PROJECT_HOME_URL = "https://github.com/syrizelink/OpenFic";
 const BUG_REPORT_URL = `${PROJECT_HOME_URL}/issues/new?template=bug-report.yml`;
@@ -66,6 +67,12 @@ interface LocalInstanceDeletionPaths {
 function normalizeZoomFactor(zoomFactor: number): number {
   const clampedZoomFactor = Math.min(MAX_ZOOM_FACTOR, Math.max(MIN_ZOOM_FACTOR, zoomFactor));
   return Math.round(clampedZoomFactor * 10) / 10;
+}
+
+function isSaveInstanceAppearanceRequest(value: unknown): value is SaveInstanceAppearanceRequest {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as SaveInstanceAppearanceRequest;
+  return typeof candidate.instanceId === "string" && isDesktopInstanceAppearance(candidate);
 }
 
 function getLocalInstanceDeletionPaths(instance: DesktopInstance): LocalInstanceDeletionPaths {
@@ -258,6 +265,32 @@ export function registerIpc(context: IpcContext): void {
     await writeDesktopConfig(nextConfig);
     context.onConfigSaved(nextConfig);
   }));
+
+  ipcMain.handle(
+    IpcChannels.saveInstanceAppearance,
+    (_event, request: SaveInstanceAppearanceRequest) =>
+      enqueueConfigMutation(async () => {
+        if (!isSaveInstanceAppearanceRequest(request)) throw new Error("无效的实例外观配置");
+        const config = await readDesktopConfig();
+        if (!config) return;
+        if (!config.instances.some((instance) => instance.id === request.instanceId)) return;
+        const nextConfig: DesktopConfig = {
+          ...config,
+          instances: config.instances.map((instance) =>
+            instance.id === request.instanceId
+              ? {
+                  ...instance,
+                  ...(request.appearance === undefined ? {} : { appearance: request.appearance }),
+                  ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
+                  ...(request.codeFontFamily === undefined ? {} : { codeFontFamily: request.codeFontFamily }),
+                  ...(request.themeVariables === undefined ? {} : { themeVariables: request.themeVariables }),
+                }
+              : instance,
+          ),
+        };
+        await writeDesktopConfig(nextConfig);
+      }),
+  );
 
   ipcMain.handle(IpcChannels.getZoomFactor, async () => {
     await pendingConfigMutation;
@@ -677,6 +710,16 @@ export function registerIpc(context: IpcContext): void {
     context.shellWindow()?.close();
   });
   ipcMain.handle(IpcChannels.openProjectHome, () => shell.openExternal(PROJECT_HOME_URL));
+  ipcMain.handle(IpcChannels.openOpenAICodexAuthorization, async (_event, value: unknown) => {
+    if (typeof value !== "string") throw new Error("Invalid OpenAI Codex authorization URL");
+    const url = new URL(value);
+    if (
+      url.origin !== "https://auth.openai.com" ||
+      url.pathname !== "/api/accounts/authorize" ||
+      url.username || url.password
+    ) throw new Error("Invalid OpenAI Codex authorization URL");
+    await shell.openExternal(url.href);
+  });
   ipcMain.handle(IpcChannels.reportBug, () => shell.openExternal(BUG_REPORT_URL));
   ipcMain.handle(IpcChannels.suggestFeature, () => shell.openExternal(FEATURE_SUGGESTION_URL));
 }

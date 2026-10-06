@@ -67,12 +67,12 @@ body {
 .desktop-notice-warning {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
-  border-color: var(--amber-a6, rgba(217, 119, 6, 0.35));
-  color: var(--amber-11, #a16207);
+  border-color: var(--amber-a6);
+  color: var(--amber-11);
 }
 
 .desktop-notice-error {
-  border-color: var(--red-a6, rgba(220, 38, 38, 0.35));
+  border-color: var(--red-a6);
 }
 
 .desktop-notice-copy {
@@ -705,11 +705,11 @@ body {
 
 .titlebar-update-button[data-update-state="available"],
 .titlebar-update-button[data-update-state="downloading"] {
-  color: var(--green-11, #15803d);
+  color: var(--green-11);
 }
 
 .titlebar-update-button[data-update-state="error"] {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 @keyframes titlebar-update-spin {
@@ -731,16 +731,16 @@ body {
 }
 
 .titlebar-link-button[data-connected="true"] {
-  color: var(--green-11, #15803d);
+  color: var(--green-11);
 }
 
 .titlebar-link-button[data-connected="false"] {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .titlebar-button-close:hover {
-  background: var(--red-a3, rgba(220, 38, 38, 0.1));
-  color: var(--red-11, #b91c1c);
+  background: var(--red-a3);
+  color: var(--red-11);
 }
 
 .instance-switcher {
@@ -867,19 +867,19 @@ body {
 }
 
 .instance-dot[data-status="ok"] {
-  background: var(--green-9, #16a34a);
-  color: var(--green-9, #16a34a);
+  background: var(--green-9);
+  color: var(--green-9);
 }
 
 .instance-dot[data-status="checking"] {
-  background: var(--blue-9, #2563eb);
-  color: var(--blue-9, #2563eb);
+  background: var(--blue-9);
+  color: var(--blue-9);
   animation: instance-dot-breathe 1s ease-in-out infinite;
 }
 
 .instance-dot[data-status="failed"] {
-  background: var(--red-9, #dc2626);
-  color: var(--red-9, #dc2626);
+  background: var(--red-9);
+  color: var(--red-9);
 }
 
 .instance-main {
@@ -967,7 +967,7 @@ body {
 }
 
 .instance-action-button[data-active="true"] {
-  color: var(--amber-11, #b45309);
+  color: var(--amber-11);
 }
 
 .instance-action-button:disabled {
@@ -1016,7 +1016,7 @@ h1 {
 }
 
 .error {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .boot-state {
@@ -1053,14 +1053,14 @@ h1 {
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid var(--amber-8, #d97706);
+  border: 1px solid var(--amber-8);
   border-radius: 8px;
-  background: var(--amber-3, rgba(217, 119, 6, 0.08));
+  background: var(--amber-a3);
 }
 
 .boot-warning-text {
   margin: 0;
-  color: var(--amber-11, #92400e);
+  color: var(--amber-11);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -1070,19 +1070,19 @@ h1 {
   border: 0;
   border-radius: 6px;
   padding: 8px 24px;
-  background: var(--amber-9, #d97706);
-  color: #fff;
+  background: var(--amber-9);
+  color: var(--amber-contrast);
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
 
 .boot-confirm-button:hover {
-  background: var(--amber-10, #b45309);
+  background: var(--amber-10);
 }
 
 .boot-confirm-button:focus-visible {
-  outline: 2px solid var(--amber-a8, rgba(217, 119, 6, 0.5));
+  outline: 2px solid var(--amber-a8);
   outline-offset: 3px;
 }
 
@@ -1156,7 +1156,7 @@ h1 {
 }
 
 .startup-progress[data-status="failed"] .startup-progress-track > span {
-  background: var(--red-9, #dc2626);
+  background: var(--red-9);
 }
 
 .startup-progress > p {

@@ -14,6 +14,8 @@ export function MobileAppSidebarTrigger() {
     <Tooltip content={t("topbar.expand")}>
       <IconButton
         variant="ghost"
+        color="gray"
+        highContrast
         size="2"
         aria-label={t("topbar.expand")}
         onClick={openSidebar}

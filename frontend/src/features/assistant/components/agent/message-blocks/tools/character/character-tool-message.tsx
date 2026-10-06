@@ -16,12 +16,13 @@ import {
 import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
-import { ToolBody, ToolNotice, ToolTextBlock } from "../shared/tool-message-shared";
+import { ToolBody, ToolListBlock, ToolNotice, ToolTextBlock } from "../shared/tool-message-shared";
 import {
   asString,
   getCharacterPayload,
   getToolResultData,
   getToolResultMessage,
+  getStreamingData,
   isRecord,
 } from "../shared/tool-message-utils";
 
@@ -237,6 +238,59 @@ export function CharacterToolMessage({ message }: CharacterToolMessageProps) {
         label={i18n.t("assistant.tools.result")}
         value={getToolResultMessage(message)}
       />
+    </ToolBody>
+  );
+}
+
+export function CharacterRelationshipToolMessage({ message }: CharacterToolMessageProps) {
+  const args = getStreamingData(message);
+  const result = getToolResultData(message);
+  const data = isRecord(result) ? result : {};
+  const source = asString(args.source_name) ?? asString(args.name) ?? asString(data.source);
+  const target = asString(args.target_name) ?? asString(data.target);
+  const paths = Array.isArray(data.paths) ? data.paths : [];
+  const pathLabels = paths
+    .filter(Array.isArray)
+    .map((path: unknown[]) =>
+      path
+        .filter(isRecord)
+        .map(
+          (step) =>
+            `${asString(step.from) ?? ""} —${asString(step.name) ?? ""}→ ${asString(step.to) ?? ""}`,
+        )
+        .join(" · "),
+    )
+    .filter(Boolean);
+
+  return (
+    <ToolBody>
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.charactersInRelationship")}
+        value={[source, target].filter(Boolean).join(" ↔ ")}
+      />
+      {message.toolName === "query_character_relationships" ? (
+        pathLabels.length ? (
+          <ToolListBlock
+            label={i18n.t("assistant.tools.relationshipPaths")}
+            values={pathLabels}
+          />
+        ) : Array.isArray(data.paths) ? (
+          <ToolNotice title={i18n.t("assistant.tools.noRelationshipPaths")}>
+            {i18n.t("assistant.tools.noRelationshipPathsDescription")}
+          </ToolNotice>
+        ) : null
+      ) : (
+        <>
+          <ToolTextBlock
+            label={i18n.t("assistant.tools.relationshipName")}
+            value={asString(args.name) ?? asString(data.name)}
+          />
+          <ToolTextBlock
+            label={i18n.t("assistant.tools.description")}
+            value={asString(args.description)}
+          />
+        </>
+      )}
     </ToolBody>
   );
 }

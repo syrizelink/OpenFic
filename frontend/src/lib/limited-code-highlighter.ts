@@ -66,6 +66,17 @@ function resolveLanguage(language: string): SupportedLanguage | null {
   return Object.hasOwn(LANGUAGE_ALIASES, normalized) ? LANGUAGE_ALIASES[normalized] : null;
 }
 
+function createPlainTextHighlightResult(code: string): HighlightResult {
+  let offset = 0;
+  const tokens = code.split("\n").map((line) => {
+    const token = { content: line, offset };
+    offset += line.length + 1;
+    return [token];
+  });
+
+  return { bg: "transparent", fg: "inherit", tokens };
+}
+
 function resolveTheme(theme: ThemeInput, fallback: SupportedTheme): ResolvedTheme {
   if (typeof theme !== "string") return theme;
   if (Object.hasOwn(THEME_LOADERS, theme)) return theme as SupportedTheme;
@@ -106,7 +117,7 @@ function highlightCode(
   callback?: (result: HighlightResult) => void,
 ): HighlightResult | null {
   const language = resolveLanguage(options.language);
-  if (!language) return null;
+  if (!language) return createPlainTextHighlightResult(options.code);
 
   const themes: [ResolvedTheme, ResolvedTheme] = [
     resolveTheme(options.themes[0], DEFAULT_THEMES[0]),

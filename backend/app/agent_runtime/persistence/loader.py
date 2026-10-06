@@ -34,6 +34,10 @@ def _response_metadata(row: AgentRunMessage) -> dict:
     metadata: dict = {"openfic_seq": row.seq}
     if row.role == "tool" and row.tool_name:
         metadata["openfic_tool_name"] = row.tool_name
+    if row.role == "tool":
+        metadata["openfic_status"] = row.status
+    if _message_metadata(row).get("pruned") is True:
+        metadata["openfic_pruned"] = True
     return metadata
 
 
@@ -44,6 +48,14 @@ def _user_additional_kwargs(row: AgentRunMessage) -> dict:
         return {}
     attachments = metadata.get("attachments") if isinstance(metadata, dict) else None
     return {"openfic_attachments": attachments} if isinstance(attachments, list) else {}
+
+
+def _message_metadata(row: AgentRunMessage) -> dict:
+    try:
+        metadata = json.loads(row.message_metadata or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return metadata if isinstance(metadata, dict) else {}
 
 
 def _order_tool_results_by_call_order(
@@ -196,6 +208,9 @@ async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMe
             )
         elif part.role == "assistant":
             kwargs: dict = {}
+            responses_output = _message_metadata(row).get("responses_output")
+            if row.status == "complete" and isinstance(responses_output, list) and responses_output:
+                kwargs["responses_output"] = responses_output
             if idx == last_assistant_with_reasoning_idx and row.reasoning:
                 kwargs["reasoning_content"] = row.reasoning
             ai_msg = AIMessage(

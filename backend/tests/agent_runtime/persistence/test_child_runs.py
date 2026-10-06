@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -412,10 +414,24 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 session_id="child-thread",
                 task_id=sample_task.id,
                 project_id=sample_task.project_id,
+                role="tool",
+                content="第一轮工具结果",
+                status="complete",
+                tool_call_id="old-tool-call",
+                tool_name="read_chapter",
+                message_metadata=json.dumps(
+                    {"pruned": True, "pruned_revision_id": "rev-2"}
+                ),
+                seq=1,
+            ),
+            AgentRunMessage(
+                session_id="child-thread",
+                task_id=sample_task.id,
+                project_id=sample_task.project_id,
                 role="assistant",
                 content="第一轮结果",
                 status="complete",
-                seq=1,
+                seq=2,
             ),
         ]
     )
@@ -432,7 +448,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
         content="第二轮任务",
         parent_revision_id="rev-2",
         child_user_message_id="child-user-2",
-        child_user_message_seq=2,
+        child_user_message_seq=3,
         pre_request_checkpoint_id="cp-before-notify",
     )
     db_session.add_all(
@@ -445,7 +461,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 content="第二轮任务",
                 status="sent",
                 message_type="user_request",
-                seq=2,
+                seq=3,
             ),
             AgentRunMessage(
                 session_id="child-thread",
@@ -454,7 +470,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 role="assistant",
                 content="第二轮结果",
                 status="complete",
-                seq=3,
+                seq=4,
             ),
         ]
     )
@@ -486,7 +502,12 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
     assert restored.last_assistant_content == "第一轮结果"
     assert rolled_back_request is not None
     assert rolled_back_request.status == "cancelled"
-    assert [message.content for message in messages] == ["第一轮任务", "第一轮结果"]
+    assert [message.content for message in messages] == [
+        "第一轮任务",
+        "第一轮工具结果",
+        "第一轮结果",
+    ]
+    assert json.loads(messages[1].message_metadata or "{}") == {}
 
 @pytest.mark.asyncio
 async def test_hidden_system_reminder_remains_visible_to_llm_history(

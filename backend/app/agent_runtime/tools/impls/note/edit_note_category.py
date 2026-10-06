@@ -85,62 +85,65 @@ class EditNoteCategoryTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行分类重命名")
         session = await create_session()
         try:
-            ref = CategoryRef.model_validate(category_ref)
-            if ref.id is not None:
-                category = await note_category_repo.get_by_id(session, ref.id)
-                if category is None:
-                    raise ToolExecutionError(f"分类不存在: {ref.id}")
-            else:
-                categories = await note_category_repo.list_by_project(
-                    session, self.project_id
-                )
-                category = resolve_category_from_list(categories, ref)
-            if category.project_id != self.project_id:
-                raise ToolExecutionError("分类不属于当前项目")
+            async with await keyed_lock(("notes", self.project_id)):
+                ref = CategoryRef.model_validate(category_ref)
+                if ref.id is not None:
+                    category = await note_category_repo.get_by_id(session, ref.id)
+                    if category is None:
+                        raise ToolExecutionError(f"分类不存在: {ref.id}")
+                else:
+                    categories = await note_category_repo.list_by_project(
+                        session, self.project_id
+                    )
+                    category = resolve_category_from_list(categories, ref)
+                if category.project_id != self.project_id:
+                    raise ToolExecutionError("分类不属于当前项目")
 
-            async with await keyed_lock((self.project_id, category.parent_id)):
-                before = note_category_images_by_id(
-                    await note_category_repo.list_by_project(session, self.project_id)
-                )
-                if any(
-                    item.title == new_title
-                    and item.parent_id == category.parent_id
-                    and item.id != category.id
-                    for item in before.values()
+                async with await keyed_lock(
+                    ("note-category", self.project_id, category.parent_id)
                 ):
-                    raise ToolExecutionError(f"同级分类已存在同名标题: {new_title}")
-                previous_title = category.title
-                category.title = new_title
-                category.updated_at = datetime.now(UTC)
-                category = await note_category_repo.update_category(session, category)
-                after = note_category_images_by_id(
-                    await note_category_repo.list_by_project(session, self.project_id)
-                )
-                await record_note_category_diffs(
-                    session,
-                    revision_id=revision_id,
-                    project_id=self.project_id,
-                    before=before,
-                    after=after,
-                )
+                    before = note_category_images_by_id(
+                        await note_category_repo.list_by_project(session, self.project_id)
+                    )
+                    if any(
+                        item.title == new_title
+                        and item.parent_id == category.parent_id
+                        and item.id != category.id
+                        for item in before.values()
+                    ):
+                        raise ToolExecutionError(f"同级分类已存在同名标题: {new_title}")
+                    previous_title = category.title
+                    category.title = new_title
+                    category.updated_at = datetime.now(UTC)
+                    category = await note_category_repo.update_category(session, category)
+                    after = note_category_images_by_id(
+                        await note_category_repo.list_by_project(session, self.project_id)
+                    )
+                    await record_note_category_diffs(
+                        session,
+                        revision_id=revision_id,
+                        project_id=self.project_id,
+                        before=before,
+                        after=after,
+                    )
 
-                from app.background.jobs import service as background_service
+                    from app.background.jobs import service as background_service
 
-                await background_service.commit_and_notify(session)
-                return json.dumps(
-                    {
-                        "success": True,
-                        "metadata": {
-                            "category": {
-                                "id": category.id,
-                                "title": category.title,
-                                "previous_title": previous_title,
-                                "parent_id": category.parent_id,
-                            }
+                    await background_service.commit_and_notify(session)
+                    return json.dumps(
+                        {
+                            "success": True,
+                            "metadata": {
+                                "category": {
+                                    "id": category.id,
+                                    "title": category.title,
+                                    "previous_title": previous_title,
+                                    "parent_id": category.parent_id,
+                                }
+                            },
                         },
-                    },
-                    ensure_ascii=False,
-                )
+                        ensure_ascii=False,
+                    )
         except ToolExecutionError:
             raise
         except Exception:

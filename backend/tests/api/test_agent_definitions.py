@@ -57,6 +57,7 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     assert "chapter_read" in keys
     assert "chapter_write" in keys
     assert "character_read" in keys
+    assert "character_relationship" in keys
     assert "character_write" in keys
     assert "web_fetch" in keys
 
@@ -90,6 +91,20 @@ async def test_list_agent_tool_categories(client: AsyncClient):
         "tool_keys": ["create_character", "edit_character", "delete_character"],
     }
 
+    character_relationship = next(
+        item for item in data["categories"] if item["key"] == "character_relationship"
+    )
+    assert character_relationship == {
+        "key": "character_relationship",
+        "name": "角色关系",
+        "tool_keys": [
+            "query_character_relationships",
+            "create_character_relationship",
+            "edit_character_relationship",
+            "delete_character_relationship",
+        ],
+    }
+
 
 @pytest.mark.asyncio
 async def test_get_nonexistent_agent_definition(client: AsyncClient):
@@ -110,6 +125,7 @@ async def test_create_custom_agent_definition(
         "kind": "primary",
         "prompt_agent_name": "custom-bot",
         "model_id": None,
+        "reasoning_effort": None,
         "enabled_tool_categories": ["chapter_read"],
         "enabled_skills": ["skill-a", "skill-b"],
         "metadata": {},
@@ -161,6 +177,30 @@ async def test_create_custom_agent_definition(
         if category["id"] == "custom-agents"
     )
     assert any(prompt["id"] == "custom-agent--custom-bot" for prompt in custom_agents["prompts"])
+
+
+@pytest.mark.asyncio
+async def test_update_agent_definition_reasoning_effort(client: AsyncClient):
+    create_body = {
+        "key": "reasoning-bot",
+        "display_name": "Reasoning Bot",
+        "kind": "subagent",
+        "prompt_agent_name": "reasoning-bot",
+        "model_id": "model-record",
+        "reasoning_effort": "high",
+        "enabled_tool_categories": [],
+        "enabled_skills": [],
+    }
+    response = await client.post("/api/v1/agent-definitions", json=create_body)
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json()["reasoning_effort"] == "high"
+
+    response = await client.put(
+        "/api/v1/agent-definitions/reasoning-bot",
+        json={"reasoning_effort": "off"},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["reasoning_effort"] == "auto"
 
 
 @pytest.mark.asyncio

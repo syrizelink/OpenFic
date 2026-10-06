@@ -88,6 +88,8 @@ export function IndexSettingsGlobalConfig({
               allowCustomValue={false}
               emptyOptionLabel={t("index.disabled")}
               triggerStyle={FIELD_WIDTH}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
               disabled={isAgentSettingsLocked}
             />
           </Flex>
@@ -112,6 +114,8 @@ export function IndexSettingsGlobalConfig({
               allowCustomValue={false}
               emptyOptionLabel={t("index.disabled")}
               triggerStyle={FIELD_WIDTH}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
               disabled={isAgentSettingsLocked}
             />
           </Flex>
@@ -126,6 +130,8 @@ export function IndexSettingsGlobalConfig({
             labelWeight="regular"
             labelColor="gray"
             gap="1"
+            triggerClassName="select-trigger--background"
+            contentClassName="settings-background-panel"
             disabled={isAgentSettingsLocked}
           />
 
@@ -139,6 +145,8 @@ export function IndexSettingsGlobalConfig({
             labelWeight="regular"
             labelColor="gray"
             gap="1"
+            triggerClassName="select-trigger--background"
+            contentClassName="settings-background-panel"
             disabled={isAgentSettingsLocked}
           />
 

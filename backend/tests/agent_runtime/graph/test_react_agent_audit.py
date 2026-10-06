@@ -14,6 +14,12 @@ from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 from app.core.errors import ProviderAuthError
 
 
+def _wrapped_connection_error() -> RuntimeError:
+    error = RuntimeError("Connection error.")
+    error.__cause__ = RuntimeError("certificate verify failed")
+    return error
+
+
 class _AuditProbe:
     def __init__(self) -> None:
         self.responses: list[dict] = []
@@ -159,10 +165,26 @@ async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("error", "error_type", "status_code"),
+    ("error", "error_type", "status_code", "error_message"),
     [
-        (ProviderAuthError("invalid provider key"), "ProviderAuthError", 401),
-        (RuntimeError("unexpected runtime failure"), "RuntimeError", None),
+        (
+            ProviderAuthError("invalid provider key"),
+            "ProviderAuthError",
+            401,
+            "invalid provider key",
+        ),
+        (
+            RuntimeError("unexpected runtime failure"),
+            "RuntimeError",
+            None,
+            "unexpected runtime failure",
+        ),
+        (
+            _wrapped_connection_error(),
+            "RuntimeError",
+            None,
+            "Connection error. (caused by RuntimeError: certificate verify failed)",
+        ),
     ],
 )
 async def test_react_agent_records_model_errors_in_audit(
@@ -170,6 +192,7 @@ async def test_react_agent_records_model_errors_in_audit(
     error: Exception,
     error_type: str,
     status_code: int | None,
+    error_message: str,
 ) -> None:
     monkeypatch.setattr(
         "app.agent_runtime.graph.react_agent.LLM_RETRY_POLICY",
@@ -220,7 +243,7 @@ async def test_react_agent_records_model_errors_in_audit(
     assert audit.errors == [
         {
             "error_type": error_type,
-            "error_message": str(error),
+            "error_message": error_message,
             "error_status_code": status_code,
         }
     ]

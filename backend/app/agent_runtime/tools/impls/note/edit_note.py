@@ -23,6 +23,7 @@ from app.agent_runtime.tools.impls.note.refs import (
     build_category_path,
     resolve_note_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
@@ -168,85 +169,86 @@ class EditNoteTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行笔记编辑")
         session = await create_session()
         try:
-            categories = []
-            ref = NoteRef.model_validate(note_ref)
-            if ref.id is not None:
-                note = await note_repo.get_by_id(session, ref.id)
-                if note is None:
-                    raise ToolExecutionError(f"笔记不存在: {ref.id}")
-            else:
-                notes = await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=False
+            async with await keyed_lock(("notes", self.project_id)):
+                categories = []
+                ref = NoteRef.model_validate(note_ref)
+                if ref.id is not None:
+                    note = await note_repo.get_by_id(session, ref.id)
+                    if note is None:
+                        raise ToolExecutionError(f"笔记不存在: {ref.id}")
+                else:
+                    notes = await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=False
+                    )
+                    categories = await note_category_repo.list_by_project(
+                        session, self.project_id
+                    )
+                    note = resolve_note_from_list(notes, ref, categories=categories)
+
+                if note.category_id is not None and not categories:
+                    categories = await note_category_repo.list_by_project(
+                        session, self.project_id
+                    )
+
+                if note.project_id != self.project_id:
+                    raise ToolExecutionError("笔记不属于当前项目")
+                if note.is_locked:
+                    raise ToolExecutionError("该笔记已锁定，无法修改")
+                if note.is_hidden:
+                    raise ToolExecutionError("该笔记已隐藏")
+
+                before = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
                 )
-                categories = await note_category_repo.list_by_project(
-                    session, self.project_id
+                before_content = note.content
+                replace_result = fuzzy_replace(
+                    note.content, old_content, new_content, replace_all=True
                 )
-                note = resolve_note_from_list(notes, ref, categories=categories)
-
-            if note.category_id is not None and not categories:
-                categories = await note_category_repo.list_by_project(
-                    session, self.project_id
+                if replace_result is None:
+                    raise ToolExecutionError("未在笔记内容中找到要替换的文本")
+                note.content = replace_result.new_content
+                try:
+                    validate_editor_content(note.content)
+                except EditorContentLimitError as exc:
+                    raise ToolExecutionError(str(exc)) from exc
+                note.updated_at = datetime.now(UTC)
+                await note_repo.update_note(session, note)
+                after = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
+                )
+                await record_note_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
                 )
 
-            if note.project_id != self.project_id:
-                raise ToolExecutionError("笔记不属于当前项目")
-            if note.is_locked:
-                raise ToolExecutionError("该笔记已锁定，无法修改")
-            if note.is_hidden:
-                raise ToolExecutionError("该笔记已隐藏")
+                diff_lines = _build_diff_lines(before_content, note.content)
+                note_diff = {
+                    "operation": "update",
+                    "sections": [{"type": "content", "lines": diff_lines}],
+                    "note_id": note.id,
+                    "note_title": note.title,
+                }
+                category_path = build_category_path(categories, note.category_id)
+                if category_path:
+                    note_diff["path"] = category_path
 
-            before = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
+                from app.background.jobs import service as background_service
+
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {"note_diff": note_diff},
+                    },
+                    ensure_ascii=False,
                 )
-            )
-            before_content = note.content
-            replace_result = fuzzy_replace(
-                note.content, old_content, new_content, replace_all=True
-            )
-            if replace_result is None:
-                raise ToolExecutionError("未在笔记内容中找到要替换的文本")
-            note.content = replace_result.new_content
-            try:
-                validate_editor_content(note.content)
-            except EditorContentLimitError as exc:
-                raise ToolExecutionError(str(exc)) from exc
-            note.updated_at = datetime.now(UTC)
-            await note_repo.update_note(session, note)
-            after = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
-                )
-            )
-            await record_note_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
-
-            diff_lines = _build_diff_lines(before_content, note.content)
-            note_diff = {
-                "operation": "update",
-                "sections": [{"type": "content", "lines": diff_lines}],
-                "note_id": note.id,
-                "note_title": note.title,
-            }
-            category_path = build_category_path(categories, note.category_id)
-            if category_path:
-                note_diff["path"] = category_path
-
-            from app.background.jobs import service as background_service
-
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {"note_diff": note_diff},
-                },
-                ensure_ascii=False,
-            )
         except ToolExecutionError:
             raise
         except Exception:

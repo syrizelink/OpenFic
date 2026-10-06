@@ -1,0 +1,4 @@
+.context-settings__row > .rt-Flex:first-child {
+  flex: 1;
+  min-width: 0;
+}

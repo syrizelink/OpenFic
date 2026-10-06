@@ -9,7 +9,9 @@ from app.agent_runtime.tools.base import HookContext, HookResult
 from app.socket.emitter import emit
 from app.socket.handlers import agent_session_room
 
-CHARACTER_WRITE_TOOL_NAMES = frozenset(TOOL_CATEGORIES["character_write"])
+CHARACTER_WRITE_TOOL_NAMES = frozenset(
+    (*TOOL_CATEGORIES["character_write"], *TOOL_CATEGORIES["character_relationship"])
+)
 CHARACTER_TOOL_OPERATIONS = {
     "create_character": "create",
     "edit_character": "edit",

@@ -19,6 +19,7 @@ def register_sqlmodel_models() -> None:
     )
     from app.models.entities.model import Model
     from app.models.entities.model_provider import ModelProvider
+    from app.models.entities.model_provider_oauth_registration import ModelProviderOAuthRegistration
     from app.storage.models.llm_audit_log import LLMAuditLog
     from app.storage.models.agent_memory import AgentMemory
     from app.storage.models.agent_rule import AgentRule
@@ -64,6 +65,7 @@ def register_sqlmodel_models() -> None:
         Commit,
         Model,
         ModelProvider,
+        ModelProviderOAuthRegistration,
         Note,
         NoteCategory,
         Project,

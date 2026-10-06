@@ -130,6 +130,12 @@ async def test_agent_settings_lock_rejects_restricted_writes(
             "provider_type": "openai",
         },
     )
+    forget_registration_response = await client.delete(
+        "/api/v1/openai-codex/registrations/oaiapp_test",
+    )
+    cancel_auth_response = await client.delete("/api/v1/openai-codex/auth/unknown")
+    assert cancel_auth_response.status_code == 200
+    assert cancel_auth_response.json()["status"] == "expired"
     model_response = await client.post(
         "/api/v1/models",
         json={
@@ -161,6 +167,7 @@ async def test_agent_settings_lock_rejects_restricted_writes(
     for response in (
         restricted_response,
         provider_response,
+        forget_registration_response,
         model_response,
         rule_response,
         skill_response,

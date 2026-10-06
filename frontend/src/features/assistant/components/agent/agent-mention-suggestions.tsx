@@ -192,7 +192,10 @@ export function AgentMentionSuggestions({
             >
               {getItemIcon(item.kind)}
             </span>
-            <span className="agent-mention-suggestion-copy">
+            <span
+              className="agent-mention-suggestion-copy"
+              data-item-kind={item.kind}
+            >
               <span className="agent-mention-suggestion-title">
                 {item.kind === "skill" ? item.name : item.title}
               </span>

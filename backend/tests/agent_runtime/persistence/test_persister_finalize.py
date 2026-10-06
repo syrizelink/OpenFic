@@ -15,6 +15,34 @@ from app.agent_runtime.persistence.persister import MessagePersister
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("reason", ["cancelled", "error", "done"])
+async def test_finalize_does_not_persist_responses_output_from_unfinished_model(
+    db_session: AsyncSession, db_session_factory, sample_task, reason,
+):
+    sid = "session_codex_unfinished"
+    p = MessagePersister(
+        session_id=sid, task_id=sample_task.id, project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    await p.handle({"event": "on_chat_model_start", "data": {}})
+    await p.handle({
+        "event": "on_chat_model_stream", "data": {"chunk": AIMessageChunk(
+            content="partial", additional_kwargs={"responses_output": [
+                {"type": "reasoning", "id": "rs_partial", "summary": [],
+                 "encrypted_content": "unfinished-state"},
+            ]},
+        )},
+    })
+    await p.finalize(reason=reason)
+    rows = await repo.list_by_session(db_session, sid)
+    assert len(rows) == 1
+    assert rows[0].status == "partial"
+    assert "responses_output" not in rows[0].metadata
+    history = await load_history(db_session, sid)
+    assert "responses_output" not in history[0].additional_kwargs
+
+
+@pytest.mark.asyncio
 async def test_finalize_writes_partial_assistant_with_resolvable_tool_call(
     db_session: AsyncSession, db_session_factory, sample_task
 ):

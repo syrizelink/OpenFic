@@ -17,6 +17,7 @@ class CharacterResponse(BaseModel):
     is_favorited: bool = Field(description="是否收藏")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="更新时间")
+    relationship_count: int = 0
 
 
 class CharacterListItemResponse(BaseModel):
@@ -30,6 +31,46 @@ class CharacterListItemResponse(BaseModel):
     is_favorited: bool = Field(description="是否收藏")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="更新时间")
+    relationship_count: int = 0
+
+
+class CharacterRelationshipCreate(BaseModel):
+    source_character_id: str
+    target_character_id: str
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=10000)
+
+
+class CharacterRelationshipUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=10000)
+
+
+class CharacterRelationshipResponse(BaseModel):
+    id: str
+    source_character_id: str
+    target_character_id: str
+    name: str
+    description: str
+
+
+class CharacterGraphNode(BaseModel):
+    character_id: str
+    name: str
+    image_url: str | None
+    x: float | None
+    y: float | None
+    relationship_count: int
+
+
+class CharacterGraphResponse(BaseModel):
+    nodes: list[CharacterGraphNode]
+    relationships: list[CharacterRelationshipResponse]
+
+
+class CharacterPositionRequest(BaseModel):
+    x: float = Field(allow_inf_nan=False)
+    y: float = Field(allow_inf_nan=False)
 
 
 class CharacterListResponse(BaseModel):

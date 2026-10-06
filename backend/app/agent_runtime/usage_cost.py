@@ -55,6 +55,7 @@ def extract_cache_write_tokens(usage: Mapping[str, Any] | None) -> int:
 
 def calculate_llm_call_cost(
     *,
+    provider_type: str,
     token_input: int,
     token_output: int,
     token_cache: int,
@@ -65,6 +66,8 @@ def calculate_llm_call_cost(
     cache_write_price: float,
 ) -> float:
     """Calculate one call's cost in dollars from prices per million tokens."""
+    if provider_type == "openai-codex":
+        return 0.0
     billable_input = max(token_input - token_cache - token_cache_write, 0)
     return (
         billable_input * max(input_price, 0.0)

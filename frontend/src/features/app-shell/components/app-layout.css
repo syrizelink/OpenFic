@@ -21,6 +21,24 @@
   transition: padding-left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.mobile-sidebar-sheet {
+  transform: translateX(-100%);
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.mobile-sidebar-sheet[data-open="true"] {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (max-width: 767px) {
+  .mobile-sidebar-swipe-surface,
+  .mobile-sidebar-sheet {
+    touch-action: pan-y;
+  }
+}
+
 .app-layout-assistant-sidebar {
   position: fixed;
   z-index: 11;

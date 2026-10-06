@@ -119,6 +119,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
             )
         )
         session.add(Setting(key="default_model", value="model-default"))
+        session.add(Setting(key="default_model_reasoning_effort", value="high"))
         await session.commit()
 
         resolved = await _resolve_agent_model_config(
@@ -130,7 +131,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
                 "api_key": "parent-key",
                 "model_id": "model-parent",
                 "max_context_tokens": 8000,
-                "reasoning_effort": "high",
+                "reasoning_effort": "low",
             },
         )
 
@@ -168,6 +169,120 @@ async def test_resolve_agent_model_config_falls_back_to_inherited_when_unconfigu
 
     assert resolved == inherited
     assert resolved is not inherited
+
+
+@pytest.mark.asyncio
+async def test_resolve_agent_model_config_uses_definition_reasoning_effort(
+    db_session_factory,
+):
+    from app.agent_runtime.runner.subagent_runner import _resolve_agent_model_config
+    from app.core.encryption import EncryptionService
+    from app.models.entities.model import Model
+    from app.models.entities.model_provider import ModelProvider
+    from app.settings import settings
+
+    api_key = EncryptionService(settings.encryption_key).encrypt("provider-key")
+
+    async with db_session_factory() as session:
+        session.add(
+            ModelProvider(
+                id="provider-explicit",
+                url="https://explicit.example.com",
+                api_key_encrypted=api_key,
+                provider_type="openai",
+            )
+        )
+        session.add(
+            Model(
+                id="model-explicit",
+                name="Explicit",
+                provider_id="provider-explicit",
+                model_id="explicit-llm",
+                context_length=64000,
+            )
+        )
+        await session.commit()
+
+        resolved = await _resolve_agent_model_config(
+            session,
+            configured_model_id="model-explicit",
+            configured_reasoning_effort="max",
+            inherited_config={"reasoning_effort": "low"},
+        )
+
+    assert resolved["reasoning_effort"] == "max"
+
+
+@pytest.mark.asyncio
+async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.agents.definitions import AgentDefinition
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    parent_config = {
+        "model_id": "parent-model",
+        "max_context_tokens": 8000,
+        "reasoning_effort": "low",
+    }
+    resolved_config = {
+        "provider_type": "openai",
+        "base_url": "https://child.example.com",
+        "api_key": "child-key",
+        "model_id": "child-model",
+        "max_context_tokens": 64000,
+        "reasoning_effort": "high",
+    }
+    captured_states: list[dict[str, Any]] = []
+    captured_configs: list[Any] = []
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config=parent_config,
+        project_id="project-1",
+    )
+    definition = AgentDefinition(
+        key="configured-subagent",
+        display_name="Configured Subagent",
+        description="",
+        kind="subagent",
+        prompt_agent_name="configured-subagent",
+        model_id="child-record",
+        enabled_tool_categories=(),
+        enabled_skills=(),
+        metadata={},
+        reasoning_effort="high",
+    )
+
+    async def fake_build_tools(_definition, runtime_state):
+        captured_states.append(runtime_state)
+        return []
+
+    monkeypatch.setattr(runner, "_build_tools", fake_build_tools)
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner._resolve_agent_model_config",
+        AsyncMock(return_value=resolved_config),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_chat_model",
+        lambda config: captured_configs.append(config) or object(),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_react_agent",
+        lambda *_args, **_kwargs: object(),
+    )
+
+    graph, model_config = await runner._build_graph(
+        SimpleNamespace(agent_key="configured-subagent", child_thread_id="child-thread"),
+        definition,
+        {"model_config": dict(parent_config)},
+    )
+
+    assert graph is not None
+    assert model_config == resolved_config
+    assert captured_states == [{"model_config": resolved_config}]
+    assert captured_configs[0].session_id == "child-thread"
 
 
 @pytest.mark.asyncio
@@ -498,9 +613,14 @@ async def test_subagent_runner_uses_request_parent_revision_for_notify_turn(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("provider_type, compaction_provider, cost", [
+    ("openai", "openai-codex", 0.0),
+    ("openai-codex", "openai", 0.000043),
+])
 async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
     db_session_factory,
     monkeypatch,
+    provider_type, compaction_provider, cost,
 ):
     from app.agent_runtime.runner.subagent_runner import SubagentRunner
 
@@ -541,6 +661,13 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
             await configurable["compaction_usage_sink"](
                 {
                     "usage_kind": "compaction",
+                    "billing_config": {
+                        "provider_type": compaction_provider,
+                        "input_price": 2.0,
+                        "output_price": 8.0,
+                        "cache_read_price": 0.5,
+                        "cache_write_price": 1.0,
+                    },
                     "session_id": "child-thread-compaction",
                     "task_id": "task-1",
                     "trigger": "auto",
@@ -572,6 +699,7 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
 
     async def fake_persist_parent_usage(row_arg, payload):
         persisted_usage.append((row_arg.id, payload))
+        await persist_parent_usage(row_arg, payload)
 
     monkeypatch.setattr("app.agent_runtime.runner.subagent_runner.emit", fake_emit)
     monkeypatch.setattr(
@@ -586,7 +714,7 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
     runner = SubagentRunner(
         session_factory=db_session_factory,
         model_config={
-            "provider_type": "openai",
+            "provider_type": provider_type,
             "base_url": "",
             "api_key": "key",
             "model_id": "gpt-test",
@@ -594,6 +722,7 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
         },
         project_id="project-1",
     )
+    persist_parent_usage = runner._persist_parent_task_usage_and_emit_delta
     monkeypatch.setattr(
         runner,
         "_persist_parent_task_usage_and_emit_delta",
@@ -622,12 +751,28 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
                 "token_input": 11,
                 "token_output": 3,
                 "token_cache": 2,
-                "cost": 0.0,
+                "cost": cost,
                 "context_input_tokens": 11,
                 "context_length": 8000,
             },
         )
     ]
+    async with db_session_factory() as session:
+        task = await session.get(Task, "task-1")
+        child = await session.get(AgentChildRun, row.id)
+        assert task is not None
+        assert (task.token_input, task.token_output, task.token_cache) == (11, 3, 2)
+        assert task.cost == cost
+        assert child is not None
+        assert child.metadata_json["token_usage"]["cost"] == cost
+    assert (
+        "agent:task_usage_delta",
+        {
+            "session_id": "parent-session", "task_id": "task-1",
+            "token_input": 11, "token_output": 3, "token_cache": 2, "cost": cost,
+        },
+        "agent_session:parent-session",
+    ) in emitted
 
 
 @pytest.mark.asyncio
@@ -1743,13 +1888,19 @@ async def test_subagent_runner_streams_and_persists_child_transcript_on_child_th
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("provider_type, cost", [("openai", 0.00007), ("openai-codex", 0.0)])
 async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_usage_snapshot(
     db_session_factory,
     monkeypatch,
+    provider_type, cost,
 ):
     from app.agent_runtime.runner.subagent_runner import SubagentRunner
 
     async with db_session_factory() as session:
+        task = await session.get(Task, "task-1")
+        assert task is not None
+        task.cost = 0.25
+        await session.commit()
         row = await create_child_run(
             session,
             parent_session_id="parent-session",
@@ -1817,7 +1968,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
         "app.agent_runtime.runner.subagent_runner._resolve_agent_model_config",
         AsyncMock(
             return_value={
-                "provider_type": "openai",
+                "provider_type": provider_type,
                 "base_url": "",
                 "api_key": "key",
                 "model_id": "child-model",
@@ -1850,13 +2001,13 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
     assert task.token_output == 7
     assert task.token_cache == 3
     assert task.context_input_tokens == 18
-    assert task.cost == 0.00007
+    assert task.cost == 0.25 + cost
     assert child is not None
     assert child.metadata_json["token_usage"] == {
         "token_input": 18,
         "token_output": 7,
         "token_cache": 3,
-        "cost": 0.00007,
+        "cost": cost,
         "context_input_tokens": 18,
         "context_length": 16000,
     }
@@ -1868,7 +2019,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
             "token_input": 18,
             "token_output": 7,
             "token_cache": 3,
-            "cost": 0.00007,
+            "cost": cost,
         },
         "agent_session:parent-session",
     ) in emitted

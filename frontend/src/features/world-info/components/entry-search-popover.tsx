@@ -340,6 +340,8 @@ export function EntrySearchPopover({
                 </Text>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={handleToggleAll}
                   title={allCollapsed ? t("worldInfo.expandAll") : t("worldInfo.collapseAll")}

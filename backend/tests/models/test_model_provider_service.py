@@ -14,6 +14,48 @@ from app.models.registry import AdapterRegistry
 from app.models.services.model_provider_service import ModelProviderService
 
 
+@pytest.mark.asyncio
+async def test_oauth_registrations_are_isolated_by_provider_type_and_issuer(session):
+    from sqlmodel import SQLModel
+
+    assert "model_provider_oauth_registrations" in SQLModel.metadata.tables
+    from app.models.repos import model_provider_oauth_registration_repo as registration_repo
+
+    scopes = [("openai-codex", "https://auth.openai.com"), ("other-provider", "https://auth.openai.com"), ("openai-codex", "https://other.example.com")]
+    for index, (provider_type, issuer) in enumerate(scopes):
+        await registration_repo.save_verified(session, provider_type=provider_type, issuer=issuer,
+            client_id="same-client-id", subject=f"subject-{index}", email="same@example.com", provider_id=None)
+    for index, (provider_type, issuer) in enumerate(scopes):
+        registrations = await registration_repo.get_all(session, provider_type=provider_type, issuer=issuer)
+        assert len(registrations) == 1
+        assert registrations[0].subject == f"subject-{index}"
+        assert not {"access_token", "refresh_token", "id_token"} & registrations[0].model_dump().keys()
+    with pytest.raises(ValueError, match="identity"):
+        await registration_repo.save_verified(session, provider_type=scopes[0][0], issuer=scopes[0][1],
+            client_id="same-client-id", subject="wrong-subject", email="same@example.com", provider_id=None)
+
+
+_ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
+    "freemodel",
+    "minimax",
+    "minimax-cn",
+    "minimax-coding-plan",
+    "minimax-cn-coding-plan",
+    "subconscious",
+    "thinkingmachines",
+]
+
+
+@pytest.mark.asyncio
+async def test_oauth_codex_provider_uses_openai_icon():
+    service = ModelProviderService(EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ="))
+    provider = ModelProvider(
+        name="OpenAI Codex", provider_type="openai-codex", url="https://api.openai.com/v1",
+        api_key_encrypted="",
+    )
+    assert await service.get_effective_icon_path(provider) == "/icons/model/catalog/openai.svg"
+
+
 class _FakeAdapter:
     @property
     def provider_type(self) -> str:
@@ -89,6 +131,39 @@ async def test_get_available_models_uses_openai_compatible_adapter_for_catalog_p
 
     assert models == [{"id": "llm-1", "name": "LLM 1"}]
     assert requested_provider_types == ["openai-compatible", "openai-compatible"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_type", _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES)
+async def test_get_available_models_uses_anthropic_compatible_adapter_for_anthropic_catalog_provider(
+    provider_type: str,
+    monkeypatch,
+):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    provider = ModelProvider(
+        name=provider_type,
+        url="https://gateway.example/v1",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type=provider_type,
+    )
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, requested_provider_type: str):
+        requested_provider_types.append(requested_provider_type)
+        return _FakeAdapter()
+
+    def is_supported(cls, requested_provider_type: str, task_type: str) -> bool:
+        requested_provider_types.append(requested_provider_type)
+        return task_type == "llm"
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+    monkeypatch.setattr(AdapterRegistry, "is_supported", classmethod(is_supported))
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["anthropic-compatible", "anthropic-compatible"]
 
 
 @pytest.mark.asyncio

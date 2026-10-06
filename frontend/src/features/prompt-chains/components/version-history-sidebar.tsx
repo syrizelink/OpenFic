@@ -191,6 +191,8 @@ export function VersionHistorySidebar({
                           <Tooltip content={t("promptChains.diffWithCurrent")}>
                             <IconButton
                               variant="ghost"
+                              color="gray"
+                              highContrast
                               size="1"
                               aria-label={t("promptChains.diffWithCurrent")}
                               onClick={() => setCompareVersionId(version.id)}
@@ -203,6 +205,8 @@ export function VersionHistorySidebar({
                           <Tooltip content={t("promptChains.checkout")}>
                             <IconButton
                               variant="ghost"
+                              color="gray"
+                              highContrast
                               size="1"
                               aria-label={t("promptChains.checkout")}
                               onClick={() => setCheckoutVersion(version)}

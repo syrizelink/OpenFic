@@ -249,26 +249,35 @@ function ChapterEditorContent({
     [updateDirtyState],
   );
 
-  const editor = useEditor({
-    extensions: createEditorExtensions({
-      placeholder: t("writing.contentPlaceholder"),
-      autoIndent: () => autoIndentRef.current,
-      autoConvertPunctuation: () => autoConvertPunctuationRef.current,
-      autoPairSymbols: () => autoPairSymbolsRef.current,
-      shortcuts: {
-        onFind: openFind,
-        onReplace: openReplace,
-        onSave: () => {
-          if (isAgentLocked) {
-            showLockedToast();
-            return;
-          }
-          window.dispatchEvent(new Event(MANUAL_SAVE_EVENT));
+  const editorExtensions = useMemo(
+    () =>
+      createEditorExtensions({
+        placeholder: t("writing.contentPlaceholder"),
+        autoIndent: () => autoIndentRef.current,
+        autoConvertPunctuation: () => autoConvertPunctuationRef.current,
+        autoPairSymbols: () => autoPairSymbolsRef.current,
+        shortcuts: {
+          onFind: openFind,
+          onReplace: openReplace,
+          onSave: () => {
+            if (isAgentLocked) {
+              showLockedToast();
+              return;
+            }
+            window.dispatchEvent(new Event(MANUAL_SAVE_EVENT));
+          },
         },
-      },
-    }),
+      }),
+    [isAgentLocked, openFind, openReplace, showLockedToast, t],
+  );
+  const initialContentRef = useRef(
+    initialDraft.content ? newlinesToHtml(initialDraft.content) : "",
+  );
+
+  const editor = useEditor({
+    extensions: editorExtensions,
     editable: !isAgentLocked,
-    content: initialDraft.content ? newlinesToHtml(initialDraft.content) : "",
+    content: initialContentRef.current,
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
@@ -694,7 +703,7 @@ function ChapterEditorContent({
         align="center"
         style={{
           borderTop: "1px solid var(--gray-a4)",
-          background: "var(--gray-a2)",
+          background: "var(--theme-editor-bar-background)",
         }}
       >
         <Text

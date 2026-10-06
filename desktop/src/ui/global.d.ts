@@ -10,6 +10,7 @@ import type {
   MigrateDataResult,
   PingInstanceResult,
   ReportErrorPayload,
+  SaveInstanceAppearanceRequest,
   SetupProgressEvent,
   StartupProgressEvent,
   UpdateState,
@@ -21,6 +22,7 @@ declare global {
     openficDesktop: {
       getConfig: () => Promise<DesktopConfig | null>;
       saveConfig: (config: DesktopConfig) => Promise<void>;
+      saveInstanceAppearance: (request: SaveInstanceAppearanceRequest) => Promise<void>;
       initializeApp: () => Promise<InitializeAppResult>;
       cancelStartup: () => Promise<void>;
       ensureInstanceSession: (partition: string) => Promise<void>;

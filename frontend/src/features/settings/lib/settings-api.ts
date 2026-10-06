@@ -5,7 +5,10 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+import { normalizeReasoningEffort } from "@/lib/reasoning-effort";
+import { normalizeThemeMode, normalizeThemePreset, transformThemeConfig } from "@/lib/theme";
 
+import { SYSTEM_LIGHT_MODEL_REFERENCE } from "./agent-definitions.types";
 import type {
   AgentToolMetadata,
   AuditDetailsStorage,
@@ -23,15 +26,36 @@ import {
  * 后端响应字段转换（snake_case -> camelCase）
  */
 export function transformSettings(raw: SettingsResponse): Settings {
+  const theme = normalizeThemeMode(raw.theme);
+  const appearance = theme === "dark" ? "dark" : "light";
+  const themePreset = normalizeThemePreset(raw.theme_preset, appearance);
+  const lightThemePreset = normalizeThemePreset(raw.light_theme_preset ?? themePreset, "light");
+  const darkThemePreset = normalizeThemePreset(raw.dark_theme_preset ?? themePreset, "dark");
+
   return {
     language: raw.language as Settings["language"],
-    theme: raw.theme as Settings["theme"],
+    theme,
+    themePreset: appearance === "dark" ? darkThemePreset : lightThemePreset,
+    lightThemePreset,
+    darkThemePreset,
+    themeConfig: transformThemeConfig(raw.theme_config),
     fontFamily: getSupportedFontFamily(raw.font_family),
     codeFontFamily: getSupportedCodeFontFamily(raw.code_font_family || DEFAULT_CODE_FONT_FAMILY),
     baseFontSize: raw.base_font_size ?? 14,
     editorFontSize: raw.editor_font_size ?? 16,
     defaultModel: raw.default_model || "",
     lightModel: raw.light_model || "",
+    defaultModelReasoningEffort: normalizeReasoningEffort(raw.default_model_reasoning_effort),
+    lightModelReasoningEffort: normalizeReasoningEffort(raw.light_model_reasoning_effort),
+    summaryModel: raw.summary_model || SYSTEM_LIGHT_MODEL_REFERENCE,
+    summaryModelReasoningEffort: normalizeReasoningEffort(raw.summary_model_reasoning_effort),
+    summaryAutoGenerateChapter: raw.summary_auto_generate_chapter ?? true,
+    summaryAutoGenerateLongTerm: raw.summary_auto_generate_long_term ?? true,
+    summaryMinChapterWordCount: raw.summary_min_chapter_word_count ?? 500,
+    summaryBatchSize: raw.summary_batch_size ?? 10,
+    summaryLongTermInterval: raw.summary_long_term_interval ?? 10,
+    summaryChapterTargetLength: raw.summary_chapter_target_length ?? 200,
+    summaryLongTermTargetLength: raw.summary_long_term_target_length ?? 500,
     defaultEmbeddingModel: raw.default_embedding_model || "",
     indexMode: raw.index_mode ?? "off",
     indexEnabledProjects: raw.index_enabled_projects ?? [],
@@ -41,12 +65,28 @@ export function transformSettings(raw: SettingsResponse): Settings {
     indexRerankEnabled: raw.index_rerank_enabled ?? false,
     defaultRerankModel: raw.default_rerank_model || "",
     agentBypassToolApproval: raw.agent_bypass_tool_approval ?? false,
+    notificationsEnabled: raw.notifications_enabled ?? false,
+    notifyOnCompletion: raw.notify_on_completion ?? true,
+    notifyOnApproval: raw.notify_on_approval ?? true,
+    notifyOnQuestion: raw.notify_on_question ?? true,
+    notifyOnError: raw.notify_on_error ?? true,
+    notifyOnlyWhenUnfocused: raw.notify_only_when_unfocused ?? true,
     agentToolPermissions: (raw.agent_tool_permissions || []).map((item) => ({
       toolName: item.tool_name,
       mode: item.mode,
     })),
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
+    autoCompactContext: raw.auto_compact_context ?? true,
+    compactionModel: raw.compaction_model || "__session_model__",
+    compactionModelReasoningEffort: normalizeReasoningEffort(raw.compaction_model_reasoning_effort),
+    compactionTriggerRatio: raw.compaction_trigger_ratio ?? 0.8,
+    compactionTailTokenBudget: raw.compaction_tail_token_budget ?? 20000,
+    compactionTailWindowRatio: raw.compaction_tail_window_ratio ?? 0.5,
+    compactionMinCompactableTokens: raw.compaction_min_compactable_tokens ?? 2000,
+    autoPruneToolOutputs: raw.auto_prune_tool_outputs ?? false,
+    pruneProtectedTokens: raw.prune_protected_tokens ?? 100000,
+    pruneMinimumTokens: raw.prune_minimum_tokens ?? 20000,
     telemetryEnabled: raw.telemetry_enabled ?? true,
     editorAutoIndent: raw.editor_auto_indent ?? true,
     editorAutoConvertPunctuation: raw.editor_auto_convert_punctuation ?? false,

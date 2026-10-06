@@ -1,12 +1,15 @@
 import {
   Brain,
+  Bell,
   Bot,
   Cable,
   Database,
   FileText,
   Globe,
   MessagesSquare,
+  Palette,
   Package,
+  Summary as SummaryIcon,
   Settings as SettingsIcon,
   ShieldAlert,
   SlidersHorizontal,
@@ -16,11 +19,14 @@ import type { ReactNode } from "react";
 
 export type SettingsCategory =
   | "general"
+  | "personalization"
   | "editor"
+  | "notifications"
   | "connections"
   | "models"
   | "index"
   | "context"
+  | "summary"
   | "agent-tools"
   | "web-search"
   | "rules"
@@ -41,9 +47,19 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     labelKey: "settings.general",
   },
   {
+    id: "personalization",
+    icon: <Palette size={16} />,
+    labelKey: "settings.personalization",
+  },
+  {
     id: "editor",
     icon: <Type size={16} />,
     labelKey: "settings.editor",
+  },
+  {
+    id: "notifications",
+    icon: <Bell size={16} />,
+    labelKey: "settings.notifications",
   },
   {
     id: "connections",
@@ -64,6 +80,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "context",
     icon: <MessagesSquare size={16} />,
     labelKey: "settings.context",
+  },
+  {
+    id: "summary",
+    icon: <SummaryIcon size={16} />,
+    labelKey: "settings.summary",
   },
   {
     id: "agent-tools",

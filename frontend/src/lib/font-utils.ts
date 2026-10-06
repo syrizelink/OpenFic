@@ -128,7 +128,7 @@ export function applyFontFamily(fontFamily: string): void {
     radixThemesEl.style.setProperty("--default-font-family", fontStack);
   }
 
-  publishDesktopAppearance({ fontFamily: fontStack });
+  publishDesktopAppearance({ fontFamily: fontStack, persist: true });
 }
 
 /**
@@ -148,7 +148,7 @@ export function applyCodeFontFamily(codeFontFamily: string): void {
   // 应用到所有代码相关的元素
   document.documentElement.style.setProperty("--code-font-family", fontStack);
 
-  publishDesktopAppearance({ codeFontFamily: fontStack });
+  publishDesktopAppearance({ codeFontFamily: fontStack, persist: true });
 }
 
 export async function loadConfiguredFonts(

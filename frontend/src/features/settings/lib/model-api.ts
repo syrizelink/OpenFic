@@ -134,6 +134,9 @@ function transformProvider(raw: ModelProviderResponse): ModelProvider {
     supportedTaskTypes: raw.supported_task_types as ModelProvider["supportedTaskTypes"],
     iconPath: raw.icon_path || null,
     isBuiltin: raw.is_builtin ?? false,
+    accountEmail: raw.account_email ?? null,
+    accountConnected: raw.account_connected ?? null,
+    openaiCodexAccessEnabled: raw.openai_codex_access_enabled ?? null,
     catalogMatch: transformCatalogMatch(raw.catalog_match),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
@@ -280,8 +283,84 @@ export async function updateProvider(id: string, data: FormData): Promise<ModelP
 /**
  * 删除提供商
  */
-export async function deleteProvider(id: string): Promise<void> {
-  await apiClient.delete(`/model-providers/${id}`);
+export async function deleteProvider(id: string): Promise<boolean> {
+  const response = await apiClient.delete(`/model-providers/${id}`);
+  return response.headers["x-oauth-revocation-confirmed"] === "true";
+}
+
+export interface OpenAICodexAuthorization {
+  authorization_url: string;
+  authorization_id: string;
+}
+
+export interface OpenAICodexAuthorizationStatus {
+  status: "pending" | "success" | "error" | "expired" | "cancelled";
+  provider_id: string | null;
+  registration_id: string | null;
+}
+
+export interface OpenAICodexRegistration {
+  client_id: string;
+  email: string | null;
+  provider_id: string | null;
+  verified: boolean;
+}
+
+export interface OpenAICodexAuthOptions {
+  provider_id?: string;
+  registration_id?: string;
+  new_registration?: boolean;
+}
+
+export async function fetchOpenAICodexRegistrations(): Promise<OpenAICodexRegistration[]> {
+  const response = await apiClient.get<OpenAICodexRegistration[]>("/openai-codex/registrations");
+  return response.data;
+}
+
+export async function deleteOpenAICodexRegistration(clientId: string): Promise<boolean> {
+  const response = await apiClient.delete(
+    `/openai-codex/registrations/${encodeURIComponent(clientId)}`,
+  );
+  return response.headers["x-oauth-revocation-confirmed"] === "true";
+}
+
+export async function cancelOpenAICodexAuth(
+  authorizationId: string,
+): Promise<OpenAICodexAuthorizationStatus> {
+  const response = await apiClient.delete<OpenAICodexAuthorizationStatus>(
+    `/openai-codex/auth/${encodeURIComponent(authorizationId)}`,
+  );
+  return response.data;
+}
+
+export async function startOpenAICodexAuth(
+  options: OpenAICodexAuthOptions,
+): Promise<OpenAICodexAuthorization> {
+  const response = await apiClient.post<OpenAICodexAuthorization>(
+    "/openai-codex/auth/start",
+    options,
+  );
+  return response.data;
+}
+
+export async function fetchOpenAICodexAuthStatus(
+  authorizationId: string,
+): Promise<OpenAICodexAuthorizationStatus> {
+  const response = await apiClient.get<OpenAICodexAuthorizationStatus>(
+    `/openai-codex/auth/status/${encodeURIComponent(authorizationId)}`,
+  );
+  return response.data;
+}
+
+export async function completeOpenAICodexAuth(
+  authorizationId: string,
+  callbackUrl: string,
+): Promise<OpenAICodexAuthorizationStatus> {
+  const response = await apiClient.post<OpenAICodexAuthorizationStatus>(
+    "/openai-codex/auth/complete",
+    { authorization_id: authorizationId, callback_url: callbackUrl },
+  );
+  return response.data;
 }
 
 /**

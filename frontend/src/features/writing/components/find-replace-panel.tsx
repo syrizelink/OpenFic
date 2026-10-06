@@ -29,6 +29,7 @@ const inputStyle: React.CSSProperties = {
   padding: "0 8px",
   paddingLeft: 32, // 为搜索图标留出空间
   paddingRight: 56, // 为计数器留出空间
+  fontFamily: "var(--app-font-family)",
   fontSize: "var(--font-size-base)",
   border: "1px solid var(--gray-a5)",
   borderRadius: 6,
@@ -44,6 +45,7 @@ const replaceInputStyle: React.CSSProperties = {
   height: 32,
   padding: "0 8px",
   paddingLeft: 12,
+  fontFamily: "var(--app-font-family)",
   fontSize: "var(--font-size-base)",
   border: "1px solid var(--gray-a5)",
   borderRadius: 6,
@@ -248,6 +250,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 <Tooltip content={t("editor.previousResult")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="1"
                     disabled={resultCount === 0}
                     onClick={handlePrevious}
@@ -259,6 +263,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 <Tooltip content={t("editor.nextResult")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="1"
                     disabled={resultCount === 0}
                     onClick={handleNext}
@@ -278,6 +284,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
               <Tooltip content={t("common.close")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={onClose}
                   aria-label={t("common.close")}
@@ -316,6 +324,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   <Tooltip content={t("editor.replace")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="1"
                       disabled={resultCount === 0}
                       onClick={handleReplace}
@@ -327,6 +337,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   <Tooltip content={t("editor.replaceAll")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="1"
                       disabled={resultCount === 0}
                       onClick={handleReplaceAll}

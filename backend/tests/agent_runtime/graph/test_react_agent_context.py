@@ -10,10 +10,39 @@ from langchain_core.tools import StructuredTool
 
 from app.agent_runtime.context.compaction.service import CompactionError
 from app.agent_runtime.context.compaction.window import CompactionNoWindowError
+from app.agent_runtime.context.settings import ContextSettings
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.react_agent import _to_history_dict, create_react_agent, maybe_auto_compact
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+
+
+@pytest.fixture(autouse=True)
+def mock_context_settings():
+    with patch(
+        "app.agent_runtime.graph.react_agent.load_context_settings",
+        new=AsyncMock(return_value=ContextSettings(auto_prune_tool_outputs=True)),
+    ):
+        yield
+
+
+@pytest.mark.asyncio
+async def test_auto_compaction_respects_disabled_setting() -> None:
+    with patch(
+        "app.agent_runtime.graph.react_agent.compaction_repo.list_by_session",
+        new=AsyncMock(),
+    ) as list_compactions:
+        result = await maybe_auto_compact(
+            state={"model_config": {"max_context_tokens": 1}},
+            agent_name="writer",
+            parts=[ContextMessage(role="user", content="hello")],
+            db_session=AsyncMock(),
+            event_sink=None,
+            usage_sink=None,
+            context_settings=ContextSettings(auto_compact_context=False),
+        )
+    assert result is False
+    list_compactions.assert_not_awaited()
 
 
 class _NoopTool(BaseTool):
@@ -101,6 +130,111 @@ def test_llm_call_uses_build_context_when_config_provided() -> None:
     assert kwargs["agent_name"] == "writer"
     assert kwargs["state"]["transient_context_key"] == "v2"
     assert "transient_context_key" not in runtime_state
+
+
+@pytest.mark.asyncio
+async def test_prunes_tool_outputs_before_auto_compaction() -> None:
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[_NoopTool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    parts = [
+        ContextMessage(role="system", content="sys", metadata={"part": "system"}),
+        ContextMessage(role="user", content="hi", metadata={"part": "history", "seq": 1}),
+        ContextMessage(
+            role="assistant",
+            content="",
+            tool_calls=[{"id": "call-1", "name": "noop", "args": {}}],
+            metadata={"part": "history", "seq": 2},
+        ),
+        ContextMessage(
+            role="tool",
+            content="full tool output",
+            name="noop",
+            tool_call_id="call-1",
+            metadata={"part": "history", "seq": 3},
+        ),
+    ]
+    events: list[str] = []
+
+    def fake_prune_tool_outputs(value, **_kwargs):
+        events.append("prune")
+        return [
+            value[0],
+            value[1],
+            value[2],
+            ContextMessage(
+                role="tool",
+                content="[Old tool result content cleared]",
+                name="noop",
+                tool_call_id="call-1",
+                metadata={"part": "history", "seq": 3, "pruned": True},
+            ),
+        ]
+
+    async def fake_auto_compact(**_kwargs):
+        events.append("compact")
+        return False
+
+    async def fake_invoke(_model, _messages, **_kwargs):
+        return AIMessage(content="done")
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context_parts",
+            new=AsyncMock(return_value=parts),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.prune_tool_outputs",
+            side_effect=fake_prune_tool_outputs,
+            create=True,
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.maybe_auto_compact",
+            side_effect=fake_auto_compact,
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=fake_invoke,
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.repo.mark_tool_messages_pruned",
+            new=AsyncMock(),
+            create=True,
+        ),
+    ):
+        model = Mock()
+        model.bind_tools.return_value = model
+        runtime_state: dict[str, object] = {
+            "session_id": "s1",
+            "task_id": "t1",
+            "project_id": "p1",
+            "model_config": {"max_context_tokens": 8000},
+            "active_agent": "writer",
+            "is_completed": False,
+            "error": None,
+            "retry_count": 0,
+            "user_request": "hi",
+        }
+        await create_react_agent(config, model=model).ainvoke(
+            {
+                "messages": [HumanMessage(content="hi")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "runtime_state": runtime_state,
+                    "db_session": AsyncMock(),
+                    "thread_id": "s1",
+                }
+            },
+        )
+
+    assert events == ["prune", "compact"]
 
 
 @pytest.mark.asyncio
@@ -471,7 +605,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         )
         return 9 if has_runtime_messages else 0
 
-    def fake_select_compaction_window(history, _compactions, max_context_tokens):
+    def fake_select_compaction_window(history, _compactions, max_context_tokens, **_kwargs):
         selected_history.extend(history)
         assert max_context_tokens == 10
         return SimpleNamespace(
@@ -846,6 +980,7 @@ def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fie
         response_metadata={
             "openfic_seq": 8,
             "openfic_tool_name": "read_chapter",
+            "openfic_pruned": True,
         },
     )
 
@@ -857,8 +992,30 @@ def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fie
         "part": "history",
         "seq": 8,
         "tool_name": "read_chapter",
+        "pruned": True,
     }
     assert tool_out["name"] == "read_chapter"
+
+
+def test_mark_state_messages_pruned_keeps_original_message_identity_fields() -> None:
+    from app.agent_runtime.context.pruning import OLD_TOOL_OUTPUT_PLACEHOLDER
+    from app.agent_runtime.graph.react_agent import _mark_state_messages_pruned
+
+    tool = ToolMessage(
+        content="full result",
+        tool_call_id="call-1",
+        name="read_chapter",
+        response_metadata={"openfic_seq": 8},
+    )
+
+    result = _mark_state_messages_pruned([tool], {"call-1"})
+
+    assert isinstance(result[0], ToolMessage)
+    assert result[0].content == OLD_TOOL_OUTPUT_PLACEHOLDER
+    assert result[0].tool_call_id == "call-1"
+    assert result[0].name == "read_chapter"
+    assert result[0].response_metadata["openfic_pruned"] is True
+    assert tool.content == "full result"
 
 
 def test_to_history_dict_preserves_only_openfic_attachment_metadata() -> None:

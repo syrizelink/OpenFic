@@ -144,6 +144,31 @@ async def test_list_metadata_by_volume_does_not_load_content(session):
 
 
 @pytest.mark.asyncio
+async def test_get_metadata_by_ids_does_not_load_content(session):
+    project = Project(title="P", description="")
+    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    chapter = Chapter(
+        project_id=project.id,
+        volume_id=volume.id,
+        title="C1",
+        content="正文不应被读取",
+        word_count=8,
+        order=1,
+    )
+    session.add(project)
+    session.add(volume)
+    session.add(chapter)
+    await session.commit()
+    session.sync_session.expunge_all()
+
+    chapters = await chapter_repo.get_metadata_by_ids(session, [chapter.id])
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "C1"
+    assert "content" in inspect(chapters[0]).unloaded
+
+
+@pytest.mark.asyncio
 async def test_get_by_volume_ref_supports_order_and_first_matching_title(session):
     project = Project(title="P", description="")
     volume = Volume(project_id=project.id, title="第一卷", order=1)

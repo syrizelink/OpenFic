@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-全局阅读序位 helper 函数。
+"""全局阅读序位 helper 函数。"""
 
-提供纯函数，按 (volume.order, chapter.order) 排序后
-枚举生成项目级连续阅读序位（从 1 开始）。
-"""
+from __future__ import annotations
 
-from app.storage.models.chapter import Chapter
-from app.storage.models.volume import Volume
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.storage.models.chapter import Chapter
+    from app.storage.models.volume import Volume
 
 
 def global_reading_sequence(

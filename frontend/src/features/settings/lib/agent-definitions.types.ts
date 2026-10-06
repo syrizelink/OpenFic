@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import type { ReasoningEffort } from "@/lib/model.types";
 
 /**
  * Agent Definition Types
@@ -13,6 +14,7 @@ export interface AgentDefinitionResponse {
   kind: "primary" | "subagent";
   prompt_agent_name: string;
   model_id: string | null;
+  reasoning_effort: ReasoningEffort | null;
   enabled_tool_categories: string[];
   enabled_skills: string[];
   metadata: Record<string, unknown>;
@@ -30,6 +32,7 @@ export interface AgentDefinitionCreateRequest {
   kind: "primary" | "subagent";
   prompt_agent_name: string;
   model_id: string | null;
+  reasoning_effort: ReasoningEffort | null;
   enabled_tool_categories: string[];
   enabled_skills: string[];
   metadata: Record<string, unknown>;
@@ -44,6 +47,7 @@ export interface AgentDefinitionUpdateRequest {
   kind?: "primary" | "subagent" | null;
   prompt_agent_name?: string | null;
   model_id?: string | null;
+  reasoning_effort?: ReasoningEffort | null;
   enabled_tool_categories?: string[] | null;
   enabled_skills?: string[] | null;
   metadata?: Record<string, unknown> | null;

@@ -646,7 +646,7 @@ export function EntryList({
                   border: "1px solid transparent",
                   borderColor: searchExpanded ? "var(--gray-a7)" : "transparent",
                   borderRadius: "max(var(--radius-2), var(--radius-full))",
-                  background: searchExpanded ? "var(--color-surface)" : "transparent",
+                  background: searchExpanded ? "var(--color-background)" : "transparent",
                   flex: searchExpanded ? 1 : undefined,
                   minWidth: 0,
                   position: "relative",
@@ -671,6 +671,8 @@ export function EntryList({
                 </EntrySearchPopover>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={searchExpanded ? undefined : handleSearchToggle}
                   style={{
@@ -715,6 +717,8 @@ export function EntryList({
                   <Tooltip content={t("common.import")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="2"
                       aria-label={t("common.import")}
                       onClick={onImport}
@@ -727,6 +731,8 @@ export function EntryList({
                     <DropdownMenu.Trigger>
                       <IconButton
                         variant="ghost"
+                        color="gray"
+                        highContrast
                         size="2"
                         aria-label={t("worldInfo.sort")}
                       >
@@ -785,6 +791,8 @@ export function EntryList({
                     >
                       <IconButton
                         variant="ghost"
+                        color="gray"
+                        highContrast
                         size="2"
                         onClick={selectedIds.size > 0 ? handleDeselectAll : handleSelectAll}
                       >
@@ -802,6 +810,8 @@ export function EntryList({
                   >
                     <IconButton
                       variant={isMultiSelect ? "solid" : "ghost"}
+                      color={isMultiSelect ? undefined : "gray"}
+                      highContrast={!isMultiSelect}
                       size="2"
                       onClick={handleToggleMultiSelect}
                     >

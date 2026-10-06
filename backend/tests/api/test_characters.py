@@ -46,6 +46,49 @@ async def create_character(
 
 
 @pytest.mark.asyncio
+async def test_character_graph_relationship_lifecycle(client: AsyncClient) -> None:
+    project_id = await create_project(client, "关系图谱")
+    first = await create_character(client, project_id, "甲")
+    second = await create_character(client, project_id, "乙")
+    path = f"/api/v1/projects/{project_id}/character-relationships"
+    created = await client.post(path, json={"source_character_id": first["id"], "target_character_id": second["id"], "name": "盟友", "description": "共同目标"})
+    assert created.status_code == 201
+    relation_id = created.json()["id"]
+    reverse = await client.post(path, json={"source_character_id": second["id"], "target_character_id": first["id"], "name": "同盟"})
+    assert reverse.status_code == 409
+    graph = (await client.get(f"/api/v1/projects/{project_id}/character-graph")).json()
+    assert len(graph["relationships"]) == 1
+    assert {node["character_id"]: node["relationship_count"] for node in graph["nodes"]} == {first["id"]: 1, second["id"]: 1}
+    assert (await client.get(f"/api/v1/characters/{first['id']}")).json()["relationship_count"] == 1
+    updated = await client.patch(f"/api/v1/character-relationships/{relation_id}", json={"name": "好友", "description": ""})
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "好友"
+    assert (await client.delete(f"/api/v1/character-relationships/{relation_id}")).status_code == 204
+    assert (await client.get(f"/api/v1/projects/{project_id}/character-graph")).json()["relationships"] == []
+
+
+@pytest.mark.asyncio
+async def test_character_graph_rejects_invalid_edges_and_cleans_deleted_characters(client: AsyncClient) -> None:
+    project_id = await create_project(client, "关系边界")
+    another_id = await create_project(client, "其他关系项目")
+    first = await create_character(client, project_id, "甲")
+    second = await create_character(client, project_id, "乙")
+    external = await create_character(client, another_id, "外部")
+    path = f"/api/v1/projects/{project_id}/character-relationships"
+    assert (await client.post(path, json={"source_character_id": first["id"], "target_character_id": first["id"], "name": "自己"})).status_code == 400
+    assert (await client.post(path, json={"source_character_id": first["id"], "target_character_id": external["id"], "name": "跨项目"})).status_code == 404
+    assert (await client.patch(f"/api/v1/projects/{project_id}/characters/{first['id']}/position", json={"x": 120.5, "y": -40})).status_code == 200
+    assert (await client.patch(f"/api/v1/projects/{another_id}/characters/{first['id']}/position", json={"x": 1, "y": 1})).status_code == 404
+    assert (await client.post(path, json={"source_character_id": first["id"], "target_character_id": second["id"], "name": "友人"})).status_code == 201
+    graph = (await client.get(f"/api/v1/projects/{project_id}/character-graph")).json()
+    assert next(node for node in graph["nodes"] if node["character_id"] == first["id"])["x"] == 120.5
+    assert (await client.delete(f"/api/v1/characters/{first['id']}")).status_code == 204
+    graph = (await client.get(f"/api/v1/projects/{project_id}/character-graph")).json()
+    assert graph["relationships"] == []
+    assert len(graph["nodes"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_create_character_with_image_returns_image_url(client: AsyncClient) -> None:
     project_id = await create_project(client, "角色测试项目")
 

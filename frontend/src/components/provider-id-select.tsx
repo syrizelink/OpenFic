@@ -4,6 +4,7 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
+import { getProviderDisplayName, OPENAI_ICON_PATH } from "@/features/settings/lib/provider-utils";
 import type { ModelProviderCatalogProvider } from "@/lib/model.types";
 
 import { Spinner } from "./spinner";
@@ -75,11 +76,19 @@ export function ProviderIdSelect({
   const listReadyFrameRef = useRef<number | null>(null);
   const categories = useMemo<ProviderIdSelectCategory[]>(() => {
     const builtinOptions = providers
+      .filter((provider) => provider.providerType !== "openai-codex")
       .map((provider) => ({
         value: provider.providerType,
         label: provider.displayName,
         iconPath: provider.iconPath,
       }))
+      .concat({
+        value: "openai-codex",
+        label: getProviderDisplayName("openai-codex"),
+        iconPath:
+          providers.find((provider) => provider.providerType === "openai")?.iconPath ??
+          OPENAI_ICON_PATH,
+      })
       .sort((left, right) => left.label.localeCompare(right.label));
     const customOptions = CUSTOM_PROVIDER_OPTIONS.filter(
       (option) => !builtinOptions.some((builtinOption) => builtinOption.value === option.value),

@@ -4,6 +4,7 @@ Repository 模块 - 数据访问层。
 """
 
 from app.storage.repos import (
+    agent_composer_repo,
     agent_definition_repo,
     agent_memory_repo,
     agent_rule_repo,
@@ -28,6 +29,7 @@ from app.storage.repos import (
 )
 
 __all__ = [
+    "agent_composer_repo",
     "agent_definition_repo",
     "agent_memory_repo",
     "agent_rule_repo",

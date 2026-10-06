@@ -17,6 +17,7 @@ from app.agent_runtime.context.processors.compress import (
 from app.audit import AuditContext
 from app.core.errors import NotFoundError
 from app.macro.compiler import EntryInput, PromptChainCompiler
+from app.memory.summary_config import load_summary_settings
 from app.memory.chapter.summary_tools import (
     make_chapter_summary_tool,
     make_long_term_summary_tool,
@@ -138,6 +139,16 @@ def _summaries_target_message(chapter_summaries: str) -> str:
     return "以下部分是你需要总结的摘要内容\n" f"{chapter_summaries}"
 
 
+def _summary_length_message(target_length: int) -> str:
+    return (
+        "<length_requirement>\n"
+        f"摘要内容应控制在 {target_length} 字以内。\n"
+        "当内容较为稀疏时，摘要内容也应该对应减少，而不应为了达到字数要求添加套话和无关信息。\n"
+        "当内容过于密集时，应优先保留准确、有价值的关键信息，尽量控制在字数限制以内。\n"
+        "</length_requirement>"
+    )
+
+
 def _usage_token_count(usage: dict[str, Any] | None, fallback_text: str) -> int:
     if usage:
         for key in ("total_tokens", "total_token_count", "input_tokens"):
@@ -175,6 +186,14 @@ async def build_chapter_summary_prompt(
     messages = await _build_system_messages(
         session,
         prompt_id="memory-chapter-summary",
+    )
+    summary_settings = await load_summary_settings(session)
+    messages.append(
+        SystemMessage(
+            content=_summary_length_message(
+                summary_settings.chapter_target_length,
+            )
+        )
     )
     chapters = await chapter_repo.list_by_volume(session, chapter.volume_id)
     previous_chapter = next((item for item in reversed(chapters) if item.order < chapter.order), None)
@@ -265,6 +284,14 @@ async def build_long_term_summary_prompt(
     messages = await _build_system_messages(
         session,
         prompt_id="memory-range-summary",
+    )
+    summary_settings = await load_summary_settings(session)
+    messages.append(
+        SystemMessage(
+            content=_summary_length_message(
+                summary_settings.long_term_target_length,
+            )
+        )
     )
     messages.append(SystemMessage(content=_summaries_target_message(summaries_text)))
     if await is_compress_system_prompts_enabled(session):

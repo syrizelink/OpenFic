@@ -5,6 +5,16 @@ Setting API Schemas - 设置请求/响应模型。
 
 from pydantic import BaseModel, Field
 
+from app.agent_runtime.context.settings import ContextSettings
+from app.memory.summary_config import DEFAULT_SUMMARY_MODEL
+from app.models.clients.model_params import (
+    DEFAULT_REASONING_EFFORT,
+    ReasoningEffort,
+    ReasoningEffortInput,
+)
+
+_context_defaults = ContextSettings()
+
 
 class AgentToolPermissionItem(BaseModel):
     """Agent 工具权限设置项。"""
@@ -33,17 +43,90 @@ class ClearAuditDetailsResponse(BaseModel):
     cleared_detail_bytes: int = Field(description="已清空详情字段的 UTF-8 字节数估算")
 
 
+THEME_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+
+
+class ThemePalette(BaseModel):
+    """Radix Custom palette 的基础色和可选完整变量。"""
+
+    accent: str = Field(default="#000000", pattern=THEME_COLOR_PATTERN)
+    gray: str = Field(default="#646464", pattern=THEME_COLOR_PATTERN)
+    background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    variables: dict[str, str] | None = Field(default=None, description="完整主题 CSS 变量")
+
+
+def _default_dark_theme_palette() -> ThemePalette:
+    return ThemePalette(
+        accent="#ffffff",
+        gray="#b4b4b4",
+        background="#111111",
+    )
+
+
+class ThemeConfig(BaseModel):
+    """Radix Themes 可使用的双模式完整色板。"""
+
+    light: ThemePalette = Field(default_factory=ThemePalette)
+    dark: ThemePalette = Field(default_factory=_default_dark_theme_palette)
+
+
 class SettingsResponse(BaseModel):
     """设置响应。"""
 
     language: str = Field(default="zh-CN", description="语言")
     theme: str = Field(default="light", description="主题")
+    theme_preset: str = Field(default="classic", description="主题预设 ID")
+    light_theme_preset: str = Field(default="classic", description="浅色主题预设 ID")
+    dark_theme_preset: str = Field(default="classic", description="深色主题预设 ID")
+    theme_config: ThemeConfig = Field(default_factory=ThemeConfig, description="主题外观配置")
     font_family: str = Field(default="system-ui", description="字体")
     code_font_family: str = Field(default="ui-monospace", description="代码字体")
     base_font_size: int = Field(default=14, description="基础字号（px）")
     editor_font_size: int = Field(default=16, description="编辑器字号（px）")
     default_model: str = Field(default="", description="默认模型 ID")
     light_model: str = Field(default="", description="轻量模型 ID")
+    default_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="默认模型推理强度",
+    )
+    light_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="轻量模型推理强度",
+    )
+    summary_model: str = Field(default=DEFAULT_SUMMARY_MODEL, description="摘要模型引用")
+    summary_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="指定摘要模型时的推理强度",
+    )
+    summary_auto_generate_chapter: bool = Field(
+        default=True,
+        description="是否自动生成章节摘要",
+    )
+    summary_auto_generate_long_term: bool = Field(
+        default=True,
+        description="是否自动生成区间摘要",
+    )
+    summary_min_chapter_word_count: int = Field(
+        default=500,
+        ge=0,
+        description="参与摘要的章节最小字数",
+    )
+    summary_batch_size: int = Field(default=10, ge=1, description="自动摘要批次大小")
+    summary_long_term_interval: int = Field(
+        default=10,
+        ge=1,
+        description="区间摘要包含的章节数",
+    )
+    summary_chapter_target_length: int = Field(
+        default=200,
+        ge=1,
+        description="章节摘要目标字数",
+    )
+    summary_long_term_target_length: int = Field(
+        default=500,
+        ge=1,
+        description="区间摘要目标字数",
+    )
     default_embedding_model: str = Field(default="", description="默认 Embedding 模型 ID")
     index_mode: str = Field(default="off", description="索引启用模式：off/all/selected")
     index_enabled_projects: list[str] = Field(
@@ -63,6 +146,12 @@ class SettingsResponse(BaseModel):
         default=False,
         description="是否全局放行 Agent 工具审批",
     )
+    notifications_enabled: bool = Field(default=False, description="是否启用会话系统通知")
+    notify_on_completion: bool = Field(default=True, description="会话完成时通知")
+    notify_on_approval: bool = Field(default=True, description="待审批时通知")
+    notify_on_question: bool = Field(default=True, description="待回答问题时通知")
+    notify_on_error: bool = Field(default=True, description="Agent 运行出错时通知")
+    notify_only_when_unfocused: bool = Field(default=True, description="仅在窗口未聚焦时通知")
     agent_tool_permissions: list[AgentToolPermissionItem] = Field(
         default_factory=list, description="Agent 工具权限设置"
     )
@@ -83,6 +172,19 @@ class SettingsResponse(BaseModel):
         default=False,
         description="输入半角标点符号时是否自动转换为全角",
     )
+    auto_compact_context: bool = _context_defaults.auto_compact_context
+    compaction_model: str = "__session_model__"
+    compaction_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="指定上下文压缩模型时的推理强度",
+    )
+    compaction_trigger_ratio: float = Field(default=_context_defaults.compaction_trigger_ratio, gt=0, le=1)
+    compaction_tail_token_budget: int = Field(default=_context_defaults.compaction_tail_token_budget, gt=0)
+    compaction_tail_window_ratio: float = Field(default=_context_defaults.compaction_tail_window_ratio, gt=0, le=1)
+    compaction_min_compactable_tokens: int = Field(default=_context_defaults.compaction_min_compactable_tokens, gt=0)
+    auto_prune_tool_outputs: bool = _context_defaults.auto_prune_tool_outputs
+    prune_protected_tokens: int = Field(default=_context_defaults.prune_protected_tokens, gt=0)
+    prune_minimum_tokens: int = Field(default=_context_defaults.prune_minimum_tokens, gt=0)
     editor_auto_pair_symbols: bool = Field(
         default=False,
         description="输入成对符号的左符号时是否自动补齐右符号",
@@ -98,12 +200,78 @@ class SettingsUpdateRequest(BaseModel):
 
     language: str | None = Field(default=None, description="语言")
     theme: str | None = Field(default=None, description="主题")
+    theme_preset: str | None = Field(default=None, description="主题预设 ID")
+    light_theme_preset: str | None = Field(default=None, description="浅色主题预设 ID")
+    dark_theme_preset: str | None = Field(default=None, description="深色主题预设 ID")
+    theme_config: ThemeConfig | None = Field(default=None, description="主题外观配置")
     font_family: str | None = Field(default=None, description="字体")
     code_font_family: str | None = Field(default=None, description="代码字体")
     base_font_size: int | None = Field(default=None, description="基础字号（px）")
     editor_font_size: int | None = Field(default=None, description="编辑器字号（px）")
     default_model: str | None = Field(default=None, description="默认模型 ID")
     light_model: str | None = Field(default=None, description="轻量模型 ID")
+    default_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="默认模型推理强度",
+    )
+    light_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="轻量模型推理强度",
+    )
+    summary_model: str | None = Field(
+        default=None,
+        description="摘要模型 ID，空值时跟随轻量模型",
+    )
+    summary_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="指定摘要模型时的推理强度",
+    )
+    auto_compact_context: bool | None = None
+    compaction_model: str | None = Field(default=None, min_length=1)
+    compaction_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="指定上下文压缩模型时的推理强度",
+    )
+    compaction_trigger_ratio: float | None = Field(default=None, gt=0, le=1)
+    compaction_tail_token_budget: int | None = Field(default=None, gt=0)
+    compaction_tail_window_ratio: float | None = Field(default=None, gt=0, le=1)
+    compaction_min_compactable_tokens: int | None = Field(default=None, gt=0)
+    auto_prune_tool_outputs: bool | None = None
+    prune_protected_tokens: int | None = Field(default=None, gt=0)
+    prune_minimum_tokens: int | None = Field(default=None, gt=0)
+    summary_auto_generate_chapter: bool | None = Field(
+        default=None,
+        description="是否自动生成章节摘要",
+    )
+    summary_auto_generate_long_term: bool | None = Field(
+        default=None,
+        description="是否自动生成区间摘要",
+    )
+    summary_min_chapter_word_count: int | None = Field(
+        default=None,
+        ge=0,
+        description="参与摘要的章节最小字数",
+    )
+    summary_batch_size: int | None = Field(default=None, ge=1, description="自动摘要批次大小")
+    summary_long_term_interval: int | None = Field(
+        default=None,
+        ge=1,
+        description="区间摘要包含的章节数",
+    )
+    summary_chapter_target_length: int | None = Field(
+        default=None,
+        ge=1,
+        description="章节摘要目标字数",
+    )
+    summary_long_term_target_length: int | None = Field(
+        default=None,
+        ge=1,
+        description="区间摘要目标字数",
+    )
+    confirm_summary_range_invalidation: bool = Field(
+        default=False,
+        description="确认清理所有区间摘要",
+    )
     default_embedding_model: str | None = Field(
         default=None,
         description="默认 Embedding 模型 ID",
@@ -127,6 +295,12 @@ class SettingsUpdateRequest(BaseModel):
         default=None,
         description="是否全局放行 Agent 工具审批",
     )
+    notifications_enabled: bool | None = Field(default=None, description="是否启用会话系统通知")
+    notify_on_completion: bool | None = None
+    notify_on_approval: bool | None = None
+    notify_on_question: bool | None = None
+    notify_on_error: bool | None = None
+    notify_only_when_unfocused: bool | None = None
     agent_tool_permissions: list[AgentToolPermissionItem] | None = Field(
         default=None, description="Agent 工具权限设置"
     )

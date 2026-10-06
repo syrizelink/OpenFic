@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import Runnable
 
+from app.core.ids import generate_id
 from app.core.utils.tiktoken import seed_bundled_encodings
+from app.models.adapters.anthropic_compatible import ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_params import (
     DEFAULT_FREQUENCY_PENALTY,
@@ -17,7 +20,9 @@ from app.models.clients.model_params import (
     DEFAULT_TOP_K,
     DEFAULT_TOP_P,
     ReasoningEffort,
+    ReasoningEffortInput,
     is_non_default,
+    normalize_reasoning_effort,
     with_default,
 )
 from app.models.helpers.openrouter_attribution import (
@@ -33,7 +38,9 @@ class ModelConfig:
     base_url: str
     api_key: str
     model_id: str
+    provider_id: str | None = None
     custom_headers: dict[str, str] | None = None
+    session_id: str | None = None
     max_context_tokens: int | None = None
     temperature: float | None = DEFAULT_TEMPERATURE
     top_p: float | None = DEFAULT_TOP_P
@@ -44,9 +51,11 @@ class ModelConfig:
     frequency_penalty: float | None = DEFAULT_FREQUENCY_PENALTY
     presence_penalty: float | None = DEFAULT_PRESENCE_PENALTY
     repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: ReasoningEffortInput | None = None
 
     def __post_init__(self) -> None:
+        if self.reasoning_effort == "off":
+            self.reasoning_effort = "auto"
         self.temperature = with_default(self.temperature, DEFAULT_TEMPERATURE)
         self.top_p = with_default(self.top_p, DEFAULT_TOP_P)
         self.top_k = with_default(self.top_k, DEFAULT_TOP_K)
@@ -72,7 +81,10 @@ def _non_default(value: Any, default: Any) -> Any | None:
 
 
 def _enabled_reasoning_effort(config: ModelConfig) -> ReasoningEffort | None:
-    return config.reasoning_effort if config.reasoning_effort != "off" else None
+    if config.reasoning_effort is None:
+        return None
+    reasoning_effort = normalize_reasoning_effort(config.reasoning_effort)
+    return None if reasoning_effort == "auto" else reasoning_effort
 
 
 def _three_level_reasoning_effort(
@@ -100,12 +112,49 @@ def _gemini_compatible_base_url(base_url: str) -> str:
     return normalized_url.removesuffix("/v1beta")
 
 
+def _application_user_agent() -> str:
+    from app.settings import settings
+
+    return f"{settings.app_name}/{settings.app_version}"
+
+
+def _set_header(headers: dict[str, str], name: str, value: str) -> None:
+    for existing_name in tuple(headers):
+        if existing_name.lower() == name.lower():
+            del headers[existing_name]
+    headers[name] = value
+
+
+def _is_opencode_provider(config: ModelConfig) -> bool:
+    if config.provider_type.lower().startswith("opencode"):
+        return True
+    return (urlparse(config.base_url).hostname or "").lower() == "opencode.ai"
+
+
+def _model_request_headers(config: ModelConfig) -> dict[str, str]:
+    headers = dict(config.custom_headers or {})
+    _set_header(headers, "User-Agent", _application_user_agent())
+    is_opencode_provider = _is_opencode_provider(config)
+    if is_opencode_provider:
+        if not config.session_id:
+            config.session_id = f"openfic-{generate_id()}"
+        _set_header(headers, "x-opencode-session", config.session_id)
+    return headers
+
+
+def _update_http_client_headers(client: Any, headers: dict[str, str]) -> None:
+    request_client = getattr(client, "_client", client)
+    client_headers = getattr(request_client, "headers", None)
+    if client_headers is not None:
+        client_headers.update(headers)
+
+
 def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
     kwargs = _compact_kwargs(
         model=config.model_id,
         api_key=config.api_key,
         base_url=config.base_url or None,
-        default_headers=config.custom_headers or None,
+        default_headers=_model_request_headers(config),
         temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
         top_p=_non_default(config.top_p, DEFAULT_TOP_P),
         max_tokens=config.max_tokens,
@@ -139,14 +188,18 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     provider = config.provider_type
     reasoning_effort = _enabled_reasoning_effort(config)
 
-    if provider in {"anthropic", "anthropic-compatible"}:
+    if (
+        provider == "anthropic"
+        or provider == "anthropic-compatible"
+        or provider in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+    ):
         from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
-            default_headers=config.custom_headers or None,
+            default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
@@ -167,6 +220,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
             max_output_tokens=config.max_tokens,
             thinking_level=_three_level_reasoning_effort(reasoning_effort),
+            additional_headers=_model_request_headers(config),
             max_retries=1,
         )
         if config.base_url:
@@ -184,7 +238,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
             max_output_tokens=config.max_tokens,
             thinking_level=_three_level_reasoning_effort(reasoning_effort),
-            additional_headers=config.custom_headers or None,
+            additional_headers=_model_request_headers(config),
             max_retries=0,
             api_version="v1beta",
         )
@@ -213,6 +267,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
+            default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             max_tokens=config.max_tokens,
             reasoning_effort=reasoning_effort,
@@ -237,12 +292,16 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         )
         if reasoning_effort:
             mistral_kwargs["model_kwargs"] = {"reasoning_effort": reasoning_effort}
-        return ChatMistralAI(**mistral_kwargs)
+        model = ChatMistralAI(**mistral_kwargs)
+        headers = _model_request_headers(config)
+        _update_http_client_headers(model.client, headers)
+        _update_http_client_headers(model.async_client, headers)
+        return model
 
     if provider == "openrouter":
         from langchain_openrouter import ChatOpenRouter
 
-        return ChatOpenRouter(**_compact_kwargs(
+        model = ChatOpenRouter(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
@@ -262,6 +321,10 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             max_retries=0,
             timeout=int(_request_timeout()[1] * 1000),
         ))
+        headers = _model_request_headers(config)
+        _update_http_client_headers(model.client.sdk_configuration.client, headers)
+        _update_http_client_headers(model.client.sdk_configuration.async_client, headers)
+        return model
 
     if provider == "groq":
         from langchain_groq import ChatGroq
@@ -275,6 +338,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
             max_retries=0,
             timeout=_request_timeout(),
+            default_headers=_model_request_headers(config),
         )
         if config.top_p is not None:
             groq_kwargs["model_kwargs"] = {"top_p": config.top_p}
@@ -303,6 +367,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         cohere_kwargs = _compact_kwargs(
             model=config.model_id,
             cohere_api_key=config.api_key,
+            user_agent=_application_user_agent(),
             base_url=config.base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
         )
@@ -313,7 +378,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     if provider == "amazon-nova":
         from langchain_amazon_nova import ChatAmazonNova
 
-        return ChatAmazonNova(**_compact_kwargs(
+        model = ChatAmazonNova(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
@@ -323,6 +388,10 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
             max_retries=0,
         ))
+        headers = _model_request_headers(config)
+        _update_http_client_headers(model.client, headers)
+        _update_http_client_headers(model.async_client, headers)
+        return model
 
     if provider == "openai-compatible-responses":
         from langchain_openai import ChatOpenAI
@@ -330,6 +399,18 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         return ChatOpenAI(
             **_openai_compatible_kwargs(config),
             use_responses_api=True,
+        )
+
+    if provider == "openai-codex":
+        from app.models.clients.openai_codex import OpenAICodexChatModel
+
+        return OpenAICodexChatModel(
+            model=config.model_id,
+            api_key=config.api_key,
+            provider_id=config.provider_id,
+            base_url=config.base_url or "https://api.openai.com/v1",
+            reasoning_effort=reasoning_effort,
+            default_headers=_model_request_headers(config),
         )
 
     if provider == "nvidia-ai-endpoints":
@@ -342,6 +423,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_completion_tokens=config.max_tokens,
+            default_headers=_model_request_headers(config),
         )
         model = ChatNVIDIA(**nvidia_kwargs)
         return model.with_thinking_mode(enabled=True) if reasoning_effort else model

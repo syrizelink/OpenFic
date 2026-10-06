@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import ssl
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -51,9 +53,21 @@ _ZERO_BACKOFF = LLMInvokeSettings(
 )
 
 
+class _APIConnectionError(Exception):
+    pass
+
+
+def _wrapped_connection_error(cause: Exception) -> _APIConnectionError:
+    error = _APIConnectionError("Connection error.")
+    error.__cause__ = cause
+    return error
+
+
 class TestClassifyError:
     def test_retries_5xx(self) -> None:
-        outcome = classify_error(_StatusError("upstream boom", 503))
+        outcome = classify_error(
+            _StatusError("upstream certificate verify failed", 503)
+        )
         assert outcome.decision is RetryDecision.RETRY
         assert outcome.category is RetryCategory.HTTP
 
@@ -122,6 +136,18 @@ class TestClassifyError:
         outcome = classify_error(APIConnectionError("connection error"))
         assert outcome.decision is RetryDecision.RETRY
         assert outcome.category is RetryCategory.NETWORK
+
+    def test_does_not_retry_wrapped_tls_certificate_error(self) -> None:
+        certificate_error = ssl.SSLCertVerificationError(
+            1,
+            "certificate verify failed: self signed certificate",
+        )
+        connect_error = httpx.ConnectError(str(certificate_error))
+        connect_error.__cause__ = certificate_error
+
+        outcome = classify_error(_wrapped_connection_error(connect_error))
+
+        assert outcome.decision is RetryDecision.NO_RETRY
 
     def test_retries_empty_response(self) -> None:
         outcome = classify_error(EmptyResponseError("empty"))
@@ -339,6 +365,68 @@ class TestInvokeModelWithRetry:
             )
 
         assert events == []
+
+    @pytest.mark.asyncio
+    async def test_wrapped_tls_certificate_error_is_not_retried(self) -> None:
+        certificate_error = ssl.SSLCertVerificationError(
+            1,
+            "certificate verify failed: self signed certificate",
+        )
+        connect_error = httpx.ConnectError(str(certificate_error))
+        connect_error.__cause__ = certificate_error
+        error = _wrapped_connection_error(connect_error)
+        calls = 0
+        events: list[dict[str, Any]] = []
+
+        async def invoke(*args: Any, **kwargs: Any) -> AIMessage:
+            nonlocal calls
+            calls += 1
+            raise error
+
+        async def sink(payload: dict[str, Any]) -> None:
+            events.append(payload)
+
+        with pytest.raises(_APIConnectionError):
+            await invoke_model_with_retry(
+                object(),
+                [],
+                invoke=invoke,
+                settings=_ZERO_BACKOFF,
+                retry_event_sink=sink,
+            )
+
+        assert calls == 1
+        assert events == []
+
+    @pytest.mark.asyncio
+    async def test_retry_event_includes_wrapped_error_cause(self) -> None:
+        error = _wrapped_connection_error(httpx.ConnectError("connection reset"))
+        calls = 0
+        events: list[dict[str, Any]] = []
+
+        async def invoke(*args: Any, **kwargs: Any) -> AIMessage:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise error
+            return AIMessage(content="ok")
+
+        async def sink(payload: dict[str, Any]) -> None:
+            events.append(payload)
+
+        result = await invoke_model_with_retry(
+            object(),
+            [],
+            invoke=invoke,
+            settings=_ZERO_BACKOFF,
+            retry_event_sink=sink,
+        )
+
+        assert result.content == "ok"
+        assert len(events) == 1
+        assert events[0]["error_message"] == (
+            "Connection error. (caused by ConnectError: connection reset)"
+        )
 
     @pytest.mark.asyncio
     async def test_empty_response_replayed_until_success(self) -> None:

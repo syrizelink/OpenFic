@@ -394,6 +394,8 @@ export function RulesSettings({
                 <TextField.Slot>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="1"
                     onClick={() => setSearchQuery("")}
                   >

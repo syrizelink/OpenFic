@@ -160,3 +160,24 @@ async def test_character_refresh_hook_marks_delete_operation(monkeypatch) -> Non
 
     assert captured[0][1]["operation"] == "delete"
     assert captured[0][1]["character_id"] == "character-1"
+
+
+@pytest.mark.asyncio
+async def test_relationship_tool_refreshes_character_graph(monkeypatch) -> None:
+    from app.agent_runtime.tools.hooks.character_refresh import character_refresh_post_hook
+
+    captured: list[tuple[str, dict, str | None]] = []
+
+    async def fake_emit(event: str, data: dict, *, room: str | None = None) -> None:
+        captured.append((event, data, room))
+
+    monkeypatch.setattr("app.agent_runtime.tools.hooks.character_refresh.emit", fake_emit)
+    await character_refresh_post_hook(HookContext(
+        tool_name="create_character_relationship", access_level="write", args={},
+        state={"session_id": "session-1", "project_id": "project-1"},
+        output=json.dumps({"success": True, "id": "relation-1"}),
+    ))
+
+    assert captured[0][0] == "agent:character_refresh"
+    assert captured[0][1]["project_id"] == "project-1"
+    assert captured[0][2] == agent_session_room("session-1")

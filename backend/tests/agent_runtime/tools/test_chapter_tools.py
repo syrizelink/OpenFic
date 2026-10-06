@@ -580,6 +580,9 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
             "app.agent_runtime.tools.impls.chapter.delete_chapter.volume_repo.list_by_project",
             AsyncMock(return_value=[volume]),
         ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_chapter.volume_repo.get_by_id",
+            AsyncMock(return_value=volume),
+        ), patch(
             "app.agent_runtime.tools.impls.chapter.delete_chapter.chapter_repo"
         ) as mock_repo, patch(
             "app.agent_runtime.tools.impls.chapter.delete_chapter.record_chapter_diffs",
@@ -599,6 +602,7 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
             )
             mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
             mock_repo.get_by_volume_ref = AsyncMock(return_value=chapter)
+            mock_repo.get_by_id = AsyncMock(return_value=chapter)
             mock_repo.list_by_volume_from_order = AsyncMock(
                 side_effect=[[chapter, following], [after_following]]
             )
@@ -860,6 +864,9 @@ async def test_delete_volume_requires_cascade_for_non_empty_volume() -> None:
             "app.agent_runtime.tools.impls.chapter.delete_volume.volume_repo.list_by_project",
             AsyncMock(return_value=[volume]),
         ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.volume_repo.get_by_id",
+            AsyncMock(return_value=volume),
+        ), patch(
             "app.agent_runtime.tools.impls.chapter.delete_volume.chapter_repo.count_by_volume",
             AsyncMock(return_value=1),
         ):
@@ -870,7 +877,7 @@ async def test_delete_volume_requires_cascade_for_non_empty_volume() -> None:
     data = json.loads(result)
     assert data["type"] == "fail"
     assert "cascade=true" in data["message"]
-    mock_session.rollback.assert_called_once()
+    assert mock_session.rollback.call_count == 2
 
 
 async def test_delete_volume_returns_success_only() -> None:
@@ -885,6 +892,9 @@ async def test_delete_volume_returns_success_only() -> None:
         with patch(
             "app.agent_runtime.tools.impls.chapter.delete_volume.volume_repo.list_by_project",
             AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.volume_repo.get_by_id",
+            AsyncMock(return_value=volume),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.delete_volume.chapter_repo.count_by_volume",
             AsyncMock(return_value=0),
@@ -922,6 +932,9 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.volume_repo.list_by_project",
             AsyncMock(return_value=[source, target]),
         ), patch(
+            "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.volume_repo.get_by_id",
+            AsyncMock(side_effect=[source, target]),
+        ), patch(
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_volume",
             AsyncMock(side_effect=AssertionError("不应扫描整卷")),
         ), patch(
@@ -945,6 +958,9 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
                 AsyncMock(return_value=chapter),
                 create=True,
             ) as get_by_volume_ref, patch(
+                "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.get_by_id",
+                AsyncMock(return_value=chapter),
+            ), patch(
                 "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_volume_from_order",
                 AsyncMock(side_effect=[[chapter, source_following], [after_following]]),
                 create=True,

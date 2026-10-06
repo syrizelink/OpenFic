@@ -68,6 +68,21 @@ async def test_public_preferences_expose_only_interface_preferences(monkeypatch)
             code_font_family="JetBrains Mono Variable",
             base_font_size=18,
             editor_font_size=20,
+            theme_preset="midnight",
+            light_theme_preset="solarized",
+            dark_theme_preset="nord",
+            theme_config={
+                "light": {
+                    "accent": "#000000",
+                    "gray": "#646464",
+                    "background": "#ffffff",
+                },
+                "dark": {
+                    "accent": "#ffffff",
+                    "gray": "#b4b4b4",
+                    "background": "#111111",
+                },
+            },
         )
 
     async def fake_session():
@@ -86,6 +101,21 @@ async def test_public_preferences_expose_only_interface_preferences(monkeypatch)
         "code_font_family": "JetBrains Mono Variable",
         "base_font_size": 18,
         "editor_font_size": 20,
+        "theme_preset": "midnight",
+        "light_theme_preset": "solarized",
+        "dark_theme_preset": "nord",
+        "theme_config": {
+            "light": {
+                "accent": "#000000",
+                "gray": "#646464",
+                "background": "#ffffff",
+            },
+            "dark": {
+                "accent": "#ffffff",
+                "gray": "#b4b4b4",
+                "background": "#111111",
+            },
+        },
     }
 
 
@@ -159,6 +189,19 @@ async def test_auth_keeps_health_check_public() -> None:
     response = await _request(_create_auth_test_app("secret"), "GET", "/api/v1/health")
 
     assert response.status_code == 200
+
+
+async def test_openai_codex_callback_does_not_require_browser_application_cookie() -> None:
+    app = _create_auth_test_app("secret")
+
+    @app.app.get("/api/v1/openai-codex/auth/callback")
+    async def callback() -> dict[str, str]:
+        return {"status": "state-validation-required"}
+
+    response = await _request(app, "GET", "/api/v1/openai-codex/auth/callback")
+    assert response.status_code == 200
+    start = await _request(app, "POST", "/api/v1/openai-codex/auth/start")
+    assert start.status_code == 401
 
 
 async def test_auth_rejects_websocket_with_unauthorized_response() -> None:

@@ -10,6 +10,11 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.compaction.window import CompactionWindow
+from app.agent_runtime.context.settings import (
+    DEFAULT_MODEL_REFERENCE,
+    LIGHT_MODEL_REFERENCE,
+    SESSION_MODEL_REFERENCE,
+)
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.model_config import to_client_model_config
@@ -22,6 +27,13 @@ from app.agent_runtime.persistence.compaction_types import (
 )
 from app.agent_runtime.persistence.errors import PersistenceWriteError
 from app.models.clients.model_factory import ModelConfig, create_chat_model
+from app.models.clients.model_params import normalize_reasoning_effort
+from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
+from app.models.repos import model_provider_repo, model_repo
+from app.models.services.model_provider_service import ModelProviderService
+from app.core.encryption import EncryptionService
+from app.settings import settings
+from app.storage.repos import setting_repo
 from app.storage.services import prompt_chain_service
 
 
@@ -97,6 +109,7 @@ async def compact_window(
     event_sink: EventSink | None = None,
     usage_sink: UsageSink | None = None,
     model_config: Mapping[str, Any] | None = None,
+    model_reference: str = SESSION_MODEL_REFERENCE,
 ) -> PersistedCompaction:
     session_id = str(state.get("session_id") or "")
     task_id = str(state.get("task_id") or "")
@@ -142,7 +155,67 @@ async def compact_window(
         effective_model_config = (
             dict(model_config) if model_config is not None else _model_config(state)
         )
-        model = create_chat_model(ModelConfig(**to_client_model_config(effective_model_config)))
+        if model_reference != SESSION_MODEL_REFERENCE:
+            record_id = model_reference
+            if model_reference in {DEFAULT_MODEL_REFERENCE, LIGHT_MODEL_REFERENCE}:
+                key = "light_model" if model_reference == LIGHT_MODEL_REFERENCE else "default_model"
+                setting = await setting_repo.get_by_key(db_session, key)
+                if (not setting or not setting.value) and key == "light_model":
+                    setting = await setting_repo.get_by_key(db_session, "default_model")
+                if not setting or not setting.value:
+                    raise ValueError("Compaction model not configured")
+                record_id = setting.value.strip()
+            record = await model_repo.get_by_id(db_session, record_id)
+            provider = (
+                await model_provider_repo.get_by_id(db_session, record.provider_id)
+                if record else None
+            )
+            if record is None or provider is None:
+                raise ValueError("Compaction model unavailable")
+            encryption = EncryptionService(settings.encryption_key)
+            headers = ModelProviderService(encryption).get_decrypted_custom_headers(provider)
+            effective_model_config = {
+                "provider_type": provider.provider_type,
+                "base_url": provider.url,
+                "api_key": (
+                    ""
+                    if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+                    else encryption.decrypt(provider.api_key_encrypted)
+                ),
+                "model_id": record.model_id,
+                "input_price": record.input_price,
+                "output_price": record.output_price,
+                "cache_read_price": record.cache_read_price,
+                "cache_write_price": record.cache_write_price,
+                **({"custom_headers": headers} if headers else {}),
+                "temperature": record.temperature,
+                "top_p": record.top_p,
+                "top_k": record.top_k,
+                "min_p": record.min_p,
+                "top_a": record.top_a,
+                "max_tokens": record.max_tokens,
+                "frequency_penalty": record.frequency_penalty,
+                "presence_penalty": record.presence_penalty,
+                "repetition_penalty": record.repetition_penalty,
+            }
+            if provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE:
+                effective_model_config["provider_id"] = provider.id
+            if model_reference in {DEFAULT_MODEL_REFERENCE, LIGHT_MODEL_REFERENCE}:
+                effort_setting = await setting_repo.get_by_key(
+                    db_session,
+                    f"{key}_reasoning_effort",
+                )
+            else:
+                effort_setting = await setting_repo.get_by_key(
+                    db_session,
+                    "compaction_model_reasoning_effort",
+                )
+            effective_model_config["reasoning_effort"] = normalize_reasoning_effort(
+                effort_setting.value if effort_setting else None
+            )
+        client_model_config = to_client_model_config(effective_model_config)
+        client_model_config["session_id"] = state["session_id"]
+        model = create_chat_model(ModelConfig(**client_model_config))
         response = await model.ainvoke(messages)
     except Exception as exc:
         logger.opt(exception=True).error("Compaction LLM request failed")
@@ -239,6 +312,7 @@ async def compact_window(
         usage_sink,
         _usage_payload(
             usage=usage,
+            model_config=effective_model_config,
             session_id=session_id,
             task_id=task_id,
             trigger=trigger,
@@ -399,6 +473,7 @@ def _token_counts(usage: dict[str, Any] | None) -> tuple[int, int, int]:
 def _usage_payload(
     *,
     usage: dict[str, Any] | None,
+    model_config: Mapping[str, Any],
     session_id: str,
     task_id: str,
     trigger: CompactionTrigger,
@@ -412,6 +487,18 @@ def _usage_payload(
     usage_dict.setdefault("cache_read_tokens", token_cache)
     return {
         "usage_kind": "compaction",
+        "billing_config": {
+            "provider_type": str(model_config.get("provider_type") or ""),
+            **{
+                key: float(model_config.get(key) or 0)
+                for key in (
+                    "input_price",
+                    "output_price",
+                    "cache_read_price",
+                    "cache_write_price",
+                )
+            },
+        },
         "session_id": session_id,
         "task_id": task_id,
         "trigger": trigger,

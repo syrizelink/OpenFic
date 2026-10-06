@@ -8,8 +8,8 @@
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
 import clsx from "clsx";
 import { ChevronDown, Search } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
-import type { CSSProperties, ReactNode, ComponentProps } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import type { CSSProperties, FocusEventHandler, ReactNode, ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./select.css";
@@ -21,11 +21,78 @@ export interface SelectOption {
   label: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
+  /** Dropdown-only controls; provide accessible names and type="button" on buttons. */
+  actions?: ReactNode;
   description?: string;
   labelColor?: string;
   fontFamily?: string;
   disabled?: boolean;
   separatorAfter?: boolean;
+}
+
+function SelectOptionWithActions({
+  option,
+  children,
+  onAction,
+}: {
+  option: SelectOption;
+  children: ReactNode;
+  onAction: () => void;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  if (!option.actions) return children;
+
+  return (
+    <div
+      ref={rowRef}
+      data-slot="select-option-with-actions"
+      onKeyDownCapture={(event) => {
+        const row = rowRef.current;
+        if (!row) return;
+        const actions = row.querySelector<HTMLElement>('[data-slot="select-option-actions"]');
+        const isAction = actions?.contains(event.target as Node);
+        if (!isAction && (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey))) {
+          const control = actions?.querySelector<HTMLElement>(
+            'button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          );
+          if (!control) return;
+          event.preventDefault();
+          event.stopPropagation();
+          control.focus();
+        } else if (isAction && event.key === "ArrowLeft") {
+          event.preventDefault();
+          event.stopPropagation();
+          row
+            .querySelector<HTMLElement>('[role="option"], [data-slot="searchable-select-item"]')
+            ?.focus();
+        }
+      }}
+    >
+      {children}
+      <div
+        role="group"
+        aria-label={option.label}
+        data-slot="select-option-actions"
+        onClickCapture={(event) => {
+          if (
+            (event.target as HTMLElement).closest('button:not(:disabled), a[href], [role="button"]')
+          ) {
+            onAction();
+          }
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onPointerMove={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") event.stopPropagation();
+        }}
+      >
+        {option.actions}
+      </div>
+    </div>
+  );
 }
 
 function SelectOptionContent({ option, size }: { option: SelectOption; size: "1" | "2" | "3" }) {
@@ -115,6 +182,11 @@ export interface LabeledSelectProps {
   hideTriggerChevron?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
+  onContentFocusCapture?: FocusEventHandler<HTMLDivElement>;
+  onContentCloseAutoFocus?: ComponentProps<typeof Select.Content>["onCloseAutoFocus"];
+  keepFocusOnTouch?: boolean;
+  onTouchTrigger?: () => void;
+  preventContentFocus?: boolean;
   variant?: "default" | "icon";
   triggerAriaLabel?: string;
 }
@@ -144,23 +216,88 @@ export function LabeledSelect({
   triggerPrefix,
   triggerClassName,
   contentClassName,
+  onContentFocusCapture,
+  onContentCloseAutoFocus,
+  keepFocusOnTouch = false,
+  onTouchTrigger,
+  preventContentFocus = false,
   variant = "default",
   triggerAriaLabel,
 }: LabeledSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const actionCloseRef = useRef(false);
+  const hasActions = options.some((option) => Boolean(option.actions));
+  const triggerPointerTypeRef = useRef<string | null>(null);
+  const shouldKeepFocusOnTouch = keepFocusOnTouch && Boolean(onTouchTrigger);
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
   const isIconVariant = variant === "icon";
   const isTriggerLabelVisible = !isIconVariant && triggerLabelVisible;
+
+  const handleTriggerPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      triggerPointerTypeRef.current = event.pointerType;
+      if (
+        !shouldKeepFocusOnTouch ||
+        (event.pointerType !== "touch" && event.pointerType !== "pen")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      onTouchTrigger?.();
+    },
+    [onTouchTrigger, shouldKeepFocusOnTouch],
+  );
+
+  const handleTriggerClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const pointerType = triggerPointerTypeRef.current;
+      triggerPointerTypeRef.current = null;
+      if (!shouldKeepFocusOnTouch || (pointerType !== "touch" && pointerType !== "pen")) {
+        return;
+      }
+
+      event.preventDefault();
+      onTouchTrigger?.();
+      setIsOpen((open) => !open);
+    },
+    [onTouchTrigger, shouldKeepFocusOnTouch],
+  );
+
+  const handleContentRef = useCallback(
+    (content: HTMLDivElement | null) => {
+      if (!content || !preventContentFocus) return;
+
+      content.setAttribute("inert", "");
+      window.setTimeout(() => content.removeAttribute("inert"), 0);
+    },
+    [preventContentFocus],
+  );
 
   const selectControl = (
     <Select.Root
       value={value || undefined}
       onValueChange={onChange}
       disabled={disabled}
+      open={shouldKeepFocusOnTouch || hasActions ? isOpen : undefined}
+      onOpenChange={
+        shouldKeepFocusOnTouch || hasActions
+          ? (open) => {
+              if (open) actionCloseRef.current = false;
+              setIsOpen(open);
+            }
+          : undefined
+      }
       size={size}
     >
       <Select.Trigger
-        className={clsx(isIconVariant && "select-trigger--icon", triggerClassName)}
+        className={clsx(
+          !isIconVariant && "select-trigger--background",
+          isIconVariant && "select-trigger--icon",
+          triggerClassName,
+        )}
         style={
           selectedOption?.labelColor
             ? ({
@@ -171,6 +308,8 @@ export function LabeledSelect({
         }
         placeholder={placeholder}
         aria-label={triggerAriaLabel ?? label ?? triggerLabel}
+        onPointerDown={handleTriggerPointerDown}
+        onClick={handleTriggerClick}
       >
         <Flex
           align="center"
@@ -193,20 +332,46 @@ export function LabeledSelect({
         </Flex>
       </Select.Trigger>
       <Select.Content
+        ref={handleContentRef}
         position={contentPosition}
         className={contentClassName}
+        onFocusCapture={onContentFocusCapture}
+        onCloseAutoFocus={(event) => {
+          onContentCloseAutoFocus?.(event);
+          if (actionCloseRef.current) event.preventDefault();
+        }}
       >
         {options.map((option) => (
           <Fragment key={option.value}>
-            <Select.Item
-              value={option.value}
-              disabled={option.disabled}
+            <SelectOptionWithActions
+              option={option}
+              onAction={() => {
+                actionCloseRef.current = true;
+                setIsOpen(false);
+              }}
             >
-              <SelectOptionContent
-                option={option}
-                size={size}
-              />
-            </Select.Item>
+              <Select.Item
+                value={option.value}
+                disabled={option.disabled}
+                onPointerDown={(event) => {
+                  if (
+                    shouldKeepFocusOnTouch &&
+                    !option.disabled &&
+                    (event.pointerType === "touch" || event.pointerType === "pen")
+                  ) {
+                    event.preventDefault();
+                    onChange(option.value);
+                    onTouchTrigger?.();
+                    setIsOpen(false);
+                  }
+                }}
+              >
+                <SelectOptionContent
+                  option={option}
+                  size={size}
+                />
+              </Select.Item>
+            </SelectOptionWithActions>
             {option.separatorAfter ? <Select.Separator /> : null}
           </Fragment>
         ))}
@@ -265,12 +430,20 @@ export function SimpleSelect({
   triggerPrefix,
   triggerClassName,
   contentClassName,
+  triggerLabelVisible = true,
+  variant = "default",
+  triggerAriaLabel,
 }: Omit<
   LabeledSelectProps,
   "label" | "labelSize" | "labelWeight" | "labelColor" | "layout" | "gap"
 >) {
+  const [isOpen, setIsOpen] = useState(false);
+  const actionCloseRef = useRef(false);
+  const hasActions = options.some((option) => Boolean(option.actions));
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
+  const isIconVariant = variant === "icon";
+  const isTriggerLabelVisible = !isIconVariant && triggerLabelVisible;
 
   return (
     <Select.Root
@@ -278,9 +451,22 @@ export function SimpleSelect({
       onValueChange={onChange}
       disabled={disabled}
       size={size}
+      open={hasActions ? isOpen : undefined}
+      onOpenChange={
+        hasActions
+          ? (open) => {
+              if (open) actionCloseRef.current = false;
+              setIsOpen(open);
+            }
+          : undefined
+      }
     >
       <Select.Trigger
-        className={triggerClassName}
+        className={clsx(
+          !isIconVariant && "select-trigger--background",
+          isIconVariant && "select-trigger--icon",
+          triggerClassName,
+        )}
         style={
           selectedOption?.labelColor
             ? ({
@@ -290,15 +476,19 @@ export function SimpleSelect({
             : triggerStyle
         }
         placeholder={placeholder}
+        aria-label={triggerAriaLabel ?? triggerLabel}
       >
         <Flex
           align="center"
-          gap="2"
-          className="select-trigger-content"
+          justify={isTriggerLabelVisible ? undefined : "center"}
+          gap={isTriggerLabelVisible ? "2" : "0"}
+          className={
+            isTriggerLabelVisible ? "select-trigger-content" : "select-trigger-content--icon-only"
+          }
         >
           {triggerPrefix}
           {selectedOption?.prefix}
-          {triggerLabel && (
+          {isTriggerLabelVisible && triggerLabel && (
             <Text
               size={size}
               color={selectedOption ? undefined : "gray"}
@@ -313,18 +503,29 @@ export function SimpleSelect({
       <Select.Content
         position={contentPosition}
         className={contentClassName}
+        onCloseAutoFocus={(event) => {
+          if (actionCloseRef.current) event.preventDefault();
+        }}
       >
         {options.map((option) => (
           <Fragment key={option.value}>
-            <Select.Item
-              value={option.value}
-              disabled={option.disabled}
+            <SelectOptionWithActions
+              option={option}
+              onAction={() => {
+                actionCloseRef.current = true;
+                setIsOpen(false);
+              }}
             >
-              <SelectOptionContent
-                option={option}
-                size={size}
-              />
-            </Select.Item>
+              <Select.Item
+                value={option.value}
+                disabled={option.disabled}
+              >
+                <SelectOptionContent
+                  option={option}
+                  size={size}
+                />
+              </Select.Item>
+            </SelectOptionWithActions>
             {option.separatorAfter ? <Select.Separator /> : null}
           </Fragment>
         ))}
@@ -353,6 +554,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const actionCloseRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("select.searchPlaceholder");
   const resolvedEmptyMessage = emptyMessage ?? t("select.noMatchingOptions");
@@ -369,6 +571,7 @@ export function SearchableSelect({
   }, [options, searchQuery]);
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) actionCloseRef.current = false;
     if (!nextOpen) setSearchQuery("");
     setOpen(nextOpen);
   };
@@ -390,6 +593,7 @@ export function SearchableSelect({
           variant="surface"
           color="gray"
           disabled={disabled}
+          className="select-trigger--background"
           data-slot="searchable-select-trigger"
           data-state={open ? "open" : "closed"}
           style={{ width: "100%", justifyContent: "space-between", ...triggerStyle }}
@@ -421,6 +625,9 @@ export function SearchableSelect({
         align="start"
         data-slot="searchable-select-content"
         className="searchable-select-content"
+        onCloseAutoFocus={(event) => {
+          if (actionCloseRef.current) event.preventDefault();
+        }}
         style={{ width: "var(--radix-popover-trigger-width)" }}
       >
         <Box
@@ -450,20 +657,28 @@ export function SearchableSelect({
           >
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
-                <button
+                <SelectOptionWithActions
                   key={option.value}
-                  type="button"
-                  disabled={option.disabled}
-                  data-slot="searchable-select-item"
-                  data-state={option.value === value ? "checked" : "unchecked"}
-                  className="searchable-select-item"
-                  onClick={() => handleSelect(option.value)}
+                  option={option}
+                  onAction={() => {
+                    actionCloseRef.current = true;
+                    handleOpenChange(false);
+                  }}
                 >
-                  <SelectOptionContent
-                    option={option}
-                    size={size}
-                  />
-                </button>
+                  <button
+                    type="button"
+                    disabled={option.disabled}
+                    data-slot="searchable-select-item"
+                    data-state={option.value === value ? "checked" : "unchecked"}
+                    className="searchable-select-item"
+                    onClick={() => handleSelect(option.value)}
+                  >
+                    <SelectOptionContent
+                      option={option}
+                      size={size}
+                    />
+                  </button>
+                </SelectOptionWithActions>
               ))
             ) : (
               <Flex

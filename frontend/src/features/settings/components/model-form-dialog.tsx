@@ -203,10 +203,6 @@ export function ModelFormDialog({
     () => providers?.find((p) => p.id === providerId),
     [providers, providerId],
   );
-  const selectedCatalogProviderType = useMemo(
-    () => (selectedProvider ? resolveProviderCatalogType(selectedProvider) : null),
-    [selectedProvider],
-  );
   const selectedProviderSupportsEmbeddingDimensions = useMemo(
     () => (selectedProvider ? supportsEmbeddingDimensions(selectedProvider.providerType) : false),
     [selectedProvider],
@@ -285,7 +281,7 @@ export function ModelFormDialog({
     void loadModelsForProvider(providerId, taskType as TaskType);
   }, [loadModelsForProvider, providerId, taskType]);
 
-  // 提供商或任务类型变化时，使用 catalog 模型作为默认候选来源
+  // 默认使用 catalog；账户远程目录由手动刷新加载。
   useEffect(() => {
     if (!open || !selectedProvider) {
       return;
@@ -422,6 +418,7 @@ export function ModelFormDialog({
     >
       <Dialog.Content
         maxWidth="600px"
+        className="settings-background-panel"
         style={{
           maxHeight: "90vh",
           overflow: "hidden",
@@ -637,6 +634,8 @@ export function ModelFormDialog({
                       onRefresh={handleRefreshRemoteModels}
                       isRefreshing={loadingModels && modelOptionsSource === "remote"}
                       refreshDisabled={!providerId || loadingModels}
+                      triggerClassName="select-trigger--background"
+                      contentClassName="settings-background-panel"
                     />
                   )}
                 />
@@ -650,7 +649,7 @@ export function ModelFormDialog({
                 )}
                 {selectedProvider &&
                   isCustomProviderType(selectedProvider.providerType) &&
-                  !selectedCatalogProviderType &&
+                  !resolveProviderCatalogType(selectedProvider) &&
                   !loadingModels && (
                     <Text
                       size="1"

@@ -8,7 +8,7 @@
   overflow: hidden;
   border: 1px solid var(--gray-a5);
   border-radius: 12px;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-change-summary-header {
@@ -406,14 +406,14 @@
 .agent-change-diff-lines {
   max-height: 360px;
   overflow: auto;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-change-split-scroll {
   max-height: 360px;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-change-split-panes {
@@ -471,7 +471,7 @@
 }
 
 .agent-change-split-cell[data-type="context"] {
-  background-color: var(--color-panel);
+  background-color: var(--color-panel-solid);
 }
 
 .agent-change-split-cell[data-type="empty"] {

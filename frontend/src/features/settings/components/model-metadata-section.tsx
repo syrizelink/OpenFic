@@ -123,6 +123,8 @@ export function ModelMetadataSection<T extends FieldValues>({
       <Button
         type="button"
         variant="soft"
+        color="gray"
+        highContrast
         className="model-metadata-section-toggle"
         aria-expanded={showMetadata}
         aria-controls={sectionId}

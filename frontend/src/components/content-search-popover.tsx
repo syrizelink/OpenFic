@@ -343,6 +343,8 @@ export function ContentSearchPopover({
                 </Text>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={handleToggleAll}
                   title={allCollapsed ? expandAllText : collapseAllText}

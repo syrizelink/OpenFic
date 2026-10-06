@@ -479,7 +479,7 @@ export function NoteSidebar({
               border: "1px solid transparent",
               borderColor: contentSearchExpanded ? "var(--gray-a7)" : "transparent",
               borderRadius: "max(var(--radius-2), var(--radius-full))",
-              background: contentSearchExpanded ? "var(--color-surface)" : "transparent",
+              background: contentSearchExpanded ? "var(--color-background)" : "transparent",
               flex: contentSearchExpanded ? 1 : undefined,
               minWidth: 0,
               position: "relative",
@@ -504,6 +504,8 @@ export function NoteSidebar({
             </NoteSearchPopover>
             <IconButton
               variant="ghost"
+              color="gray"
+              highContrast
               size="2"
               onClick={contentSearchExpanded ? undefined : handleContentSearchToggle}
               style={{
@@ -555,6 +557,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.importNotes")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={handleOpenNoteImport}
                 >
@@ -564,6 +568,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.newNote")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={() => void handleNewNote()}
                 >
@@ -573,6 +579,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.newCategory")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={() => void handleNewCategory()}
                 >

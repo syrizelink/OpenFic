@@ -87,23 +87,23 @@ class CreateNoteCategoryTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行分类创建")
         session = await create_session()
         try:
-            parent_id: str | None = None
-            if parent_ref is not None:
-                ref = CategoryRef.model_validate(parent_ref)
-                if ref.id is not None:
-                    parent = await note_category_repo.get_by_id(session, ref.id)
-                    if parent is None:
-                        raise ToolExecutionError(f"分类不存在: {ref.id}")
-                else:
-                    cats = await note_category_repo.list_by_project(
-                        session, self.project_id
-                    )
-                    parent = resolve_category_from_list(cats, ref)
-                if parent.project_id != self.project_id:
-                    raise ToolExecutionError("父分类不属于当前项目")
-                parent_id = parent.id
+            async with await keyed_lock(("notes", self.project_id)):
+                parent_id: str | None = None
+                if parent_ref is not None:
+                    ref = CategoryRef.model_validate(parent_ref)
+                    if ref.id is not None:
+                        parent = await note_category_repo.get_by_id(session, ref.id)
+                        if parent is None:
+                            raise ToolExecutionError(f"分类不存在: {ref.id}")
+                    else:
+                        cats = await note_category_repo.list_by_project(
+                            session, self.project_id
+                        )
+                        parent = resolve_category_from_list(cats, ref)
+                    if parent.project_id != self.project_id:
+                        raise ToolExecutionError("父分类不属于当前项目")
+                    parent_id = parent.id
 
-            async with await keyed_lock((self.project_id, parent_id)):
                 before = note_category_images_by_id(
                     await note_category_repo.list_by_project(session, self.project_id)
                 )

@@ -5,9 +5,9 @@
   align-items: center;
   gap: var(--space-2);
   padding: 6px 9px;
-  border: 1px solid var(--gray-a6);
+  border: 1px solid var(--theme-hover-background);
   border-radius: var(--radius-2);
-  background: var(--color-surface);
+  background: var(--color-background);
   color: var(--gray-12);
   cursor: pointer;
   font-family: var(--app-font-family);
@@ -25,7 +25,7 @@
 
 .prompt-selector-trigger:hover,
 .prompt-selector-trigger:focus-visible {
-  border-color: var(--accent-8);
+  border-color: var(--theme-hover-background);
   outline: none;
 }
 
@@ -38,6 +38,11 @@
 
 .prompt-selector-search {
   padding: 2px 2px 6px;
+}
+
+.prompt-selector-search .rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
 }
 
 .prompt-selector-list.rt-ScrollAreaRoot {
@@ -75,7 +80,7 @@
 
 .prompt-selector-option:hover,
 .prompt-selector-option[data-state="checked"] {
-  background: var(--gray-a3);
+  background: var(--theme-list-hover-background);
 }
 
 .prompt-selector-option:focus-visible {

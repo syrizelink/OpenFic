@@ -45,6 +45,14 @@ export interface NoteItemPayload {
   title: string;
 }
 
+export interface FileAttachmentToolPayload {
+  id?: string;
+  file_name?: string;
+  mime_type?: string;
+  size_bytes?: number;
+  content_length?: number;
+}
+
 export interface ChapterSummaryPayload {
   order?: number;
   title?: string;
@@ -214,6 +222,15 @@ export function getToolData(message: AgentMessage): Record<string, unknown> {
 
 export function getToolResultData(message: AgentMessage): unknown {
   return message.toolResult?.data ?? message.toolResult;
+}
+
+function parseToolResultData(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
 }
 
 export function getNestedRecord(
@@ -503,6 +520,31 @@ export function getChapterList(message: AgentMessage): Record<string, unknown>[]
   const data = getToolData(message);
   if (Array.isArray(data.chapters)) return data.chapters.filter(isRecord);
   return [];
+}
+
+export function getFileList(message: AgentMessage): FileAttachmentToolPayload[] {
+  const resultData = parseToolResultData(getToolResultData(message));
+  if (Array.isArray(resultData)) return resultData.filter(isRecord);
+  if (isRecord(resultData) && Array.isArray(resultData.files)) {
+    return resultData.files.filter(isRecord);
+  }
+  return [];
+}
+
+export function getReadFileDetail(message: AgentMessage): string | undefined {
+  const resultData = parseToolResultData(getToolResultData(message));
+  const result = isRecord(resultData) ? resultData : null;
+  const streamingData = getStreamingData(message);
+  const fileName =
+    asString(result?.file_name) ??
+    asString(streamingData.file_name) ??
+    asString(streamingData.file_id);
+  if (!fileName) return undefined;
+  const offset = asNumber(result?.offset) ?? asNumber(streamingData.offset);
+  const limit = asNumber(result?.limit) ?? asNumber(streamingData.limit);
+  return offset !== undefined && limit !== undefined
+    ? `${fileName} · ${offset}-${offset + limit}`
+    : fileName;
 }
 
 export function getSubagentList(message: AgentMessage): Record<string, unknown>[] {

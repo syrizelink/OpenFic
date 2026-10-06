@@ -290,7 +290,10 @@ export function ImportSkillDialog({
       open={open}
       onOpenChange={handleOpenChange}
     >
-      <Dialog.Content maxWidth="680px">
+      <Dialog.Content
+        maxWidth="680px"
+        className="settings-background-panel"
+      >
         <Dialog.Title>{t("settingsExtra.skills.importSkill")}</Dialog.Title>
         <Dialog.Description
           size="2"

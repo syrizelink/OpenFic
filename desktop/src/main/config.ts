@@ -1,12 +1,18 @@
 import { app } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { defaultDesktopConfig, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
+import {
+  defaultDesktopConfig,
+  isDesktopInstanceAppearance,
+  type DesktopConfig,
+  type DesktopInstance,
+} from "../shared/config.js";
 import {
   DEV_INSTANCE_ID,
   createDevInstance,
   isDevInstance,
   isDevMode,
+  persistDevInstanceAppearance,
   persistDevInstanceDataDir,
   readDevInstanceDataDir,
 } from "./runtime/dev-backend.js";
@@ -25,7 +31,8 @@ function isDesktopInstance(value: unknown): value is DesktopInstance {
     (typeof candidate.remoteUrl === "string" || candidate.remoteUrl === null) &&
     typeof candidate.autoStartLocal === "boolean" &&
     (typeof candidate.installDir === "string" || candidate.installDir === null) &&
-    (candidate.dataDir === undefined || typeof candidate.dataDir === "string" || candidate.dataDir === null)
+    (candidate.dataDir === undefined || typeof candidate.dataDir === "string" || candidate.dataDir === null) &&
+    isDesktopInstanceAppearance(candidate)
   );
 }
 
@@ -111,6 +118,7 @@ export async function writeDesktopConfig(config: DesktopConfig): Promise<void> {
       const currentDataDir = await readDevInstanceDataDir();
       if (devInstance.dataDir !== currentDataDir) await persistDevInstanceDataDir(devInstance.dataDir);
     }
+    if (devInstance) await persistDevInstanceAppearance(devInstance);
     config = {
       ...config,
       activeInstanceId: config.activeInstanceId === DEV_INSTANCE_ID ? null : config.activeInstanceId,

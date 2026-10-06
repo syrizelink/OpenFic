@@ -1,0 +1,24 @@
+.models-settings__model-section {
+  max-width: 572px;
+  min-width: 0;
+}
+
+.models-settings__model-selector {
+  flex: 0 0 400px;
+  min-width: 0;
+}
+
+.models-settings__reasoning-selector {
+  flex: 0 0 160px;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .models-settings__model-section {
+    max-width: 400px;
+  }
+
+  .models-settings__model-selector {
+    flex: 0 0 100%;
+  }
+}

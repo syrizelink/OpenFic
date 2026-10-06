@@ -153,6 +153,8 @@ export function TaskList({ tasks, onTaskClick, onToggleFavorite, onRenameTask }:
               <Tooltip content={t("common.edit")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={(e) => handleStartEdit(task, e)}
                   disabled={savingTaskId === task.id}
@@ -170,6 +172,7 @@ export function TaskList({ tasks, onTaskClick, onToggleFavorite, onRenameTask }:
               >
                 <IconButton
                   variant="ghost"
+                  color={task.isFavorited ? "amber" : "gray"}
                   size="1"
                   onClick={(e) => handleToggleFavorite(task, e)}
                   style={{

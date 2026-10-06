@@ -228,9 +228,6 @@ async def reorder_chapters(
         HTTPException: 章节不存在或不属于指定卷时返回 400。
     """
     try:
-        logger.info(
-            f"批量重排章节: volume_id={data.volume_id}, chapter_ids={data.chapter_ids}"
-        )
         chapters = await chapter_service.reorder_chapters(
             session, data.volume_id, data.chapter_ids
         )

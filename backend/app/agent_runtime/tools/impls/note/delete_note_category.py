@@ -17,6 +17,7 @@ from app.agent_runtime.revisions import (
 )
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.impls.note.refs import CategoryRef, resolve_category_from_list
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
@@ -97,68 +98,69 @@ class DeleteNoteCategoryTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行分类删除")
         session = await create_session()
         try:
-            ref = CategoryRef.model_validate(category_ref)
-            if ref.id is not None:
-                category = await note_category_repo.get_by_id(session, ref.id)
-                if category is None:
-                    raise ToolExecutionError(f"分类不存在: {ref.id}")
-            else:
-                categories = await note_category_repo.list_by_project(
-                    session, self.project_id
-                )
-                category = resolve_category_from_list(categories, ref)
-            if category.project_id != self.project_id:
-                raise ToolExecutionError("分类不属于当前项目")
+            async with await keyed_lock(("notes", self.project_id)):
+                ref = CategoryRef.model_validate(category_ref)
+                if ref.id is not None:
+                    category = await note_category_repo.get_by_id(session, ref.id)
+                    if category is None:
+                        raise ToolExecutionError(f"分类不存在: {ref.id}")
+                else:
+                    categories = await note_category_repo.list_by_project(
+                        session, self.project_id
+                    )
+                    category = resolve_category_from_list(categories, ref)
+                if category.project_id != self.project_id:
+                    raise ToolExecutionError("分类不属于当前项目")
 
-            before_categories = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            before_notes = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
+                before_categories = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
                 )
-            )
-            category_id = category.id
-            category_title = category.title
-            await note_service.delete_category(session, category_id)
-            after_categories = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            after_notes = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
+                before_notes = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
                 )
-            )
-            await record_note_category_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_categories,
-                after=after_categories,
-            )
-            await record_note_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_notes,
-                after=after_notes,
-            )
+                category_id = category.id
+                category_title = category.title
+                await note_service.delete_category(session, category_id)
+                after_categories = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
+                )
+                after_notes = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
+                )
+                await record_note_category_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_categories,
+                    after=after_categories,
+                )
+                await record_note_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_notes,
+                    after=after_notes,
+                )
 
-            from app.background.jobs import service as background_service
+                from app.background.jobs import service as background_service
 
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "category": {
-                            "id": category_id,
-                            "title": category_title,
-                        }
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "category": {
+                                "id": category_id,
+                                "title": category_title,
+                            }
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

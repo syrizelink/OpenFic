@@ -182,6 +182,16 @@ interface TooltipContent {
   unit: string;
 }
 
+function getLineSeriesLabel(option: DashboardChartModel, seriesId: string): string {
+  if (option.kind !== "line") return seriesId;
+  return option.data.find((series) => series.id === seriesId)?.label ?? seriesId;
+}
+
+function getBarKeyLabel(option: DashboardChartModel, key: string): string {
+  if (option.kind !== "bar") return key;
+  return option.keyLabels?.[key] ?? key;
+}
+
 function getTooltipContent(
   option: DashboardChartModel,
   label: string,
@@ -252,14 +262,14 @@ function ChartTooltipRows({ rows }: { rows: ChartTooltipRow[] }) {
   );
 }
 
-function ChartLegend({ items }: { items: Array<{ color: string; label: string }> }) {
+function ChartLegend({ items }: { items: Array<{ color: string; key: string; label: string }> }) {
   if (items.length === 0) return null;
 
   return (
     <div className="dashboard-chart-legend">
       {items.map((item) => (
         <div
-          key={`${item.color}:${item.label}`}
+          key={item.key}
           className="dashboard-chart-legend-item"
         >
           <span
@@ -294,14 +304,18 @@ export function ChartPanel({
     <ChartTooltipRows
       rows={slice.points.map((point) => ({
         color: point.seriesColor,
-        content: getTooltipContent(option, String(point.seriesId), Number(point.data.y ?? 0)),
+        content: getTooltipContent(
+          option,
+          getLineSeriesLabel(option, String(point.seriesId)),
+          Number(point.data.y ?? 0),
+        ),
       }))}
     />
   );
   const barTooltip = ({ color, id, value }: BarTooltipProps<DashboardBarDatum>) => (
     <ChartTooltip
       color={color}
-      content={getTooltipContent(option, String(id), value)}
+      content={getTooltipContent(option, getBarKeyLabel(option, String(id)), value)}
     />
   );
   const pieTooltip = ({ datum }: PieTooltipProps<DashboardPieDatum>) => (
@@ -480,7 +494,8 @@ export function ChartPanel({
               <ChartLegend
                 items={option.data.map((series, index) => ({
                   color: dashboardChartLegendColors[index % dashboardChartLegendColors.length],
-                  label: series.id,
+                  key: series.id,
+                  label: series.label ?? series.id,
                 }))}
               />
             ) : null}
@@ -488,7 +503,8 @@ export function ChartPanel({
               <ChartLegend
                 items={option.keys.map((key, index) => ({
                   color: dashboardChartLegendColors[index % dashboardChartLegendColors.length],
-                  label: key,
+                  key,
+                  label: option.keyLabels?.[key] ?? key,
                 }))}
               />
             ) : null}
@@ -496,6 +512,7 @@ export function ChartPanel({
               <ChartLegend
                 items={option.data.map((item, index) => ({
                   color: dashboardChartLegendColors[index % dashboardChartLegendColors.length],
+                  key: item.id,
                   label: item.label,
                 }))}
               />

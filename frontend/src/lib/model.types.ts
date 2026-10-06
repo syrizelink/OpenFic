@@ -10,6 +10,8 @@ export type ProviderType = string;
 /** 任务类型 */
 export type TaskType = "llm" | "embedding" | "rerank";
 
+export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh" | "max";
+
 /** 模型服务提供商 */
 export interface ModelProvider {
   id: string;
@@ -20,6 +22,9 @@ export interface ModelProvider {
   supportedTaskTypes: TaskType[];
   iconPath: string | null;
   isBuiltin: boolean;
+  accountEmail: string | null;
+  accountConnected: boolean | null;
+  openaiCodexAccessEnabled: boolean | null;
   catalogMatch: ModelProviderCatalogMatch | null;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +52,9 @@ export interface ModelProviderResponse {
   supported_task_types: string[];
   icon_path: string | null;
   is_builtin?: boolean;
+  account_email?: string | null;
+  account_connected?: boolean | null;
+  openai_codex_access_enabled?: boolean | null;
   catalog_match?: {
     catalog_provider_type: string;
     display_name: string;

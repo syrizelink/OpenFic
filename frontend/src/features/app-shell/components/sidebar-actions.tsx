@@ -1,15 +1,14 @@
 import { IconButton, Tooltip, DropdownMenu } from "@radix-ui/themes";
-import { Languages, Moon, Settings, Sun } from "lucide-react";
+import { Languages, Moon, Settings, Sun, SunMoon } from "lucide-react";
 import { motion } from "motion/react";
 
-import {
-  SIDEBAR_ICON_COLOR,
-  SIDEBAR_ICON_SIZE,
-  sidebarActionButtonStyle,
-} from "./app-sidebar.constants";
+import type { ThemeMode } from "@/lib/theme";
+
+import { SIDEBAR_ICON_SIZE, sidebarActionButtonStyle } from "./app-sidebar.constants";
 
 interface SidebarActionsProps {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   isExpanded: boolean;
   shouldAnimateTheme: boolean;
   languageLabel: string;
@@ -25,6 +24,7 @@ interface SidebarActionsProps {
 
 export function SidebarActions({
   appearance,
+  themeMode,
   isExpanded,
   shouldAnimateTheme,
   languageLabel,
@@ -53,7 +53,9 @@ export function SidebarActions({
             <DropdownMenu.Trigger>
               <IconButton
                 variant="ghost"
+                color="gray"
                 size="2"
+                className="app-sidebar-action-button"
                 aria-label={languageLabel}
                 style={sidebarActionButtonStyle}
               >
@@ -88,13 +90,15 @@ export function SidebarActions({
         >
           <IconButton
             variant="ghost"
+            color="gray"
             size="2"
+            className="app-sidebar-action-button"
             onClick={onToggleTheme}
             aria-label={toggleThemeLabel}
             style={sidebarActionButtonStyle}
           >
             <motion.div
-              key={shouldAnimateTheme ? appearance : "static"}
+              key={shouldAnimateTheme ? `${themeMode}:${appearance}` : "static"}
               initial={shouldAnimateTheme ? { rotate: -90, opacity: 0 } : false}
               animate={{ rotate: 0, opacity: 1 }}
               transition={{ duration: 0.2 }}
@@ -104,7 +108,12 @@ export function SidebarActions({
                 justifyContent: "center",
               }}
             >
-              {appearance === "light" ? (
+              {themeMode === "system" ? (
+                <SunMoon
+                  size={SIDEBAR_ICON_SIZE}
+                  color="currentColor"
+                />
+              ) : themeMode === "light" ? (
                 <Moon
                   size={SIDEBAR_ICON_SIZE}
                   color="currentColor"
@@ -130,13 +139,12 @@ export function SidebarActions({
         >
           <IconButton
             variant="ghost"
+            color="gray"
             size="2"
+            className="app-sidebar-action-button"
             onClick={onOpenSettings}
             aria-label={settingsLabel}
-            style={{
-              ...sidebarActionButtonStyle,
-              color: SIDEBAR_ICON_COLOR,
-            }}
+            style={sidebarActionButtonStyle}
           >
             <Settings
               size={SIDEBAR_ICON_SIZE}

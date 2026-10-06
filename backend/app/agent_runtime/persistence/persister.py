@@ -183,6 +183,17 @@ class MessagePersister:
             return
 
         output = event.get("data", {}).get("output")
+        additional_kwargs = getattr(output, "additional_kwargs", None)
+        responses_output = (
+            additional_kwargs.get("responses_output")
+            if isinstance(additional_kwargs, dict)
+            else None
+        )
+        metadata = (
+            {"responses_output": responses_output}
+            if isinstance(responses_output, list) and responses_output
+            else {}
+        )
         content = "".join(buf.content_parts) or self._extract_output_content(output)
         reasoning = "".join(buf.reasoning_parts) or self._extract_output_reasoning(
             output
@@ -192,7 +203,7 @@ class MessagePersister:
         if not tool_calls:
             tool_calls = self._extract_output_tool_calls(output, run_id=run_id)
 
-        if not content and not reasoning and not tool_calls:
+        if not content and not reasoning and not tool_calls and not metadata:
             return
 
         await self._write(
@@ -203,6 +214,7 @@ class MessagePersister:
             reasoning_duration_ms=reasoning_duration_ms,
             tool_calls=tool_calls or None,
             agent_id=buf.agent_id,
+            metadata=metadata,
         )
 
         for tool_call in tool_calls:

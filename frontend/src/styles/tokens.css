@@ -14,6 +14,26 @@
   --font-size-2xl: 24px;
   --font-size-3xl: 28px;
   --font-size-editor: 16px;
+  --theme-background: var(--gray-1);
+  --theme-sidebar-background: var(--gray-2);
+  --theme-panel-background: var(--gray-1);
+  --theme-editor-background: var(--gray-1);
+  --theme-editor-bar-background: var(--gray-a2);
+  --theme-status-bar-background: var(--gray-2);
+  --theme-input-background: var(--gray-2);
+  --theme-foreground: var(--gray-12);
+  --theme-muted-foreground: var(--gray-11);
+  --theme-border: var(--gray-6);
+  --theme-border-subtle: var(--gray-4);
+  --theme-hover-background: var(--gray-3);
+  --theme-list-hover-background: var(--gray-a2);
+  --theme-selection-background: var(--accent-a4);
+  --theme-selection-foreground: var(--gray-12);
+  --theme-accent: var(--accent-9);
+  --theme-accent-foreground: var(--accent-contrast);
+  --theme-accent-hover: var(--accent-10);
+  --theme-link: var(--accent-9);
+  --theme-link-hover: var(--accent-10);
   font-family: var(--app-font-family);
   line-height: 1.5;
   font-weight: 400;
@@ -21,30 +41,18 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --radius: 0.625rem;
 }
 
-.dark,
-[data-theme="dark"] {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --radius: 0.625rem;
+.radix-themes {
+  --background: var(--theme-background);
+  --foreground: var(--theme-foreground);
+  --card: var(--theme-panel-background);
+  --card-foreground: var(--theme-foreground);
+  --muted: var(--theme-hover-background);
+  --muted-foreground: var(--theme-muted-foreground);
+  --border: var(--theme-border);
+  --input: var(--theme-input-background);
+  --primary: var(--theme-accent);
+  --primary-foreground: var(--theme-accent-foreground);
+  --radius: var(--radius-3);
 }

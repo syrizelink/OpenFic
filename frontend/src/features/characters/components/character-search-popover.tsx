@@ -326,6 +326,8 @@ export function CharacterSearchPopover({
                 </Text>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={handleToggleAll}
                   title={allCollapsed ? t("characters.expandAll") : t("characters.collapseAll")}

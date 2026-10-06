@@ -5,7 +5,6 @@ import socketio  # type: ignore[import-untyped]
 from loguru import logger
 
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
-from app.api.routers.chapter_context import build_summary_realtime_snapshot
 from app.core.errors import NotFoundError
 from app.storage.database import create_session
 from app.storage.services import task_service
@@ -223,6 +222,8 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         await sio.emit("background:joined", {"project_id": project_id}, to=sid)
         session = await create_session()
         try:
+            from app.api.routers.chapter_context import build_summary_realtime_snapshot
+
             snapshot = await build_summary_realtime_snapshot(
                 session,
                 project_id,

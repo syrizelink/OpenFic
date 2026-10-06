@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { ConfirmDialog, PanelLayoutLoading, PromptChainDialog } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import { fetchPromptChainsMetadata, compilePromptChain, resetPromptChain } from "@/lib/api-client";
 import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types";
@@ -26,8 +27,6 @@ import { EntriesSidebar } from "../components/entries-sidebar";
 import { PromptEditor } from "../components/prompt-editor";
 import { VersionHistorySidebar } from "../components/version-history-sidebar";
 import { usePromptChain } from "../hooks/use-prompt-chain";
-
-const MotionBox = motion.create(Box);
 
 const DEFAULT_PROMPT_ID = "builtin-agent--explore";
 const VERSION_HISTORY_COLLAPSED_SIZE = 36;
@@ -86,6 +85,12 @@ export function PromptChainsPage() {
 
   const { isMobile } = useAppShell();
   const [mobileEntriesOpen, setMobileEntriesOpen] = useState(false);
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: mobileEntriesOpen,
+    onOpen: () => setMobileEntriesOpen(true),
+    onClose: () => setMobileEntriesOpen(false),
+  });
   const [isVersionHistoryCollapsed, setIsVersionHistoryCollapsed] = useState(false);
   const versionHistoryPanelRef = useRef<PanelImperativeHandle | null>(null);
   const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
@@ -339,7 +344,10 @@ export function PromptChainsPage() {
   );
 
   return (
-    <Box className="prompt-chains-page-root">
+    <Box
+      {...mobileSidebarSwipeRef}
+      className="prompt-chains-page-root mobile-sidebar-swipe-surface"
+    >
       {/* 主内容区 - resizable panels */}
       <Box className="prompt-chains-page-main">
         {!isMobile && panelLayout.isLoaded ? (
@@ -414,6 +422,8 @@ export function PromptChainsPage() {
                 <Tooltip content={t("promptChains.viewEntries")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="2"
                     aria-label={t("promptChains.viewEntries")}
                     onClick={() => setMobileEntriesOpen((prev) => !prev)}
@@ -468,15 +478,12 @@ export function PromptChainsPage() {
               style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
             />
 
-            <MotionBox
-              initial={false}
-              animate={{ x: mobileEntriesOpen ? 0 : -320 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="prompt-chains-page-mobile-sidebar-overlay"
-              style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
+            <Box
+              className="mobile-sidebar-sheet prompt-chains-page-mobile-sidebar-overlay"
+              data-open={String(mobileEntriesOpen)}
             >
               <Box className="prompt-chains-page-mobile-sidebar-sheet">{sidebarContent}</Box>
-            </MotionBox>
+            </Box>
           </>
         )}
       </Box>
