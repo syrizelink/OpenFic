@@ -19,6 +19,7 @@ export interface MarkdownEditorProps {
   onContentChange: (markdown: string) => void;
   onSave: () => void;
   isSaving?: boolean;
+  isSaveBlocked?: boolean;
   hasChanges?: boolean;
   isLocked?: boolean;
   onLockedAction?: () => void;
@@ -73,6 +74,7 @@ export function MarkdownEditor({
   onContentChange,
   onSave,
   isSaving = false,
+  isSaveBlocked = false,
   hasChanges = false,
   isLocked = false,
   onLockedAction,
@@ -90,8 +92,10 @@ export function MarkdownEditor({
   onScrollPositionChange,
 }: MarkdownEditorProps) {
   const { t } = useTranslation();
-  const contentSyncedRef = useRef(content);
-  const initialContentRef = useRef(content);
+  // Multipart form submissions normalize line endings to CRLF.
+  const normalizedContent = useMemo(() => content.replace(/\r\n?/g, "\n"), [content]);
+  const contentSyncedRef = useRef(normalizedContent);
+  const initialContentRef = useRef(normalizedContent);
   const onSaveRef = useRef(onSave);
   const onLockedActionRef = useRef(onLockedAction);
   const isLockedRef = useRef(isLocked);
@@ -218,11 +222,14 @@ export function MarkdownEditor({
   useEffect(() => {
     const currentEditor = editorRef.current;
     if (!currentEditor) return;
-    if (content === contentSyncedRef.current) return;
+    if (normalizedContent === contentSyncedRef.current) return;
 
-    contentSyncedRef.current = content;
-    currentEditor.commands.setContent(content, { contentType: "markdown", emitUpdate: false });
-  }, [content, editor]);
+    contentSyncedRef.current = normalizedContent;
+    currentEditor.commands.setContent(normalizedContent, {
+      contentType: "markdown",
+      emitUpdate: false,
+    });
+  }, [normalizedContent, editor]);
 
   const flushScrollPosition = useCallback(() => {
     if (scrollPositionTimerRef.current) {
@@ -294,10 +301,10 @@ export function MarkdownEditor({
   );
 
   const handleTitleBlur = useCallback(() => {
-    if (hasChanges && !isLocked) {
+    if (hasChanges && !isLocked && !isSaveBlocked) {
       onSave();
     }
-  }, [hasChanges, isLocked, onSave]);
+  }, [hasChanges, isLocked, isSaveBlocked, onSave]);
 
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
   const wordCount = externalWordCount ?? editor?.storage.characterCount?.characters() ?? 0;

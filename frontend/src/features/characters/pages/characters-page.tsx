@@ -92,6 +92,8 @@ export function CharactersPage() {
     agentStatus: "idle",
     isAgentRunning: false,
   });
+  const assistantStateRef = useRef(assistantState);
+  assistantStateRef.current = assistantState;
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
   const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
   const isCreatingCharacterRef = useRef(false);
@@ -181,7 +183,7 @@ export function CharactersPage() {
 
   const { data: selectedCharacter, isLoading: isCharacterLoading } = useQuery({
     queryKey: ["character", currentCharacterId, selectedCharacterLoadVersion],
-    queryFn: () => fetchCharacter(currentCharacterId!),
+    queryFn: ({ signal }) => fetchCharacter(currentCharacterId!, signal),
     enabled: !!currentCharacterId,
     staleTime: 0,
     gcTime: 0,
@@ -272,8 +274,10 @@ export function CharactersPage() {
       characterId: string;
       data: Parameters<typeof updateCharacter>[1];
     }) => updateCharacter(characterId, data),
-    onSuccess: (character) => {
+    onSuccess: async (character) => {
+      await queryClient.cancelQueries({ queryKey: ["character", character.id] }, { revert: false });
       upsertCharacterCache(toCharacterListItem(character));
+      queryClient.setQueriesData({ queryKey: ["character", character.id] }, character);
       queryClient.setQueryData(
         ["character", character.id, selectedCharacterLoadVersion],
         character,
@@ -434,15 +438,15 @@ export function CharactersPage() {
             <CharacterEditor
               key={selectedCharacter?.id ?? "empty"}
               character={selectedCharacter ?? null}
-              isSaving={updateMutation.isPending}
               isLoading={shouldShowCharacterEditorLoading(
                 Boolean(selectedCharacter),
                 isCharacterLoading,
               )}
               isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
+              canSave={() => !assistantStateRef.current.isAgentRunning}
               onSave={async (data) => {
-                if (!selectedCharacter) return;
-                await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
+                if (!selectedCharacter) return null;
+                return updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
               }}
             />
           </Box>

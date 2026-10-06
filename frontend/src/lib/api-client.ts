@@ -393,8 +393,11 @@ export async function fetchCharactersByProject(projectId: string): Promise<Chara
   };
 }
 
-export async function fetchCharacter(characterId: string): Promise<Character> {
-  const response = await apiClient.get(`/characters/${characterId}`);
+export async function fetchCharacter(
+  characterId: string,
+  signal?: AbortSignal,
+): Promise<Character> {
+  const response = await apiClient.get(`/characters/${characterId}`, { signal });
   return transformCharacter(response.data);
 }
 
@@ -1622,8 +1625,11 @@ export async function fetchWorldInfoEntries(
 /**
  * 获取单个条目
  */
-export async function fetchWorldInfoEntry(entryId: string): Promise<WorldInfoEntry> {
-  const response = await apiClient.get(`/world-info-entries/${entryId}`);
+export async function fetchWorldInfoEntry(
+  entryId: string,
+  signal?: AbortSignal,
+): Promise<WorldInfoEntry> {
+  const response = await apiClient.get(`/world-info-entries/${entryId}`, { signal });
   return transformWorldInfoEntry(response.data);
 }
 
