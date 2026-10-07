@@ -536,6 +536,10 @@ class TestAgentAPI:
                 "key": "web_fetch",
                 "is_readonly": True,
             },
+            {
+                "key": "reorder_chapters",
+                "is_readonly": False,
+            },
         ]
 
     async def test_create_agent_session_success(self, client: AsyncClient, session) -> None:

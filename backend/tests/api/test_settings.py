@@ -60,6 +60,7 @@ EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "read_world_entry", "mode": "allow"},
     {"tool_name": "recycle_subagent", "mode": "allow"},
     {"tool_name": "reference_skill", "mode": "allow"},
+    {"tool_name": "reorder_chapters", "mode": "ask"},
     {"tool_name": "search_chapters", "mode": "allow"},
     {"tool_name": "update_index", "mode": "allow"},
     {"tool_name": "web_fetch", "mode": "allow"},

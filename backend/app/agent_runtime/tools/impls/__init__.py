@@ -10,6 +10,7 @@ import app.agent_runtime.tools.impls.chapter.create_volume  # noqa: F401
 import app.agent_runtime.tools.impls.chapter.edit_volume  # noqa: F401
 import app.agent_runtime.tools.impls.chapter.delete_volume  # noqa: F401
 import app.agent_runtime.tools.impls.chapter.move_chapter_to_volume  # noqa: F401
+import app.agent_runtime.tools.impls.chapter.reorder_chapters  # noqa: F401
 import app.agent_runtime.tools.impls.context.read_chapter_summaries  # noqa: F401
 import app.agent_runtime.tools.impls.context.read_range_summaries  # noqa: F401
 import app.agent_runtime.tools.impls.context.character  # noqa: F401
