@@ -14,6 +14,20 @@
 
 ![Demo Screenshot](./demo.png)
 
+## Sponsors
+
+![Infistar Banner](docs/sponsors/infistar.png)
+
+**OpenFic × Infistar.cc | Highly Available API for All Models**
+
+Thanks to [Infistar.cc](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link) for sponsoring this project.
+
+- ⚡ **Reliable, enterprise-grade model services**: transparent pricing starting at just 1% of official rates, with multi-node redundancy to reduce rate limits and timeout interruptions during long-form writing
+- 🔀 **Easy access to leading models**: native compatibility with OpenFic lets you use ChatGPT, Claude, Gemini, Kimi, GLM, DeepSeek, and more with a single API key, so you can quickly choose suitable models for each Agent role
+- 📚 **Support for content retrieval**: Embedding and Rerank models enable fast indexing and queries for projects that require very long contexts
+
+🎁 **Exclusive benefits for OpenFic users**: register through our [exclusive referral link](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link) to receive $5 in trial credits and a special offer on your first top-up, and try the API service right away!
+
 ## When to Use OpenFic
 
 > [!Tip]  

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="infistar-brand-mark" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <clipPath id="infistar-brand-ring-back">
+      <path clip-rule="evenodd" d="M-400-400H1424V1424H-400Z M342 512a170 170 0 1 0 340 0a170 170 0 1 0-340 0Z"/>
+    </clipPath>
+    <clipPath id="infistar-brand-ring-front">
+      <rect x="-400" y="512" width="1824" height="1000" transform="rotate(-27 512 512)"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="11" fill="currentColor"/>
+  <g class="infistar-brand-symbol" transform="scale(0.0625)" fill="none" stroke="white" stroke-width="72" stroke-linecap="round">
+    <ellipse cx="512" cy="512" rx="325" ry="88" transform="rotate(-27 512 512)" clip-path="url(#infistar-brand-ring-back)"/>
+    <circle cx="512" cy="512" r="206"/>
+    <g clip-path="url(#infistar-brand-ring-front)">
+      <ellipse cx="512" cy="512" rx="325" ry="88" transform="rotate(-27 512 512)"/>
+    </g>
+  </g>
+</svg>

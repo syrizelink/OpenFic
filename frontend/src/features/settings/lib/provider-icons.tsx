@@ -11,6 +11,8 @@ import { Spinner } from "@/components";
 import { scheduleProviderIconRequest } from "./provider-icon-request-queue";
 import { getProviderIconUrl } from "./provider-icon-url";
 
+import "./provider-icons.css";
+
 /**
  * 提供商图标组件
  */

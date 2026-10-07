@@ -54,6 +54,7 @@ class AdapterRegistry:
         "openrouter": OpenRouterAdapter,
         "amazon-nova": AmazonNovaAdapter,
         "openai-compatible": OpenAICompatibleAdapter,
+        "infistar": OpenAICompatibleAdapter,
         "openai-compatible-responses": OpenAIResponsesCompatibleAdapter,
         **{
             provider_type: AnthropicCompatibleAdapter

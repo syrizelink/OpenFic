@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Models.dev-backed provider catalog with bundled snapshot fallback."""
+"""Models.dev-backed provider catalog with local additions and snapshot fallback."""
 
 from __future__ import annotations
 
@@ -70,6 +70,20 @@ _PROVIDER_BY_MODELS_DEV_ID = {
     definition.models_dev_provider_id: definition for definition in _PROVIDER_DEFINITIONS
 }
 _REGISTERED_PROVIDER_TYPES = frozenset(AdapterRegistry.list_providers())
+# Providers missing from Models.dev. Model IDs remain discoverable via /v1/models.
+_LOCAL_PROVIDERS: tuple[dict[str, Any], ...] = (
+    {
+        "provider_type": "infistar",
+        "display_name": "Infistar",
+        "default_url": "https://infistar.cc/v1",
+        "api": "https://infistar.cc/v1",
+        "icon_path": "/icons/model/catalog/infistar.svg",
+        "models_dev_provider_id": None,
+        "supported_task_types": ["embedding", "llm", "rerank"],
+        "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
+        "models": [],
+    },
+)
 _EMBEDDING_FAMILIES = {
     "text-embedding",
     "mistral-embed",
@@ -274,7 +288,11 @@ class ModelProviderCatalogService:
                     if self.cache_metadata_path.exists()
                     else {}
                 )
-                result = snapshot, "cache", metadata.get("last_refreshed_at")
+                result = (
+                    self._with_local_providers(snapshot),
+                    "cache",
+                    metadata.get("last_refreshed_at"),
+                )
                 _SNAPSHOT_CACHE[(cache_path, cache_mtime)] = result
                 return result
             except Exception as exc:
@@ -288,9 +306,37 @@ class ModelProviderCatalogService:
         snapshot = self._read_json(bundled_path)
         if not self._is_current_snapshot(snapshot):
             raise ValueError("Bundled catalog snapshot schema is outdated")
-        result = snapshot, "bundled", None
+        result = self._with_local_providers(snapshot), "bundled", None
         _SNAPSHOT_CACHE[(bundled_path, bundled_mtime)] = result
         return result
+
+    @staticmethod
+    def _with_local_providers(snapshot: dict[str, Any]) -> dict[str, Any]:
+        local_providers = {
+            provider["provider_type"]: provider for provider in _LOCAL_PROVIDERS
+        }
+        provider_types = {
+            provider["provider_type"] for provider in snapshot.get("providers", [])
+        }
+        return {
+            **snapshot,
+            "providers": [
+                *(
+                    {
+                        **provider,
+                        "icon_path": local_providers[provider["provider_type"]]["icon_path"],
+                    }
+                    if provider["provider_type"] in local_providers
+                    else provider
+                    for provider in snapshot.get("providers", [])
+                ),
+                *(
+                    provider
+                    for provider in _LOCAL_PROVIDERS
+                    if provider["provider_type"] not in provider_types
+                ),
+            ],
+        }
 
     def _find_provider(
         self, snapshot: dict[str, Any], provider_type: str
@@ -377,10 +423,12 @@ class ModelProviderCatalogService:
             }
             providers.append(provider_payload)
 
-        return {
-            "schema_version": _SNAPSHOT_SCHEMA_VERSION,
-            "providers": providers,
-        }
+        return self._with_local_providers(
+            {
+                "schema_version": _SNAPSHOT_SCHEMA_VERSION,
+                "providers": providers,
+            }
+        )
 
     def _bundled_provider_urls(self) -> dict[str, str]:
         bundled_snapshot = self._read_json(self.bundled_snapshot_path)

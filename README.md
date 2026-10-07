@@ -17,6 +17,21 @@
 ![Demo Screenshot](./demo.png)
 
 
+## 赞助商
+
+![Infistar Banner](docs/sponsors/infistar.png)
+
+**OpenFic × Infistar.cc 无限星河｜高可用全模型 API**
+
+感谢 [Infistar.cc 无限星河](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link) 赞助本项目
+
+- ⚡ **企业级稳定模型服务**：低至官方渠道 0.1 折起，价格公开透明，多节点冗余保障，有效降低长篇写作时的限流与超时中断
+- 🔀 **一键接入主流模型**：原生兼容 OpenFic，一个 API Key 即可调用 ChatGPT、Claude、Gemini、Kimi、GLM、DeepSeek 等主流模型，快速为各角色 Agent 配置合适的模型
+- 📚 **助力内容检索**：支持 Embedding、Rerank 模型，满足各类超长上下文场景的高速索引与查询需求
+
+🎁 **OpenFic 用户专属福利**：即刻通过 [专属推广链接](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link) 注册立领 $5 体验额度以及首充专属优惠，快速体验便捷高效的 API 服务！
+
+
 ## 何时使用
 
 > [!Tip]  

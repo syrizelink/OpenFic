@@ -217,13 +217,14 @@ async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Pat
     providers = await service.list_providers()
 
     assert [provider.provider_type for provider in providers] == [
+        "infistar",
         "nvidia-ai-endpoints",
         "ollama",
         "openai",
         "openrouter",
         "upstage",
     ]
-    assert providers[2].icon_path == _OPENAI_ICON_URL
+    assert (await service.get_provider("openai")).icon_path == _OPENAI_ICON_URL
 
 
 @pytest.mark.asyncio
@@ -237,8 +238,8 @@ async def test_catalog_service_refreshes_cache_and_keeps_last_successful_cache_o
     refreshed_metadata = json.loads(service.cache_metadata_path.read_text(encoding="utf-8"))
     assert refreshed_metadata["last_refreshed_at"]
 
-    providers = await service.list_providers()
-    assert providers[0].supported_task_types == ["embedding", "llm", "rerank"]
+    provider = await service.get_provider("nvidia-ai-endpoints")
+    assert provider.supported_task_types == ["embedding", "llm", "rerank"]
 
     assert service.source_snapshot_path is not None
     service.source_snapshot_path.write_text("{", encoding="utf-8")
