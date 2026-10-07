@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
-from langgraph.types import Command
+from langgraph.types import Command, Overwrite
 from loguru import logger
 from sqlalchemy import select
 
@@ -1144,10 +1144,14 @@ class SubagentRunner:
         graph_input: Any
         if resume_payload is None:
             graph_input = {
-                "messages": build_child_messages(
-                    history,
-                    content=request_row.content,
-                    request_seq=request_row.child_user_message_seq,
+                # History is a complete snapshot; replace checkpoint messages
+                # instead of appending a second copy through the graph reducer.
+                "messages": Overwrite(
+                    build_child_messages(
+                        history,
+                        content=request_row.content,
+                        request_seq=request_row.child_user_message_seq,
+                    )
                 ),
                 "iteration_count": 0,
                 "is_done": False,

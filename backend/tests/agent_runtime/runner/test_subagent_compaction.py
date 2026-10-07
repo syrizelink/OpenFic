@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -122,6 +123,97 @@ def test_current_persisted_request_is_included_once():
     assert len(build_child_messages([], content="legacy request")) == 1
 
 
+@pytest.mark.asyncio
+async def test_notify_replaces_checkpoint_history_and_keeps_compacted_body_hidden(
+    monkeypatch,
+):
+    from langchain_core.messages import AIMessage
+    from langgraph.checkpoint.memory import MemorySaver
+    from app.agent_runtime.context.settings import ContextSettings
+    from app.agent_runtime.graph.react_agent import create_react_agent
+    from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+
+    old_body = "old output " * 100
+    history = [
+        HumanMessage(content="request", response_metadata={"openfic_seq": 0}),
+        AIMessage(content=old_body, response_metadata={"openfic_seq": 1}),
+        AIMessage(content="recent output", response_metadata={"openfic_seq": 2}),
+    ]
+    compaction = PersistedCompaction(
+        id="cmp", session_id="child", task_id="task", project_id="project",
+        start_seq=1, end_seq=1, summary="summary", trigger="auto",
+        source_input_tokens=1000, summary_tokens=1, created_at=datetime.now(UTC),
+    )
+    captured = []
+
+    async def build_parts(**kwargs):
+        return apply_compaction_overlay(
+            await build_history(kwargs["node_messages"]), [compaction]
+        )
+
+    async def invoke(_model, messages, **kwargs):
+        captured.append([message.content for message in messages])
+        return AIMessage(content="done")
+
+    prefix = "app.agent_runtime.graph.react_agent."
+    monkeypatch.setattr(prefix + "build_context_parts", build_parts)
+    monkeypatch.setattr(prefix + "maybe_auto_compact", AsyncMock(return_value=False))
+    monkeypatch.setattr(
+        prefix + "load_context_settings", AsyncMock(return_value=ContextSettings())
+    )
+    monkeypatch.setattr(prefix + "_invoke_model", invoke)
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="writer", tools=[],
+            termination=TerminationCondition(mode="no_tool_call"),
+        ),
+        model=Mock(), checkpointer=MemorySaver(),
+    )
+    runtime_state = {
+        "session_id": "child", "model_config": {"max_context_tokens": 10000},
+    }
+    config = {"configurable": {
+        "thread_id": "child", "runtime_state": runtime_state,
+        "db_session": AsyncMock(),
+    }}
+    # Seed a real checkpoint containing the original, uncompressed messages.
+    await graph.ainvoke({"messages": list(history), "iteration_count": 0}, config)
+
+    runner = SubagentRunner(session_factory=Mock(), model_config={}, project_id="project")
+    row = SimpleNamespace(
+        id="run", child_thread_id="child", parent_task_id="task",
+        parent_session_id="parent", agent_key="writer",
+    )
+    monkeypatch.setattr(runner, "_load_agent_definition", AsyncMock())
+    monkeypatch.setattr(runner, "_load_history", AsyncMock(side_effect=lambda *_: list(history)))
+    monkeypatch.setattr(runner, "_build_runtime_state", AsyncMock(return_value=runtime_state))
+    monkeypatch.setattr(runner, "_build_graph", AsyncMock(return_value=(graph, {})))
+    monkeypatch.setattr(runner, "_complete_request", AsyncMock(return_value=row))
+    monkeypatch.setattr(runner, "_publish_parent_subagent_status_row", AsyncMock())
+
+    async def invoke_graph(_row, _graph, _model_config, graph_input, *_args):
+        return await _graph.ainvoke(graph_input, config)
+
+    monkeypatch.setattr(runner, "_invoke_graph", invoke_graph)
+    for seq in (4, 6):
+        history.extend([
+            AIMessage(content="done", response_metadata={"openfic_seq": seq - 1}),
+            HumanMessage(content=f"notify-{seq}", response_metadata={"openfic_seq": seq}),
+        ])
+        request = SimpleNamespace(
+            id=f"request-{seq}", content=f"notify-{seq}",
+            child_user_message_seq=seq, parent_revision_id=None, request_kind="notify",
+        )
+        result = await runner._run_request(row, request)
+        assert result["assistant_content"] == "done"
+        assert captured[-1] == [
+            "request", "<compaction-summary>\nsummary\n</compaction-summary>",
+            *[message.content for message in history[2:]],
+        ]
+        snapshot = await graph.aget_state(config)
+        assert len(snapshot.values["messages"]) == len(history) + 1
+
+
 def test_parallel_tool_completion_order_does_not_lose_sequence_numbers():
     messages = [
         {
@@ -144,6 +236,56 @@ def test_parallel_tool_completion_order_does_not_lose_sequence_numbers():
         ],
     )
     assert [message["metadata"]["seq"] for message in messages] == [1, 3, 2]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("approved", [True, False])
+async def test_overwritten_child_history_survives_checkpoint_approval_resume(
+    monkeypatch, approved,
+):
+    from langchain_core.messages import AIMessage
+    from langchain_core.tools import StructuredTool
+    from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.types import Command, Overwrite, interrupt
+    from app.agent_runtime.graph.react_agent import create_react_agent
+    from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+
+    async def approval() -> str:
+        response = interrupt({"type": "tool_approval"})
+        return "approved" if response["approved"] else "denied"
+
+    tool = StructuredTool.from_function(
+        coroutine=approval, name="approval", description="Request approval"
+    )
+    responses = iter([
+        AIMessage(content="", tool_calls=[{
+            "id": "call", "name": "approval", "args": {},
+        }]),
+        AIMessage(content="done"),
+    ])
+
+    async def invoke(*args, **kwargs):
+        return next(responses)
+
+    monkeypatch.setattr("app.agent_runtime.graph.react_agent._invoke_model", invoke)
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="writer", tools=[tool],
+            termination=TerminationCondition(mode="no_tool_call"),
+        ),
+        model=Mock(), checkpointer=MemorySaver(),
+    )
+    config = {"configurable": {"thread_id": "child-approval"}}
+    paused = await graph.ainvoke({
+        "messages": Overwrite([HumanMessage(content="task")]), "iteration_count": 0,
+    }, config)
+    assert paused["__interrupt__"]
+
+    resumed = await graph.ainvoke(Command(resume={"approved": approved}), config)
+    assert [(message.type, message.content) for message in resumed["messages"]] == [
+        ("human", "task"), ("ai", ""),
+        ("tool", "approved" if approved else "denied"), ("ai", "done"),
+    ]
 
 
 @pytest.mark.asyncio
