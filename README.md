@@ -19,7 +19,7 @@
 
 ## 赞助商
 
-![Infistar Banner](docs/sponsors/infistar.png)
+[![Infistar Banner](docs/sponsors/infistar.png)](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link)
 
 **OpenFic × Infistar.cc 无限星河｜高可用全模型 API**
 

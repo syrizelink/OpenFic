@@ -16,7 +16,7 @@
 
 ## Sponsors
 
-![Infistar Banner](docs/sponsors/infistar.png)
+[![Infistar Banner](docs/sponsors/infistar.png)](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source=link)
 
 **OpenFic × Infistar.cc | Highly Available API for All Models**
 
