@@ -772,6 +772,9 @@ def create_react_agent(
 
         if isinstance(runtime_state, Mapping) and db_session is not None:
             node_messages = [_to_history_dict(m) for m in state["messages"]]
+            history_seq_resolver = configurable.get("history_seq_resolver")
+            if callable(history_seq_resolver):
+                await _maybe_await(history_seq_resolver(node_messages))
             runtime_context = configurable.get("runtime_context")
             effective_runtime_state = dict(runtime_state)
             if isinstance(runtime_context, Mapping):

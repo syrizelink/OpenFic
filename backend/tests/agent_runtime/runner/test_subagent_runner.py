@@ -649,6 +649,8 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
             configurable = config["configurable"]
             assert callable(configurable["agent_event_sink"])
             assert callable(configurable["compaction_usage_sink"])
+            assert configurable["model_config"]["max_context_tokens"] == 8000
+            assert callable(configurable["history_seq_resolver"])
 
             await configurable["agent_event_sink"](
                 "agent:compaction_start",

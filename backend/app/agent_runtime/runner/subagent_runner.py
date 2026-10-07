@@ -6,9 +6,10 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langgraph.types import Command
 from loguru import logger
+from sqlalchemy import select
 
 from app.agent_runtime.agents.definitions import (
     AgentDefinition,
@@ -17,10 +18,12 @@ from app.agent_runtime.agents.definitions import (
 from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.context.helpers import extract_referenced_skill_ids
+from app.agent_runtime.context.pruning import OLD_TOOL_OUTPUT_PLACEHOLDER
 from app.agent_runtime.graph.llm_invoke import format_error_message
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
-from app.agent_runtime.persistence import MessagePersister
+from app.agent_runtime.persistence import MessagePersister, repo
+from app.agent_runtime.persistence.types import PersistedMessage
 from app.agent_runtime.persistence.child_runs import (
     claim_next_child_run_request,
     complete_child_run_request,
@@ -82,8 +85,75 @@ _SUBAGENT_RESTRICTED_TOOL_NAMES = frozenset(
 )
 
 
-def build_child_messages(history: list[BaseMessage], *, content: str) -> list[BaseMessage]:
+def build_child_messages(
+    history: list[BaseMessage], *, content: str, request_seq: int | None = None
+) -> list[BaseMessage]:
+    if request_seq is not None and any(
+        message.response_metadata.get("openfic_seq") == request_seq
+        for message in history
+    ):
+        return history
     return [*history, HumanMessage(content=content)]
+
+
+def _annotate_child_history(
+    messages: list[dict], persisted: list[PersistedMessage]
+) -> None:
+    """Add persisted sequence numbers without replacing graph messages or bodies."""
+    lower_bound = -1
+    for message in messages:
+        metadata = message.setdefault("metadata", {})
+        if type(metadata.get("seq")) is int:
+            lower_bound = max(lower_bound, metadata["seq"])
+            continue
+        candidates = (
+            sorted(
+                persisted,
+                key=lambda row: (row.status != "aborted", row.seq),
+                reverse=True,
+            )
+            if message.get("role") == "tool"
+            else persisted
+        )
+        for row in candidates:
+            if row.role != message.get("role"):
+                continue
+            if row.role != "tool" and row.seq <= lower_bound:
+                continue
+            if row.llm_visibility != "visible" or row.message_type not in {
+                "message",
+                "user_request",
+            }:
+                continue
+            if row.status == "pending":
+                continue
+            if row.role == "tool":
+                matches = (
+                    bool(row.tool_call_id)
+                    and row.tool_call_id == message.get("tool_call_id")
+                )
+            elif row.role == "assistant" and message.get("tool_calls"):
+                matches = [call.get("id") for call in row.tool_calls or []] == [
+                    call.get("id") for call in message["tool_calls"]
+                ]
+            else:
+                matches = row.content == message.get("content")
+            if matches:
+                metadata["seq"] = row.seq
+                lower_bound = max(lower_bound, row.seq)
+                break
+
+
+async def _pending_child_message_ids(session: Any, child_thread_id: str) -> set[str]:
+    result = await session.execute(
+        select(AgentChildRunRequest.child_user_message_id)
+        .join(AgentChildRun, AgentChildRun.id == AgentChildRunRequest.child_run_id)
+        .where(
+            AgentChildRun.child_thread_id == child_thread_id,
+            AgentChildRunRequest.status == "pending",
+        )
+    )
+    return {message_id for message_id in result.scalars().all() if message_id}
 
 
 def _get_referenced_skill_ids(runtime_state: dict[str, Any]) -> tuple[str, ...]:
@@ -342,12 +412,29 @@ class SubagentRunner:
         finally:
             await _close_session(session)
 
-    async def _load_history(self, child_thread_id: str) -> list[BaseMessage]:
+    async def _load_history(
+        self,
+        child_thread_id: str,
+    ) -> list[BaseMessage]:
         session = await _open_session(self.session_factory)
         try:
-            return await load_history(session, child_thread_id)
+            history = await load_history(
+                session,
+                child_thread_id,
+                include_user_requests=True,
+                exclude_message_ids=await _pending_child_message_ids(
+                    session, child_thread_id
+                ),
+            )
         finally:
             await _close_session(session)
+        for message in history:
+            if (
+                isinstance(message, ToolMessage)
+                and message.response_metadata.get("openfic_pruned") is True
+            ):
+                message.content = OLD_TOOL_OUTPUT_PLACEHOLDER
+        return history
 
     async def _load_agent_definition(self, agent_key: str) -> AgentDefinition:
         session = await _open_session(self.session_factory)
@@ -497,6 +584,16 @@ class SubagentRunner:
             normalized["parent_session_id"] = row.parent_session_id
             await self._persist_parent_task_usage_and_emit_delta(row, normalized)
 
+        async def history_seq_resolver(messages: list[dict]) -> None:
+            pending_ids = await _pending_child_message_ids(
+                runtime_session, row.child_thread_id
+            )
+            persisted = await repo.list_by_session(runtime_session, row.child_thread_id)
+            _annotate_child_history(
+                messages,
+                [message for message in persisted if message.id not in pending_ids],
+            )
+
         try:
             async for event in graph.astream_events(
                 graph_input,
@@ -512,6 +609,8 @@ class SubagentRunner:
                         "agent_event_sink": agent_event_sink,
                         "retry_event_sink": retry_event_sink,
                         "compaction_usage_sink": compaction_usage_sink,
+                        "model_config": model_config,
+                        "history_seq_resolver": history_seq_resolver,
                     },
                 },
                 version="v2",
@@ -1045,7 +1144,11 @@ class SubagentRunner:
         graph_input: Any
         if resume_payload is None:
             graph_input = {
-                "messages": build_child_messages(history, content=request_row.content),
+                "messages": build_child_messages(
+                    history,
+                    content=request_row.content,
+                    request_seq=request_row.child_user_message_seq,
+                ),
                 "iteration_count": 0,
                 "is_done": False,
                 "final_output": None,

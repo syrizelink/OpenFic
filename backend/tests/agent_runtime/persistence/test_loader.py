@@ -70,6 +70,33 @@ async def test_load_history_basic_roles_in_seq_order(
 
 
 @pytest.mark.asyncio
+async def test_load_history_includes_visible_child_user_requests(
+    db_session: AsyncSession,
+    sample_task,
+):
+    await repo.insert_message(
+        db_session,
+        session_id="child-session",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="user",
+        content="child prompt",
+        status="sent",
+        message_type="user_request",
+    )
+
+    assert await load_history(db_session, "child-session") == []
+    messages = await load_history(
+        db_session, "child-session", include_user_requests=True
+    )
+
+    assert len(messages) == 1
+    assert isinstance(messages[0], HumanMessage)
+    assert messages[0].content == "child prompt"
+    assert messages[0].response_metadata["openfic_seq"] == 0
+
+
+@pytest.mark.asyncio
 async def test_load_history_preserves_user_attachment_metadata(
     db_session: AsyncSession,
     sample_task,

@@ -20,8 +20,16 @@ from app.agent_runtime.context.processors.filter import filter_invalid
 from app.agent_runtime.context.types import ContextMessage
 
 
-def _is_llm_history_message(row: AgentRunMessage) -> bool:
-    return row.message_type == "message" and row.llm_visibility == "visible"
+def _is_llm_history_message(
+    row: AgentRunMessage, *, include_user_requests: bool = False
+) -> bool:
+    return (
+        (
+            row.message_type == "message"
+            or (include_user_requests and row.message_type == "user_request")
+        )
+        and row.llm_visibility == "visible"
+    )
 
 
 def _tool_calls(row: AgentRunMessage) -> list[dict] | None:
@@ -98,7 +106,13 @@ def _order_tool_results_by_call_order(
     return ordered
 
 
-async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMessage]:
+async def load_history(
+    db_session: AsyncSession,
+    session_id: str,
+    *,
+    include_user_requests: bool = False,
+    exclude_message_ids: set[str] | None = None,
+) -> list[BaseMessage]:
     """加载 session 历史，转成 LangChain BaseMessage 列表。
 
     规则：
@@ -122,7 +136,8 @@ async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMe
     rows = [
         r
         for r in rows
-        if _is_llm_history_message(r)
+        if _is_llm_history_message(r, include_user_requests=include_user_requests)
+        and (not exclude_message_ids or r.id not in exclude_message_ids)
         and not (r.role == "user" and r.status == "pending")
     ]
 
