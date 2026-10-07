@@ -18,7 +18,10 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_for_parent_tool_call,
 )
 from app.agent_runtime.persistence.errors import PersistenceWriteError
-from app.agent_runtime.runner.event_scope import is_subagent_child_event
+from app.agent_runtime.runner.event_scope import (
+    is_compaction_event,
+    is_subagent_child_event,
+)
 from app.agent_runtime.tools.errors import (
     ToolErrorCode,
     ToolFailure,
@@ -98,6 +101,8 @@ class MessagePersister:
         self._previewed_tool_runs: set[str] = set()
 
     async def handle(self, event: dict) -> None:
+        if is_compaction_event(event):
+            return
         if is_subagent_child_event(event) and not self._allow_subagent_child_events:
             return
 

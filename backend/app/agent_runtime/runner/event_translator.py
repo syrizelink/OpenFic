@@ -2,7 +2,10 @@ from langchain_core.messages import ToolMessage
 from langgraph.errors import GraphInterrupt
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
-from app.agent_runtime.runner.event_scope import is_subagent_child_event
+from app.agent_runtime.runner.event_scope import (
+    is_compaction_event,
+    is_subagent_child_event,
+)
 from app.agent_runtime.tools.errors import tool_failure_from_error
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
@@ -25,6 +28,8 @@ class EventTranslator:
         self._streaming_tool_calls: dict[tuple[str, int], dict[str, str]] = {}
 
     def translate(self, event: dict) -> dict | list[dict] | None:
+        if is_compaction_event(event):
+            return None
         if (
             is_subagent_child_event(event)
             and not self._allow_subagent_child_events
