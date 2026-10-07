@@ -11,6 +11,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.model import (
     AgentChildRun,
@@ -576,6 +577,11 @@ async def rollback_child_runs_for_parent_revisions(
         child_run_ids.append(child_run_id)
 
         if first_request.child_user_message_seq is not None:
+            await compaction_repo.delete_intersecting_or_after(
+                session,
+                row.child_thread_id,
+                first_request.child_user_message_seq,
+            )
             await message_repo.clear_tool_message_prune_marks(
                 session,
                 session_id=row.child_thread_id,
