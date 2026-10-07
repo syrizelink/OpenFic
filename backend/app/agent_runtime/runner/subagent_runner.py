@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langgraph.types import Command, Overwrite
 from loguru import logger
 from sqlalchemy import select
+from sqlmodel import col
 
 from app.agent_runtime.agents.definitions import (
     AgentDefinition,
@@ -146,11 +147,14 @@ def _annotate_child_history(
 
 async def _pending_child_message_ids(session: Any, child_thread_id: str) -> set[str]:
     result = await session.execute(
-        select(AgentChildRunRequest.child_user_message_id)
-        .join(AgentChildRun, AgentChildRun.id == AgentChildRunRequest.child_run_id)
+        select(col(AgentChildRunRequest.child_user_message_id))
+        .join(
+            AgentChildRun,
+            col(AgentChildRun.id) == col(AgentChildRunRequest.child_run_id),
+        )
         .where(
-            AgentChildRun.child_thread_id == child_thread_id,
-            AgentChildRunRequest.status == "pending",
+            col(AgentChildRun.child_thread_id) == child_thread_id,
+            col(AgentChildRunRequest.status) == "pending",
         )
     )
     return {message_id for message_id in result.scalars().all() if message_id}
