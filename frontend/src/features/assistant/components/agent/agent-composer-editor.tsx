@@ -255,6 +255,7 @@ export function AgentComposerEditor({
       }),
       Placeholder.configure({
         placeholder,
+        showOnlyWhenEditable: false,
       }),
       MentionNode.configure({
         onOpenMentionChapter,

@@ -82,6 +82,7 @@ import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-ma
 import { AgentInput, AgentMessages, useAgentSidebar } from "./agent";
 import { ActiveSubagentList } from "./agent/active-subagent-list";
 import { AgentSessionChangesDialog } from "./agent/agent-changes";
+import { AgentMessagesLoading } from "./agent/agent-messages";
 import { AgentSpecialPanels } from "./agent/agent-special-panels";
 import { getAgentSpecialPanels } from "./agent/agent-special-panels-state";
 import { AllTasksPage } from "./tasks/all-tasks-page";
@@ -357,6 +358,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       [],
     );
     const [isLoadingTask, setIsLoadingTask] = useState(false);
+    const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+    const [messageViewport, setMessageViewport] = useState<HTMLDivElement | null>(null);
     const [currentTaskTitle, setCurrentTaskTitle] = useState<string>("");
     const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
     const [summaryWarningOpen, setSummaryWarningOpen] = useState(false);
@@ -684,6 +687,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     }, [activeSubagents, isViewingSubagent]);
 
     const agentSidebar = useAgentSidebar({
+      onLoadingChange: setIsMessagesLoading,
       projectId,
       scrollToBottomKey: currentTaskId,
       modelId: effectiveModelId,
@@ -987,7 +991,6 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         taskId: string,
         options: {
           initialTask?: TaskListItem;
-          showSuccessToast?: boolean;
         } = {},
       ): Promise<boolean> => {
         const generation = ++taskLoadGenerationRef.current;
@@ -1083,9 +1086,6 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             ),
           }));
 
-          if (options.showSuccessToast !== false) {
-            toast.success(t("writing.aiSidebar.agentTaskLoaded"));
-          }
           setIsLoadingTask(false);
           return true;
         } catch {
@@ -1335,9 +1335,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         typeof parentEntry.taskId === "string" &&
         parentEntry.taskId
       ) {
-        const restored = await loadTaskById(parentEntry.taskId, {
-          showSuccessToast: false,
-        });
+        const restored = await loadTaskById(parentEntry.taskId);
         if (!restored) return;
       }
       setConversationState((current) => returnToPrimaryConversation(current));
@@ -1689,22 +1687,15 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           />
         ) : (
           <>
-            <Box className="ai-sidebar-messages ai-sidebar-messages--frame">
+            <Box
+              ref={setMessageViewport}
+              className="ai-sidebar-messages ai-sidebar-messages--frame"
+            >
               {isLoadingTask || (shouldShowSubagentConversation && subagentSession.isLoading) ? (
-                <Flex
-                  direction="column"
-                  align="center"
-                  justify="center"
-                  className="ai-sidebar-loading-state"
-                >
-                  <Spinner size={18} />
-                  <Text
-                    size="2"
-                    color="gray"
-                  >
-                    {t("assistant.loadingTask")}
-                  </Text>
-                </Flex>
+                <AgentMessagesLoading
+                  scrollParent={messageViewport}
+                  onLoadingChange={setIsMessagesLoading}
+                />
               ) : null}
               {agentSidebar.isRollbacking ? (
                 <Flex
@@ -1729,6 +1720,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 subagentSession.isLoading) ? null : shouldShowSubagentConversation ? (
                 <AgentMessages
                   messages={subagentSession.messages}
+                  onLoadingChange={setIsMessagesLoading}
                   onLoadEarlier={subagentSession.loadEarlier}
                   isLoadingEarlier={subagentSession.isLoadingEarlier}
                   messagesHasMore={subagentSession.messagesHasMore}
@@ -1799,7 +1791,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               models={llmModelOptions}
               reasoningEffort={reasoningEffort}
               isSending={isSendingMessage}
-              disabled={isViewingSubagent || isLoadingTask}
+              disabled={isViewingSubagent || isLoadingTask || isMessagesLoading}
               pendingMessage={isViewingSubagent ? null : agentSidebar.pendingMessage}
               isModelsLoading={isModelsLoading}
               modelsError={!!modelsError}

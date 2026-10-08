@@ -492,7 +492,6 @@
       "deleteAllTasksResultWithRunning": "Deleted {{deleted}} tasks and skipped {{skipped}} running tasks",
       "batchDeleteFailed": "Failed to delete tasks in batch: {{error}}",
       "agentTaskNotSupported": "Reopening Agent tasks is not supported yet. History is view-only.",
-      "agentTaskLoaded": "Agent task loaded",
       "agentSessionNotFound": "Agent session ID does not exist and the task cannot be restored",
       "currentTask": "Current conversation",
       "editMessage": "Edit message",

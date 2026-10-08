@@ -20,6 +20,7 @@
 .agent-message-history-status {
   min-height: 32px;
   overflow-anchor: none;
+  background: var(--color-background);
 }
 
 .agent-message-scroll-content
@@ -41,6 +42,7 @@
 }
 
 .agent-message-block[data-block-type="user"] {
+  display: flex;
   align-items: flex-end;
 }
 

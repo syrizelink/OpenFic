@@ -1308,6 +1308,16 @@
   --ai-sidebar-scroll-button-offset: 132px;
 }
 
+.ai-sidebar-shell:has(.ai-sidebar-loading-state)
+  > :is(.ai-sidebar-header, .ai-sidebar-subagent-strip-wrap) {
+  visibility: hidden;
+}
+
+.ai-sidebar-shell:has(.ai-sidebar-loading-state)
+  :is(.agent-message-navigation, .ai-sidebar-scroll-to-bottom) {
+  visibility: hidden;
+}
+
 .ai-sidebar-mobile-toolbar {
   min-height: 44px;
   padding: 4px 10px;
@@ -1378,8 +1388,11 @@
   margin: 0 12px 8px;
 }
 
-.ai-sidebar-messages--frame {
+.ai-sidebar-messages.ai-sidebar-messages--frame {
   position: relative;
+  display: flex;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
 }
 
 .ai-sidebar-recent-tasks {
@@ -1403,8 +1416,12 @@
 }
 
 .ai-sidebar-loading-state {
-  height: 100%;
-  gap: 12px;
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  z-index: 2;
+  background: var(--color-background);
+  pointer-events: none;
 }
 
 .agent-status-message {
