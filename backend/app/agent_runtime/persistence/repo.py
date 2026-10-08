@@ -1,11 +1,11 @@
 """Agent 运行时消息持久化的 CRUD。"""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import cast
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -247,6 +247,7 @@ async def list_by_sessions(
     *,
     roles: Sequence[str] | None = None,
     tool_names: Sequence[str] | None = None,
+    seq_bounds: Mapping[str, tuple[int | None, int | None]] | None = None,
 ) -> dict[str, list[PersistedMessage]]:
     """按 session 批量加载消息，并在内存中按 session 分组。"""
     normalized_ids = list(dict.fromkeys(session_id for session_id in session_ids if session_id))
@@ -256,9 +257,21 @@ async def list_by_sessions(
     if not normalized_ids:
         return {}
     try:
-        query = select(AgentRunMessage).where(
-            col(AgentRunMessage.session_id).in_(normalized_ids)
-        )
+        if seq_bounds:
+            session_scopes = []
+            for session_id in normalized_ids:
+                scope = [col(AgentRunMessage.session_id) == session_id]
+                start_seq, end_seq = seq_bounds.get(session_id, (None, None))
+                if start_seq is not None:
+                    scope.append(col(AgentRunMessage.seq) >= start_seq)
+                if end_seq is not None:
+                    scope.append(col(AgentRunMessage.seq) < end_seq)
+                session_scopes.append(and_(*scope))
+            query = select(AgentRunMessage).where(or_(*session_scopes))
+        else:
+            query = select(AgentRunMessage).where(
+                col(AgentRunMessage.session_id).in_(normalized_ids)
+            )
         if roles and normalized_tool_names:
             query = query.where(
                 or_(

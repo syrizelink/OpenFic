@@ -190,6 +190,39 @@ def test_includes_subagent_changes_in_parent_turn_and_session_summary():
     assert any(item.child_run_id == "child-1" for item in result.session_changes.items)
 
 
+def test_summary_projection_skips_diff_sections():
+    result = build_agent_changes(
+        "parent-session",
+        parent_messages=[
+            _message(
+                message_id="user-1",
+                session_id="parent-session",
+                role="user",
+                seq=0,
+                metadata={"revision_id": "revision-1"},
+            ),
+            _message(
+                message_id="tool-1",
+                session_id="parent-session",
+                role="tool",
+                seq=1,
+                content=_chapter_result("chapter-1", "新增正文"),
+                tool_name="edit_chapter",
+                tool_call_id="tool-call-1",
+            ),
+        ],
+        child_runs=[],
+        child_requests=[],
+        child_messages=[],
+        revisions=[_revision("revision-1", "user-1", 0)],
+        include_details=False,
+    )
+
+    item = result.session_changes.items[0]
+    assert item.sections == []
+    assert "sections" not in result.to_payload(include_details=False)["session_changes"]["items"][0]
+
+
 def test_assigns_reused_subagent_requests_to_their_parent_turns():
     child_run = _child_run()
     result = build_agent_changes(
@@ -843,6 +876,60 @@ def test_keeps_executed_changes_from_cancelled_revision():
 
 
 @pytest.mark.asyncio
+async def test_loads_only_requested_revision_range(
+    session,
+):
+    session.add_all(
+        [
+            _message(
+                message_id="user-1",
+                session_id="parent-session",
+                role="user",
+                seq=0,
+                metadata={"revision_id": "revision-1"},
+            ),
+            _message(
+                message_id="tool-1",
+                session_id="parent-session",
+                role="tool",
+                seq=1,
+                content=_chapter_result("chapter-1", "第一轮"),
+                tool_name="edit_chapter",
+                tool_call_id="tool-call-1",
+            ),
+            _message(
+                message_id="user-2",
+                session_id="parent-session",
+                role="user",
+                seq=2,
+                metadata={"revision_id": "revision-2"},
+            ),
+            _message(
+                message_id="tool-2",
+                session_id="parent-session",
+                role="tool",
+                seq=3,
+                content=_chapter_result("chapter-2", "第二轮"),
+                tool_name="edit_chapter",
+                tool_call_id="tool-call-2",
+            ),
+            _revision("revision-1", "user-1", 0),
+            _revision("revision-2", "user-2", 2),
+        ]
+    )
+    await session.flush()
+
+    result = await load_agent_session_changes(
+        session,
+        "parent-session",
+        revision_id="revision-1",
+    )
+
+    assert [turn.revision_id for turn in result.turns] == ["revision-1"]
+    assert [item.key for item in result.session_changes.items] == ["chapter:chapter-1"]
+
+
+@pytest.mark.asyncio
 async def test_loads_parent_and_descendant_messages_before_projecting_changes():
     child_run = _child_run()
     parent_messages = [
@@ -873,16 +960,16 @@ async def test_loads_parent_and_descendant_messages_before_projecting_changes():
         revision_id="revision-1",
     )
     execute_results = [
-        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [child_request])),
         SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [_revision("revision-1", "user-1", 0)])),
+        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [child_request])),
     ]
     db_session = SimpleNamespace(execute=AsyncMock(side_effect=execute_results))
 
     async def list_messages(_session, session_id: str):
         return parent_messages if session_id == "parent-session" else child_messages
 
-    async def list_children(_session, session_ids: list[str]):
-        return [child_run] if "parent-session" in session_ids else []
+    async def list_children(_session, session_id: str):
+        return [child_run] if session_id == "parent-session" else []
 
     with patch(
         "app.agent_runtime.session_changes.message_repo.list_by_session",
@@ -894,7 +981,7 @@ async def test_loads_parent_and_descendant_messages_before_projecting_changes():
             "thread-child-1": child_messages,
         },
     ) as list_messages_batch, patch(
-        "app.agent_runtime.session_changes.list_child_runs_for_parents",
+        "app.agent_runtime.session_changes.list_descendant_child_runs",
         side_effect=list_children,
     ) as list_children_batch:
         result = await load_agent_session_changes(db_session, "parent-session")
@@ -902,4 +989,4 @@ async def test_loads_parent_and_descendant_messages_before_projecting_changes():
     assert result.session_changes.item_count == 1
     assert result.turns[0].subagent_runs[0].child_run_id == "child-1"
     assert list_messages_batch.call_count == 1
-    assert list_children_batch.call_count == 2
+    list_children_batch.assert_awaited_once_with(db_session, "parent-session")

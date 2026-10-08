@@ -115,7 +115,7 @@ interface AgentMessagesProps {
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onAbortRetry?: () => void;
   changes?: AgentSessionChanges | null;
-  onOpenChanges?: (summary: AgentChangeSummary) => void;
+  onOpenChanges?: (summary: AgentChangeSummary, revisionId?: string) => void;
   onAtBottomChange?: (isAtBottom: boolean) => void;
   scrollToBottomFnRef?: React.MutableRefObject<(() => void) | null>;
 }
@@ -729,7 +729,15 @@ export function AgentMessages({
           {changeSummary ? (
             <AgentChangeSummaryCard
               summary={changeSummary}
-              onOpenChanges={onOpenChanges ? () => onOpenChanges(changeSummary) : undefined}
+              onOpenChanges={
+                onOpenChanges
+                  ? () =>
+                      onOpenChanges(
+                        changeSummary,
+                        changeSummary.items.find((item) => item.revisionId)?.revisionId,
+                      )
+                  : undefined
+              }
             />
           ) : null}
           {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
@@ -823,7 +831,15 @@ export function AgentMessages({
         {changeSummary ? (
           <AgentChangeSummaryCard
             summary={changeSummary}
-            onOpenChanges={onOpenChanges ? () => onOpenChanges(changeSummary) : undefined}
+            onOpenChanges={
+              onOpenChanges
+                ? () =>
+                    onOpenChanges(
+                      changeSummary,
+                      changeSummary.items.find((item) => item.revisionId)?.revisionId,
+                    )
+                : undefined
+            }
           />
         ) : null}
         {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}

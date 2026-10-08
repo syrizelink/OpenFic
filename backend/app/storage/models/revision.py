@@ -5,7 +5,7 @@ Revision 数据模型 - 项目级版本记录。
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy import Column, ForeignKey, Index, String
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -23,6 +23,15 @@ class Revision(SQLModel, table=True):
     """
 
     __tablename__ = "revisions"
+    __table_args__ = (
+        Index(
+            "ix_revisions_agent_session_id_type_seq_created_at",
+            "agent_session_id",
+            "revision_type",
+            "user_message_seq",
+            "created_at",
+        ),
+    )
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     project_id: str = Field(index=True, foreign_key="projects.id")

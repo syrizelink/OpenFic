@@ -9,7 +9,7 @@ export interface AgentTaskBundleLoaders {
   fetchTask: (taskId: string) => Promise<Task>;
   fetchAgentSessionState: (sessionId: string) => Promise<AgentSessionStateResponse>;
   fetchActiveSubagents: (parentSessionId: string) => Promise<ActiveSubagentState[]>;
-  fetchAgentSessionChanges: (sessionId: string) => Promise<AgentSessionChanges>;
+  fetchAgentSessionChangeSummary: (sessionId: string) => Promise<AgentSessionChanges>;
 }
 
 export interface AgentTaskBundle {
@@ -37,7 +37,7 @@ export async function loadAgentTaskBundle(
     await Promise.allSettled([
       loaders.fetchAgentSessionState(task.agentSessionId),
       loaders.fetchActiveSubagents(task.agentSessionId),
-      loaders.fetchAgentSessionChanges(task.agentSessionId),
+      loaders.fetchAgentSessionChangeSummary(task.agentSessionId),
     ]);
 
   return {

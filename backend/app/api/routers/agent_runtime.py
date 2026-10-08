@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import TypeGuard, cast
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -1485,6 +1485,10 @@ async def get_agent_session_state(
     )
     checkpoint_values = checkpoint.checkpoint.get("channel_values") if checkpoint else None
     state_values = dict(checkpoint_values) if isinstance(checkpoint_values, dict) else {}
+    state_summary = {}
+    agent_key = state_values.get("agent_key")
+    if isinstance(agent_key, str) and agent_key:
+        state_summary["agent_key"] = agent_key
     is_cancelled = await _is_agent_session_cancelled(session, session_id)
     # A new run can be registered before it commits its new revision.  Keep
     # the live registry state authoritative for running status during that
@@ -1524,7 +1528,7 @@ async def get_agent_session_state(
         raise NotFoundError(f"会话不存在: {session_id}")
     return AgentSessionStateResponse(
         session_id=session_id,
-        state=state_values,
+        state=state_summary,
         is_running=is_running,
         interrupts=interrupts,
     )
@@ -1540,7 +1544,28 @@ async def get_agent_session_changes(
 ) -> AgentSessionChangesResponse | JSONResponse:
     try:
         await task_service.get_task_by_agent_session_id(session, session_id)
-        changes = await load_agent_session_changes(session, session_id)
+        changes = await load_agent_session_changes(session, session_id, include_details=False)
+        return JSONResponse(content=changes.to_payload(include_details=False))
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/sessions/{session_id}/changes/details",
+    response_model=AgentSessionChangesResponse,
+)
+async def get_agent_session_change_details(
+    session_id: str,
+    revision_id: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> AgentSessionChangesResponse | JSONResponse:
+    try:
+        await task_service.get_task_by_agent_session_id(session, session_id)
+        changes = await load_agent_session_changes(
+            session,
+            session_id,
+            revision_id=revision_id,
+        )
         return JSONResponse(content=changes.to_payload())
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

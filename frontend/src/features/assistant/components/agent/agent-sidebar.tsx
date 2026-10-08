@@ -31,7 +31,7 @@ interface AgentSidebarProps {
   onRestoreAttachments?: (attachments: AgentAttachment[]) => void;
   onSetInputValue?: (value: string) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
-  onOpenChanges?: (summary: AgentChangeSummary) => void;
+  onOpenChanges?: (summary: AgentChangeSummary, revisionId?: string) => void;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
   onTaskUsageSnapshot?: (payload: {
     sessionId: string;
@@ -107,6 +107,9 @@ export function useAgentSidebar({
     handleBatchDecision,
     abortSession: abortAgentSession,
     refreshChanges: refreshAgentChanges,
+    changeDetails: agentChangeDetails,
+    changeDetailsRevisionId: agentChangeDetailsRevisionId,
+    loadChangeDetails: loadAgentChangeDetails,
   } = useAgentSession({
     projectId,
     modelId,
@@ -195,6 +198,8 @@ export function useAgentSidebar({
   return {
     messages: agentMessages,
     changes: agentChanges,
+    changeDetails: agentChangeDetails,
+    changeDetailsRevisionId: agentChangeDetailsRevisionId,
     pendingMessage,
     status: agentStatus,
     isRunning: isAgentRunning,
@@ -208,6 +213,7 @@ export function useAgentSidebar({
     resetSession: resetAgentSession,
     loadSession: loadAgentSession,
     refreshChanges: refreshAgentChanges,
+    loadChangeDetails: loadAgentChangeDetails,
     disconnectTransport: disconnectAgentTransport,
     reconnectTransport: reconnectAgentTransport,
     compactSession: compactAgentSession,

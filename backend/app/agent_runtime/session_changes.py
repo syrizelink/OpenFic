@@ -16,7 +16,7 @@ from sqlmodel import col
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
-    list_child_runs_for_parents,
+    list_descendant_child_runs,
 )
 from app.agent_runtime.persistence.model import (
     AgentChildRun,
@@ -80,15 +80,14 @@ class AgentChangeItem:
     _content_before: list[str] | None = field(default=None, repr=False)
     _content_after: list[str] | None = field(default=None, repr=False)
 
-    def to_payload(self) -> dict[str, Any]:
-        return {
+    def to_payload(self, *, include_details: bool = True) -> dict[str, Any]:
+        payload = {
             "key": self.key,
             "kind": self.kind,
             "title": self.title,
             "title_before": self.title_before,
             "title_after": self.title_after,
             "operation": self.operation,
-            "sections": [section.to_payload() for section in self.sections],
             "added": self.added,
             "removed": self.removed,
             "source_message_id": self.source_message_id,
@@ -100,6 +99,9 @@ class AgentChangeItem:
             "agent_number": self.agent_number,
             "revision_id": self.revision_id,
         }
+        if include_details:
+            payload["sections"] = [section.to_payload() for section in self.sections]
+        return payload
 
 
 @dataclass
@@ -118,12 +120,12 @@ class AgentChangeSummary:
     def removed(self) -> int:
         return sum(item.removed for item in self.items)
 
-    def to_payload(self) -> dict[str, Any]:
+    def to_payload(self, *, include_details: bool = True) -> dict[str, Any]:
         return {
             "item_count": self.item_count,
             "added": self.added,
             "removed": self.removed,
-            "items": [item.to_payload() for item in self.items],
+            "items": [item.to_payload(include_details=include_details) for item in self.items],
         }
 
 
@@ -137,7 +139,7 @@ class AgentSubagentRunChanges:
     agent_number: str | None
     changes: AgentChangeSummary
 
-    def to_payload(self) -> dict[str, Any]:
+    def to_payload(self, *, include_details: bool = True) -> dict[str, Any]:
         return {
             "child_run_id": self.child_run_id,
             "child_thread_id": self.child_thread_id,
@@ -145,7 +147,7 @@ class AgentSubagentRunChanges:
             "child_user_message_id": self.child_user_message_id,
             "agent_key": self.agent_key,
             "agent_number": self.agent_number,
-            "changes": self.changes.to_payload(),
+            "changes": self.changes.to_payload(include_details=include_details),
         }
 
 
@@ -157,13 +159,15 @@ class AgentTurnChanges:
     changes: AgentChangeSummary
     subagent_runs: list[AgentSubagentRunChanges]
 
-    def to_payload(self) -> dict[str, Any]:
+    def to_payload(self, *, include_details: bool = True) -> dict[str, Any]:
         return {
             "revision_id": self.revision_id,
             "user_message_id": self.user_message_id,
             "user_message_seq": self.user_message_seq,
-            "changes": self.changes.to_payload(),
-            "subagent_runs": [run.to_payload() for run in self.subagent_runs],
+            "changes": self.changes.to_payload(include_details=include_details),
+            "subagent_runs": [
+                run.to_payload(include_details=include_details) for run in self.subagent_runs
+            ],
         }
 
 
@@ -173,11 +177,11 @@ class AgentSessionChanges:
     turns: list[AgentTurnChanges]
     session_changes: AgentChangeSummary
 
-    def to_payload(self) -> dict[str, Any]:
+    def to_payload(self, *, include_details: bool = True) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
-            "turns": [turn.to_payload() for turn in self.turns],
-            "session_changes": self.session_changes.to_payload(),
+            "turns": [turn.to_payload(include_details=include_details) for turn in self.turns],
+            "session_changes": self.session_changes.to_payload(include_details=include_details),
         }
 
 
@@ -375,6 +379,43 @@ def _normalize_sections(raw_diff: dict[str, Any]) -> list[AgentChangeSection]:
     return sections
 
 
+def _summarize_raw_diff(
+    raw_diff: dict[str, Any],
+) -> tuple[list[str], list[str], int, int]:
+    raw_sections = raw_diff.get("sections")
+    if not isinstance(raw_sections, list):
+        return [], [], 0, 0
+
+    title_before: list[str] = []
+    title_after: list[str] = []
+    added = 0
+    removed = 0
+    for raw_section in raw_sections:
+        section = _as_record(raw_section)
+        if section is None or section.get("type") not in {"content", "title"}:
+            continue
+        raw_lines = section.get("lines")
+        if not isinstance(raw_lines, list):
+            continue
+        for raw_line in raw_lines:
+            line = _as_record(raw_line)
+            if line is None:
+                continue
+            line_type = line.get("type")
+            text = line.get("text")
+            text = text if isinstance(text, str) else ""
+            if section["type"] == "content":
+                if line_type == "added":
+                    added += 1
+                elif line_type == "removed":
+                    removed += 1
+            elif line_type in {"context", "removed"}:
+                title_before.append(text)
+            if section["type"] == "title" and line_type in {"context", "added"}:
+                title_after.append(text)
+    return title_before, title_after, added, removed
+
+
 def _string(value: object) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
@@ -387,7 +428,11 @@ def _normalize_path(value: object) -> list[str]:
     return [part.strip() for part in value if isinstance(part, str) and part.strip()]
 
 
-def _build_item(candidate: _ChangeCandidate) -> AgentChangeItem | None:
+def _build_item(
+    candidate: _ChangeCandidate,
+    *,
+    include_details: bool = True,
+) -> AgentChangeItem | None:
     row = candidate.row
     definition = candidate.definition
     raw_diff = candidate.raw_diff
@@ -402,33 +447,38 @@ def _build_item(candidate: _ChangeCandidate) -> AgentChangeItem | None:
     )
     fallback_key = f"{title}:{getattr(row, 'id', '')}"
     key = f"{definition.kind}:{entity_id or fallback_key}"
-    sections = _normalize_sections(raw_diff)
-    title_before_lines: list[str] = []
-    title_after_lines: list[str] = []
-    for section in sections:
-        if section.type != "title":
-            continue
-        title_before_lines, title_after_lines = _section_state(section)
-        break
-    content_sections = [section for section in sections if section.type == "content"]
+    if include_details:
+        sections = _normalize_sections(raw_diff)
+        title_before_lines: list[str] = []
+        title_after_lines: list[str] = []
+        for section in sections:
+            if section.type != "title":
+                continue
+            title_before_lines, title_after_lines = _section_state(section)
+            break
+        content_sections = [section for section in sections if section.type == "content"]
+        added = sum(
+            1
+            for section in content_sections
+            for line in section.lines
+            if line.type == "added"
+        )
+        removed = sum(
+            1
+            for section in content_sections
+            for line in section.lines
+            if line.type == "removed"
+        )
+    else:
+        sections = []
+        title_before_lines, title_after_lines, added, removed = _summarize_raw_diff(raw_diff)
+        content_sections = []
     operation = _string(raw_diff.get("operation")) or "update"
-    added = sum(
-        1
-        for section in content_sections
-        for line in section.lines
-        if line.type == "added"
-    )
-    removed = sum(
-        1
-        for section in content_sections
-        for line in section.lines
-        if line.type == "removed"
-    )
     child_run = candidate.child_run
     source: Literal["primary", "subagent"] = "subagent" if child_run else "primary"
     content_before: list[str] | None = None
     content_after: list[str] | None = None
-    if operation == "create":
+    if include_details and operation == "create":
         content_before = []
         content_after = [
             line.text
@@ -649,18 +699,41 @@ def _merge_item(existing: AgentChangeItem, item: AgentChangeItem) -> None:
     existing.revision_id = item.revision_id
 
 
+def _merge_summary_item(existing: AgentChangeItem, item: AgentChangeItem) -> None:
+    if item.title_before is not None and existing.title_before is None:
+        existing.title_before = item.title_before
+    if item.title_after is not None:
+        existing.title_after = item.title_after
+    existing.added += item.added
+    existing.removed += item.removed
+    if item.operation == "delete":
+        existing.operation = "delete"
+    elif existing.operation != "create":
+        existing.operation = item.operation
+    if item.path or item.operation == "move":
+        existing.path = item.path
+    existing.source_message_id = item.source_message_id
+    existing.source = item.source
+    existing.child_run_id = item.child_run_id
+    existing.request_id = item.request_id
+    existing.agent_key = item.agent_key
+    existing.agent_number = item.agent_number
+    existing.revision_id = item.revision_id
+
+
 def _summary_from_candidates(
     candidates: Sequence[_ChangeCandidate],
     *,
     source: Literal["primary", "subagent", "session"] | None = None,
     item_cache: dict[int, AgentChangeItem] | None = None,
+    include_details: bool = True,
 ) -> AgentChangeSummary:
     items_by_key: dict[str, AgentChangeItem] = {}
     first_operations: dict[str, str] = {}
     for candidate in candidates:
         item = item_cache.get(id(candidate)) if item_cache is not None else None
         if item is None:
-            item = _build_item(candidate)
+            item = _build_item(candidate, include_details=include_details)
         if item is None:
             continue
         if source is not None:
@@ -670,7 +743,10 @@ def _summary_from_candidates(
             items_by_key[item.key] = _copy_item(item)
             first_operations[item.key] = item.operation
         else:
-            _merge_item(existing, item)
+            if include_details:
+                _merge_item(existing, item)
+            else:
+                _merge_summary_item(existing, item)
     return AgentChangeSummary(
         items=[
             item
@@ -684,7 +760,11 @@ def _summary_from_candidates(
     )
 
 
-def _combine_summaries(summaries: Sequence[AgentChangeSummary]) -> AgentChangeSummary:
+def _combine_summaries(
+    summaries: Sequence[AgentChangeSummary],
+    *,
+    include_details: bool = True,
+) -> AgentChangeSummary:
     items_by_key: dict[str, AgentChangeItem] = {}
     first_operations: dict[str, str] = {}
     for summary in summaries:
@@ -694,7 +774,10 @@ def _combine_summaries(summaries: Sequence[AgentChangeSummary]) -> AgentChangeSu
                 items_by_key[item.key] = _copy_item(item)
                 first_operations[item.key] = item.operation
             else:
-                _merge_item(existing, item)
+                if include_details:
+                    _merge_item(existing, item)
+                else:
+                    _merge_summary_item(existing, item)
     return AgentChangeSummary(
         items=[
             item
@@ -772,6 +855,7 @@ def build_agent_changes(
     child_requests: Sequence[AgentChildRunRequest],
     child_messages: Sequence[object],
     revisions: Sequence[Revision],
+    include_details: bool = True,
 ) -> AgentSessionChanges:
     """Build a hierarchical change projection from persisted agent messages."""
     valid_revisions = {
@@ -839,7 +923,7 @@ def build_agent_changes(
     item_cache = {
         id(candidate): item
         for candidate in all_candidates
-        if (item := _build_item(candidate)) is not None
+        if (item := _build_item(candidate, include_details=include_details)) is not None
     }
     candidates_by_revision: dict[str, list[_ChangeCandidate]] = defaultdict(list)
     for candidate in all_candidates:
@@ -874,7 +958,11 @@ def build_agent_changes(
             child_run = candidates[0].child_run
             if child_run is None:
                 continue
-            summary = _summary_from_candidates(candidates, item_cache=item_cache)
+            summary = _summary_from_candidates(
+                candidates,
+                item_cache=item_cache,
+                include_details=include_details,
+            )
             if summary.item_count == 0:
                 continue
             child_summaries.append(summary)
@@ -905,11 +993,16 @@ def build_agent_changes(
             [
                 summary
                 for summary in [
-                    _summary_from_candidates(primary_candidates, item_cache=item_cache),
+                    _summary_from_candidates(
+                        primary_candidates,
+                        item_cache=item_cache,
+                        include_details=include_details,
+                    ),
                     *child_summaries,
                 ]
                 if summary.item_count > 0
-            ]
+            ],
+            include_details=include_details,
         )
         turns.append(
             AgentTurnChanges(
@@ -928,6 +1021,7 @@ def build_agent_changes(
             all_candidates,
             source="session",
             item_cache=item_cache,
+            include_details=include_details,
         ),
     )
 
@@ -935,46 +1029,70 @@ def build_agent_changes(
 async def _list_descendant_child_runs(
     session: AsyncSession,
     parent_session_id: str,
+    parent_revision_id: str | None = None,
 ) -> list[AgentChildRun]:
-    runs_by_parent: dict[str, list[AgentChildRun]] = defaultdict(list)
-    pending_parent_ids = [parent_session_id]
-    seen_parent_ids = {parent_session_id}
-    while pending_parent_ids:
-        child_runs = await list_child_runs_for_parents(session, pending_parent_ids)
-        next_parent_ids: list[str] = []
-        for child_run in child_runs:
-            runs_by_parent[child_run.parent_session_id].append(child_run)
-            if child_run.child_thread_id not in seen_parent_ids:
-                seen_parent_ids.add(child_run.child_thread_id)
-                next_parent_ids.append(child_run.child_thread_id)
-        pending_parent_ids = next_parent_ids
-
-    descendants: list[AgentChildRun] = []
-    expanded_parent_ids: set[str] = set()
-
-    def append_descendants(current_parent_id: str) -> None:
-        if current_parent_id in expanded_parent_ids:
-            return
-        expanded_parent_ids.add(current_parent_id)
-        for child_run in runs_by_parent.get(current_parent_id, []):
-            append_descendants(child_run.child_thread_id)
-            descendants.append(child_run)
-
-    append_descendants(parent_session_id)
-    return descendants
+    if parent_revision_id is None:
+        return await list_descendant_child_runs(session, parent_session_id)
+    return await list_descendant_child_runs(session, parent_session_id, parent_revision_id)
 
 
 async def load_agent_session_changes(
     session: AsyncSession,
     session_id: str,
+    *,
+    include_details: bool = True,
+    revision_id: str | None = None,
 ) -> AgentSessionChanges:
     """Load and project all parent and descendant child-run changes."""
-    child_runs = await _list_descendant_child_runs(session, session_id)
+    revision_query = (
+        select(Revision)
+        .where(
+            col(Revision.agent_session_id) == session_id,
+            col(Revision.revision_type) == "agent",
+        )
+        .order_by(col(Revision.user_message_seq), col(Revision.created_at))
+    )
+    if revision_id is not None:
+        revision_query = revision_query.where(col(Revision.id) == revision_id)
+    revision_result = await session.execute(revision_query)
+    revisions = list(revision_result.scalars().all())
+    if revision_id is not None and not revisions:
+        return AgentSessionChanges(
+            session_id=session_id,
+            turns=[],
+            session_changes=AgentChangeSummary(items=[]),
+        )
+
+    child_runs = await _list_descendant_child_runs(
+        session,
+        session_id,
+        parent_revision_id=revision_id,
+    )
+    seq_bounds: dict[str, tuple[int | None, int | None]] = {}
+    if revision_id is not None and revisions:
+        target_revision = revisions[0]
+        if target_revision.user_message_seq is not None:
+            next_revision_result = await session.execute(
+                select(col(Revision.user_message_seq))
+                .where(
+                    col(Revision.agent_session_id) == session_id,
+                    col(Revision.revision_type) == "agent",
+                    col(Revision.user_message_seq) > target_revision.user_message_seq,
+                )
+                .order_by(col(Revision.user_message_seq), col(Revision.created_at))
+                .limit(1)
+            )
+            seq_bounds[session_id] = (
+                target_revision.user_message_seq,
+                next_revision_result.scalar_one_or_none(),
+            )
+
     message_by_session = await message_repo.list_by_sessions(
         session,
         [session_id, *(child_run.child_thread_id for child_run in child_runs)],
         roles=("user",),
         tool_names=_CHANGE_TOOL_NAMES,
+        seq_bounds=seq_bounds,
     )
     parent_messages = message_by_session.get(session_id, [])
     child_requests: list[AgentChildRunRequest] = []
@@ -994,15 +1112,6 @@ async def load_agent_session_changes(
         for message in message_by_session.get(child_run.child_thread_id, [])
     ]
 
-    revision_result = await session.execute(
-        select(Revision)
-        .where(
-            col(Revision.agent_session_id) == session_id,
-            col(Revision.revision_type) == "agent",
-        )
-        .order_by(col(Revision.user_message_seq), col(Revision.created_at)),
-    )
-    revisions = list(revision_result.scalars().all())
     return build_agent_changes(
         session_id,
         parent_messages=parent_messages,
@@ -1010,4 +1119,5 @@ async def load_agent_session_changes(
         child_requests=child_requests,
         child_messages=child_messages,
         revisions=revisions,
+        include_details=include_details,
     )

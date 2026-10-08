@@ -38,6 +38,7 @@ import {
   submitAgentInterruptBatch,
   rollbackAgentRevision,
   cancelAgentSession,
+  fetchAgentSessionChangeSummary,
   fetchAgentSessionChanges,
   uploadAgentAttachment,
   submitAgentToolApproval,
@@ -512,6 +513,8 @@ export function useAgentSession({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [changes, setChanges] = useState<AgentSessionChanges | null>(null);
+  const [changeDetails, setChangeDetails] = useState<AgentSessionChanges | null>(null);
+  const [changeDetailsRevisionId, setChangeDetailsRevisionId] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<AgentPendingMessage | null>(null);
   const [status, setStatus] = useState<AgentSessionStatus>("idle");
   const [isRunning, setIsRunning] = useState(false);
@@ -682,14 +685,41 @@ export function useAgentSession({
     ): Promise<AgentSessionChanges | null> => {
       if (!targetSessionId) {
         setChanges(null);
+        setChangeDetails(null);
+        setChangeDetailsRevisionId(null);
         return null;
       }
       try {
-        const nextChanges = await fetchAgentSessionChanges(targetSessionId);
-        if (sessionIdRef.current === targetSessionId) setChanges(nextChanges);
+        const nextChanges = await fetchAgentSessionChangeSummary(targetSessionId);
+        if (sessionIdRef.current === targetSessionId) {
+          setChanges(nextChanges);
+          setChangeDetails(null);
+          setChangeDetailsRevisionId(null);
+        }
         return nextChanges;
       } catch (error) {
         console.error("Failed to load agent session changes:", error);
+        return null;
+      }
+    },
+    [sessionId],
+  );
+
+  const loadChangeDetails = useCallback(
+    async (
+      targetSessionId = sessionIdRef.current ?? sessionId,
+      targetRevisionId?: string,
+    ): Promise<AgentSessionChanges | null> => {
+      if (!targetSessionId) return null;
+      try {
+        const nextDetails = await fetchAgentSessionChanges(targetSessionId, targetRevisionId);
+        if (sessionIdRef.current === targetSessionId) {
+          setChangeDetails(nextDetails);
+          setChangeDetailsRevisionId(targetRevisionId ?? null);
+        }
+        return nextDetails;
+      } catch (error) {
+        console.error("Failed to load agent session change details:", error);
         return null;
       }
     },
@@ -1195,6 +1225,8 @@ export function useAgentSession({
         suppressSocketEventsAfterAbortRef.current = false;
         transportRetryAttemptRef.current = 0;
         setChanges(null);
+        setChangeDetails(null);
+        setChangeDetailsRevisionId(null);
         commitTranscriptState({
           messages: [createOptimisticUserMessage(userRequest, attachments)],
           status: "running",
@@ -1616,6 +1648,8 @@ export function useAgentSession({
     completedAttachmentProcessingIdsRef.current.clear();
     setIsAttachmentProcessing(false);
     setChanges(null);
+    setChangeDetails(null);
+    setChangeDetailsRevisionId(null);
     syncPendingMessageState(null);
     syncCompactingState(false);
     setIsRollbacking(false);
@@ -1710,6 +1744,8 @@ export function useAgentSession({
       syncCompactingState(false);
       setSessionId(existingSessionId);
       setChanges(options.initialChanges ?? null);
+      setChangeDetails(null);
+      setChangeDetailsRevisionId(null);
       socketUnsubscribeRef.current?.();
       socketUnsubscribeRef.current = null;
 
@@ -1927,7 +1963,10 @@ export function useAgentSession({
     resetSession,
     loadSession,
     changes,
+    changeDetails,
+    changeDetailsRevisionId,
     refreshChanges,
+    loadChangeDetails,
     disconnectTransport,
     reconnectTransport,
     compactSession,

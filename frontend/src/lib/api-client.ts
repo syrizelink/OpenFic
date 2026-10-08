@@ -2404,8 +2404,20 @@ export async function fetchAgentSessionState(
   };
 }
 
-export async function fetchAgentSessionChanges(sessionId: string): Promise<AgentSessionChanges> {
+export async function fetchAgentSessionChangeSummary(
+  sessionId: string,
+): Promise<AgentSessionChanges> {
   const response = await apiClient.get(`/agent/sessions/${sessionId}/changes`);
+  return transformAgentSessionChanges(response.data, sessionId);
+}
+
+export async function fetchAgentSessionChanges(
+  sessionId: string,
+  revisionId?: string,
+): Promise<AgentSessionChanges> {
+  const response = await apiClient.get(`/agent/sessions/${sessionId}/changes/details`, {
+    params: revisionId ? { revision_id: revisionId } : undefined,
+  });
   return transformAgentSessionChanges(response.data, sessionId);
 }
 
