@@ -47,6 +47,8 @@ export interface SubagentSessionPayload {
   contextLength: number;
   pendingApproval?: Record<string, unknown> | null;
   messages: TaskMessage[];
+  messagesCursor: number | null;
+  messagesHasMore: boolean;
 }
 
 export interface ParentConversationDescriptor {

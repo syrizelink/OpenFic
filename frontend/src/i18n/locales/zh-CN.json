@@ -2002,6 +2002,9 @@
     "totalCost": "累计费用：$ {{cost}}",
     "contextUsage": "上下文占用",
     "loadingTask": "加载任务中...",
+    "loadingEarlierMessages": "正在加载更早的消息...",
+    "loadEarlierMessagesFailed": "加载更早的消息失败。",
+    "retryEarlierMessages": "重试",
     "scrollToBottom": "回到底部",
     "messageNavigation": {
       "label": "消息导航",

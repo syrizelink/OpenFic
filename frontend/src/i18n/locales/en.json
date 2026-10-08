@@ -1939,6 +1939,9 @@
     "totalCost": "Total Cost: $ {{cost}}",
     "contextUsage": "Context Usage",
     "loadingTask": "Loading task...",
+    "loadingEarlierMessages": "Loading earlier messages...",
+    "loadEarlierMessagesFailed": "Failed to load earlier messages.",
+    "retryEarlierMessages": "Retry",
     "scrollToBottom": "Scroll to bottom",
     "messageNavigation": {
       "label": "Message navigation",

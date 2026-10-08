@@ -303,6 +303,9 @@ class ActiveSubagentStateResponse(BaseModel):
 class SubagentSessionResponse(BaseModel):
     """子代理会话详情。"""
 
+    messages_cursor: int | None = Field(default=None, description="本页原始消息最小 seq，下页排除此值")
+    messages_has_more: bool = Field(default=False, description="是否存在更早的原始消息")
+
     child_run_id: str = Field(..., description="子运行ID")
     parent_session_id: str = Field(..., description="父会话ID")
     parent_task_id: str = Field(..., description="父任务ID")

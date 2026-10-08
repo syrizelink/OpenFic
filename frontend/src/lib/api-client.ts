@@ -2234,6 +2234,8 @@ function transformTask(raw: Record<string, unknown>): Task {
     id: raw.id as string,
     projectId: raw.project_id as string,
     title: raw.title as string,
+    messagesCursor: typeof raw.messages_cursor === "number" ? raw.messages_cursor : null,
+    messagesHasMore: raw.messages_has_more === true,
     messages: ((raw.messages as Record<string, unknown>[] | undefined) ?? []).map(
       transformTaskMessage,
     ),
@@ -2280,8 +2282,8 @@ export { subscribeBackgroundEvents, subscribeBackgroundProjection } from "./back
 /**
  * 获取任务详情
  */
-export async function fetchTask(taskId: string): Promise<Task> {
-  const response = await apiClient.get(`/tasks/${taskId}`);
+export async function fetchTask(taskId: string, cursor?: number): Promise<Task> {
+  const response = await apiClient.get(`/tasks/${taskId}`, { params: { cursor } });
   return transformTask(response.data);
 }
 
@@ -2608,6 +2610,8 @@ function transformSubagentSessionPayload(raw: Record<string, unknown>): Subagent
     contextInputTokens: Number(raw.context_input_tokens ?? 0),
     contextLength: Number(raw.context_length ?? 0),
     pendingApproval,
+    messagesCursor: typeof raw.messages_cursor === "number" ? raw.messages_cursor : null,
+    messagesHasMore: raw.messages_has_more === true,
     messages: ((raw.messages as Record<string, unknown>[] | undefined) ?? []).map(
       transformTaskMessage,
     ),
@@ -2623,8 +2627,11 @@ export async function fetchActiveSubagents(
   );
 }
 
-export async function fetchSubagentSession(childRunId: string): Promise<SubagentSessionPayload> {
-  const response = await apiClient.get(`/agent/subagents/${childRunId}`);
+export async function fetchSubagentSession(
+  childRunId: string,
+  cursor?: number,
+): Promise<SubagentSessionPayload> {
+  const response = await apiClient.get(`/agent/subagents/${childRunId}`, { params: { cursor } });
   return transformSubagentSessionPayload(response.data as Record<string, unknown>);
 }
 

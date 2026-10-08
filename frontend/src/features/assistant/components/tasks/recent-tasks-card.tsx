@@ -34,7 +34,7 @@ export function RecentTasksCard({
     <Flex
       align="center"
       justify="center"
-      style={{ height: "100%", position: "relative" }}
+      className="ai-sidebar-recent-tasks"
     >
       {/* 悬浮的最近任务卡片 */}
       <Box

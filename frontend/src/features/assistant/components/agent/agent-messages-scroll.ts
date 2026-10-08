@@ -3,6 +3,20 @@ export interface ScrollFrameMetrics {
   clientHeight: number;
 }
 
+export function getPrependedBlockCount(
+  previous: readonly { messages: readonly { id: string }[] }[],
+  next: readonly { messages: readonly { id: string }[] }[],
+): number {
+  for (let index = 0; index < previous.length; index += 1) {
+    const ids = new Set(previous[index].messages.map((message) => message.id));
+    const nextIndex = next.findIndex((block) =>
+      block.messages.some((message) => ids.has(message.id)),
+    );
+    if (nextIndex >= 0) return nextIndex - index;
+  }
+  return 0;
+}
+
 export interface ScrollViewportMetrics extends ScrollFrameMetrics {
   scrollTop: number;
 }
@@ -72,20 +86,6 @@ export function resolveFollowBottomStateOnScroll({
   return true;
 }
 
-export function hasPendingLoadedSessionBottomRestore(
-  pendingRestoreKey: string | null | undefined,
-  currentScrollKey: string | null | undefined,
-): boolean {
-  return Boolean(pendingRestoreKey && currentScrollKey && pendingRestoreKey === currentScrollKey);
-}
-
-export function shouldScheduleLoadedSessionBottomRestoreImmediately(
-  hasPendingRestore: boolean,
-  hasBoundScrollContainer: boolean,
-): boolean {
-  return hasPendingRestore && hasBoundScrollContainer;
-}
-
 export function shouldAutoScrollOnFrameChange(
   previous: ScrollFrameMetrics | null,
   next: ScrollFrameMetrics,
@@ -94,11 +94,4 @@ export function shouldAutoScrollOnFrameChange(
   if (!isFollowingBottom) return false;
   if (!previous) return true;
   return previous.scrollHeight !== next.scrollHeight || previous.clientHeight !== next.clientHeight;
-}
-
-export function shouldResetFollowBottomForLoad(
-  previousKey: string | null | undefined,
-  nextKey: string | null | undefined,
-): boolean {
-  return Boolean(nextKey && previousKey !== nextKey);
 }

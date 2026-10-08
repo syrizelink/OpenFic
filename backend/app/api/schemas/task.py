@@ -45,6 +45,8 @@ class TaskResponse(BaseModel):
     title: str = Field(description="任务标题")
     mode: AgentMode = Field(description="固定为单一 Agent runtime")
     messages: list[TaskMessage] = Field(description="对话消息列表")
+    messages_cursor: int | None = Field(default=None, description="本页原始消息最小 seq，下页排除此值")
+    messages_has_more: bool = Field(default=False, description="是否存在更早的原始消息")
     token_input: int = Field(default=0, description="输入 token 总数")
     token_output: int = Field(default=0, description="输出 token 总数")
     token_cache: int = Field(default=0, description="缓存命中 token 总数")

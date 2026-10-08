@@ -4,13 +4,13 @@
  * Agent 消息列表组件
  */
 
-import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
-import { ConfirmDialog, toast } from "@/components";
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import type {
   AgentChangeSummary,
   AgentMessage as AgentMessageType,
@@ -26,13 +26,11 @@ import {
 import { AgentMessageRenderer } from "./agent-message-renderer";
 import {
   getStreamingFollowSignal,
-  hasPendingLoadedSessionBottomRestore,
+  getPrependedBlockCount,
   resolveFollowBottomStateOnScroll,
   shouldAutoScrollOnFrameChange,
   shouldFollowBottom,
-  shouldResetFollowBottomForLoad,
   shouldResetFollowBottomForRun,
-  shouldScheduleLoadedSessionBottomRestoreImmediately,
   shouldTrackStreamingFollowBottom,
   type ScrollViewportMetrics,
 } from "./agent-messages-scroll";
@@ -58,15 +56,8 @@ import type {
 import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
 
 const COPY_FEEDBACK_MS = 1200;
-const MIN_BOTTOM_RESTORE_ATTEMPTS = 6;
 const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
-
-function estimateAgentBlockHeight(block: AgentMessageBlock, hasChangeSummary = false): number {
-  const changeSummaryHeight = hasChangeSummary ? 150 : 0;
-  if (block.type === "node") return 120 + changeSummaryHeight;
-  if (block.type === "user") return 100;
-  return 120 + block.messages.length * 90 + changeSummaryHeight;
-}
+const INITIAL_FIRST_ITEM_INDEX = 1_000_000_000;
 
 function getTimestampParts(timestamp: number, timeZone?: string): Record<string, string> {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -118,6 +109,11 @@ interface AgentMessagesProps {
   onOpenChanges?: (summary: AgentChangeSummary, revisionId?: string) => void;
   onAtBottomChange?: (isAtBottom: boolean) => void;
   scrollToBottomFnRef?: React.MutableRefObject<(() => void) | null>;
+  messagesHasMore?: boolean;
+  isLoadingEarlier?: boolean;
+  hasEarlierError?: boolean;
+  historyGeneration?: number;
+  onLoadEarlier?: (retry?: boolean) => Promise<void>;
 }
 
 function isRollbackableUserMessage(message: AgentMessageType): boolean {
@@ -170,7 +166,15 @@ const AgentBlockContent = memo(
     onAbortRetry,
   }: AgentBlockContentProps) {
     const agentMessages = useMemo(() => messages.filter(isAgentBlockDisplayMessage), [messages]);
-    const displayItems = useMemo(() => buildAgentDisplayItems(agentMessages), [agentMessages]);
+    const [displayState, setDisplayState] = useState(() => ({
+      messages: agentMessages,
+      items: buildAgentDisplayItems(agentMessages),
+    }));
+    let displayItems = displayState.items;
+    if (displayState.messages !== agentMessages) {
+      displayItems = buildAgentDisplayItems(agentMessages, displayState.items);
+      setDisplayState({ messages: agentMessages, items: displayItems });
+    }
 
     return (
       <Flex
@@ -178,22 +182,29 @@ const AgentBlockContent = memo(
         gap="2"
         className="agent-message-block-content"
       >
-        {displayItems.map((item) =>
-          item.type === "exploration" ? (
-            <ExplorationMessage
-              key={item.id}
-              messages={item.messages}
-              summary={item.summary}
-            />
-          ) : (
-            <AgentMessageRenderer
-              key={item.id}
-              message={item.message}
-              onOpenMentionChapter={onOpenMentionChapter}
-              onAbortRetry={onAbortRetry}
-            />
-          ),
-        )}
+        {displayItems.map((item) => (
+          <Box
+            key={item.id}
+            data-scroll-message-ids={JSON.stringify(
+              item.type === "exploration"
+                ? item.messages.map((message) => message.id)
+                : [item.message.id],
+            )}
+          >
+            {item.type === "exploration" ? (
+              <ExplorationMessage
+                messages={item.messages}
+                summary={item.summary}
+              />
+            ) : (
+              <AgentMessageRenderer
+                message={item.message}
+                onOpenMentionChapter={onOpenMentionChapter}
+                onAbortRetry={onAbortRetry}
+              />
+            )}
+          </Box>
+        ))}
       </Flex>
     );
   },
@@ -247,6 +258,11 @@ export function AgentMessages({
   onOpenChanges,
   onAtBottomChange,
   scrollToBottomFnRef,
+  messagesHasMore = false,
+  isLoadingEarlier = false,
+  hasEarlierError = false,
+  historyGeneration = 0,
+  onLoadEarlier,
 }: AgentMessagesProps) {
   const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -256,8 +272,6 @@ export function AgentMessages({
   const shouldFollowBottomRef = useRef(true);
   const isRestoringLoadedSessionBottomRef = useRef(false);
   const pendingLoadedSessionRestoreKeyRef = useRef<string | null | undefined>(null);
-  const restoreAttemptRef = useRef(0);
-  const lastRestoreScrollHeightRef = useRef(0);
   const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number } | null>(null);
   const viewportMetricsRef = useRef<ScrollViewportMetrics | null>(null);
   const previousIsRunningRef = useRef(isRunning);
@@ -266,6 +280,95 @@ export function AgentMessages({
   const restoreScrollRafRef = useRef<number | null>(null);
   const streamingScrollRafRef = useRef<number | null>(null);
   const isAtBottomRef = useRef(true);
+  const historyAnchorRef = useRef<{
+    id: string;
+    top: number;
+    fallbacks: { id: string; top: number }[];
+    messages: AgentMessageType[];
+    generation: number;
+  } | null>(null);
+  const historyRestoreRafRef = useRef<number | null>(null);
+  const historyLoadRafRef = useRef<number | null>(null);
+  const isRestoringHistoryRef = useRef(false);
+  const historyTopArmedRef = useRef(false);
+  const cancelHistoryRestore = useCallback(() => {
+    historyAnchorRef.current = null;
+    isRestoringHistoryRef.current = false;
+    if (historyRestoreRafRef.current !== null)
+      window.cancelAnimationFrame(historyRestoreRafRef.current);
+    historyRestoreRafRef.current = null;
+  }, []);
+  const captureHistoryAnchor = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || isRestoringHistoryRef.current) return;
+    const top = container.getBoundingClientRect().top;
+    const anchors = contentRef.current?.querySelectorAll<HTMLElement>("[data-scroll-message-ids]");
+    const visibleAnchors = Array.from(anchors ?? []).filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        !element.closest('[aria-hidden="true"], [inert]') &&
+        rect.height > 0 &&
+        rect.bottom > top + 12
+      );
+    });
+    const visibleAnchorSet = new Set(visibleAnchors);
+    const candidates = visibleAnchors
+      .filter(
+        (element) =>
+          !Array.from(element.querySelectorAll<HTMLElement>("[data-scroll-message-ids]")).some(
+            (child) =>
+              visibleAnchorSet.has(child) &&
+              child.getBoundingClientRect().top < top + container.clientHeight,
+          ),
+      )
+      .flatMap((element) => {
+        const ids = JSON.parse(element.dataset.scrollMessageIds ?? "[]") as string[];
+        return ids[0] ? [{ id: ids[0], top: element.getBoundingClientRect().top - top }] : [];
+      });
+    const anchor = candidates[0];
+    if (!anchor || anchor.top >= container.clientHeight) return;
+    historyAnchorRef.current = {
+      ...anchor,
+      fallbacks: candidates.slice(1),
+      messages,
+      generation: historyGeneration,
+    };
+  }, [historyGeneration, messages]);
+  const handleLoadEarlier = useCallback(
+    (retry = false) => {
+      if (
+        !onLoadEarlier ||
+        isRollbacking ||
+        isLoadingEarlier ||
+        !messagesHasMore ||
+        (hasEarlierError && !retry) ||
+        isRestoringLoadedSessionBottomRef.current ||
+        isRestoringHistoryRef.current ||
+        historyLoadRafRef.current !== null
+      )
+        return;
+      historyTopArmedRef.current = false;
+      shouldFollowBottomRef.current = false;
+      if (streamingScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(streamingScrollRafRef.current);
+        streamingScrollRafRef.current = null;
+      }
+      // Virtuoso updates its visible range after the scroll event.
+      historyLoadRafRef.current = window.requestAnimationFrame(() => {
+        historyLoadRafRef.current = null;
+        captureHistoryAnchor();
+        void onLoadEarlier(retry);
+      });
+    },
+    [
+      captureHistoryAnchor,
+      hasEarlierError,
+      isLoadingEarlier,
+      isRollbacking,
+      messagesHasMore,
+      onLoadEarlier,
+    ],
+  );
   const [copiedActionId, setCopiedActionId] = useState<string | null>(null);
   const [pendingRollbackMessage, setPendingRollbackMessage] = useState<AgentMessageType | null>(
     null,
@@ -295,54 +398,38 @@ export function AgentMessages({
     const container = getScrollContainer();
     if (!(container instanceof HTMLElement)) return;
     if (!shouldFollowBottomRef.current) return;
+    if (isRestoringHistoryRef.current) return;
     if (streamingScrollRafRef.current !== null) return;
     streamingScrollRafRef.current = window.requestAnimationFrame(() => {
       streamingScrollRafRef.current = null;
       const activeContainer = getScrollContainer();
       if (!(activeContainer instanceof HTMLElement)) return;
       if (!shouldFollowBottomRef.current) return;
+      if (isRestoringHistoryRef.current) return;
       scrollContainerToBottom(activeContainer);
     });
   }, [getScrollContainer, scrollContainerToBottom]);
 
   const scheduleLoadedSessionBottomRestore = useCallback(() => {
-    const hasPendingRestore = hasPendingLoadedSessionBottomRestore(
-      pendingLoadedSessionRestoreKeyRef.current,
-      scrollToBottomKey,
-    );
-    if (!hasPendingRestore) return;
+    if (!isRestoringLoadedSessionBottomRef.current) return;
+    const key = pendingLoadedSessionRestoreKeyRef.current;
+    if (!key) return;
     const container = getScrollContainer();
     if (!(container instanceof HTMLElement)) return;
     if (restoreScrollRafRef.current !== null) return;
-    const restoreBottom = () => {
+    restoreScrollRafRef.current = window.requestAnimationFrame(() => {
       restoreScrollRafRef.current = null;
+      if (pendingLoadedSessionRestoreKeyRef.current !== key) return;
       const activeContainer = getScrollContainer();
       if (!(activeContainer instanceof HTMLElement)) return;
-      restoreAttemptRef.current += 1;
-      const previousScrollHeight = lastRestoreScrollHeightRef.current;
       scrollContainerToBottom(activeContainer);
-      lastRestoreScrollHeightRef.current = activeContainer.scrollHeight;
-      const isAtBottom = shouldFollowBottom({
-        scrollHeight: activeContainer.scrollHeight,
-        scrollTop: activeContainer.scrollTop,
-        clientHeight: activeContainer.clientHeight,
-      });
-      const isStable = previousScrollHeight === activeContainer.scrollHeight;
-      const hasContent = activeContainer.scrollHeight > 0;
-      if (
-        isAtBottom &&
-        hasContent &&
-        restoreAttemptRef.current >= MIN_BOTTOM_RESTORE_ATTEMPTS &&
-        (isStable || restoreAttemptRef.current >= MAX_BOTTOM_RESTORE_ATTEMPTS)
-      ) {
-        isRestoringLoadedSessionBottomRef.current = false;
-        pendingLoadedSessionRestoreKeyRef.current = null;
-        return;
-      }
-      restoreScrollRafRef.current = window.requestAnimationFrame(restoreBottom);
-    };
-    restoreScrollRafRef.current = window.requestAnimationFrame(restoreBottom);
-  }, [getScrollContainer, scrollContainerToBottom, scrollToBottomKey]);
+      isRestoringLoadedSessionBottomRef.current = false;
+      pendingLoadedSessionRestoreKeyRef.current = null;
+      shouldFollowBottomRef.current = true;
+      isAtBottomRef.current = true;
+      onAtBottomChange?.(true);
+    });
+  }, [getScrollContainer, onAtBottomChange, scrollContainerToBottom]);
 
   useEffect(() => {
     const container =
@@ -350,6 +437,16 @@ export function AgentMessages({
     if (!(container instanceof HTMLElement)) return;
 
     const handleScroll = () => {
+      if (isRestoringLoadedSessionBottomRef.current) return;
+      if (isRestoringHistoryRef.current) return;
+      if (isLoadingEarlier && historyLoadRafRef.current === null) {
+        historyLoadRafRef.current = window.requestAnimationFrame(() => {
+          historyLoadRafRef.current = null;
+          captureHistoryAnchor();
+        });
+      }
+      if (container.scrollTop > 200) historyTopArmedRef.current = true;
+      if (container.scrollTop <= 200 && historyTopArmedRef.current) handleLoadEarlier();
       const nextViewport = {
         scrollHeight: container.scrollHeight,
         scrollTop: container.scrollTop,
@@ -372,7 +469,18 @@ export function AgentMessages({
       viewportMetricsRef.current = nextViewport;
     };
 
+    const handleHistoryIntent = () => {
+      if (isRestoringLoadedSessionBottomRef.current) return;
+      if (isRestoringHistoryRef.current) {
+        cancelHistoryRestore();
+        return;
+      }
+      historyTopArmedRef.current = true;
+      if (container.scrollTop <= 200) handleLoadEarlier();
+    };
+
     const syncFrameMetrics = () => {
+      if (isRestoringHistoryRef.current || isLoadingEarlier) return;
       const nextFrame = {
         scrollHeight: container.scrollHeight,
         clientHeight: container.clientHeight,
@@ -400,7 +508,7 @@ export function AgentMessages({
       }
     };
 
-    handleScroll();
+    // Initial load restores the bottom; only user scrolls trigger history loading.
     syncFrameMetrics();
 
     const resizeObserver = new ResizeObserver(() => {
@@ -412,20 +520,27 @@ export function AgentMessages({
     }
 
     container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("wheel", handleHistoryIntent, { passive: true });
+    container.addEventListener("touchmove", handleHistoryIntent, { passive: true });
     return () => {
       if (restoreScrollRafRef.current !== null) {
         window.cancelAnimationFrame(restoreScrollRafRef.current);
         restoreScrollRafRef.current = null;
       }
-      scrollContainerRef.current = null;
       resizeObserver.disconnect();
       container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", handleHistoryIntent);
+      container.removeEventListener("touchmove", handleHistoryIntent);
     };
   }, [
     isRunning,
     onAtBottomChange,
     scheduleLoadedSessionBottomRestore,
     scheduleStreamingScrollToBottom,
+    captureHistoryAnchor,
+    handleLoadEarlier,
+    isLoadingEarlier,
+    cancelHistoryRestore,
   ]);
 
   useEffect(() => {
@@ -439,31 +554,6 @@ export function AgentMessages({
     scheduleStreamingScrollToBottom();
   }, [currentStage, isRunning, scheduleStreamingScrollToBottom, streamFollowSignal]);
 
-  useLayoutEffect(() => {
-    const previousKey = lastLoadScrollKeyRef.current;
-    lastLoadScrollKeyRef.current = scrollToBottomKey;
-    const shouldRestore = shouldResetFollowBottomForLoad(previousKey, scrollToBottomKey);
-    if (shouldRestore) {
-      pendingLoadedSessionRestoreKeyRef.current = scrollToBottomKey;
-      restoreAttemptRef.current = 0;
-    } else if (!scrollToBottomKey) {
-      pendingLoadedSessionRestoreKeyRef.current = null;
-    }
-    const hasPendingRestore = hasPendingLoadedSessionBottomRestore(
-      pendingLoadedSessionRestoreKeyRef.current,
-      scrollToBottomKey,
-    );
-    if (!hasPendingRestore) return;
-    isRestoringLoadedSessionBottomRef.current = true;
-    const shouldScheduleImmediately = shouldScheduleLoadedSessionBottomRestoreImmediately(
-      hasPendingRestore,
-      scrollContainerRef.current instanceof HTMLElement,
-    );
-    if (shouldScheduleImmediately) {
-      scheduleLoadedSessionBottomRestore();
-    }
-  }, [isRunning, messages.length, scheduleLoadedSessionBottomRestore, scrollToBottomKey]);
-
   useEffect(() => {
     onAtBottomChange?.(isAtBottomRef.current);
   }, [onAtBottomChange]);
@@ -473,6 +563,7 @@ export function AgentMessages({
     scrollToBottomFnRef.current = () => {
       const container = getScrollContainer();
       if (!(container instanceof HTMLElement)) return;
+      cancelHistoryRestore();
       shouldFollowBottomRef.current = true;
       scrollContainerToBottom(container);
       if (!isAtBottomRef.current) {
@@ -483,7 +574,13 @@ export function AgentMessages({
     return () => {
       scrollToBottomFnRef.current = null;
     };
-  }, [scrollToBottomFnRef, getScrollContainer, scrollContainerToBottom, onAtBottomChange]);
+  }, [
+    scrollToBottomFnRef,
+    getScrollContainer,
+    scrollContainerToBottom,
+    onAtBottomChange,
+    cancelHistoryRestore,
+  ]);
 
   useEffect(
     () => () => {
@@ -496,8 +593,11 @@ export function AgentMessages({
       if (streamingScrollRafRef.current !== null) {
         window.cancelAnimationFrame(streamingScrollRafRef.current);
       }
+      if (historyRestoreRafRef.current !== null)
+        window.cancelAnimationFrame(historyRestoreRafRef.current);
+      if (historyLoadRafRef.current !== null)
+        window.cancelAnimationFrame(historyLoadRafRef.current);
       isRestoringLoadedSessionBottomRef.current = false;
-      restoreAttemptRef.current = 0;
     },
     [],
   );
@@ -511,13 +611,173 @@ export function AgentMessages({
       undefined,
     );
   }, [displayMessages, isRunning]);
-  const messageBlocks = useMemo(
-    () => buildAgentMessageBlocks(displayMessages, { closeOpenNodeAt }),
-    [closeOpenNodeAt, displayMessages],
-  );
+  const [blockState, setBlockState] = useState(() => ({
+    messages: displayMessages,
+    closeOpenNodeAt,
+    blocks: buildAgentMessageBlocks(displayMessages, { closeOpenNodeAt }),
+  }));
+  let messageBlocks = blockState.blocks;
+  if (blockState.messages !== displayMessages || blockState.closeOpenNodeAt !== closeOpenNodeAt) {
+    messageBlocks = buildAgentMessageBlocks(displayMessages, {
+      closeOpenNodeAt,
+      previousBlocks: blockState.blocks,
+    });
+    setBlockState({ messages: displayMessages, closeOpenNodeAt, blocks: messageBlocks });
+  }
   const visibleMessageBlocks = useMemo(
     () => getVisibleAgentMessageBlocks(messageBlocks, collapsedNodeIds),
     [collapsedNodeIds, messageBlocks],
+  );
+  const layoutKey = `${scrollToBottomKey ?? ""}:${visibleMessageBlocks.length > 0}`;
+  useLayoutEffect(() => {
+    if (lastLoadScrollKeyRef.current !== layoutKey) {
+      lastLoadScrollKeyRef.current = layoutKey;
+      pendingLoadedSessionRestoreKeyRef.current = layoutKey;
+      isRestoringLoadedSessionBottomRef.current = true;
+      shouldFollowBottomRef.current = true;
+    }
+    if (visibleMessageBlocks.length === 0) {
+      isRestoringLoadedSessionBottomRef.current = false;
+      pendingLoadedSessionRestoreKeyRef.current = null;
+      return;
+    }
+    scheduleLoadedSessionBottomRestore();
+  }, [layoutKey, scheduleLoadedSessionBottomRestore, visibleMessageBlocks]);
+  const [historyPosition, setHistoryPosition] = useState({
+    blocks: visibleMessageBlocks,
+    messages,
+    generation: historyGeneration,
+    firstItemIndex: INITIAL_FIRST_ITEM_INDEX,
+  });
+  let firstItemIndex = historyPosition.firstItemIndex;
+  if (
+    historyPosition.blocks !== visibleMessageBlocks ||
+    historyPosition.generation !== historyGeneration
+  ) {
+    const isPrepend =
+      historyPosition.messages[0]?.id !== messages[0]?.id &&
+      messages.some((message) => message.id === historyPosition.messages[0]?.id);
+    firstItemIndex -=
+      historyPosition.generation === historyGeneration && isPrepend
+        ? getPrependedBlockCount(historyPosition.blocks, visibleMessageBlocks)
+        : 0;
+    setHistoryPosition({
+      blocks: visibleMessageBlocks,
+      messages,
+      generation: historyGeneration,
+      firstItemIndex,
+    });
+  }
+
+  useLayoutEffect(() => {
+    const anchor = historyAnchorRef.current;
+    if (!anchor) return;
+    if (anchor.generation !== historyGeneration || isRollbacking || hasEarlierError) {
+      historyAnchorRef.current = null;
+      isRestoringHistoryRef.current = false;
+      if (historyRestoreRafRef.current !== null)
+        window.cancelAnimationFrame(historyRestoreRafRef.current);
+      historyRestoreRafRef.current = null;
+      return;
+    }
+    if (isLoadingEarlier || anchor.messages === messages) return;
+    // Streaming append is not a history prepend.
+    if (anchor.messages[0]?.id === messages[0]?.id) {
+      historyAnchorRef.current = null;
+      return;
+    }
+    let blockIndex = visibleMessageBlocks.findIndex((block) =>
+      block.messages.some((message) => message.id === anchor.id),
+    );
+    if (blockIndex < 0) {
+      // A repeated node header can disappear when the boundary node is merged.
+      const fallback = anchor.fallbacks.find((item) =>
+        visibleMessageBlocks.some((block) =>
+          block.messages.some((message) => message.id === item.id),
+        ),
+      );
+      if (fallback) {
+        anchor.id = fallback.id;
+        anchor.top = fallback.top;
+        blockIndex = visibleMessageBlocks.findIndex((block) =>
+          block.messages.some((message) => message.id === anchor.id),
+        );
+      }
+    }
+    if (blockIndex < 0) {
+      historyAnchorRef.current = null;
+      return;
+    }
+    isRestoringHistoryRef.current = true;
+    shouldFollowBottomRef.current = false;
+    let attempts = 0;
+    let stableFrames = 0;
+    let isAnchorMissing = false;
+    const restore = () => {
+      historyRestoreRafRef.current = null;
+      const container = scrollContainerRef.current;
+      if (!container || historyAnchorRef.current !== anchor) return;
+      attempts += 1;
+      const elements = contentRef.current?.querySelectorAll<HTMLElement>(
+        "[data-scroll-message-ids]",
+      );
+      const element = Array.from(elements ?? []).findLast(
+        (item) =>
+          !item.closest('[aria-hidden="true"], [inert]') &&
+          (JSON.parse(item.dataset.scrollMessageIds ?? "[]") as string[]).includes(anchor.id),
+      );
+      if (element) {
+        isAnchorMissing = false;
+        const delta =
+          element.getBoundingClientRect().top - container.getBoundingClientRect().top - anchor.top;
+        if (Math.abs(delta) > 1) {
+          container.scrollTop += delta;
+          stableFrames = 0;
+        } else stableFrames += 1;
+      } else if (!isAnchorMissing) {
+        isAnchorMissing = true;
+        virtuosoRef.current?.scrollToIndex({
+          index: blockIndex,
+          align: "start",
+          offset: -anchor.top,
+        });
+      }
+      if (stableFrames >= 6 || attempts >= MAX_BOTTOM_RESTORE_ATTEMPTS) {
+        historyAnchorRef.current = null;
+        isRestoringHistoryRef.current = false;
+        viewportMetricsRef.current = {
+          scrollHeight: container.scrollHeight,
+          scrollTop: container.scrollTop,
+          clientHeight: container.clientHeight,
+        };
+        return;
+      }
+      historyRestoreRafRef.current = window.requestAnimationFrame(restore);
+    };
+    restore();
+    return () => {
+      if (historyRestoreRafRef.current !== null)
+        window.cancelAnimationFrame(historyRestoreRafRef.current);
+      historyRestoreRafRef.current = null;
+      isRestoringHistoryRef.current = false;
+    };
+  }, [
+    firstItemIndex,
+    hasEarlierError,
+    historyGeneration,
+    isLoadingEarlier,
+    isRollbacking,
+    messages,
+    visibleMessageBlocks,
+  ]);
+
+  useLayoutEffect(
+    () => () => {
+      if (historyLoadRafRef.current !== null)
+        window.cancelAnimationFrame(historyLoadRafRef.current);
+      historyLoadRafRef.current = null;
+    },
+    [historyGeneration, isRollbacking],
   );
   const navigationItems = useMemo(
     () => buildAgentMessageNavigationItems(messageBlocks, visibleMessageBlocks),
@@ -593,14 +853,18 @@ export function AgentMessages({
     });
   }, []);
 
-  const navigateToMessage = useCallback((blockIndex: number) => {
-    shouldFollowBottomRef.current = false;
-    virtuosoRef.current?.scrollToIndex({
-      index: blockIndex,
-      align: "start",
-      behavior: "smooth",
-    });
-  }, []);
+  const navigateToMessage = useCallback(
+    (blockIndex: number) => {
+      cancelHistoryRestore();
+      shouldFollowBottomRef.current = false;
+      virtuosoRef.current?.scrollToIndex({
+        index: blockIndex,
+        align: "start",
+        behavior: "smooth",
+      });
+    },
+    [cancelHistoryRestore],
+  );
 
   const copyText = useCallback(
     async (content: string, emptyMessage: string, actionId: string) => {
@@ -711,6 +975,7 @@ export function AgentMessages({
           className="agent-message-block-stack"
           data-block-type="node"
           data-message-block-index={blockIndex}
+          data-scroll-message-ids={JSON.stringify([message.id])}
         >
           <Box
             className="agent-message-block"
@@ -757,6 +1022,7 @@ export function AgentMessages({
           className="agent-message-block"
           data-block-type="user"
           data-message-block-index={blockIndex}
+          data-scroll-message-ids={JSON.stringify([message.id])}
         >
           <AgentMessageRenderer
             message={message}
@@ -858,14 +1124,6 @@ export function AgentMessages({
     }
   }, [scheduleLoadedSessionBottomRestore]);
 
-  const heightEstimates = useMemo(
-    () =>
-      visibleMessageBlocks.map((block) =>
-        estimateAgentBlockHeight(block, changeSummaryByAnchorId.has(block.id)),
-      ),
-    [changeSummaryByAnchorId, visibleMessageBlocks],
-  );
-
   const footerContext = useMemo<AgentMessagesFooterContext>(
     () => ({
       statusMessage,
@@ -892,14 +1150,56 @@ export function AgentMessages({
         ref={contentRef}
         className="agent-message-scroll-content"
       >
+        {(isLoadingEarlier || hasEarlierError) && (
+          <Flex
+            className="agent-message-history-status"
+            align="center"
+            justify="center"
+            gap="2"
+            role="status"
+            aria-live="polite"
+          >
+            {isLoadingEarlier ? (
+              <>
+                <Spinner size={12} />
+                <Text
+                  size="1"
+                  color="gray"
+                >
+                  {t("assistant.loadingEarlierMessages")}
+                </Text>
+              </>
+            ) : hasEarlierError ? (
+              <>
+                <Text
+                  size="1"
+                  color="gray"
+                >
+                  {t("assistant.loadEarlierMessagesFailed")}
+                </Text>
+                <Button
+                  size="1"
+                  variant="ghost"
+                  onClick={() => handleLoadEarlier(true)}
+                  disabled={isRollbacking}
+                >
+                  {t("assistant.retryEarlierMessages")}
+                </Button>
+              </>
+            ) : null}
+          </Flex>
+        )}
         {scrollParent ? (
           <Virtuoso
+            key={layoutKey}
             ref={virtuosoRef}
             customScrollParent={scrollParent}
             data={visibleMessageBlocks}
+            firstItemIndex={firstItemIndex}
+            initialTopMostItemIndex={{ index: "LAST", align: "end" }}
             computeItemKey={(_index, block) => block.id}
-            itemContent={(_index, block) => renderBlock(block, _index)}
-            heightEstimates={heightEstimates}
+            itemContent={(_index, block) => renderBlock(block, _index - firstItemIndex)}
+            skipAnimationFrameInResizeObserver
             increaseViewportBy={{ top: 600, bottom: 600 }}
             context={footerContext}
             components={{ Footer: AgentMessagesFooter }}

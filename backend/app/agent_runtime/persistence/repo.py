@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import cast
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, true
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -146,6 +146,89 @@ async def list_by_session(
         raise PersistenceLoadError(
             f"list_by_session failed for session {session_id}"
         ) from e
+
+
+async def list_session_page(
+    session: AsyncSession, session_id: str, *, before: int | None, limit: int,
+) -> list[PersistedMessage]:
+    try:
+        query = select(AgentRunMessage).where(col(AgentRunMessage.session_id) == session_id)
+        if before is not None:
+            query = query.where(col(AgentRunMessage.seq) < before)
+        result = await session.execute(query.order_by(col(AgentRunMessage.seq).desc()).limit(limit))
+        return [_row_to_dto(row) for row in result.scalars()]
+    except SQLAlchemyError as e:
+        raise PersistenceLoadError(f"list_session_page failed for session {session_id}") from e
+
+
+async def has_session_messages_before(session: AsyncSession, session_id: str, seq: int) -> bool:
+    try:
+        result = await session.execute(select(select(col(AgentRunMessage.id)).where(
+            col(AgentRunMessage.session_id) == session_id,
+            col(AgentRunMessage.seq) < seq,
+        ).exists()))
+        return bool(result.scalar_one())
+    except SQLAlchemyError as e:
+        raise PersistenceLoadError(f"has_session_messages_before failed for session {session_id}") from e
+
+
+async def load_page_projection_context(
+    session: AsyncSession, session_id: str, tool_call_ids: Sequence[str],
+    orchestration_tool_names: Sequence[str],
+) -> tuple[bool, list[PersistedMessage], dict[str, tuple[str, datetime, int]]]:
+    """Load only matching callers and canonical tool identities, never full history."""
+    calls = func.json_each(AgentRunMessage.tool_calls).table_valued("value")
+    call_id = func.json_extract(calls.c.value, "$.id")
+    call_name = func.json_extract(calls.c.value, "$.name")
+    try:
+        dispatch = await session.execute(select(select(col(AgentRunMessage.id)).where(
+            col(AgentRunMessage.session_id) == session_id,
+            or_(
+                col(AgentRunMessage.tool_name).in_(orchestration_tool_names),
+                select(calls.c.value).where(call_name.in_(orchestration_tool_names)).exists(),
+            ),
+        ).exists()))
+        if not tool_call_ids:
+            return bool(dispatch.scalar_one()), [], {}
+        ranked = select(
+            col(AgentRunMessage.id).label("message_id"),
+            func.row_number().over(
+                partition_by=call_id, order_by=col(AgentRunMessage.seq).desc(),
+            ).label("rank"),
+        ).select_from(AgentRunMessage).join(calls, true()).where(
+            col(AgentRunMessage.session_id) == session_id,
+            col(AgentRunMessage.role) == "assistant",
+            call_id.in_(tool_call_ids),
+        ).subquery()
+        callers = await session.execute(select(AgentRunMessage).where(
+            col(AgentRunMessage.id).in_(select(ranked.c.message_id).where(ranked.c.rank == 1))
+        ).order_by(col(AgentRunMessage.seq)))
+        bounds = select(
+            col(AgentRunMessage.tool_call_id).label("call_id"),
+            func.min(col(AgentRunMessage.seq)).label("first_seq"),
+            func.max(col(AgentRunMessage.seq)).label("last_seq"),
+        ).where(
+            col(AgentRunMessage.session_id) == session_id,
+            col(AgentRunMessage.role) == "tool",
+            col(AgentRunMessage.tool_call_id).in_(tool_call_ids),
+        ).group_by(col(AgentRunMessage.tool_call_id)).subquery()
+        tools = await session.execute(select(
+            col(AgentRunMessage.tool_call_id), col(AgentRunMessage.id),
+            col(AgentRunMessage.created_at), bounds.c.last_seq,
+        ).join(bounds, and_(
+            col(AgentRunMessage.session_id) == session_id,
+            col(AgentRunMessage.role) == "tool",
+            col(AgentRunMessage.tool_call_id) == bounds.c.call_id,
+            col(AgentRunMessage.seq) == bounds.c.first_seq,
+        )))
+        return (
+            bool(dispatch.scalar_one()),
+            [_row_to_dto(row) for row in callers.scalars()],
+            {call_id: (message_id, created_at, last_seq)
+             for call_id, message_id, created_at, last_seq in tools if call_id},
+        )
+    except SQLAlchemyError as e:
+        raise PersistenceLoadError(f"load_page_projection_context failed for session {session_id}") from e
 
 
 async def mark_tool_messages_pruned(

@@ -44,6 +44,8 @@ export interface Task {
   projectId: string;
   title: string;
   messages: TaskMessage[];
+  messagesCursor: number | null;
+  messagesHasMore: boolean;
   tokenInput: number;
   tokenOutput: number;
   tokenCache: number;

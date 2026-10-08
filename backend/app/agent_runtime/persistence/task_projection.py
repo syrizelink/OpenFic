@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -259,17 +260,21 @@ def _project_rows(
     rows: list[PersistedMessage],
     *,
     identities_by_dispatch_id: dict[str, dict[str, str]] | None = None,
+    context_rows: list[PersistedMessage] | None = None,
+    has_dispatch: bool = False,
+    preserve_seq_order: bool = False,
 ) -> list[TaskMessage]:
-    if _has_dispatch_subagent(rows):
-        subagent_tool_call_ids = _subagent_tool_call_ids(rows)
+    if has_dispatch or _has_dispatch_subagent(rows):
+        subagent_tool_call_ids = _subagent_tool_call_ids([*rows, *(context_rows or [])])
         rows = [
             row
             for row in rows
             if not _is_subagent_internal_row(row, subagent_tool_call_ids)
         ]
-    rows = _projection_order(rows)
+    if not preserve_seq_order:
+        rows = _projection_order(rows)
     tool_args_by_id: dict[str, dict[str, Any]] = {}
-    for row in rows:
+    for row in [*rows, *(context_rows or [])]:
         if row.role != "assistant" or not row.tool_calls:
             continue
         for tool_call in row.tool_calls:
@@ -422,3 +427,57 @@ async def load_task_messages_for_agent_session(
         rows,
         identities_by_dispatch_id=_subagent_identity_by_dispatch_id(child_runs),
     )
+
+
+@dataclass
+class TaskMessagePage:
+    messages: list[TaskMessage]
+    cursor: int | None = None
+    has_more: bool = False
+
+
+async def load_task_message_page_for_agent_session(
+    session: AsyncSession,
+    session_id: str | None,
+    *,
+    cursor: int | None = None,
+    page_size: int = 100,
+) -> TaskMessagePage:
+    if not 1 <= page_size <= 100 or (cursor is not None and cursor < 0):
+        raise ValueError("Invalid message pagination parameters")
+    if not session_id:
+        return TaskMessagePage([])
+    rows = await repo.list_session_page(session, session_id, before=cursor, limit=page_size)
+    if not rows:
+        return TaskMessagePage([])
+    for _ in range(2):
+        if rows[-1].role == "user":
+            break
+        older = await repo.list_session_page(session, session_id, before=rows[-1].seq, limit=page_size)
+        for row in older:
+            rows.append(row)
+            if row.role == "user":
+                break
+        if len(older) < page_size or rows[-1].role == "user":
+            break
+    oldest_seq = rows[-1].seq
+    has_more = await repo.has_session_messages_before(session, session_id, oldest_seq)
+    rows.reverse()
+    tool_call_ids = list({row.tool_call_id for row in rows if row.role == "tool" and row.tool_call_id})
+    has_dispatch, callers, tool_identities = await repo.load_page_projection_context(
+        session, session_id, tool_call_ids, sorted(SUBAGENT_ORCHESTRATION_TOOL_NAMES),
+    )
+    # Older duplicate results must not overwrite a newer page when history is prepended.
+    rows = [row for row in rows if not (
+        row.role == "tool" and row.tool_call_id in tool_identities
+        and row.seq != tool_identities[row.tool_call_id][2]
+    )]
+    child_runs = await list_child_runs_for_parent(session, session_id) if has_dispatch else []
+    messages = _project_rows(
+        rows, context_rows=callers, has_dispatch=has_dispatch, preserve_seq_order=True,
+        identities_by_dispatch_id=_subagent_identity_by_dispatch_id(child_runs),
+    )
+    for message in messages:
+        if message.role == "tool" and message.tool_call_id in tool_identities:
+            message.id, message.created_at, _ = tool_identities[message.tool_call_id]
+    return TaskMessagePage(messages, oldest_seq, has_more)

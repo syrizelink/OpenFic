@@ -169,11 +169,13 @@ function ExplorationMessageView({ messages, summary }: ExplorationMessageProps) 
         visible={hasContent && isExpanded}
       >
         <Box className="agent-exploration-content">
-          {messages.map((message, index) => (
-            <AgentMessageRenderer
-              key={`exploration-message:${index}`}
-              message={message}
-            />
+          {messages.map((message) => (
+            <Box
+              key={message.id}
+              data-scroll-message-ids={JSON.stringify([message.id])}
+            >
+              <AgentMessageRenderer message={message} />
+            </Box>
           ))}
         </Box>
       </MessageBlockContent>

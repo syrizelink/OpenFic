@@ -37,7 +37,7 @@ from app.agent_runtime.persistence.child_runs import (
 from app.agent_runtime.session_changes import load_agent_session_changes
 from app.agent_runtime.persistence.child_runs import get_child_run_agent_number
 from app.agent_runtime.persistence.task_projection import (
-    load_task_messages_for_agent_session,
+    load_task_message_page_for_agent_session,
 )
 from app.agent_runtime.persistence.model import AgentChildRun
 from app.agent_runtime.revisions import finalize_revision_status, rollback_revision_for_session
@@ -1597,6 +1597,8 @@ async def list_subagent_sessions(
 @router.get("/subagents/{child_run_id}", response_model=SubagentSessionResponse)
 async def get_subagent_session(
     child_run_id: str,
+    cursor: int | None = Query(default=None, ge=0),
+    page_size: int = Query(default=100, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> SubagentSessionResponse:
     row = await session.get(AgentChildRun, child_run_id)
@@ -1606,7 +1608,9 @@ async def get_subagent_session(
             detail=f"子运行不存在: {child_run_id}",
         )
 
-    messages = await load_task_messages_for_agent_session(session, row.child_thread_id)
+    page = await load_task_message_page_for_agent_session(
+        session, row.child_thread_id, cursor=cursor, page_size=page_size,
+    )
     metadata = dict(row.metadata_json or {})
     token_usage = metadata.pop("token_usage", {})
     usage = token_usage if isinstance(token_usage, dict) else {}
@@ -1646,7 +1650,9 @@ async def get_subagent_session(
         completed_at=row.completed_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
-        messages=messages,
+        messages=page.messages,
+        messages_cursor=page.cursor,
+        messages_has_more=page.has_more,
     )
 
 

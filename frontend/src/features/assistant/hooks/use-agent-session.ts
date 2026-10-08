@@ -40,6 +40,7 @@ import {
   cancelAgentSession,
   fetchAgentSessionChangeSummary,
   fetchAgentSessionChanges,
+  fetchTask,
   uploadAgentAttachment,
   submitAgentToolApproval,
 } from "@/lib/api-client";
@@ -86,7 +87,9 @@ import {
   createStreamingDeltaCoalescer,
   isStreamingDeltaEvent,
 } from "../lib/streaming-delta-coalescer";
+import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
 import { applyTransportReconnectState } from "./agent-session-transport-state";
+import { prependAgentMessages, useAgentMessagePagination } from "./use-agent-message-pagination";
 import {
   cancelStreamingAgentMessages,
   shouldSuppressAgentErrorAfterCompactionError,
@@ -496,6 +499,7 @@ export function useAgentSession({
   } | null>(null);
   const suppressSocketEventsAfterAbortRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionGenerationRef = useRef(0);
   const activeModelIdRef = useRef<string | null>(null);
   const pendingMessageRef = useRef<AgentPendingMessage | null>(null);
   const isCompactingRef = useRef(false);
@@ -512,6 +516,7 @@ export function useAgentSession({
   projectIdRef.current = projectId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [sessionLoadVersion, setSessionLoadVersion] = useState(0);
   const [changes, setChanges] = useState<AgentSessionChanges | null>(null);
   const [changeDetails, setChangeDetails] = useState<AgentSessionChanges | null>(null);
   const [changeDetailsRevisionId, setChangeDetailsRevisionId] = useState<string | null>(null);
@@ -525,6 +530,7 @@ export function useAgentSession({
 
   useEffect(() => {
     return () => {
+      sessionGenerationRef.current += 1;
       socketUnsubscribeRef.current?.();
       socketUnsubscribeRef.current = null;
       deltaCoalescerRef.current?.dispose();
@@ -668,6 +674,26 @@ export function useAgentSession({
     },
     [commitTranscriptState],
   );
+
+  const fetchEarlierPage = useCallback(async (taskId: string, cursor: number) => {
+    const task = await fetchTask(taskId, cursor);
+    return {
+      ...task,
+      messages: buildAgentMessagesFromTaskMessages(task.messages, task, task.createdAt),
+    };
+  }, []);
+  const prependEarlierPage = useCallback(
+    (older: AgentMessage[]) => {
+      updateTranscriptState((current) => ({
+        ...current,
+        messages: prependAgentMessages(current.messages, older),
+      }));
+    },
+    [updateTranscriptState],
+  );
+  const { resetPagination, invalidatePagination, getPaginationGeneration, ...messagePagination } =
+    useAgentMessagePagination(fetchEarlierPage, prependEarlierPage);
+  const historyTaskIdRef = useRef<string | null>(null);
 
   const syncPendingMessageState = useCallback((nextPendingMessage: AgentPendingMessage | null) => {
     pendingMessageRef.current = nextPendingMessage;
@@ -1213,6 +1239,7 @@ export function useAgentSession({
         return { sent: false, failedAttachmentIds: [] };
       }
 
+      sessionGenerationRef.current += 1;
       const processingAttachmentIds = getAttachmentProcessingIds(attachments ?? []);
       processingAttachmentIds.forEach((clientId) => {
         completedAttachmentProcessingIdsRef.current.delete(clientId);
@@ -1636,6 +1663,9 @@ export function useAgentSession({
   );
 
   const resetSession = useCallback(() => {
+    sessionGenerationRef.current += 1;
+    historyTaskIdRef.current = null;
+    resetPagination(null);
     sessionIdRef.current = null;
     activeModelIdRef.current = null;
     suppressSocketEventsAfterAbortRef.current = false;
@@ -1657,7 +1687,7 @@ export function useAgentSession({
     commitTranscriptState(createAgentTranscriptLiveState());
     socketUnsubscribeRef.current?.();
     socketUnsubscribeRef.current = null;
-  }, [commitTranscriptState, syncCompactingState, syncPendingMessageState]);
+  }, [commitTranscriptState, resetPagination, syncCompactingState, syncPendingMessageState]);
 
   useEffect(() => {
     resetSession();
@@ -1733,8 +1763,16 @@ export function useAgentSession({
         primaryAgentKey?: string;
         pendingInterrupts?: Record<string, unknown>[];
         initialChanges?: AgentSessionChanges | null;
-      } = {},
+        taskId: string;
+        messagesCursor: number | null;
+        messagesHasMore: boolean;
+      },
     ) => {
+      sessionGenerationRef.current += 1;
+      setIsRollbacking(false);
+      historyTaskIdRef.current = options.taskId;
+      setSessionLoadVersion((version) => version + 1);
+      resetPagination(options.taskId, options);
       sessionIdRef.current = existingSessionId;
       activeModelIdRef.current = null;
       suppressSocketEventsAfterAbortRef.current = false;
@@ -1816,6 +1854,7 @@ export function useAgentSession({
       agentKey,
       attachAgentSocket,
       commitTranscriptState,
+      resetPagination,
       syncCompactingState,
       syncPendingMessageState,
     ],
@@ -1862,18 +1901,41 @@ export function useAgentSession({
       }
 
       setIsRollbacking(true);
+      invalidatePagination();
+      const generation = sessionGenerationRef.current;
+      const taskId = historyTaskIdRef.current;
 
       try {
         const result = await rollbackAgentRevision(sessionId, targetMessage.revisionId);
+        if (generation !== sessionGenerationRef.current) return null;
 
         if (result.success) {
-          const targetIndex = messages.findIndex((m) => m.id === messageId);
+          const currentMessages = transcriptStateRef.current.messages;
+          const targetIndex = currentMessages.findIndex((m) => m.id === messageId);
           commitTranscriptState({
-            messages: messages.slice(0, targetIndex),
+            messages: currentMessages.slice(0, targetIndex),
             status: "idle",
             isRunning: false,
             currentStage: "",
           });
+
+          if (taskId) {
+            try {
+              const task = await fetchTask(taskId);
+              if (generation !== sessionGenerationRef.current) return null;
+              resetPagination(taskId, task);
+              setSessionLoadVersion((version) => version + 1);
+              commitTranscriptState({
+                messages: buildAgentMessagesFromTaskMessages(task.messages, task, task.createdAt),
+                status: "idle",
+                isRunning: false,
+                currentStage: "",
+              });
+            } catch {
+              if (generation !== sessionGenerationRef.current) return null;
+              toast.error(i18n.t("writing.aiSidebar.taskLoadFailed"));
+            }
+          }
 
           invalidateChapterQueries();
           invalidateNoteQueries();
@@ -1892,15 +1954,18 @@ export function useAgentSession({
           return null;
         }
       } catch (error) {
+        if (generation !== sessionGenerationRef.current) return null;
         console.error("Rollback failed:", error);
         toast.error(i18n.t("assistant.rollbackFailed"));
         return null;
       } finally {
-        setIsRollbacking(false);
+        if (generation === sessionGenerationRef.current) setIsRollbacking(false);
       }
     },
     [
       commitTranscriptState,
+      invalidatePagination,
+      resetPagination,
       sessionId,
       isRollbacking,
       isRunning,
@@ -1929,6 +1994,7 @@ export function useAgentSession({
         return null;
       }
 
+      const generation = getPaginationGeneration();
       try {
         const result = await forkAgentSession(
           activeSessionId,
@@ -1936,20 +2002,34 @@ export function useAgentSession({
           modelId,
           reasoningEffort,
         );
+        if (generation !== getPaginationGeneration()) return null;
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
         toast.success(i18n.t("assistant.forkSuccess"));
         return result;
       } catch (error) {
+        if (generation !== getPaginationGeneration()) return null;
         console.error("Fork failed:", error);
         toast.error(i18n.t("assistant.forkFailed"));
         return null;
       }
     },
-    [isRollbacking, isRunning, modelId, projectId, queryClient, reasoningEffort, sessionId],
+    [
+      getPaginationGeneration,
+      isRollbacking,
+      isRunning,
+      modelId,
+      projectId,
+      queryClient,
+      reasoningEffort,
+      sessionId,
+    ],
   );
 
   return {
     sessionId,
+    ...messagePagination,
+    sessionLoadVersion,
+    invalidatePagination,
     messages,
     pendingMessage,
     status,

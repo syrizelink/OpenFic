@@ -75,6 +75,7 @@ export function buildAgentRoundChangeSummaries(
 
 interface BuildAgentMessageBlocksOptions {
   closeOpenNodeAt?: number;
+  previousBlocks?: AgentMessageBlock[];
 }
 
 function isInterruptedNodeEndMessage(message: BlockDisplayMessage): boolean {
@@ -121,7 +122,6 @@ export function buildAgentMessageBlocks(
   let resumableNodeBlock: ResumableNodeBlock | null = null;
   let activeAgentRoundId: string | undefined;
   let fallbackRoundCount = 0;
-  let agentBlockCount = 0;
 
   const ensureAgentRoundId = () => {
     if (!activeAgentRoundId) {
@@ -218,9 +218,8 @@ export function buildAgentMessageBlocks(
 
     if (!currentAgentBlock) {
       const agentRoundId = ensureAgentRoundId();
-      agentBlockCount += 1;
       currentAgentBlock = {
-        id: `agent:${agentRoundId}:${agentBlockCount}`,
+        id: `agent:${message.id}`,
         type: "agent",
         messages: [],
         sourceRevisionId: pendingUserRevisionId,
@@ -241,6 +240,21 @@ export function buildAgentMessageBlocks(
       Math.max(activeNodeBlock.nodeStartedAt ?? options.closeOpenNodeAt, options.closeOpenNodeAt),
     );
     activeNodeBlock.nodeStatus = activeNodeBlock.nodeStatus === "error" ? "error" : "completed";
+  }
+
+  const previousIds = new Map(
+    (options.previousBlocks ?? [])
+      .filter((block) => block.type === "agent")
+      .flatMap((block) => block.messages.map((message) => [message.id, block.id] as const)),
+  );
+  const usedIds = new Set<string>();
+  for (const block of blocks) {
+    if (block.type !== "agent") continue;
+    const previousId = block.messages
+      .map((message) => previousIds.get(message.id))
+      .find((id) => id !== undefined && !usedIds.has(id));
+    if (previousId) block.id = previousId;
+    usedIds.add(block.id);
   }
 
   return blocks;

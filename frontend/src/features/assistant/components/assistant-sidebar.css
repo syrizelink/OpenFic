@@ -1382,6 +1382,11 @@
   position: relative;
 }
 
+.ai-sidebar-recent-tasks {
+  position: relative;
+  flex: 1 0 auto;
+}
+
 .ai-sidebar-rollback-overlay {
   position: sticky;
   top: 0;

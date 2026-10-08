@@ -36,6 +36,7 @@ import {
 import { createPendingApprovalEvent } from "../lib/subagent-session-approval";
 import { joinSubagentSession, subscribeSubagentSessionEvents } from "../lib/subagent-socket";
 import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
+import { prependAgentMessages, useAgentMessagePagination } from "./use-agent-message-pagination";
 import { shouldSuppressAgentErrorAfterCompactionError } from "./use-agent-session-message-state";
 
 const DEFAULT_RUNNING_STAGE = i18n.t("assistant.runningStatus.considering");
@@ -115,6 +116,11 @@ export function useSubagentSession(
 ) {
   const [session, setSession] = useState<SubagentSessionPayload | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [sessionLoadVersion, setSessionLoadVersion] = useState(0);
+  const [loadState, setLoadState] = useState<{ childRunId: string | null; isLoading: boolean }>({
+    childRunId: null,
+    isLoading: false,
+  });
   const [status, setStatus] = useState<AgentSessionStatus>("idle");
   const [isRunning, setIsRunning] = useState(false);
   const [currentStage, setCurrentStage] = useState("");
@@ -135,6 +141,33 @@ export function useSubagentSession(
     setIsRunning(nextState.isRunning);
     setCurrentStage(nextState.currentStage);
   }, []);
+
+  const fetchEarlierPage = useCallback(async (runId: string, cursor: number) => {
+    const payload = await fetchSubagentSession(runId, cursor);
+    return {
+      ...payload,
+      messages: buildAgentMessagesFromTaskMessages(
+        payload.messages,
+        buildTaskSnapshot(payload),
+        payload.messages[0]?.createdAt ?? new Date().toISOString(),
+      ),
+    };
+  }, []);
+  const prependEarlierPage = useCallback(
+    (older: AgentMessage[]) => {
+      const current = transcriptStateRef.current;
+      commitTranscriptState({
+        ...current,
+        messages: prependAgentMessages(current.messages, older),
+      });
+    },
+    [commitTranscriptState],
+  );
+  const { resetPagination, invalidatePagination, ...messagePagination } = useAgentMessagePagination(
+    fetchEarlierPage,
+    prependEarlierPage,
+  );
+  const loadGenerationRef = useRef(0);
 
   const applySubagentEvent = useCallback(
     (event: AgentEvent) => {
@@ -255,6 +288,8 @@ export function useSubagentSession(
   }, [childRunId, commitTranscriptState, session?.parentSessionId]);
 
   const load = useCallback(async () => {
+    const generation = ++loadGenerationRef.current;
+    resetPagination(null);
     if (!childRunId) {
       setSession(null);
       setMessages([]);
@@ -272,7 +307,20 @@ export function useSubagentSession(
       return;
     }
 
-    const payload = await fetchSubagentSession(childRunId);
+    setLoadState({ childRunId, isLoading: true });
+    let payload: SubagentSessionPayload;
+    try {
+      payload = await fetchSubagentSession(childRunId);
+    } catch (error) {
+      if (generation !== loadGenerationRef.current) return;
+      setLoadState({ childRunId, isLoading: false });
+      setSession(null);
+      commitTranscriptState(createAgentTranscriptLiveState({ status: "error" }));
+      throw error;
+    }
+    if (generation !== loadGenerationRef.current) return;
+    setLoadState({ childRunId, isLoading: false });
+    resetPagination(childRunId, payload);
     const nextTokenUsage = toTokenUsage(payload);
     const nextMessages = buildAgentMessagesFromTaskMessages(
       payload.messages,
@@ -290,6 +338,7 @@ export function useSubagentSession(
       payload.messages[payload.messages.length - 1]?.createdAt,
     );
     setSession(payload);
+    setSessionLoadVersion((version) => version + 1);
     commitTranscriptState(
       pendingApprovalEvent
         ? applyAgentTranscriptEventToLiveState(nextState, pendingApprovalEvent, {
@@ -303,18 +352,22 @@ export function useSubagentSession(
     );
     setTokenUsage(nextTokenUsage);
     onTokenUsage?.(payload.childThreadId, nextTokenUsage);
-  }, [childRunId, commitTranscriptState, onTokenUsage]);
+  }, [childRunId, commitTranscriptState, onTokenUsage, resetPagination]);
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      void load();
+      void load().catch(() => {
+        if (!cancelled) toast.error(i18n.t("writing.aiSidebar.taskLoadFailed"));
+      });
     });
     return () => {
       cancelled = true;
+      loadGenerationRef.current += 1;
+      invalidatePagination();
     };
-  }, [load]);
+  }, [invalidatePagination, load]);
 
   useEffect(() => {
     if (!childRunId) return undefined;
@@ -437,6 +490,9 @@ export function useSubagentSession(
 
   return {
     session,
+    isLoading: Boolean(childRunId && (loadState.childRunId !== childRunId || loadState.isLoading)),
+    ...messagePagination,
+    sessionLoadVersion,
     messages,
     status,
     isRunning,
