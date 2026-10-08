@@ -54,16 +54,18 @@ def _tool_result(row: PersistedMessage) -> dict[str, Any]:
         success = parsed.get("success")
         error = parsed.get("error")
         message = parsed.get("message") or error
-        return {
+        result = {
             **parsed,
             "success": bool(success) if isinstance(success, bool) else not error,
             "type": parsed.get("type") or ("fail" if error else "ok"),
             "reason": parsed.get("reason") or ("tool_error" if error else None),
             "message": message,
-            "data": parsed.get("data") if "data" in parsed else parsed,
             "tool_call_id": parsed.get("tool_call_id") or row.tool_call_id,
             "tool_name": parsed.get("tool_name") or row.tool_name,
         }
+        if "data" in parsed:
+            result["data"] = parsed["data"]
+        return result
     return {
         "type": "ok",
         "success": row.status != "aborted",
@@ -71,6 +73,14 @@ def _tool_result(row: PersistedMessage) -> dict[str, Any]:
         "tool_call_id": row.tool_call_id,
         "tool_name": row.tool_name,
     }
+
+
+def _tool_message_content(row: PersistedMessage, tool_result: dict[str, Any]) -> str:
+    parsed = _parse_json(row.content)
+    if not isinstance(parsed, dict):
+        return row.content
+    message = tool_result.get("message")
+    return message if isinstance(message, str) else ""
 
 
 def _tool_message_status(row: PersistedMessage, tool_result: dict[str, Any]) -> str:
@@ -171,7 +181,6 @@ def _base_message(
 ) -> TaskMessage:
     return TaskMessage(
         id=message_id or row.id,
-        task_id=row.task_id,
         role=role or row.role,
         agent_id=row.agent_id,
         content=row.content if content is None else content,
@@ -379,6 +388,7 @@ def _project_rows(
                     message_type="tool",
                     message_status=_tool_message_status(row, tool_result),
                     display_channel="list",
+                    content=_tool_message_content(row, tool_result),
                     payload={
                         "tool_call_id": row.tool_call_id,
                         "tool_name": row.tool_name,

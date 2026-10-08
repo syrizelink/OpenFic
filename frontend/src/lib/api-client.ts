@@ -2210,7 +2210,6 @@ function normalizeUtcDateString(value: unknown): string {
 function transformTaskMessage(raw: Record<string, unknown>): Task["messages"][number] {
   return {
     id: raw.id as string,
-    taskId: (raw.task_id ?? raw.taskId) as string | null | undefined,
     role: raw.role as "system" | "user" | "assistant" | "tool",
     agentId: (raw.agent_id ?? raw.agentId) as string | null | undefined,
     content: raw.content as string,

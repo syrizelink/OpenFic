@@ -3186,7 +3186,6 @@ class TestAgentAPI:
         assert data["messages"] == [
             {
                 "id": data["messages"][0]["id"],
-                "task_id": task_id,
                 "role": "user",
                 "agent_id": "primary",
                 "content": "请起草这一章",
@@ -3203,7 +3202,6 @@ class TestAgentAPI:
             },
             {
                 "id": f"{assistant_message.id}:text",
-                "task_id": task_id,
                 "role": "assistant",
                 "agent_id": "writer",
                 "content": "这是子 agent 的回复",

@@ -7,7 +7,6 @@
 /** 任务消息 */
 export interface TaskMessage {
   id: string;
-  taskId?: string | null;
   role: "system" | "user" | "assistant" | "tool";
   agentId?: string | null;
   content: string;

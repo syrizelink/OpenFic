@@ -13,7 +13,6 @@ class TaskMessage(BaseModel):
     """任务消息。"""
 
     id: str = Field(description="消息ID")
-    task_id: str | None = Field(default=None, description="任务ID")
     role: str = Field(description="消息角色：system、user、assistant 或 tool")
     agent_id: str | None = Field(default=None, description="消息来源的Agent ID")
     content: str = Field(description="消息内容")
