@@ -11,6 +11,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import {
   buildSkillCommandTag,
   findActiveCommandQuery,
@@ -201,6 +202,7 @@ export function AgentComposerEditor({
   const [mentionQuery, setMentionQuery] = useState<MentionQueryState>(
     createClosedMentionQueryState,
   );
+  const { isMobile } = useAppShell();
 
   const normalizedQuery = mentionQuery.query.trim();
   const shouldSearchSuggestionItems =
@@ -438,6 +440,9 @@ export function AgentComposerEditor({
       }
 
       if (event.key !== "Enter") return;
+      // On mobile, Enter is reserved for IME confirmation or inserting a
+      // newline; messages are sent with the button instead.
+      if (isMobile) return;
       // IME composition guard: when a CJK input method is composing (pinyin
       // candidates etc.), Enter confirms the composition and must not submit.
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -454,6 +459,7 @@ export function AgentComposerEditor({
     [
       disabled,
       editor,
+      isMobile,
       mentionQuery.visible,
       onHistoryNavigate,
       onSubmit,
