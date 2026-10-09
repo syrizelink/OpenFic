@@ -247,6 +247,120 @@ def test_create_chat_model_generates_opencode_session_when_not_provided() -> Non
     assert model.default_headers["x-opencode-session"]
 
 
+@pytest.mark.parametrize(
+    ("provider_type", "base_url"),
+    [
+        ("opencode", "https://opencode.ai/zen/v1"),
+        ("opencode-go", "https://opencode.ai/zen/go/v1"),
+    ],
+)
+@pytest.mark.parametrize("model_id", ["gpt-6-luna", "grok-4.6", "muse-spark-1.3"])
+def test_create_chat_model_routes_opencode_responses_models_to_responses_api(
+    provider_type: str,
+    base_url: str,
+    model_id: str,
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url=base_url,
+            api_key="test-key",
+            model_id=model_id,
+            session_id="agent-session-1",
+        )
+    )
+
+    from langchain_openai import ChatOpenAI
+
+    assert isinstance(model, ChatOpenAI)
+    assert model.use_responses_api is True
+    assert str(model.root_client.base_url) == f"{base_url}/"
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
+def test_create_chat_model_keeps_generated_opencode_session_on_original_config() -> None:
+    config = ModelConfig(
+        provider_type="opencode",
+        base_url="https://opencode.ai/zen/v1",
+        api_key="test-key",
+        model_id="grok-4.6",
+    )
+
+    model = create_chat_model(config)
+
+    assert config.session_id
+    assert model.default_headers["x-opencode-session"] == config.session_id
+
+
+@pytest.mark.parametrize("provider_type", ["opencode", "opencode-go"])
+def test_create_chat_model_keeps_chat_completions_for_other_opencode_models(
+    provider_type: str,
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url="https://opencode.ai/zen/v1",
+            api_key="test-key",
+            model_id="deepseek-v4-pro",
+        )
+    )
+
+    from langchain_openai import ChatOpenAI
+
+    assert isinstance(model, ChatOpenAI)
+    assert not model.use_responses_api
+
+
+def test_create_chat_model_routes_opencode_zen_gemini_to_native_v1_endpoint() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="opencode",
+            base_url="https://opencode.ai/zen/v1",
+            api_key="test-key",
+            model_id="gemini-3.8-flash",
+            session_id="agent-session-1",
+            reasoning_effort="max",
+        )
+    )
+
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    assert isinstance(model, ChatGoogleGenerativeAI)
+    assert model.base_url == {"api_endpoint": "https://opencode.ai/zen"}
+    assert model.api_version == "v1"
+    assert model.additional_headers["x-opencode-session"] == "agent-session-1"
+    assert model.thinking_level == "high"
+    assert model.max_retries == 0
+
+
+def test_create_chat_model_does_not_route_opencode_go_gemini_to_native_client() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="opencode-go",
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key="test-key",
+            model_id="gemini-3.8-flash",
+        )
+    )
+
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    assert not isinstance(model, ChatGoogleGenerativeAI)
+
+
+def test_create_chat_model_does_not_reroute_user_selected_provider_type() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://opencode.ai/zen/v1",
+            api_key="test-key",
+            model_id="grok-4.6",
+        )
+    )
+
+    assert not model.use_responses_api
+
+
 def test_create_chat_model_does_not_add_opencode_header_to_other_providers() -> None:
     model = create_chat_model(
         ModelConfig(
