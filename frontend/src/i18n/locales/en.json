@@ -1709,6 +1709,7 @@
       "toolsDialogDescription": "Tool definitions supplied with this LLM request",
       "outputDialogTitle": "Output Content",
       "outputDialogDescription": "Model output, tool calls, and error details",
+      "detailsLoadError": "Failed to load details. Close and try again.",
       "noOutput": "No output content",
       "noTools": "No tools were supplied with this call",
       "unknownProject": "Unknown project",

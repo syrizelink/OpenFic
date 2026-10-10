@@ -27,7 +27,7 @@ import { PromptChainDialog, Spinner } from "@/components";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 
-import { fetchDashboardRecordPrompt } from "../lib/dashboard-api";
+import { fetchDashboardRecordDetails, fetchDashboardRecordPrompt } from "../lib/dashboard-api";
 import {
   formatDateTime,
   formatNumber,
@@ -109,20 +109,6 @@ function getToolReferenceEntries(value: string | null): ToolCallEntry[] {
     name: isRecord(tool) && typeof tool.name === "string" ? tool.name : null,
     content: stringifyContent(tool),
   }));
-}
-
-function hasErrorDetails(record: DashboardAuditRecord): boolean {
-  return Boolean(
-    record.errorMessage || record.errorType || typeof record.errorStatusCode === "number",
-  );
-}
-
-function hasOutputDetails(record: DashboardAuditRecord): boolean {
-  return Boolean(
-    record.responseContent ||
-    getToolCallEntries(record.responseToolCalls).length > 0 ||
-    hasErrorDetails(record),
-  );
 }
 
 function getStatusColor(status: string): "green" | "red" | "gray" {
@@ -223,6 +209,12 @@ export function DashboardRecordsTab({
     queryFn: () => fetchDashboardRecordPrompt(inputRecord?.id ?? ""),
     enabled: !!inputRecord,
   });
+  const detailsRecord = toolRecord ?? outputRecord;
+  const detailsQuery = useQuery({
+    queryKey: ["dashboard", "llm-api", "record-details", detailsRecord?.id],
+    queryFn: () => fetchDashboardRecordDetails(detailsRecord?.id ?? ""),
+    enabled: !!detailsRecord,
+  });
   const { data: agentDefinitions = [] } = useQuery({
     queryKey: ["agent-definitions"],
     queryFn: fetchAgentDefinitions,
@@ -240,9 +232,19 @@ export function DashboardRecordsTab({
     () => getPromptEntries(promptQuery.data?.requestMessages),
     [promptQuery.data?.requestMessages],
   );
-  const toolReferenceEntries = toolRecord ? getToolReferenceEntries(toolRecord.toolReferences) : [];
-  const toolCallEntries = outputRecord ? getToolCallEntries(outputRecord.responseToolCalls) : [];
-  const errorDetails = outputRecord ? hasErrorDetails(outputRecord) : false;
+  const toolReferenceEntries = useMemo(
+    () => (toolRecord ? getToolReferenceEntries(detailsQuery.data?.toolReferences ?? null) : []),
+    [detailsQuery.data?.toolReferences, toolRecord],
+  );
+  const toolCallEntries = useMemo(
+    () => (outputRecord ? getToolCallEntries(detailsQuery.data?.responseToolCalls ?? null) : []),
+    [detailsQuery.data?.responseToolCalls, outputRecord],
+  );
+  const errorDetails = Boolean(
+    detailsQuery.data?.errorMessage ||
+    outputRecord?.errorType ||
+    typeof outputRecord?.errorStatusCode === "number",
+  );
   const shouldShowDetails = settings?.auditPersistDetails ?? false;
   const recordTotal = data?.records.total ?? 0;
   const visiblePages = getVisiblePages(query.page, totalPages);
@@ -327,7 +329,7 @@ export function DashboardRecordsTab({
             <tbody>
               {data?.records.items.map((record) => {
                 const hasFailed = isFailedRecord(record);
-                const hasOutput = hasOutputDetails(record);
+                const hasOutput = record.hasOutputDetails;
                 const operationLabel =
                   record.category === "agent"
                     ? (agentNamesByKey.get(record.operation) ?? record.operation)
@@ -371,7 +373,7 @@ export function DashboardRecordsTab({
                             aria-label={t("dashboard.records.viewTools")}
                             className="dashboard-record-icon-button"
                             color="gray"
-                            disabled={getToolReferenceEntries(record.toolReferences).length === 0}
+                            disabled={!record.hasToolReferences}
                             size="1"
                             variant="ghost"
                             onClick={() => setToolRecord(record)}
@@ -517,7 +519,11 @@ export function DashboardRecordsTab({
           </Dialog.Description>
           <ScrollArea className="dashboard-output-scroll-area">
             <Box className="dashboard-output-content">
-              {toolReferenceEntries.length > 0 ? (
+              {detailsQuery.isPending ? (
+                <Spinner size={18} />
+              ) : detailsQuery.isError ? (
+                <Text color="red">{t("dashboard.records.detailsLoadError")}</Text>
+              ) : toolReferenceEntries.length > 0 ? (
                 <section className="dashboard-output-section">
                   <div className="dashboard-output-tool-call-list">
                     {toolReferenceEntries.map((tool, index) => (
@@ -570,7 +576,11 @@ export function DashboardRecordsTab({
           </Dialog.Description>
           <ScrollArea className="dashboard-output-scroll-area">
             <Box className="dashboard-output-content">
-              {outputRecord?.responseContent ? (
+              {detailsQuery.isPending ? <Spinner size={18} /> : null}
+              {detailsQuery.isError ? (
+                <Text color="red">{t("dashboard.records.detailsLoadError")}</Text>
+              ) : null}
+              {detailsQuery.data?.responseContent ? (
                 <section className="dashboard-output-section">
                   <div className="dashboard-output-section-header">
                     <Text
@@ -582,7 +592,7 @@ export function DashboardRecordsTab({
                       {t("dashboard.records.outputSectionContent")}
                     </Text>
                   </div>
-                  <pre className="dashboard-output-text">{outputRecord.responseContent}</pre>
+                  <pre className="dashboard-output-text">{detailsQuery.data.responseContent}</pre>
                 </section>
               ) : null}
 
@@ -643,15 +653,18 @@ export function DashboardRecordsTab({
                       ) : null}
                     </div>
                   </div>
-                  {outputRecord.errorMessage ? (
+                  {detailsQuery.data?.errorMessage ? (
                     <pre className="dashboard-output-json">
-                      {stringifyContent(outputRecord.errorMessage)}
+                      {stringifyContent(detailsQuery.data.errorMessage)}
                     </pre>
                   ) : null}
                 </section>
               ) : null}
 
-              {!outputRecord?.responseContent && toolCallEntries.length === 0 && !errorDetails ? (
+              {detailsQuery.isSuccess &&
+              !detailsQuery.data.responseContent &&
+              toolCallEntries.length === 0 &&
+              !errorDetails ? (
                 <Text color="gray">{t("dashboard.records.noOutput")}</Text>
               ) : null}
             </Box>

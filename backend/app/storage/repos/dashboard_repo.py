@@ -7,7 +7,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Float, Integer, String, case, cast, func, literal, or_, select, union_all
+from sqlalchemy import (
+    Float,
+    Integer,
+    String,
+    case,
+    cast,
+    func,
+    literal,
+    or_,
+    select,
+    true,
+    union_all,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import col
@@ -93,13 +105,22 @@ class DashboardRecordRow:
     first_token_ms: int | None
     status: str
     error_type: str | None
-    error_message: str | None
     error_status_code: int | None
     tool_calls_count: int
     has_request_messages: bool
+    has_tool_references: bool
+    has_output_details: bool
+
+
+@dataclass(frozen=True)
+class DashboardRecordDetailsRow:
+    """按需加载的工具定义和模型输出。"""
+
+    id: str
     tool_references: str | None
     response_content: str | None
     response_tool_calls: str | None
+    error_message: str | None
 
 
 @dataclass(frozen=True)
@@ -358,12 +379,6 @@ async def get_stats(
     return DashboardStatsRows(summary, model_time_series, by_model, by_project)
 
 
-async def count_records(session: AsyncSession, filters: DashboardFilters) -> int:
-    """统计筛选后的记录数。"""
-    query = select(func.count(col(LLMAuditLog.id)))
-    return (await session.execute(_apply_filters(query, filters))).scalar_one()
-
-
 async def list_records(
     session: AsyncSession,
     filters: DashboardFilters,
@@ -371,28 +386,30 @@ async def list_records(
     offset: int,
     sort_by: str,
     sort_order: str,
-) -> tuple[list[DashboardRecordRow], int | None]:
-    """获取筛选后的审计记录。"""
+) -> tuple[list[DashboardRecordRow], int]:
+    """索引分页及计数在同一 SQL 快照中返回，空页也保留总数。"""
     sort_column = SORT_COLUMNS.get(sort_by, LLMAuditLog.created_at)
     order_expression = (
         col(sort_column).asc() if sort_order == "asc" else col(sort_column).desc()
     )
     page_query = select(
         col(LLMAuditLog.id).label("record_id"),
-        func.count(col(LLMAuditLog.id)).over().label("total_count"),
-        func.row_number()
-        .over(order_by=(order_expression, col(LLMAuditLog.id).desc()))
-        .label("page_order"),
     )
     page_query = (
         _apply_filters(page_query, filters)
         .order_by(order_expression, col(LLMAuditLog.id).desc())
         .limit(limit)
         .offset(offset)
-        .subquery("dashboard_record_page")
+        .cte("dashboard_record_page")
+        .prefix_with("MATERIALIZED")
     )
+    total_query = _apply_filters(
+        select(func.count().label("total_count")).select_from(LLMAuditLog),
+        filters,
+    ).cte("dashboard_record_total")
     query = (
         select(
+            total_query.c.total_count,
             col(LLMAuditLog.id),
             col(LLMAuditLog.created_at),
             col(LLMAuditLog.task_id),
@@ -414,22 +431,36 @@ async def list_records(
             col(LLMAuditLog.first_token_ms),
             col(LLMAuditLog.status),
             col(LLMAuditLog.error_type),
-            col(LLMAuditLog.error_message),
             col(LLMAuditLog.error_status_code),
             col(LLMAuditLog.tool_calls_count),
             (
-                func.coalesce(func.length(func.trim(col(LLMAuditLog.request_messages))), 0) > 0
+                func.coalesce(
+                    func.length(func.trim(col(LLMAuditLog.request_messages))), 0
+                )
+                > 0
             ).label("has_request_messages"),
-            col(LLMAuditLog.tool_references),
-            col(LLMAuditLog.response_content),
-            col(LLMAuditLog.response_tool_calls),
-            page_query.c.total_count,
+            func.coalesce(col(LLMAuditLog.tool_references), "")
+            .not_in(["", "[]", "null"])
+            .label("has_tool_references"),
+            or_(
+                func.coalesce(col(LLMAuditLog.response_content), "") != "",
+                func.coalesce(col(LLMAuditLog.response_tool_calls), "").not_in(
+                    ["", "[]", "null"]
+                ),
+                func.coalesce(col(LLMAuditLog.error_message), "") != "",
+                col(LLMAuditLog.error_type).is_not(None),
+                col(LLMAuditLog.error_status_code).is_not(None),
+            ).label("has_output_details"),
         )
-        .join(page_query, col(LLMAuditLog.id) == page_query.c.record_id)
+        # Only the bounded page is materialized; page and count choose their own indexes.
+        # The aggregate always has one row, including empty/out-of-range pages.
+        .select_from(total_query)
+        .outerjoin(page_query, true())
+        .outerjoin(LLMAuditLog, col(LLMAuditLog.id) == page_query.c.record_id)
         .outerjoin(Project, col(Project.id) == col(LLMAuditLog.project_id))
-        .order_by(page_query.c.page_order)
+        .order_by(order_expression, col(LLMAuditLog.id).desc())
     )
-    result = await session.execute(_apply_filters(query, filters))
+    result = await session.execute(query)
     rows = result.all()
     records = [
         DashboardRecordRow(
@@ -454,18 +485,31 @@ async def list_records(
             first_token_ms=row.first_token_ms,
             status=row.status,
             error_type=row.error_type,
-            error_message=row.error_message,
             error_status_code=row.error_status_code,
             tool_calls_count=row.tool_calls_count or 0,
             has_request_messages=bool(row.has_request_messages),
-            tool_references=row.tool_references,
-            response_content=row.response_content,
-            response_tool_calls=row.response_tool_calls,
+            has_tool_references=bool(row.has_tool_references),
+            has_output_details=bool(row.has_output_details),
         )
         for row in rows
+        if row.id is not None
     ]
-    total = int(rows[0].total_count) if rows else None
-    return records, total
+    return records, int(rows[0].total_count)
+
+
+async def get_record_details(
+    session: AsyncSession, record_id: str
+) -> DashboardRecordDetailsRow | None:
+    """按主键读取单条调用的工具、输出和错误正文。"""
+    query = select(
+        col(LLMAuditLog.id),
+        col(LLMAuditLog.tool_references),
+        col(LLMAuditLog.response_content),
+        col(LLMAuditLog.response_tool_calls),
+        col(LLMAuditLog.error_message),
+    ).where(col(LLMAuditLog.id) == record_id)
+    row = (await session.execute(query)).first()
+    return DashboardRecordDetailsRow(**row._mapping) if row is not None else None
 
 
 async def get_record_prompt(
@@ -488,6 +532,9 @@ async def get_record_prompt(
 
 async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRow:
     """通过一次查询获取全部全局筛选选项。"""
+    project_ids = (
+        select(col(LLMAuditLog.project_id)).distinct().subquery("dashboard_projects")
+    )
     option_queries = [
         _distinct_option_query("project_ids", col(LLMAuditLog.project_id)),
         _distinct_option_query("model_providers", col(LLMAuditLog.model_provider)),
@@ -497,12 +544,12 @@ async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRow
         _distinct_option_query("statuses", col(LLMAuditLog.status)),
         select(
             literal("project_options").label("kind"),
-            col(LLMAuditLog.project_id).label("value"),
-            func.coalesce(col(Project.title), col(LLMAuditLog.project_id)).label("label"),
+            project_ids.c.project_id.label("value"),
+            func.coalesce(col(Project.title), project_ids.c.project_id).label("label"),
         )
-        .outerjoin(Project, col(Project.id) == col(LLMAuditLog.project_id))
-        .where(col(LLMAuditLog.project_id).is_not(None))
-        .distinct(),
+        .select_from(project_ids)
+        .outerjoin(Project, col(Project.id) == project_ids.c.project_id)
+        .where(project_ids.c.project_id.is_not(None)),
         select(
             literal("model_options").label("kind"),
             col(LLMAuditLog.model_id).label("value"),

@@ -818,6 +818,8 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
         )
         if value is not None
     )
+    assert audit_log.has_details is True
+    assert audit_log.detail_bytes == storage["detail_bytes"]
 
     clear_response = await client.delete("/api/v1/settings/audit-details")
 
@@ -833,6 +835,8 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
     assert audit_log.response_tool_calls is None
     assert audit_log.tool_call_results is None
     assert audit_log.extra_data is None
+    assert audit_log.has_details is False
+    assert audit_log.detail_bytes == 0
     assert audit_log.tokens_total == 42
     assert audit_log.latency_ms == 120
     assert audit_log.tool_calls_count == 1
