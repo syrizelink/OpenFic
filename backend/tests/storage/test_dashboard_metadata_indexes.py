@@ -15,32 +15,39 @@ def test_dashboard_metadata_indexes_migrate_existing_records(tmp_path, monkeypat
     try:
         with engine.begin() as connection:
             columns = {name for _, names in migration.INDEXES for name in names}
+            columns.update(migration.DETAIL_COLUMNS)
             connection.execute(
                 text(
                     "CREATE TABLE agent_audit_logs ("
                     + ", ".join(f"{name} TEXT" for name in sorted(columns))
-                    + ", request_messages TEXT)"
+                    + ")"
                 )
             )
+            prompt = "stored prompt" * 1000
             connection.execute(
                 text(
                     "INSERT INTO agent_audit_logs (id, request_messages) VALUES ('existing', :prompt)"
                 ),
-                {"prompt": "stored prompt" * 1000},
+                {"prompt": prompt},
             )
             monkeypatch.setattr(
                 migration, "op", Operations(MigrationContext.configure(connection))
             )
             migration.upgrade()
+            expected_indexes = dict(migration.INDEXES)
+            expected_indexes[migration.DETAIL_STORAGE_INDEX] = ["has_details", "detail_bytes"]
             assert {
                 i["name"]: i["column_names"]
                 for i in inspect(connection).get_indexes("agent_audit_logs")
-            } == dict(migration.INDEXES)
+            } == expected_indexes
+            assert connection.execute(
+                text("SELECT has_details, detail_bytes FROM agent_audit_logs WHERE id = 'existing'")
+            ).one() == (1, len(prompt.encode("utf-8")))
             model_indexes = {
                 i.name: [c.name for c in i.columns]
                 for i in LLMAuditLog.__table__.indexes
             }
-            for name, names in migration.INDEXES:
+            for name, names in expected_indexes.items():
                 assert model_indexes[name] == names
             migration.downgrade()
             assert not inspect(connection).get_indexes("agent_audit_logs")

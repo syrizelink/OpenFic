@@ -20,6 +20,7 @@ AUDIT_DETAILS_PERSISTENCE_SETTING_KEY = "audit_persist_details"
 def persist_audit_details(audit_log: LLMAuditLog, should_persist: bool) -> LLMAuditLog:
     """Remove heavy audit payloads while retaining aggregate metrics."""
     if should_persist:
+        audit_log.sync_detail_storage_metadata()
         return audit_log
 
     audit_log.request_messages = None
@@ -28,6 +29,7 @@ def persist_audit_details(audit_log: LLMAuditLog, should_persist: bool) -> LLMAu
     audit_log.response_tool_calls = None
     audit_log.tool_call_results = None
     audit_log.extra_data = None
+    audit_log.clear_detail_storage_metadata()
     return audit_log
 
 

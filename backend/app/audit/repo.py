@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from loguru import logger
-from sqlalchemy import LargeBinary, case, cast, func, or_, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -169,36 +169,16 @@ class LLMAuditLogRepo:
         await self.session.flush()
         return len(logs)
 
-    @staticmethod
-    def _has_detail_columns():
-        return or_(
-            col(LLMAuditLog.request_messages).is_not(None),
-            col(LLMAuditLog.tool_references).is_not(None),
-            col(LLMAuditLog.response_content).is_not(None),
-            col(LLMAuditLog.response_tool_calls).is_not(None),
-            col(LLMAuditLog.tool_call_results).is_not(None),
-            col(LLMAuditLog.extra_data).is_not(None),
-        )
-
-    @staticmethod
-    def _detail_bytes_expression():
-        return (
-            func.coalesce(func.length(cast(col(LLMAuditLog.request_messages), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_references), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.response_content), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.response_tool_calls), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_call_results), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.extra_data), LargeBinary)), 0)
-        )
-
     async def get_details_storage(self) -> AuditDetailsStorage:
-        has_detail_columns = self._has_detail_columns()
         result = await self.session.execute(
             select(
-                func.coalesce(func.sum(case((has_detail_columns, 1), else_=0)), 0).label(
+                func.coalesce(
+                    func.sum(case((col(LLMAuditLog.has_details).is_(True), 1), else_=0)),
+                    0,
+                ).label(
                     "detail_records_count"
                 ),
-                func.coalesce(func.sum(self._detail_bytes_expression()), 0).label("detail_bytes"),
+                func.coalesce(func.sum(col(LLMAuditLog.detail_bytes)), 0).label("detail_bytes"),
             )
         )
         row = result.one()
@@ -214,7 +194,7 @@ class LLMAuditLogRepo:
 
         await self.session.execute(
             update(LLMAuditLog)
-            .where(self._has_detail_columns())
+            .where(col(LLMAuditLog.has_details).is_(True))
             .values(
                 request_messages=None,
                 tool_references=None,
@@ -222,6 +202,8 @@ class LLMAuditLogRepo:
                 response_tool_calls=None,
                 tool_call_results=None,
                 extra_data=None,
+                has_details=False,
+                detail_bytes=0,
             )
         )
         await self.session.flush()
