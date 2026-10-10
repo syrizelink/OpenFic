@@ -1290,7 +1290,7 @@
     "openaiCodexWaiting": "Waiting for browser authorization. If the callback cannot complete automatically, enter the callback URL manually.",
     "noConnections": "No providers yet",
     "name": "Name",
-    "namePlaceholder": "Enter name (optional, defaults to URL)",
+    "namePlaceholder": "optional, defaults to URL",
     "url": "Service URL",
     "urlPlaceholder": "Enter service URL",
     "urlRequired": "Please enter service URL",

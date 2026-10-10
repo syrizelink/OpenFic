@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Grid, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, Grid, Text } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, Info } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -6,7 +6,7 @@ import type { Control, FieldValues, Path } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
-import { UnitTextField } from "@/components";
+import { InfoTooltip, UnitTextField } from "@/components";
 
 interface ModelMetadataSectionProps<T extends FieldValues> {
   control: Control<T>;
@@ -140,7 +140,7 @@ export function ModelMetadataSection<T extends FieldValues>({
             gap="1"
           >
             <Text>{t("models.metadata")}</Text>
-            <Tooltip
+            <InfoTooltip
               content={
                 <Flex
                   direction="column"
@@ -160,7 +160,7 @@ export function ModelMetadataSection<T extends FieldValues>({
               >
                 <Info size={14} />
               </span>
-            </Tooltip>
+            </InfoTooltip>
           </Flex>
           <AnimatePresence mode="wait">
             <motion.div

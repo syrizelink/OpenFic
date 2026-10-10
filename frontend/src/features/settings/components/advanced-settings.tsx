@@ -1,10 +1,10 @@
-import { Box, Button, Flex, Switch, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, Switch, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ConfirmDialog, Spinner, toast } from "@/components";
+import { ConfirmDialog, InfoTooltip, Spinner, toast } from "@/components";
 import { setTelemetryEnabled } from "@/lib/posthog";
 
 import {
@@ -150,7 +150,7 @@ export function AdvancedSettings() {
               >
                 {t("settings.advancedPersistDetails")}
               </Text>
-              <Tooltip
+              <InfoTooltip
                 content={
                   <Flex
                     direction="column"
@@ -171,7 +171,7 @@ export function AdvancedSettings() {
                 >
                   <Info size={14} />
                 </button>
-              </Tooltip>
+              </InfoTooltip>
             </Flex>
             <Text
               size="1"

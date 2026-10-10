@@ -24,6 +24,8 @@ import {
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import type { SettingsUpdateRequest } from "../lib/settings.types";
 
+import "./summary-settings.css";
+
 interface SummarySettingsProps {
   onCloseSettings: () => void;
   isAgentSettingsLocked: boolean;
@@ -56,6 +58,8 @@ interface SummaryFormValues {
   chapterTargetLength: number | null;
   longTermTargetLength: number | null;
 }
+
+const SUMMARY_NUMBER_INPUT_WIDTH = 100;
 
 function parseInteger(value: string, minimum: number): number | null {
   if (!value.trim()) return null;
@@ -90,6 +94,7 @@ function SummaryNumberField({ label, hint, value, min = 1, onChange }: SummaryNu
 
   return (
     <Flex
+      className="summary-settings__row"
       align="center"
       justify="between"
       gap="4"
@@ -101,7 +106,7 @@ function SummaryNumberField({ label, hint, value, min = 1, onChange }: SummaryNu
       <StepperNumberInput
         value={value}
         min={min}
-        width={160}
+        width={SUMMARY_NUMBER_INPUT_WIDTH}
         increaseAriaLabel={t("settings.increaseValue")}
         decreaseAriaLabel={t("settings.decreaseValue")}
         onChange={onChange}
@@ -363,6 +368,7 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
         gap="5"
       >
         <Flex
+          className="summary-settings__row"
           align="end"
           justify="between"
           gap="4"
@@ -373,6 +379,7 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
             description={t("settings.summaryModelHint")}
           />
           <Flex
+            className="summary-settings__model-controls"
             align="end"
             gap="3"
             wrap="wrap"

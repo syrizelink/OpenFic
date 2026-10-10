@@ -803,7 +803,11 @@
   }
 
   .skills-settings--settings .skills-settings-list-item--selected,
-  .skills-settings--settings .skills-settings-list-item--selected:hover,
+  .skills-settings--settings .skills-settings-list-item--selected:hover {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .skills-settings--settings
     .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
     background: var(--gray-a3);
@@ -822,7 +826,11 @@
   }
 
   .agent-definition-item--active,
-  .agent-definition-item--active:hover,
+  .agent-definition-item--active:hover {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .agent-definition-item--active.agent-definition-item--menu-open {
     background: var(--gray-a3);
     color: var(--gray-12);

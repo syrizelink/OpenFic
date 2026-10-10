@@ -68,7 +68,12 @@ export function ModelSelectorDialog({
       open={open}
       onOpenChange={handleOpenChange}
     >
-      <Dialog.Content maxWidth="600px">
+      <Dialog.Content
+        maxWidth="600px"
+        onOpenAutoFocus={(event) => {
+          if (window.innerWidth < 768) event.preventDefault();
+        }}
+      >
         <Dialog.Title>{t("models.selectModel")}</Dialog.Title>
 
         <Flex

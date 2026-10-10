@@ -306,6 +306,9 @@ export function ConnectionFormDialog({
       <Dialog.Content
         maxWidth="500px"
         className="settings-background-panel"
+        onOpenAutoFocus={(event) => {
+          if (window.innerWidth < 768) event.preventDefault();
+        }}
       >
         <Dialog.Title>
           {isEditing ? t("connections.editConnection") : t("connections.createConnection")}

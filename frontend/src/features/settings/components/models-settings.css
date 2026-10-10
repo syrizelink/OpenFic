@@ -13,6 +13,51 @@
   min-width: 0;
 }
 
+.models-settings__model-item,
+.models-settings__model-item-container,
+.models-settings__model-item-row,
+.models-settings__model-item-content,
+.models-settings__model-item-meta,
+.models-settings__model-item-provider {
+  min-width: 0;
+}
+
+.models-settings__model-item-row {
+  width: 100%;
+}
+
+.models-settings__model-item-actions {
+  flex: 0 0 auto;
+}
+
+.models-settings__model-item-name,
+.models-settings__model-item-provider-name,
+.models-settings__model-item-model-id,
+.models-settings__model-item-remark {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-settings__model-item-name {
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
+.models-settings__model-item-provider {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.models-settings__model-item-model-id {
+  flex: 1 1 auto;
+}
+
+.models-settings__model-item-model-id-separator {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 767px) {
   .models-settings__model-section {
     max-width: 400px;
@@ -20,5 +65,10 @@
 
   .models-settings__model-selector {
     flex: 0 0 100%;
+  }
+
+  .models-settings__model-item-model-id,
+  .models-settings__model-item-model-id-separator {
+    display: none;
   }
 }

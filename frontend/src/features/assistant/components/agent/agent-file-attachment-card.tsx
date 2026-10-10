@@ -45,6 +45,8 @@ import { Icon } from "@iconify/react/offline";
 import { Box, Tooltip } from "@radix-ui/themes";
 import { Info, X } from "lucide-react";
 
+import { InfoTooltip } from "@/components";
+
 import { formatAgentFileSize, getAgentFileExtension } from "../../lib/agent-file-attachments";
 
 interface AgentFileAttachmentCardProps {
@@ -238,7 +240,9 @@ export function AgentFileAttachmentCard({
             <span className="agent-file-attachment-name-text">{fileName}</span>
           </Tooltip>
           {error ? (
-            <Tooltip content={<Box className="agent-file-attachment-error-tooltip">{error}</Box>}>
+            <InfoTooltip
+              content={<Box className="agent-file-attachment-error-tooltip">{error}</Box>}
+            >
               <span
                 className="agent-file-attachment-error-info"
                 role="img"
@@ -247,7 +251,7 @@ export function AgentFileAttachmentCard({
               >
                 <Info size={14} />
               </span>
-            </Tooltip>
+            </InfoTooltip>
           ) : null}
         </span>
         <span className="agent-file-attachment-meta">

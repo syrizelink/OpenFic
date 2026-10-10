@@ -576,20 +576,23 @@ export function ModelsSettings({
             {filteredModels.map((model, index) => (
               <Box
                 key={model.id}
-                className="list-item-hover"
+                className="list-item-hover models-settings__model-item"
               >
                 <Flex
                   direction="column"
                   gap="3"
+                  className="models-settings__model-item-container"
                   style={{ padding: "var(--space-4)" }}
                 >
                   <Flex
                     align="center"
                     justify="between"
+                    className="models-settings__model-item-row"
                   >
                     <Flex
                       direction="column"
                       gap="1"
+                      className="models-settings__model-item-content"
                       style={{ flex: 1 }}
                     >
                       {/* 模型名称 + 元数据标签 */}
@@ -597,10 +600,12 @@ export function ModelsSettings({
                         align="center"
                         gap="2"
                         wrap="wrap"
+                        className="models-settings__model-item-title-row"
                       >
                         <Text
                           size="3"
                           weight="medium"
+                          className="models-settings__model-item-name"
                         >
                           {model.name}
                         </Text>
@@ -640,15 +645,18 @@ export function ModelsSettings({
                       <Flex
                         align="center"
                         gap="2"
+                        className="models-settings__model-item-meta"
                       >
                         <Flex
                           align="center"
                           gap="1"
+                          className="models-settings__model-item-provider"
                         >
                           {getProviderIcon(model.providerId)}
                           <Text
                             size="2"
                             color="gray"
+                            className="models-settings__model-item-provider-name"
                           >
                             {getProviderName(model.providerId)}
                           </Text>
@@ -656,12 +664,14 @@ export function ModelsSettings({
                         <Text
                           size="2"
                           color="gray"
+                          className="models-settings__model-item-model-id-separator"
                         >
                           •
                         </Text>
                         <Text
                           size="2"
                           color="gray"
+                          className="models-settings__model-item-model-id"
                         >
                           {model.modelId}
                         </Text>
@@ -672,6 +682,7 @@ export function ModelsSettings({
                         <Text
                           size="2"
                           color="gray"
+                          className="models-settings__model-item-remark"
                         >
                           {model.remark}
                         </Text>
@@ -679,7 +690,10 @@ export function ModelsSettings({
                     </Flex>
 
                     {/* 操作按钮 */}
-                    <Flex gap="2">
+                    <Flex
+                      gap="2"
+                      className="models-settings__model-item-actions"
+                    >
                       {model.taskType === "llm" ? (
                         <Tooltip content={t("models.validateModel")}>
                           <IconButton
