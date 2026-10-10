@@ -1772,6 +1772,7 @@
       "toolsDialogDescription": "本次 LLM 调用请求中携带的工具定义",
       "outputDialogTitle": "输出内容",
       "outputDialogDescription": "模型输出、工具调用与错误详情",
+      "detailsLoadError": "加载详情失败，请关闭后重试。",
       "noOutput": "没有输出内容",
       "noTools": "本次调用未携带工具",
       "unknownProject": "未知项目",

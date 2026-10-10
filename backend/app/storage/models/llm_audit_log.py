@@ -3,6 +3,7 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -12,6 +13,27 @@ class LLMAuditLog(SQLModel, table=True):
     """Stores the request, response, usage, and outcome of one LLM call."""
 
     __tablename__ = "agent_audit_logs"
+    # Dashboard queries read metadata without scanning rows containing long prompts.
+    __table_args__ = (
+        Index(
+            "ix_agent_audit_logs_dashboard_metrics",
+            "created_at",
+            "id",
+            "project_id",
+            "model_id",
+            "model_name",
+            "tokens_input",
+            "tokens_output",
+            "tokens_total",
+            "latency_ms",
+            "first_token_ms",
+            "status",
+            "model_provider",
+            "category",
+            "operation",
+        ),
+        Index("ix_agent_audit_logs_model_id_model_name", "model_id", "model_name"),
+    )
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
@@ -22,7 +44,9 @@ class LLMAuditLog(SQLModel, table=True):
     child_run_id: str | None = Field(default=None, index=True)
     project_id: str = Field(index=True, foreign_key="projects.id")
     chapter_id: str | None = Field(default=None, index=True, foreign_key="chapters.id")
-    revision_id: str | None = Field(default=None, index=True, foreign_key="revisions.id")
+    revision_id: str | None = Field(
+        default=None, index=True, foreign_key="revisions.id"
+    )
 
     category: str = Field(default="agent", max_length=50, index=True)
     operation: str = Field(max_length=50, index=True)

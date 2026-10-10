@@ -8,6 +8,7 @@ import type {
   DashboardQueryParams,
   DashboardRecordList,
   DashboardRecordPrompt,
+  DashboardRecordDetails,
   DashboardRecordsResponse,
   DashboardStatsResponse,
   DashboardSummary,
@@ -69,10 +70,16 @@ interface RawDashboardAuditRecord {
   first_token_ms: number | null;
   status: string;
   error_type: string | null;
-  error_message: string | null;
   error_status_code: number | null;
   tool_calls_count: number;
   has_request_messages: boolean;
+  has_tool_references: boolean;
+  has_output_details: boolean;
+}
+
+interface RawDashboardRecordDetails {
+  id: string;
+  error_message: string | null;
   tool_references: string | null;
   response_content: string | null;
   response_tool_calls: string | null;
@@ -199,13 +206,11 @@ function transformRecord(raw: RawDashboardAuditRecord): DashboardAuditRecord {
     firstTokenMs: raw.first_token_ms,
     status: raw.status,
     errorType: raw.error_type,
-    errorMessage: raw.error_message,
     errorStatusCode: raw.error_status_code,
     toolCallsCount: raw.tool_calls_count,
     hasRequestMessages: raw.has_request_messages,
-    toolReferences: raw.tool_references,
-    responseContent: raw.response_content,
-    responseToolCalls: raw.response_tool_calls,
+    hasToolReferences: raw.has_tool_references,
+    hasOutputDetails: raw.has_output_details,
   };
 }
 
@@ -336,5 +341,20 @@ export async function fetchWritingDashboard(
   return {
     summary: transformWritingSummary(raw.summary),
     timeSeries: raw.time_series.map(transformWritingTimeSeriesPoint),
+  };
+}
+
+export async function fetchDashboardRecordDetails(
+  recordId: string,
+): Promise<DashboardRecordDetails> {
+  const { data } = await apiClient.get<RawDashboardRecordDetails>(
+    `/dashboard/llm-api/records/${recordId}/details`,
+  );
+  return {
+    id: data.id,
+    toolReferences: data.tool_references,
+    responseContent: data.response_content,
+    responseToolCalls: data.response_tool_calls,
+    errorMessage: data.error_message,
   };
 }
