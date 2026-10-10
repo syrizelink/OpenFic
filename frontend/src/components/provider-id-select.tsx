@@ -3,6 +3,7 @@ import { Check, ChevronDown, Component, Search } from "lucide-react";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import { getProviderDisplayName, OPENAI_ICON_PATH } from "@/features/settings/lib/provider-utils";
 import type { ModelProviderCatalogProvider } from "@/lib/model.types";
@@ -70,6 +71,7 @@ export function ProviderIdSelect({
   disabled = false,
 }: ProviderIdSelectProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isListReady, setIsListReady] = useState(false);
@@ -216,7 +218,7 @@ export function ProviderIdSelect({
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={t("select.searchPlaceholder")}
-            autoFocus
+            autoFocus={!isMobile}
           >
             <TextField.Slot>
               <Search

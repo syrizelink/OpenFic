@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
 
@@ -167,6 +168,7 @@ export function ModelIdSelect({
   contentClassName,
 }: ModelIdSelectProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(value || "");
   const [isListReady, setIsListReady] = useState(false);
@@ -370,6 +372,9 @@ export function ModelIdSelect({
 
       <Popover.Content
         className={contentClassName}
+        onOpenAutoFocus={(event) => {
+          if (isMobile) event.preventDefault();
+        }}
         style={{
           width: popoverWidth,
           minWidth: popoverWidth,
@@ -390,7 +395,7 @@ export function ModelIdSelect({
                     placeholder={t("models.searchModel")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    autoFocus
+                    autoFocus={!isMobile}
                     style={{ flex: 1 }}
                   >
                     <TextField.Slot>
