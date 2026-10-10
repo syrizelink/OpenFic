@@ -1395,6 +1395,19 @@
   scrollbar-gutter: stable;
 }
 
+.ai-sidebar-history-status-host {
+  flex-shrink: 0;
+}
+
+.ai-sidebar-messages:has(.agent-messages-root[data-history-committing="true"]) {
+  overflow-y: hidden;
+}
+
+.ai-sidebar-shell:has(.agent-messages-root[data-history-committing="true"])
+  :is(.agent-message-navigation, .ai-sidebar-scroll-to-bottom) {
+  visibility: hidden;
+}
+
 .ai-sidebar-recent-tasks {
   position: relative;
   flex: 1 0 auto;

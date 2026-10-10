@@ -55,6 +55,7 @@ interface AgentSidebarProps {
   projectedSpecialPanels?: AgentSpecialPanel[];
   onAtBottomChange?: (isAtBottom: boolean) => void;
   onLoadingChange?: (isLoading: boolean) => void;
+  historyStatusHost?: HTMLElement | null;
   scrollToBottomFnRef?: React.MutableRefObject<(() => void) | null>;
 }
 
@@ -81,6 +82,7 @@ export function useAgentSidebar({
   projectedSpecialPanels = [],
   onAtBottomChange,
   onLoadingChange,
+  historyStatusHost,
   scrollToBottomFnRef,
 }: AgentSidebarProps) {
   const {
@@ -252,6 +254,7 @@ export function useAgentSidebar({
         changes={agentChanges}
         onAtBottomChange={onAtBottomChange}
         onLoadingChange={onLoadingChange}
+        historyStatusHost={historyStatusHost}
         scrollToBottomFnRef={scrollToBottomFnRef}
       />
     ),

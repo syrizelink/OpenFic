@@ -23,6 +23,15 @@
   background: var(--color-background);
 }
 
+.agent-messages-root[data-history-committing="true"]
+  :is(.agent-message-block, .agent-message-block-stack, .agent-message-navigation) {
+  pointer-events: none;
+}
+
+.agent-messages-root[data-history-committing="true"] .agent-message-virtual-list {
+  transform: translateY(var(--agent-history-shift, 0px));
+}
+
 .agent-message-scroll-content
   > :not(.agent-message-bottom-anchor)
   + :not(.agent-message-bottom-anchor) {

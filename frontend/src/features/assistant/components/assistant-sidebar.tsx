@@ -360,6 +360,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const [isLoadingTask, setIsLoadingTask] = useState(false);
     const [isMessagesLoading, setIsMessagesLoading] = useState(false);
     const [messageViewport, setMessageViewport] = useState<HTMLDivElement | null>(null);
+    const [historyStatusHost, setHistoryStatusHost] = useState<HTMLDivElement | null>(null);
     const [currentTaskTitle, setCurrentTaskTitle] = useState<string>("");
     const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
     const [summaryWarningOpen, setSummaryWarningOpen] = useState(false);
@@ -688,6 +689,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
 
     const agentSidebar = useAgentSidebar({
       onLoadingChange: setIsMessagesLoading,
+      historyStatusHost,
       projectId,
       scrollToBottomKey: currentTaskId,
       modelId: effectiveModelId,
@@ -1688,6 +1690,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         ) : (
           <>
             <Box
+              ref={setHistoryStatusHost}
+              className="ai-sidebar-history-status-host"
+            />
+            <Box
               ref={setMessageViewport}
               className="ai-sidebar-messages ai-sidebar-messages--frame"
             >
@@ -1721,6 +1727,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 <AgentMessages
                   messages={subagentSession.messages}
                   onLoadingChange={setIsMessagesLoading}
+                  historyStatusHost={historyStatusHost}
                   onLoadEarlier={subagentSession.loadEarlier}
                   isLoadingEarlier={subagentSession.isLoadingEarlier}
                   messagesHasMore={subagentSession.messagesHasMore}
