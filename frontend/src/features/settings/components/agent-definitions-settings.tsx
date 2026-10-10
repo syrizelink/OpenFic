@@ -83,13 +83,13 @@ const MotionBox = motion.create(Box);
 
 const mobilePageVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? "100%" : "-100%",
+    transform: direction > 0 ? "translateX(100%)" : "translateX(-100%)",
   }),
   center: {
-    x: 0,
+    transform: "translateX(0%)",
   },
   exit: (direction: number) => ({
-    x: direction > 0 ? "-100%" : "100%",
+    transform: direction > 0 ? "translateX(-100%)" : "translateX(100%)",
   }),
 };
 
