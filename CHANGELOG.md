@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.12.1](https://github.com/syrizelink/OpenFic/compare/v0.12.0...v0.12.1) (2026-10-10)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 subagent 会话无法触发自动压缩的问题 ([#436](https://github.com/syrizelink/OpenFic/issues/436)) ([fc657ca](https://github.com/syrizelink/OpenFic/commit/fc657cad9f42711f146f1f14dda3e2228bdd224d))
+* **agent:** 修复中文输入法组合态 Enter 键误识别为发送的问题 ([#423](https://github.com/syrizelink/OpenFic/issues/423)) ([07122df](https://github.com/syrizelink/OpenFic/commit/07122df44d27a0cc34075753dcf9b59e6d2b6cf6))
+* **agent:** 修复移动端输入法回车换行误识别为发送的问题 ([#438](https://github.com/syrizelink/OpenFic/issues/438)) ([0bf5dfc](https://github.com/syrizelink/OpenFic/commit/0bf5dfcb98a6b1f4aa5edc3968e1f90d8393843a))
+* **agent:** 修复编辑总结块在轮次结束前提前显示的问题 ([#434](https://github.com/syrizelink/OpenFic/issues/434)) ([c47570a](https://github.com/syrizelink/OpenFic/commit/c47570ac7feae795fbcddd7ec89c4585c23fe5c0))
+* **backend:** 修复章节导出产物在有效期内被清理的问题 ([#385](https://github.com/syrizelink/OpenFic/issues/385)) ([5d020cc](https://github.com/syrizelink/OpenFic/commit/5d020ccd212bdb2dbf9ee36658657a9d0edb05a4))
+* **frontend:** 修复编辑器保存时光标移位和草稿丢失的问题 ([#433](https://github.com/syrizelink/OpenFic/issues/433)) ([3bdf573](https://github.com/syrizelink/OpenFic/commit/3bdf5733eaf7dbbc22b89bcbc8b2b30f6dcdf7bc))
+
+
+### ⚡ 性能优化
+
+* **agent:** 优化长上下文下 Agent 会话的首屏加载资源大小与速度 ([#439](https://github.com/syrizelink/OpenFic/issues/439)) ([dd83a17](https://github.com/syrizelink/OpenFic/commit/dd83a176fda52cd25e029837d5a37e1695394cfa))
+* **agent:** 按游标分页加载 Agent 会话历史消息 ([#441](https://github.com/syrizelink/OpenFic/issues/441)) ([69c180a](https://github.com/syrizelink/OpenFic/commit/69c180ac20d918ddd50e5e034e563a804133fb9d))
+
+
+### 📚 文档
+
+* 更新 README ([#440](https://github.com/syrizelink/OpenFic/issues/440)) ([77181c0](https://github.com/syrizelink/OpenFic/commit/77181c066378bcaab00d459ed34f49ba3af9e4c2))
+
+
+### 🔧 杂项
+
+* **frontend:** 优化移动端交互与用户体验 ([#442](https://github.com/syrizelink/OpenFic/issues/442)) ([4dd3a8a](https://github.com/syrizelink/OpenFic/commit/4dd3a8a634c309780e5320f8b3287c70b79b2b26))
+* **frontend:** 升级 Streamdown 至 2.7.0 并移除兼容补丁 ([#435](https://github.com/syrizelink/OpenFic/issues/435)) ([94e342d](https://github.com/syrizelink/OpenFic/commit/94e342dd5210da2d8325e56e6a1cfe70fd5d7f92))
+* **provider:** 支持 OpenAI Codex 提供商 (使用 ChatGPT Plan 额度) ([#429](https://github.com/syrizelink/OpenFic/issues/429)) ([12d27da](https://github.com/syrizelink/OpenFic/commit/12d27da82a5144aa1ff904424fae8ab32d611451))
+* 添加 Infistar 提供商 ([#437](https://github.com/syrizelink/OpenFic/issues/437)) ([9d85a5d](https://github.com/syrizelink/OpenFic/commit/9d85a5d7523467b48d0000d4636a28652de6dd22))
+
 ## [0.12.0](https://github.com/syrizelink/OpenFic/compare/v0.11.1...v0.12.0) (2026-09-25)
 
 
