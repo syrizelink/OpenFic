@@ -49,6 +49,10 @@ import { AgentFileAttachmentCard } from "./agent-file-attachment-card";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
 import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
 import { AgentMentionSuggestions } from "./agent-mention-suggestions";
+import {
+  getNextToolbarCompressionLevel,
+  MAX_TOOLBAR_COMPRESSION_LEVEL,
+} from "./agent-toolbar-compression";
 import { AgentPendingMessageCard } from "./pending-message-card";
 
 interface AgentInputProps {
@@ -86,8 +90,6 @@ interface AgentInputProps {
   onUploadAttachments: (files: File[]) => Promise<void>;
   [ignoredModeSelectorProp: string]: unknown;
 }
-
-const MAX_TOOLBAR_COMPRESSION_LEVEL = 4;
 
 export function AgentInput({
   projectId,
@@ -155,7 +157,9 @@ export function AgentInput({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarCompressionLevelRef = useRef(0);
+  const previousToolbarContentKeyRef = useRef<string | null>(null);
   const previousToolbarWidthRef = useRef<number | null>(null);
+  const toolbarCompressionResetFrameRef = useRef<number | null>(null);
   const [toolbarCompressionLevel, setToolbarCompressionLevel] = useState(0);
   const addMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +217,7 @@ export function AgentInput({
     models.length,
     modelsError,
     modelId,
+    selectedModel?.name ?? "",
     reasoningEffort ?? "",
     shouldShowReasoningEffort,
     toolApprovalBypassEnabled,
@@ -302,27 +307,60 @@ export function AgentInput({
     if (!toolbar) return;
 
     const syncOverflow = (allowExpand: boolean) => {
+      if (toolbarCompressionResetFrameRef.current !== null) return;
+
       const currentLevel = toolbarCompressionLevelRef.current;
+      const contentChanged =
+        previousToolbarContentKeyRef.current !== null &&
+        previousToolbarContentKeyRef.current !== toolbarContentKey;
+      previousToolbarContentKeyRef.current = toolbarContentKey;
+
+      if (contentChanged && currentLevel > 0) {
+        if (toolbarCompressionResetFrameRef.current === null) {
+          toolbarCompressionResetFrameRef.current = requestAnimationFrame(() => {
+            toolbarCompressionResetFrameRef.current = null;
+            updateToolbarCompressionLevel(0);
+          });
+        }
+        return;
+      }
+
       const currentWidth = toolbar.clientWidth;
       const previousWidth = previousToolbarWidthRef.current;
       const widthIncreased = previousWidth !== null && currentWidth > previousWidth + 1;
       const isOverflowing = toolbar.scrollWidth > currentWidth + 1;
+      const nextLevel = getNextToolbarCompressionLevel({
+        currentLevel,
+        isOverflowing,
+        contentChanged,
+        allowExpand,
+        widthIncreased,
+      });
       previousToolbarWidthRef.current = currentWidth;
 
-      if (isOverflowing && currentLevel < MAX_TOOLBAR_COMPRESSION_LEVEL) {
-        updateToolbarCompressionLevel(currentLevel + 1);
-      } else if (allowExpand && widthIncreased && !isOverflowing && currentLevel > 0) {
-        updateToolbarCompressionLevel(currentLevel - 1);
-      }
+      if (nextLevel !== currentLevel) updateToolbarCompressionLevel(nextLevel);
     };
 
     syncOverflow(false);
 
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        if (toolbarCompressionResetFrameRef.current !== null) {
+          cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
+          toolbarCompressionResetFrameRef.current = null;
+        }
+      };
+    }
 
     const resizeObserver = new ResizeObserver(() => syncOverflow(true));
     resizeObserver.observe(toolbar);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (toolbarCompressionResetFrameRef.current !== null) {
+        cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
+        toolbarCompressionResetFrameRef.current = null;
+      }
+    };
   }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel]);
 
   useEffect(() => {
