@@ -9,8 +9,10 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import type { Project } from "@/lib/project.types";
 
+import { MobileSelectSheet } from "./mobile-select-sheet";
 import { ProjectGridSelector } from "./project-grid-selector";
 
 import "./project-select-field.css";
@@ -42,6 +44,7 @@ export function ProjectSelectField({
   label,
 }: ProjectSelectFieldProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
 
   // 获取当前选中的项目
@@ -67,6 +70,62 @@ export function ProjectSelectField({
     }
   };
 
+  const trigger = (
+    <Box
+      className="project-select-field__trigger"
+      data-disabled={disabled ? "true" : "false"}
+    >
+      <TextField.Root
+        value={displayText}
+        placeholder={placeholder ?? t("projectSelect.placeholder")}
+        disabled={disabled}
+        readOnly
+        onClick={isMobile ? undefined : handleInputClick}
+        className="project-select-field__input"
+      />
+      <Box className="project-select-field__chevron">
+        <ChevronDown size={16} />
+      </Box>
+    </Box>
+  );
+
+  const selectorContent = (
+    <ProjectGridSelector
+      projects={projects}
+      value={value}
+      onChange={handleSelect}
+      disabled={disabled}
+      showNoneOption={showNoneOption}
+    />
+  );
+
+  const desktopControl = (
+    <Popover.Root
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <Popover.Trigger>{trigger}</Popover.Trigger>
+      <Popover.Content
+        className="project-select-field__content"
+        align="start"
+        side="bottom"
+      >
+        {selectorContent}
+      </Popover.Content>
+    </Popover.Root>
+  );
+
+  const mobileControl = (
+    <MobileSelectSheet
+      open={open}
+      onOpenChange={setOpen}
+      title={label ?? placeholder ?? t("projectSelect.placeholder")}
+      trigger={trigger}
+    >
+      {selectorContent}
+    </MobileSelectSheet>
+  );
+
   return (
     <Box>
       {label && (
@@ -80,43 +139,7 @@ export function ProjectSelectField({
           {label}
         </Text>
       )}
-      <Popover.Root
-        open={open}
-        onOpenChange={setOpen}
-      >
-        <Popover.Trigger>
-          <Box
-            className="project-select-field__trigger"
-            data-disabled={disabled ? "true" : "false"}
-          >
-            <TextField.Root
-              value={displayText}
-              placeholder={placeholder ?? t("projectSelect.placeholder")}
-              disabled={disabled}
-              readOnly
-              onClick={handleInputClick}
-              className="project-select-field__input"
-            />
-            <Box className="project-select-field__chevron">
-              <ChevronDown size={16} />
-            </Box>
-          </Box>
-        </Popover.Trigger>
-
-        <Popover.Content
-          className="project-select-field__content"
-          align="start"
-          side="bottom"
-        >
-          <ProjectGridSelector
-            projects={projects}
-            value={value}
-            onChange={handleSelect}
-            disabled={disabled}
-            showNoneOption={showNoneOption}
-          />
-        </Popover.Content>
-      </Popover.Root>
+      {isMobile ? mobileControl : desktopControl}
     </Box>
   );
 }

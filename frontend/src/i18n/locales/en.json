@@ -1623,6 +1623,7 @@
     "openLink": "Open link"
   },
   "select": {
+    "title": "Select",
     "searchPlaceholder": "Search...",
     "noMatchingOptions": "No matching options"
   },

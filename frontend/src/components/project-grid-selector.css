@@ -88,6 +88,93 @@
   white-space: nowrap;
 }
 
+.project-grid-selector__list-card {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 80px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  background: var(--color-background);
+  color: var(--gray-12);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.project-grid-selector__list-card[data-state="selected"] {
+  border-color: var(--accent-8);
+  background: var(--accent-a2);
+}
+
+.project-grid-selector__list-card:not(:disabled):hover {
+  border-color: var(--accent-8);
+  background: var(--gray-a2);
+}
+
+.project-grid-selector__list-card:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.project-grid-selector__list-card:disabled,
+.project-grid-selector__list-card[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.project-grid-selector__list-cover {
+  width: 60px;
+  height: 80px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-2);
+  background: var(--gray-a3);
+}
+
+.project-grid-selector__list-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-grid-selector__list-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  color: var(--gray-a9);
+}
+
+.project-grid-selector__list-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.project-grid-selector__list-title {
+  display: block;
+}
+
+.project-grid-selector__list-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.project-grid-selector__list-meta {
+  min-width: 0;
+}
+
+.project-grid-selector__list-check {
+  flex: 0 0 auto;
+  color: var(--accent-9);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .project-grid-selector__card {
     animation: none;
@@ -108,5 +195,9 @@
   .project-grid-selector__card:not([data-disabled="true"]):hover
     .project-grid-selector__cover-placeholder {
     transform: none;
+  }
+
+  .project-grid-selector__list-card {
+    transition: none;
   }
 }

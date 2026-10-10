@@ -10,6 +10,10 @@ import { useMemo, useState } from "react";
 import type { ComponentProps, CSSProperties, KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
+
+import { MobileSelectSheet } from "./mobile-select-sheet";
+
 import "./multi-select-field.css";
 
 export interface MultiSelectOption {
@@ -46,6 +50,7 @@ export function MultiSelectField({
   triggerStyle,
 }: MultiSelectFieldProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
 
   const selectedOptions = useMemo(() => {
@@ -76,6 +81,116 @@ export function MultiSelectField({
     }
   };
 
+  const trigger = (
+    <div
+      className="multi-select-field__trigger"
+      style={triggerStyle}
+      data-disabled={disabled ? "true" : "false"}
+    >
+      <div className="multi-select-field__value">
+        {selectedOptions.length > 0 ? (
+          selectedOptions.map((option) => (
+            <span
+              key={option.value}
+              className="multi-select-field__tag"
+            >
+              <span className="multi-select-field__tag-label">{option.label}</span>
+              <span
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+                className="multi-select-field__tag-remove"
+                aria-label={t("multiSelect.removeOption", { label: option.label })}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleRemove(option.value);
+                }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onKeyDown={(event) => handleRemoveKeyDown(event, option.value)}
+              >
+                <X size={12} />
+              </span>
+            </span>
+          ))
+        ) : (
+          <span className="multi-select-field__placeholder">
+            {placeholder ?? t("multiSelect.placeholder")}
+          </span>
+        )}
+      </div>
+
+      <span className="multi-select-field__chevron">
+        <ChevronDown size={16} />
+      </span>
+    </div>
+  );
+
+  const selectContent =
+    options.length > 0 ? (
+      <ScrollArea className="multi-select-field__options">
+        <div className="multi-select-field__options-inner">
+          {options.map((option) => {
+            const checked = value.includes(option.value);
+            return (
+              <label
+                key={option.value}
+                className="multi-select-field__option"
+                data-disabled={option.disabled ? "true" : "false"}
+              >
+                <Checkbox
+                  checked={checked}
+                  disabled={disabled || option.disabled}
+                  onCheckedChange={() => handleToggle(option.value)}
+                />
+                <span className="multi-select-field__option-label">{option.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </ScrollArea>
+    ) : (
+      <Text
+        size="2"
+        color="gray"
+        className="multi-select-field__empty"
+      >
+        {emptyMessage ?? t("multiSelect.empty")}
+      </Text>
+    );
+
+  const desktopControl = (
+    <Popover.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setOpen(nextOpen);
+      }}
+    >
+      <Popover.Trigger>{trigger}</Popover.Trigger>
+      <Popover.Content
+        className="multi-select-field__content"
+        align="start"
+        side="bottom"
+      >
+        {selectContent}
+      </Popover.Content>
+    </Popover.Root>
+  );
+
+  const mobileControl = (
+    <MobileSelectSheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setOpen(nextOpen);
+      }}
+      title={label ?? placeholder ?? t("multiSelect.placeholder")}
+      trigger={trigger}
+    >
+      {selectContent}
+    </MobileSelectSheet>
+  );
+
   return (
     <div>
       {label ? (
@@ -90,97 +205,7 @@ export function MultiSelectField({
           {label}
         </Text>
       ) : null}
-
-      <Popover.Root
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (!disabled) setOpen(nextOpen);
-        }}
-      >
-        <Popover.Trigger>
-          <div
-            className="multi-select-field__trigger"
-            style={triggerStyle}
-            data-disabled={disabled ? "true" : "false"}
-          >
-            <div className="multi-select-field__value">
-              {selectedOptions.length > 0 ? (
-                selectedOptions.map((option) => (
-                  <span
-                    key={option.value}
-                    className="multi-select-field__tag"
-                  >
-                    <span className="multi-select-field__tag-label">{option.label}</span>
-                    <span
-                      role="button"
-                      tabIndex={disabled ? -1 : 0}
-                      className="multi-select-field__tag-remove"
-                      aria-label={t("multiSelect.removeOption", { label: option.label })}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleRemove(option.value);
-                      }}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                      }}
-                      onKeyDown={(event) => handleRemoveKeyDown(event, option.value)}
-                    >
-                      <X size={12} />
-                    </span>
-                  </span>
-                ))
-              ) : (
-                <span className="multi-select-field__placeholder">
-                  {placeholder ?? t("multiSelect.placeholder")}
-                </span>
-              )}
-            </div>
-
-            <span className="multi-select-field__chevron">
-              <ChevronDown size={16} />
-            </span>
-          </div>
-        </Popover.Trigger>
-
-        <Popover.Content
-          className="multi-select-field__content"
-          align="start"
-          side="bottom"
-        >
-          {options.length > 0 ? (
-            <ScrollArea className="multi-select-field__options">
-              <div className="multi-select-field__options-inner">
-                {options.map((option) => {
-                  const checked = value.includes(option.value);
-                  return (
-                    <label
-                      key={option.value}
-                      className="multi-select-field__option"
-                      data-disabled={option.disabled ? "true" : "false"}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        disabled={disabled || option.disabled}
-                        onCheckedChange={() => handleToggle(option.value)}
-                      />
-                      <span className="multi-select-field__option-label">{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          ) : (
-            <Text
-              size="2"
-              color="gray"
-              className="multi-select-field__empty"
-            >
-              {emptyMessage ?? t("multiSelect.empty")}
-            </Text>
-          )}
-        </Popover.Content>
-      </Popover.Root>
+      {isMobile ? mobileControl : desktopControl}
     </div>
   );
 }

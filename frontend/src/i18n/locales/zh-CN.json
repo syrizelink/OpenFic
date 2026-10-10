@@ -1686,6 +1686,7 @@
     "openLink": "打开链接"
   },
   "select": {
+    "title": "选择",
     "searchPlaceholder": "搜索...",
     "noMatchingOptions": "没有匹配选项"
   },

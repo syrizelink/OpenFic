@@ -101,6 +101,11 @@
   min-width: 0;
 }
 
+.mobile-select-sheet-content .provider-id-select-option {
+  min-height: 44px;
+  padding-block: var(--space-2);
+}
+
 .provider-id-select-empty {
   display: block;
   padding: var(--space-4);
