@@ -1816,6 +1816,7 @@ async def test_subagent_runner_streams_and_persists_child_transcript_on_child_th
         },
         project_id="project-1",
     )
+    monkeypatch.setattr(runner, "_prune_child_thread_checkpoints", AsyncMock())
     result = await runner.run(row.id)
 
     assert result["assistant_content"] == "child stream output"
@@ -1825,6 +1826,18 @@ async def test_subagent_runner_streams_and_persists_child_transcript_on_child_th
         for name, payload, room in emitted
         if payload.get("session_id") == "child-thread-transcript"
     ]
+    node_event = child_events.pop(0)
+    assert node_event[0] == "agent:node"
+    assert node_event[1] == {
+        "session_id": "child-thread-transcript",
+        "request_id": node_event[1]["request_id"],
+        "node": "agent",
+        "phase": "start",
+        "status": "running",
+        "current_node": "agent",
+        "previous_node": None,
+    }
+    assert node_event[2] == "agent_subagent_session:child-thread-transcript"
     assert child_events == [
         (
             "agent:token",
