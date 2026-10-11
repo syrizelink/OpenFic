@@ -54,10 +54,10 @@ import {
   type AgentRoundToolbarTarget,
 } from "./display/agent-message-blocks";
 import type { AgentMessageBlock } from "./display/agent-message-blocks";
-import { buildAgentDisplayItems } from "./display/agent-message-display-items";
 
 import "./agent-message-blocks.css";
 
+import { buildAgentDisplayItems } from "./display/agent-message-display-items";
 import { normalizeDisplayMessages } from "./display/display-message-normalization";
 import type {
   AgentBlockDisplayMessage,
@@ -68,6 +68,10 @@ import { ExplorationMessage } from "./message-blocks/blocks/exploration/explorat
 const COPY_FEEDBACK_MS = 1200;
 const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
 const INITIAL_FIRST_ITEM_INDEX = 1_000_000_000;
+
+function shouldShowAgentMessagesLoading(isListHidden: boolean, hasMessages: boolean): boolean {
+  return isListHidden && hasMessages;
+}
 
 function estimateAgentBlockHeight(block: AgentMessageBlock, hasChangeSummary = false): number {
   const changeSummaryHeight = hasChangeSummary ? 150 : 0;
@@ -236,6 +240,7 @@ const AgentBlockContent = memo(
 interface AgentMessagesFooterContext {
   statusMessage: string;
   showStatus: boolean;
+  hasMessages: boolean;
   roundStartedAt?: number;
   bottomRef: React.RefObject<HTMLDivElement | null>;
   scrollParent: HTMLElement | null;
@@ -296,6 +301,10 @@ function AgentMessagesList({
   const prependOffsetRef = context?.prependOffsetRef;
   const marginTop = props.style?.marginTop;
   const onHistoryListLayout = context?.onHistoryListLayout;
+  const showLoading = shouldShowAgentMessagesLoading(
+    props.style?.visibility === "hidden",
+    context?.hasMessages ?? false,
+  );
   useLayoutEffect(() => {
     if (prependOffsetRef) prependOffsetRef.current = typeof marginTop === "number" ? marginTop : 0;
     onHistoryListLayout?.();
@@ -313,7 +322,7 @@ function AgentMessagesList({
         {...props}
         className="agent-message-virtual-list"
       />
-      {props.style?.visibility === "hidden" ? (
+      {showLoading ? (
         <AgentMessagesLoading
           scrollParent={context?.scrollParent ?? null}
           onLoadingChange={context?.onLoadingChange}
@@ -1526,6 +1535,7 @@ export function AgentMessages({
       showStatus:
         (status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
         Boolean(statusMessage),
+      hasMessages: visibleMessageBlocks.length > 0,
       roundStartedAt,
       bottomRef,
       scrollParent,
@@ -1543,6 +1553,7 @@ export function AgentMessages({
       handleHistoryViewportShow,
       handleLoadEarlier,
       hasEarlierError,
+      visibleMessageBlocks.length,
       isRollbacking,
       historyStatusHost,
       onLoadingChange,
