@@ -7,7 +7,6 @@ OpenAI Compatible Adapter - OpenAI兼容API适配器。
 """
 
 import httpx
-from loguru import logger
 from collections.abc import Mapping
 
 from app.models.adapters.base import BaseAdapter
@@ -65,29 +64,17 @@ class OpenAICompatibleAdapter(BaseAdapter):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取所有可用模型。"""
-        url = self._normalize_url(base_url)
-        url = f"{url}/models" if url.endswith("/v1") else f"{url}/v1/models"
+        url = f"{self._normalize_url(base_url)}/models"
         request_headers = self._build_auth_header(api_key, headers)
 
-        try:
-            response = await client.get(url, headers=request_headers)
-            response.raise_for_status()
-            data = response.json()
+        response = await client.get(url, headers=request_headers)
+        response.raise_for_status()
+        data = response.json()
 
-            models = []
-            for model in data.get("data", []):
-                model_id = model.get("id", "")
-                model_name = model.get("name", model_id) if model.get("name") else model_id
-                models.append({"id": model_id, "name": model_name})
+        models = []
+        for model in data.get("data", []):
+            model_id = model.get("id", "")
+            model_name = model.get("name", model_id) if model.get("name") else model_id
+            models.append({"id": model_id, "name": model_name})
 
-            return models
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in {401, 429} or exc.response.status_code >= 500:
-                raise
-            logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
-            # 返回空列表，允许用户手动输入模型ID
-            return []
-        except httpx.HTTPError as exc:
-            logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
-            # 返回空列表，允许用户手动输入模型ID
-            return []
+        return models

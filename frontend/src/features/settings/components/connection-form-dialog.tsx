@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
 import { ProviderIdSelect, Spinner } from "@/components";
+import { showErrorToast } from "@/components/toast";
 import type { ModelProvider, ModelProviderCatalogProvider } from "@/lib/model.types";
 
 import { validateProvider } from "../lib/model-api";
@@ -198,6 +199,7 @@ export function ConnectionFormDialog({
       } else {
         // OpenAI 兼容模式必须提供 URL
         setValidationStatus("error");
+        showErrorToast(t("connections.validateFailed"), t("connections.urlRequired"));
         return;
       }
     }
@@ -205,6 +207,7 @@ export function ConnectionFormDialog({
     // 如果没有apiKey且是新建模式，显示错误
     if (!isEditing && !formData.apiKey) {
       setValidationStatus("error");
+      showErrorToast(t("connections.validateFailed"), t("connections.apiKeyRequired"));
       return;
     }
 
@@ -225,11 +228,13 @@ export function ConnectionFormDialog({
         setValidationStatus("success");
       } else {
         setValidationStatus("error");
+        showErrorToast(t("connections.validateFailed"), result.message);
       }
-    } catch {
+    } catch (error) {
       setValidationStatus("error");
+      showErrorToast(t("connections.validateFailed"), error);
     }
-  }, [catalogProviders, getValues, isEditing]);
+  }, [catalogProviders, getValues, isEditing, t]);
 
   // 提交表单
   const onFormSubmit = useCallback(
@@ -306,6 +311,11 @@ export function ConnectionFormDialog({
       <Dialog.Content
         maxWidth="500px"
         className="settings-background-panel"
+        onInteractOutside={(event) => {
+          if (event.target instanceof Element && event.target.closest("[data-sonner-toaster]")) {
+            event.preventDefault();
+          }
+        }}
         onOpenAutoFocus={(event) => {
           if (window.innerWidth < 768) event.preventDefault();
         }}

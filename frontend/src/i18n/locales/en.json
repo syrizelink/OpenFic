@@ -32,6 +32,7 @@
     "initializationAddress": "Address: {{address}}",
     "initializationUnknownError": "Unknown error",
     "errorDetailSeparator": "; ",
+    "errorDetails": "Error details",
     "socketConnectionTimeout": "Connection timed out ({{seconds}} seconds)",
     "socketTransport": "Transport: {{transport}}",
     "socketAddress": "Address: {{address}}",

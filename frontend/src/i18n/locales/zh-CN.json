@@ -32,6 +32,7 @@
     "initializationAddress": "地址：{{address}}",
     "initializationUnknownError": "未知错误",
     "errorDetailSeparator": "；",
+    "errorDetails": "错误详情",
     "socketConnectionTimeout": "连接超时（{{seconds}} 秒）",
     "socketTransport": "传输方式：{{transport}}",
     "socketAddress": "地址：{{address}}",

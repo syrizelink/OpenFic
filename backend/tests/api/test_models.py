@@ -147,7 +147,11 @@ async def test_validate_model_connection_reports_failed_provider_request(
     response = await client.post(f"/api/v1/models/{model.id}/validate")
 
     assert response.status_code == 200
-    assert response.json() == {"success": False, "message": "模型连接验证失败"}
+    result = response.json()
+    assert result["success"] is False
+    assert "模型连接验证失败" in result["message"]
+    assert "401" in result["message"]
+    assert "Invalid API key" in result["message"]
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,37 @@
+.error-toast-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.error-toast-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: help;
+}
+
+.error-toast-info:hover,
+.error-toast-info:focus-visible {
+  opacity: 1;
+}
+
+.error-toast-tooltip {
+  z-index: 2147483647;
+  max-width: min(560px, calc(100vw - 32px));
+  pointer-events: auto;
+}
+
+.error-toast-tooltip-content {
+  display: block;
+  max-height: 240px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

@@ -18,6 +18,7 @@ const INFO_TOOLTIP_OPENED_EVENT = "info-tooltip:opened";
 interface InfoTooltipProps {
   content: ReactNode;
   children: ReactElement;
+  className?: string;
 }
 
 function useTouchDevice(): boolean {
@@ -37,7 +38,7 @@ function useTouchDevice(): boolean {
   return isTouchDevice;
 }
 
-export function InfoTooltip({ content, children }: InfoTooltipProps) {
+export function InfoTooltip({ content, children, className }: InfoTooltipProps) {
   const isTouchDevice = useTouchDevice();
   const tooltipId = useId();
   const [open, setOpen] = useState(false);
@@ -69,7 +70,14 @@ export function InfoTooltip({ content, children }: InfoTooltipProps) {
   }, [isTouchDevice, open, tooltipId]);
 
   if (!isTouchDevice) {
-    return <Tooltip content={content}>{children}</Tooltip>;
+    return (
+      <Tooltip
+        content={content}
+        className={className}
+      >
+        {children}
+      </Tooltip>
+    );
   }
 
   const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
@@ -104,6 +112,7 @@ export function InfoTooltip({ content, children }: InfoTooltipProps) {
   return (
     <Tooltip
       content={content}
+      className={className}
       open={isTouchDevice ? open : undefined}
       onOpenChange={isTouchDevice ? setOpen : undefined}
     >

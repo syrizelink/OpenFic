@@ -19,7 +19,7 @@ import {
   formatContextWindow,
 } from "@/components/model-capability-tags";
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
-import { toast } from "@/components/toast";
+import { showErrorToast, toast } from "@/components/toast";
 import type {
   Model,
   ModelCreateRequest,
@@ -311,15 +311,15 @@ export function ModelsSettings({
           ...statuses,
           [model.id]: "error",
         }));
-        toast.error(t("models.validateModelFailed"));
-      } catch {
+        showErrorToast(t("models.validateModelFailed"), result.message);
+      } catch (error) {
         if (validationScope !== validationScopeRef.current) return;
 
         setModelValidationStatuses((statuses) => ({
           ...statuses,
           [model.id]: "error",
         }));
-        toast.error(t("models.validateModelFailed"));
+        showErrorToast(t("models.validateModelFailed"), error);
       }
     },
     [t],
