@@ -967,6 +967,13 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           if (event.type === "task_run_status_updated" && event.task_id) {
             const taskId = event.task_id;
             const isRunning = event.is_running === true;
+            if (
+              event.is_running === false &&
+              event.agent_session_id &&
+              !queryClient.getQueryData(["task", taskId])
+            ) {
+              void agentSidebarRef.current?.refreshCanContinue(event.agent_session_id);
+            }
             queryClient.setQueryData(["task", taskId], (current) => {
               if (!current || typeof current !== "object") return current;
               return {
@@ -1798,7 +1805,21 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               models={llmModelOptions}
               reasoningEffort={reasoningEffort}
               isSending={isSendingMessage}
-              disabled={isViewingSubagent || isLoadingTask || isMessagesLoading}
+              canContinue={
+                !isViewingSubagent &&
+                !isLoadingTask &&
+                !isMessagesLoading &&
+                !agentSidebar.isCompacting &&
+                !agentSidebar.isRollbacking &&
+                projectedSubagentSpecialPanels.length === 0 &&
+                agentSidebar.canContinue
+              }
+              isContinuing={agentSidebar.isContinuing}
+              isStopping={agentSidebar.isStopping}
+              onContinue={isViewingSubagent ? undefined : agentSidebar.onContinue}
+              disabled={
+                isViewingSubagent || isLoadingTask || isMessagesLoading || agentSidebar.isStopping
+              }
               pendingMessage={isViewingSubagent ? null : agentSidebar.pendingMessage}
               isModelsLoading={isModelsLoading}
               modelsError={!!modelsError}

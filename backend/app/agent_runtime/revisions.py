@@ -268,6 +268,7 @@ async def begin_user_revision(
     message: str,
     pre_run_checkpoint_id: str | None,
     graph_thread_id: str | None,
+    update_user_metadata: bool = True,
 ) -> Revision:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
@@ -301,7 +302,7 @@ async def begin_user_revision(
         await task_repo.update_task(session, task)
 
     user_message = await session.get(AgentRunMessage, user_message_id)
-    if user_message is not None:
+    if user_message is not None and update_user_metadata:
         metadata = json.loads(user_message.message_metadata or "{}")
         metadata["revision_id"] = revision.id
         user_message.message_metadata = json.dumps(metadata, ensure_ascii=False)

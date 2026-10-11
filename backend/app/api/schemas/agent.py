@@ -201,6 +201,7 @@ class AgentSessionStateResponse(BaseModel):
     session_id: str = Field(..., description="会话ID")
     state: dict = Field(..., description="状态信息")
     is_running: bool = Field(default=False, description="会话是否仍有后台运行任务")
+    can_continue: bool = Field(default=False, description="是否可以继续最近未完成的用户任务")
     interrupts: list[dict] = Field(default_factory=list, description="待处理的可恢复中断")
 
 
@@ -405,3 +406,9 @@ class AgentCancelResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     session_id: str = Field(..., description="会话ID")
     message: str = Field(..., description="取消消息")
+
+
+class AgentContinueResponse(BaseModel):
+    success: bool
+    session_id: str
+    message: str

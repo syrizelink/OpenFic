@@ -3,6 +3,7 @@
 
 import asyncio
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -13,8 +14,11 @@ import pytest
 import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
+import httpx
+import respx
 from PIL import Image
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.child_runs import (
@@ -126,7 +130,516 @@ def _image_bytes() -> bytes:
 
 
 @pytest.mark.asyncio
+class TestAgentContinue:
+    async def _seed(self, client, session, revision_status="cancelled"):
+        target = await _seed_agent_target(client)
+        response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = response.json()
+        user = await message_repo.insert_message(
+            session, session_id=payload["session_id"], task_id=payload["task_id"],
+            project_id=target["project_id"], role="user", status="sent", content="original task",
+        )
+        revision = await begin_user_revision(
+            session, project_id=target["project_id"], task_id=payload["task_id"],
+            agent_session_id=payload["session_id"], user_message_id=user.id,
+            user_message_seq=user.seq, message="original task", pre_run_checkpoint_id=None,
+            graph_thread_id=payload["session_id"],
+        )
+        revision.status = revision_status
+        session.add(revision)
+        await session.commit()
+        return payload, user, revision
+
+    @pytest.mark.parametrize("revision_status", ["cancelled", "failed", "interrupted"])
+    async def test_continue_new_revision_without_new_user(self, client, session, revision_status):
+        from app.agent_runtime.persistence.model import AgentRunMessage
+
+        payload, user, old_revision = await self._seed(client, session, revision_status)
+        session_id = payload["session_id"]
+        user_row = await session.get(AgentRunMessage, user.id)
+        original_metadata = user_row.message_metadata
+        saver = await get_checkpointer()
+        checkpoint = await saver.aget_tuple({"configurable": {"thread_id": session_id}})
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch:
+            state = await client.get(f"/api/v1/agent/sessions/{session_id}")
+            assert state.status_code == 200
+            assert state.json()["can_continue"] is True
+            response = await client.post(f"/api/v1/agent/sessions/{session_id}/continue")
+            assert response.status_code == 200
+            assert response.json() == {
+                "success": True, "session_id": session_id, "message": "Agent 任务已继续",
+            }
+            launch.await_args.kwargs["coro"].close()
+            task = await task_service.get_task(session, payload["task_id"])
+            await session.refresh(task)
+            assert task.current_revision_id != old_revision.id
+            new_revision = await session.get(Revision, task.current_revision_id)
+            assert new_revision.user_message_id == user.id
+            assert new_revision.parent_revision_id == old_revision.id
+            assert new_revision.pre_run_checkpoint_id == checkpoint.config["configurable"]["checkpoint_id"]
+            await session.refresh(user_row)
+            assert user_row.message_metadata == original_metadata
+            await session.refresh(old_revision)
+            assert old_revision.status == revision_status
+            users = (await session.execute(select(AgentRunMessage).where(
+                AgentRunMessage.session_id == session_id, AgentRunMessage.role == "user",
+            ))).scalars().all()
+            assert [message.id for message in users] == [user.id]
+            duplicate = await client.post(f"/api/v1/agent/sessions/{session_id}/continue")
+            assert duplicate.status_code == 409
+            assert duplicate.json()["detail"]["code"] == "session_not_continuable"
+            launch.assert_awaited_once()
+
+    @pytest.mark.parametrize("revision_status", ["active", "completed", "rollback"])
+    async def test_continue_rejects_non_interrupted_turn(self, client, session, revision_status):
+        payload, _, _ = await self._seed(client, session, revision_status)
+        state = await client.get(f"/api/v1/agent/sessions/{payload['session_id']}")
+        assert state.json()["can_continue"] is False
+        response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 409
+
+    @pytest.mark.parametrize("interrupt_type", ["tool_approval", "ask_user"])
+    async def test_continue_rejects_pending_interrupt(self, client, session, interrupt_type):
+        payload, _, revision = await self._seed(client, session, "interrupted")
+        checkpoint = SimpleNamespace(
+            checkpoint={"channel_values": {"current_revision_id": revision.id}},
+            pending_writes=[("task", "__interrupt__", [SimpleNamespace(
+                id="approval", value={"type": interrupt_type},
+            )])],
+        )
+        saver = SimpleNamespace(aget_tuple=AsyncMock(return_value=checkpoint))
+        with (
+            patch("app.agent_runtime.runner.checkpointer.get_checkpointer", new=AsyncMock(return_value=saver)),
+            patch("app.api.routers.agent_runtime.get_checkpointer", new=AsyncMock(return_value=saver)),
+        ):
+            state = await client.get(f"/api/v1/agent/sessions/{payload['session_id']}")
+            assert state.json()["can_continue"] is False
+            response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 409
+
+    async def test_continue_ignores_cancelled_checkpoint_interrupt(self, client, session):
+        payload, _, revision = await self._seed(client, session)
+        saver = SimpleNamespace(aget_tuple=AsyncMock(return_value=SimpleNamespace(
+            config={"configurable": {"checkpoint_id": "cancelled-checkpoint"}},
+            checkpoint={"channel_values": {"current_revision_id": revision.id}},
+            pending_writes=[("task", "__interrupt__", [SimpleNamespace(
+                id="old-approval", value={"type": "tool_approval"},
+            )])],
+        )))
+        with (
+            patch("app.agent_runtime.runner.checkpointer.get_checkpointer", new=AsyncMock(return_value=saver)),
+            patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch,
+        ):
+            response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+            assert response.status_code == 200
+            launch.await_args.kwargs["coro"].close()
+        await session.refresh(revision)
+        assert revision.status == "cancelled"
+
+    async def test_continue_rejects_running_session(self, client, session):
+        payload, _, _ = await self._seed(client, session)
+        with patch.object(get_agent_run_registry(), "is_running", new=AsyncMock(return_value=True)):
+            response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 409
+
+    async def test_continue_rejects_revision_not_owned_by_latest_user(self, client, session):
+        payload, _, _ = await self._seed(client, session)
+        await message_repo.insert_message(
+            session, session_id=payload["session_id"], task_id=payload["task_id"],
+            project_id=payload["project_id"], role="user", status="sent", content="newer task",
+        )
+        await session.commit()
+        response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 409
+
+    async def test_continue_concurrent_requests_launch_once(self, client, session):
+        payload, _, _ = await self._seed(client, session)
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch:
+            responses = await asyncio.gather(*(
+                client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+                for _ in range(2)
+            ))
+            assert sorted(response.status_code for response in responses) == [200, 409]
+            launch.assert_awaited_once()
+            launch.await_args.kwargs["coro"].close()
+
+    async def test_continue_after_restart_recovery(self, client, session):
+        payload, _, revision = await self._seed(client, session, "active")
+        task = await task_service.get_task(session, payload["task_id"])
+        task.is_running = True
+        session.add(task)
+        await session.commit()
+        await task_service.clear_running_tasks(session)
+        await revision_repo.recover_active_revisions_for_stopped_tasks(session)
+        await session.commit()
+        await session.refresh(revision)
+        assert revision.status == "interrupted"
+        _SESSION_RUNNERS.clear()
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch:
+            response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+            assert response.status_code == 200
+            launch.await_args.kwargs["coro"].close()
+
+    async def test_continue_launch_failure_keeps_retry_available(self, client, session):
+        payload, _, old_revision = await self._seed(client, session)
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock(side_effect=RuntimeError("launch failed"))):
+            with pytest.raises(RuntimeError, match="launch failed"):
+                await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        await session.refresh(old_revision)
+        assert old_revision.status == "cancelled"
+        state = await client.get(f"/api/v1/agent/sessions/{payload['session_id']}")
+        assert state.json()["can_continue"] is True
+
+    async def test_continue_rejects_child_approval(self, client, session):
+        payload, _, revision = await self._seed(client, session, "failed")
+        child = await create_child_run(
+            session, parent_session_id=payload["session_id"], parent_task_id=payload["task_id"],
+            parent_thread_id=payload["session_id"], child_thread_id="child-thread",
+            agent_key="writer", dispatch_id="dispatch", tool_call_id="call", request={},
+            parent_revision_id=revision.id,
+        )
+        await record_child_run_pending_approval(
+            session, child.id, approval_id="approval", approval_request={"type": "tool_approval"},
+        )
+        response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 409
+
+    @pytest.mark.parametrize("preparation", ["_prepare_run_persistence", "_get_graph"])
+    @pytest.mark.parametrize("failure", ["runtime", "persistence", "cancelled"])
+    async def test_continue_preparation_failure_finalizes_claimed_revision(
+        self, client, session, preparation, failure,
+    ):
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from app.agent_runtime.persistence.errors import PersistenceLoadError
+
+        payload, _, previous = await self._seed(client, session)
+        runner = _SESSION_RUNNERS[payload["session_id"]]
+        error = {
+            "runtime": RuntimeError("preparation failed"),
+            "persistence": PersistenceLoadError("preparation failed"),
+            "cancelled": asyncio.CancelledError(),
+        }[failure]
+
+        async def create_session():
+            return AsyncSession(bind=session.bind, expire_on_commit=False)
+
+        async def launch(**kwargs):
+            try:
+                await kwargs["coro"]
+            except (RuntimeError, PersistenceLoadError):
+                pass
+            finally:
+                await task_service.update_task(session, task_id=runner.task_id, is_running=False)
+                await session.commit()
+
+        with (
+            patch("app.api.routers.agent_runtime._launch_task", new=launch),
+            patch("app.agent_runtime.runner.session_runner.create_session", new=create_session),
+            patch.object(runner, preparation, new=AsyncMock(side_effect=error)),
+            patch.object(runner, "_make_persister", return_value=MagicMock(finalize=AsyncMock())),
+            patch.object(runner, "_prune_thread_checkpoints", new=AsyncMock()),
+            patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()),
+        ):
+            response = await client.post(f"/api/v1/agent/sessions/{payload['session_id']}/continue")
+        assert response.status_code == 200
+        task = await task_service.get_task(session, payload["task_id"])
+        await session.refresh(task)
+        revision = await session.get(Revision, task.current_revision_id)
+        await session.refresh(revision)
+        assert revision.id != previous.id
+        assert revision.status == ("cancelled" if failure == "cancelled" else "failed")
+        await session.refresh(previous)
+        assert previous.status == "cancelled"
+        state = await client.get(f"/api/v1/agent/sessions/{payload['session_id']}")
+        assert state.json()["can_continue"] is True
+
+    @pytest.mark.parametrize("attachment_kind", ["image", "text"])
+    @pytest.mark.parametrize("content", ["", "original task"])
+    async def test_continue_preserves_persisted_attachment_context(
+        self, client, session, monkeypatch, tmp_path, attachment_kind, content,
+    ):
+        import json
+        from langchain_core.messages import HumanMessage
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from app.agent_runtime.context import build_context_parts
+        from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
+        from app.agent_runtime.graph.orchestrator.graph import _primary_messages
+        from app.agent_runtime.graph.react_agent import _to_history_dict
+        from app.agent_runtime.persistence.model import AgentRunMessage
+
+        payload, user, _ = await self._seed(client, session)
+        session_id = payload["session_id"]
+        monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path / "attachments")
+        file = ("reference.png", _image_bytes(), "image/png") if attachment_kind == "image" else (
+            "reference.txt", b"persisted reference", "text/plain",
+        )
+        upload = await client.post(
+            f"/api/v1/agent/sessions/{session_id}/attachments", files={"file": file},
+        )
+        assert upload.status_code == 201
+        attachment = upload.json()
+        user_row = await session.get(AgentRunMessage, user.id)
+        user_row.content = content
+        metadata = json.loads(user_row.message_metadata)
+        metadata["attachments"] = [attachment]
+        user_row.message_metadata = json.dumps(metadata)
+        session.add(user_row)
+        await session.commit()
+        observed = []
+
+        class Graph:
+            async def astream_events(self, state, *, config, version):
+                assert state["user_request"] == ""
+                assert state["user_attachments"] == []
+                messages = await _primary_messages(state)
+                parts = await build_context_parts(
+                    state, "build", [_to_history_dict(message) for message in messages],
+                    config["configurable"]["db_session"],
+                )
+                observed.extend(to_langchain_messages(parts))
+                if False:
+                    yield None
+
+            async def aget_state(self, config):
+                return SimpleNamespace(next=(), tasks=())
+
+        async def create_session():
+            return AsyncSession(bind=session.bind, expire_on_commit=False)
+
+        async def launch(**kwargs):
+            await kwargs["coro"]
+
+        runner = _SESSION_RUNNERS[session_id]
+        with (
+            patch("app.api.routers.agent_runtime._launch_task", new=launch),
+            patch("app.agent_runtime.runner.session_runner.create_session", new=create_session),
+            patch.object(runner, "_get_graph", new=AsyncMock(return_value=Graph())),
+            patch.object(runner, "_make_persister", return_value=MagicMock(
+                finalize=AsyncMock(), mark_user_sent=AsyncMock(),
+            )),
+            patch.object(runner, "_prune_thread_checkpoints", new=AsyncMock()),
+            patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()),
+        ):
+            response = await client.post(f"/api/v1/agent/sessions/{session_id}/continue")
+        assert response.status_code == 200
+        human_messages = [message for message in observed if isinstance(message, HumanMessage)]
+        assert len(human_messages) == 1
+        assert isinstance(human_messages[0].content, list)
+        blocks = human_messages[0].content
+        if attachment_kind == "image":
+            assert any(block.get("type") == "image" and block.get("base64") for block in blocks)
+        else:
+            assert any(attachment["id"] in block.get("text", "") for block in blocks)
+        users = (await session.execute(select(AgentRunMessage).where(
+            AgentRunMessage.session_id == session_id, AgentRunMessage.role == "user",
+        ))).scalars().all()
+        assert [message.id for message in users] == [user.id]
+
+
+@pytest.mark.asyncio
 class TestAgentAPI:
+    @pytest.mark.parametrize(
+        ("provider_type", "request_mode"),
+        [
+            ("openai-compatible", "normal"),
+            ("openai-codex", "normal"),
+            ("openai-compatible", "disconnect"),
+            ("openai-compatible", "duplicate"),
+            ("openai-compatible", "replacement"),
+        ],
+    )
+    async def test_cancel_waits_for_real_stream_partial_before_reload(
+        self, client: AsyncClient, session, monkeypatch,
+        provider_type: str, request_mode: str,
+    ) -> None:
+        from langchain_core.messages import HumanMessage
+
+        from app.api.routers import agent_runtime as api
+        from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
+
+        target = await _seed_agent_target(client)
+        response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = response.json()
+        session_id = payload["session_id"]
+        runner = _SESSION_RUNNERS[session_id]
+        runner.model_config.update({
+            "provider_type": provider_type, "provider_id": None,
+            "base_url": "https://stream.test/v1", "api_key": "test-only",
+            "model_id": "test-model", "max_context_tokens": 0,
+        })
+        runner._graph = build_orchestrator_graph(checkpointer=await get_checkpointer())
+        factory = async_sessionmaker(session.bind, expire_on_commit=False)
+        monkeypatch.setattr("app.storage.database._async_session_factory", factory)
+        monkeypatch.setattr(
+            "app.agent_runtime.graph.orchestrator.graph._primary_tool_names",
+            AsyncMock(return_value=[]),
+        )
+        monkeypatch.setattr(
+            "app.agent_runtime.graph.orchestrator.graph._primary_build_hooks",
+            AsyncMock(return_value=[]),
+        )
+        monkeypatch.setattr(
+            "app.agent_runtime.graph.react_agent.build_context",
+            AsyncMock(return_value=[HumanMessage(content="recite")]),
+        )
+        monkeypatch.setattr("app.audit.context.next_call_sequence", AsyncMock(return_value=1))
+        monkeypatch.setattr("app.audit.context.enqueue_audit_log", AsyncMock())
+        monkeypatch.setattr(runner, "_prune_thread_checkpoints", AsyncMock())
+
+        streamed = asyncio.Event()
+        finalize_entered = asyncio.Event()
+        release_finalize = asyncio.Event()
+        tree_cancelled = asyncio.Event()
+        emitted_tokens: list[str] = []
+
+        async def capture_emit(name, data=None, **kwargs):
+            if name == "agent:token":
+                emitted_tokens.append(data["content"])
+                if len(emitted_tokens) == 2:
+                    streamed.set()
+
+        monkeypatch.setattr("app.agent_runtime.runner.session_runner.emit", capture_emit)
+        monkeypatch.setattr(api, "emit", AsyncMock())
+        persister = runner._make_persister()
+        original_write = persister._write
+
+        async def gated_write(**kwargs):
+            if kwargs.get("role") == "assistant" and kwargs.get("status") == "partial":
+                finalize_entered.set()
+                await release_finalize.wait()
+            await original_write(**kwargs)
+
+        monkeypatch.setattr(persister, "_write", gated_write)
+        monkeypatch.setattr(runner, "_make_persister", lambda: persister)
+        original_cancel_tree = api._cancel_subagent_session_tree
+
+        async def cancel_tree(*args, **kwargs):
+            await asyncio.wait_for(finalize_entered.wait(), timeout=5)
+            await original_cancel_tree(*args, **kwargs)
+            tree_cancelled.set()
+
+        monkeypatch.setattr(api, "_cancel_subagent_session_tree", cancel_tree)
+
+        class SSEBody(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                for text in ["prefix", "middle"]:
+                    if provider_type == "openai-codex":
+                        event = {"type": "response.output_text.delta", "delta": text}
+                    else:
+                        event = {
+                            "id": "chat-test", "object": "chat.completion.chunk",
+                            "model": "test-model", "choices": [{
+                                "index": 0, "delta": {"content": text}, "finish_reason": None,
+                            }],
+                        }
+                    yield ("data: " + json.dumps(event) + "\n\n").encode()
+                await asyncio.Event().wait()
+
+        endpoint = "responses" if provider_type == "openai-codex" else "chat/completions"
+        registry = get_agent_run_registry()
+        request = None
+        parent_task = None
+        extra_tasks: list[asyncio.Task] = []
+        release_replacement = asyncio.Event()
+        with respx.mock as mock:
+            mock.post(f"https://stream.test/v1/{endpoint}").mock(
+                return_value=httpx.Response(
+                    200, stream=SSEBody(), headers={"content-type": "text/event-stream"},
+                )
+            )
+            try:
+                await _launch_task(
+                    db_session_factory=factory, session_id=session_id,
+                    task_id=payload["task_id"], project_id=target["project_id"],
+                    coro=runner.run("recite"),
+                )
+                parent_task = registry._tasks[session_id]["__parent__"]
+                await asyncio.wait_for(streamed.wait(), timeout=5)
+                request = asyncio.create_task(
+                    client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+                )
+                await asyncio.wait_for(tree_cancelled.wait(), timeout=5)
+                assert parent_task.cancelling() == 1
+                with pytest.raises(TimeoutError):
+                    await asyncio.wait_for(asyncio.shield(request), timeout=0.05)
+                if request_mode == "disconnect":
+                    request.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await request
+                    assert parent_task.cancelling() == 1
+                    assert not parent_task.done()
+                elif request_mode == "duplicate":
+                    repeated_request = asyncio.create_task(
+                        client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+                    )
+                    extra_tasks.append(repeated_request)
+                    with pytest.raises(TimeoutError):
+                        await asyncio.wait_for(asyncio.shield(repeated_request), timeout=0.05)
+                    assert parent_task.cancelling() == 1
+                elif request_mode == "replacement":
+                    await asyncio.wait_for(
+                        _launch_task(
+                            db_session_factory=factory, session_id=session_id,
+                            task_id=payload["task_id"], project_id=target["project_id"],
+                            coro=release_replacement.wait(),
+                        ),
+                        timeout=5,
+                    )
+                    extra_tasks.append(registry._tasks[session_id]["__parent__"])
+                release_finalize.set()
+                if request_mode == "disconnect":
+                    await asyncio.wait_for(asyncio.shield(parent_task), timeout=5)
+                else:
+                    cancelled = await asyncio.wait_for(request, timeout=5)
+                    assert cancelled.status_code == 200
+                assert parent_task.done()
+                if request_mode == "duplicate":
+                    assert (await asyncio.wait_for(extra_tasks[0], timeout=5)).status_code == 200
+                elif request_mode == "replacement":
+                    replacement = extra_tasks[0]
+                    assert not replacement.done()
+                    assert replacement.cancelling() == 0
+                    assert registry._tasks[session_id]["__parent__"] is replacement
+
+                async with factory() as read_session:
+                    rows = await message_repo.list_by_session(read_session, session_id)
+                assistants = [row for row in rows if row.role == "assistant"]
+                assert [(row.status, row.content) for row in assistants] == [
+                    ("partial", "prefixmiddle"),
+                ]
+                reloaded = await client.get(f"/api/v1/tasks/{payload['task_id']}")
+                assert reloaded.status_code == 200
+                assert any(
+                    message["role"] == "assistant" and message["content"] == "prefixmiddle"
+                    for message in reloaded.json()["messages"]
+                )
+                if request_mode != "replacement":
+                    repeated = await asyncio.wait_for(
+                        client.post(f"/api/v1/agent/sessions/{session_id}/cancel"), timeout=5,
+                    )
+                    assert repeated.status_code == 200
+                else:
+                    assert reloaded.json()["is_running"] is True
+                async with factory() as read_session:
+                    rows = await message_repo.list_by_session(read_session, session_id)
+                assert len([row for row in rows if row.role == "assistant"]) == 1
+            finally:
+                release_finalize.set()
+                release_replacement.set()
+                pending = [task for task in [request, parent_task, *extra_tasks] if task is not None]
+                for task in pending:
+                    if not task.done() and not task.cancelling():
+                        task.cancel()
+                await asyncio.wait_for(
+                    asyncio.gather(*pending, return_exceptions=True), timeout=5,
+                )
+
     async def test_upload_agent_image_attachment_returns_session_owned_metadata(
         self,
         client: AsyncClient,

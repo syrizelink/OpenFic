@@ -820,6 +820,12 @@ def create_react_agent(
 
         transient_parts: list[ContextMessage] = []
         transient_messages: list[BaseMessage] = []
+        resumption_prompt = configurable.get("resumption_prompt")
+        if isinstance(resumption_prompt, str) and resumption_prompt:
+            transient_parts.append(ContextMessage(
+                role="user", content=resumption_prompt, metadata={"part": "runtime"},
+            ))
+            transient_messages.append(HumanMessage(content=resumption_prompt))
 
         # Drain inject_queue for user messages
         if inject_queue is not None:

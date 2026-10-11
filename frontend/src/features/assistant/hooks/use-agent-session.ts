@@ -31,6 +31,7 @@ import type { AgentForkResponse } from "@/lib/agent.types";
 import {
   cancelPendingAgentMessage,
   compactAgentSession,
+  continueAgentSession,
   createAgentSession,
   forkAgentSession,
   sendAgentMessage,
@@ -40,6 +41,7 @@ import {
   cancelAgentSession,
   fetchAgentSessionChangeSummary,
   fetchAgentSessionChanges,
+  fetchAgentSessionState,
   fetchTask,
   uploadAgentAttachment,
   submitAgentToolApproval,
@@ -500,6 +502,10 @@ export function useAgentSession({
   const suppressSocketEventsAfterAbortRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
+  const canContinueRef = useRef(false);
+  const continueRefreshRef = useRef(0);
+  const isContinuingRef = useRef(false);
+  const isStoppingRef = useRef(false);
   const activeModelIdRef = useRef<string | null>(null);
   const pendingMessageRef = useRef<AgentPendingMessage | null>(null);
   const isCompactingRef = useRef(false);
@@ -523,10 +529,95 @@ export function useAgentSession({
   const [pendingMessage, setPendingMessage] = useState<AgentPendingMessage | null>(null);
   const [status, setStatus] = useState<AgentSessionStatus>("idle");
   const [isRunning, setIsRunning] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [isCompacting, setIsCompacting] = useState(false);
   const [isRollbacking, setIsRollbacking] = useState(false);
   const [isAttachmentProcessing, setIsAttachmentProcessing] = useState(false);
   const [currentStage, setCurrentStage] = useState<string>("");
+
+  const clearCanContinue = useCallback(() => {
+    continueRefreshRef.current += 1;
+    canContinueRef.current = false;
+    setCanContinue(false);
+  }, []);
+
+  const refreshCanContinue = useCallback(
+    async (targetSessionId = sessionIdRef.current, afterCancellation = false) => {
+      if (
+        !targetSessionId ||
+        targetSessionId !== sessionIdRef.current ||
+        (isStoppingRef.current && !afterCancellation)
+      )
+        return;
+      const generation = sessionGenerationRef.current;
+      const refresh = ++continueRefreshRef.current;
+      try {
+        const state = await fetchAgentSessionState(targetSessionId);
+        if (
+          generation !== sessionGenerationRef.current ||
+          refresh !== continueRefreshRef.current ||
+          targetSessionId !== sessionIdRef.current ||
+          (isStoppingRef.current && !afterCancellation)
+        )
+          return;
+        const current = transcriptStateRef.current;
+        const eligible =
+          state.canContinue &&
+          !state.isRunning &&
+          state.interrupts.length === 0 &&
+          !current.isRunning &&
+          (current.status === "idle" || current.status === "error");
+        canContinueRef.current = eligible;
+        setCanContinue(eligible);
+      } catch (error) {
+        if (
+          generation !== sessionGenerationRef.current ||
+          refresh !== continueRefreshRef.current ||
+          (isStoppingRef.current && !afterCancellation)
+        )
+          return;
+        clearCanContinue();
+        console.error("Failed to refresh agent continuation eligibility:", error);
+      }
+    },
+    [clearCanContinue],
+  );
+
+  useEffect(() => {
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.action.type !== "success") return;
+      const current = transcriptStateRef.current;
+      if (
+        !sessionIdRef.current ||
+        isStoppingRef.current ||
+        current.isRunning ||
+        (current.status !== "idle" && current.status !== "error")
+      )
+        return;
+
+      const [kind, key] = event.query.queryKey;
+      const data: unknown = event.query.state.data;
+      if (!isRecord(data)) return;
+      const tasks =
+        kind === "task"
+          ? [data]
+          : kind === "tasks" && key === projectId && Array.isArray(data.items)
+            ? data.items
+            : [];
+      if (
+        tasks.some(
+          (task: unknown) =>
+            isRecord(task) &&
+            task.agentSessionId === sessionIdRef.current &&
+            task.isRunning === false,
+        )
+      ) {
+        void refreshCanContinue();
+      }
+    });
+  }, [projectId, queryClient, refreshCanContinue]);
 
   useEffect(() => {
     return () => {
@@ -630,11 +721,18 @@ export function useAgentSession({
         transcriptStateRef.current.status,
         nextState.status,
       );
+      if (
+        !isStoppingRef.current &&
+        (nextState.isRunning || (nextState.status !== "idle" && nextState.status !== "error"))
+      ) {
+        clearCanContinue();
+      }
       syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
       setMessages(nextState.messages);
       setStatus(nextState.status);
       setIsRunning(nextState.isRunning);
       setCurrentStage(nextState.currentStage);
+      if (wasTerminalError) void refreshCanContinue();
       const notificationSettings = wasTerminalError
         ? queryClient.getQueryData<Settings>(["settings"])
         : undefined;
@@ -664,7 +762,7 @@ export function useAgentSession({
         }
       }
     },
-    [queryClient],
+    [clearCanContinue, queryClient, refreshCanContinue],
   );
 
   const updateTranscriptState = useCallback(
@@ -855,6 +953,7 @@ export function useAgentSession({
               ),
             message,
           );
+          void refreshCanContinue();
         }
         return;
       }
@@ -873,6 +972,7 @@ export function useAgentSession({
           isRunning: false,
           currentStage: "",
         }));
+        void refreshCanContinue();
         return;
       }
 
@@ -962,6 +1062,7 @@ export function useAgentSession({
         }
       }
       if (event.type === "task_completed" || event.type === "error") void refreshChanges();
+      if (event.type === "error") void refreshCanContinue();
 
       if (message?.interruptBatchId && typeof message.interruptBatchTotal === "number") {
         const batchId = message.interruptBatchId;
@@ -1150,6 +1251,7 @@ export function useAgentSession({
       projectId,
       queryClient,
       refreshChanges,
+      refreshCanContinue,
       syncCompactingState,
       syncPendingMessageState,
       updateTranscriptState,
@@ -1234,12 +1336,14 @@ export function useAgentSession({
 
   const startSession = useCallback(
     async (userRequest: string, attachments?: AgentAttachmentInput[]): Promise<AgentSendResult> => {
+      if (isStoppingRef.current) return { sent: false, failedAttachmentIds: [] };
       if (!modelId) {
         toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
         return { sent: false, failedAttachmentIds: [] };
       }
 
       sessionGenerationRef.current += 1;
+      clearCanContinue();
       const processingAttachmentIds = getAttachmentProcessingIds(attachments ?? []);
       processingAttachmentIds.forEach((clientId) => {
         completedAttachmentProcessingIdsRef.current.delete(clientId);
@@ -1325,6 +1429,7 @@ export function useAgentSession({
       agentKey,
       attachAgentSocket,
       commitTranscriptState,
+      clearCanContinue,
       maxIterations,
       modelId,
       onSessionCreated,
@@ -1337,6 +1442,7 @@ export function useAgentSession({
 
   const sendMessage = useCallback(
     async (message: string, attachments?: AgentAttachmentInput[]): Promise<AgentSendResult> => {
+      if (isStoppingRef.current) return { sent: false, failedAttachmentIds: [] };
       const activeSessionId = sessionIdRef.current ?? sessionId;
       if (!activeSessionId) {
         toast.error(i18n.t("assistant.sessionNotFound"));
@@ -1346,6 +1452,8 @@ export function useAgentSession({
         toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
         return { sent: false, failedAttachmentIds: [] };
       }
+
+      clearCanContinue();
 
       const sessionWasRunning = transcriptStateRef.current.isRunning;
       const optimisticMessage = sessionWasRunning
@@ -1423,6 +1531,7 @@ export function useAgentSession({
     [
       agentKey,
       attachAgentSocket,
+      clearCanContinue,
       modelId,
       reasoningEffort,
       sessionId,
@@ -1431,7 +1540,73 @@ export function useAgentSession({
     ],
   );
 
+  const continueSession = useCallback(async (): Promise<boolean> => {
+    const activeSessionId = sessionIdRef.current;
+    const previous = { ...transcriptStateRef.current };
+    if (
+      !activeSessionId ||
+      !canContinueRef.current ||
+      isContinuingRef.current ||
+      isStoppingRef.current ||
+      isCompactingRef.current ||
+      isRollbacking ||
+      previous.isRunning ||
+      (previous.status !== "idle" && previous.status !== "error")
+    )
+      return false;
+
+    const generation = sessionGenerationRef.current;
+    const previousSuppression = suppressSocketEventsAfterAbortRef.current;
+    isContinuingRef.current = true;
+    setIsContinuing(true);
+    clearCanContinue();
+    suppressSocketEventsAfterAbortRef.current = false;
+    transportRetryAttemptRef.current = 0;
+    updateTranscriptState((current) => ({
+      ...current,
+      status: "running",
+      isRunning: true,
+      currentStage: getBestEffortContinueStage(current.messages, agentKey),
+    }));
+    try {
+      if (!socketUnsubscribeRef.current) attachAgentSocket(activeSessionId);
+      await joinAgentSession(activeSessionId);
+      if (generation !== sessionGenerationRef.current) return false;
+      const result = await continueAgentSession(activeSessionId);
+      if (generation !== sessionGenerationRef.current) return false;
+      if (!result.success) throw new Error(result.message || i18n.t("assistant.continueFailed"));
+      return true;
+    } catch (error) {
+      if (generation !== sessionGenerationRef.current) return false;
+      if (transcriptStateRef.current.status === "running") {
+        suppressSocketEventsAfterAbortRef.current = previousSuppression;
+        updateTranscriptState((current) => ({
+          ...current,
+          status: previous.status,
+          isRunning: previous.isRunning,
+          currentStage: previous.currentStage,
+        }));
+      }
+      toast.error(getAgentApiErrorMessage(error, i18n.t("assistant.continueFailed")));
+      await refreshCanContinue();
+      return false;
+    } finally {
+      if (generation === sessionGenerationRef.current) {
+        isContinuingRef.current = false;
+        setIsContinuing(false);
+      }
+    }
+  }, [
+    agentKey,
+    attachAgentSocket,
+    clearCanContinue,
+    isRollbacking,
+    refreshCanContinue,
+    updateTranscriptState,
+  ]);
+
   const compactSession = useCallback(async () => {
+    if (isStoppingRef.current) return false;
     const activeSessionId = sessionIdRef.current ?? sessionId;
     if (!activeSessionId) {
       toast.error(i18n.t("assistant.sessionNotFound"));
@@ -1664,6 +1839,11 @@ export function useAgentSession({
 
   const resetSession = useCallback(() => {
     sessionGenerationRef.current += 1;
+    isStoppingRef.current = false;
+    setIsStopping(false);
+    clearCanContinue();
+    isContinuingRef.current = false;
+    setIsContinuing(false);
     historyTaskIdRef.current = null;
     resetPagination(null);
     sessionIdRef.current = null;
@@ -1687,14 +1867,29 @@ export function useAgentSession({
     commitTranscriptState(createAgentTranscriptLiveState());
     socketUnsubscribeRef.current?.();
     socketUnsubscribeRef.current = null;
-  }, [commitTranscriptState, resetPagination, syncCompactingState, syncPendingMessageState]);
+  }, [
+    clearCanContinue,
+    commitTranscriptState,
+    resetPagination,
+    syncCompactingState,
+    syncPendingMessageState,
+  ]);
 
   useEffect(() => {
     resetSession();
   }, [projectId, resetSession]);
 
   const abortSession = useCallback(async () => {
-    const activeSessionId = sessionId;
+    if (isStoppingRef.current) return;
+    sessionGenerationRef.current += 1;
+    const generation = sessionGenerationRef.current;
+    const previousCanContinue = canContinueRef.current;
+    continueRefreshRef.current += 1;
+    isStoppingRef.current = true;
+    setIsStopping(true);
+    isContinuingRef.current = false;
+    setIsContinuing(false);
+    const activeSessionId = sessionIdRef.current;
     const previousTranscriptState = {
       ...transcriptStateRef.current,
       messages: [...transcriptStateRef.current.messages],
@@ -1702,6 +1897,15 @@ export function useAgentSession({
     const previousInterruptBatch = interruptBatchRef.current;
     const previousPendingMessage = pendingMessageRef.current;
     const previousIsCompacting = isCompactingRef.current;
+    const previousSuppression = suppressSocketEventsAfterAbortRef.current;
+    const optimisticCanContinue = Boolean(
+      activeSessionId &&
+      !previousIsCompacting &&
+      previousTranscriptState.isRunning &&
+      previousTranscriptState.status === "running",
+    );
+    canContinueRef.current = optimisticCanContinue || previousCanContinue;
+    setCanContinue(canContinueRef.current);
     const previousManualCompactionState = manualCompactionPreviousStateRef.current;
     suppressSocketEventsAfterAbortRef.current = true;
     transportRetryAttemptRef.current = 0;
@@ -1727,27 +1931,42 @@ export function useAgentSession({
       ),
     );
 
-    if (activeSessionId) {
-      try {
-        await cancelAgentSession(activeSessionId);
-      } catch (error) {
-        console.error("Failed to cancel agent session:", error);
-        interruptBatchRef.current = previousInterruptBatch;
-        manualCompactionPreviousStateRef.current = previousManualCompactionState;
-        suppressSocketEventsAfterAbortRef.current = false;
-        syncPendingMessageState(previousPendingMessage);
-        syncCompactingState(previousIsCompacting);
-        commitTranscriptState(previousTranscriptState);
+    try {
+      if (activeSessionId) {
+        const result = await cancelAgentSession(activeSessionId);
+        if (generation !== sessionGenerationRef.current) return;
+        if (!result.success) throw new Error(i18n.t("assistant.cancelSessionFailed"));
+        await refreshCanContinue(activeSessionId, true);
+      }
+    } catch (error) {
+      if (generation !== sessionGenerationRef.current) return;
+      console.error("Failed to cancel agent session:", error);
+      interruptBatchRef.current = previousInterruptBatch;
+      manualCompactionPreviousStateRef.current = previousManualCompactionState;
+      suppressSocketEventsAfterAbortRef.current = previousSuppression;
+      syncPendingMessageState(previousPendingMessage);
+      syncCompactingState(previousIsCompacting);
+      commitTranscriptState(previousTranscriptState);
+      continueRefreshRef.current += 1;
+      canContinueRef.current = previousCanContinue;
+      setCanContinue(previousCanContinue);
+      toast.error(getAgentApiErrorMessage(error, i18n.t("assistant.cancelSessionFailed")));
+      if (activeSessionId) {
         attachAgentSocket(activeSessionId);
         await joinAgentSession(activeSessionId).catch((joinError) => {
           console.error("Failed to restore agent session connection:", joinError);
         });
       }
+    } finally {
+      if (generation === sessionGenerationRef.current) {
+        isStoppingRef.current = false;
+        setIsStopping(false);
+      }
     }
   }, [
     attachAgentSocket,
     commitTranscriptState,
-    sessionId,
+    refreshCanContinue,
     syncCompactingState,
     syncPendingMessageState,
     updateTranscriptState,
@@ -1769,6 +1988,12 @@ export function useAgentSession({
       },
     ) => {
       sessionGenerationRef.current += 1;
+      const generation = sessionGenerationRef.current;
+      isStoppingRef.current = false;
+      setIsStopping(false);
+      clearCanContinue();
+      isContinuingRef.current = false;
+      setIsContinuing(false);
       setIsRollbacking(false);
       historyTaskIdRef.current = options.taskId;
       setSessionLoadVersion((version) => version + 1);
@@ -1823,10 +2048,12 @@ export function useAgentSession({
         isRunning: loadedState.isRunning,
         currentStage: loadedState.currentStage,
       });
+      void refreshCanContinue();
 
       if (options.reconnect && shouldJoinLoadedAgentSession(loadedState)) {
         attachAgentSocket(existingSessionId);
         void joinAgentSession(existingSessionId).catch((error) => {
+          if (generation !== sessionGenerationRef.current) return;
           transportRetryAttemptRef.current += 1;
           const normalizedError =
             error instanceof Error ? error : new Error(i18n.t("common.error"));
@@ -1853,7 +2080,9 @@ export function useAgentSession({
     [
       agentKey,
       attachAgentSocket,
+      clearCanContinue,
       commitTranscriptState,
+      refreshCanContinue,
       resetPagination,
       syncCompactingState,
       syncPendingMessageState,
@@ -1901,6 +2130,7 @@ export function useAgentSession({
       }
 
       setIsRollbacking(true);
+      clearCanContinue();
       invalidatePagination();
       const generation = sessionGenerationRef.current;
       const taskId = historyTaskIdRef.current;
@@ -1963,6 +2193,7 @@ export function useAgentSession({
       }
     },
     [
+      clearCanContinue,
       commitTranscriptState,
       invalidatePagination,
       resetPagination,
@@ -2034,6 +2265,11 @@ export function useAgentSession({
     pendingMessage,
     status,
     isRunning,
+    canContinue,
+    isContinuing,
+    isStopping,
+    continueSession,
+    refreshCanContinue,
     isCompacting,
     isRollbacking,
     isAttachmentProcessing,

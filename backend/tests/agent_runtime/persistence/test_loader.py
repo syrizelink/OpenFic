@@ -97,9 +97,11 @@ async def test_load_history_includes_visible_child_user_requests(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("content", ["请看附件", "", "   "])
 async def test_load_history_preserves_user_attachment_metadata(
     db_session: AsyncSession,
     sample_task,
+    content: str,
 ) -> None:
     await repo.insert_message(
         db_session,
@@ -107,7 +109,7 @@ async def test_load_history_preserves_user_attachment_metadata(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="user",
-        content="请看附件",
+        content=content,
         status="sent",
         metadata={
             "attachments": [
@@ -122,8 +124,9 @@ async def test_load_history_preserves_user_attachment_metadata(
 
     messages = await load_history(db_session, "session-with-image")
 
+    assert len(messages) == 1
     assert isinstance(messages[0], HumanMessage)
-    assert messages[0].content == "请看附件"
+    assert messages[0].content == content
     assert messages[0].additional_kwargs["openfic_attachments"] == [
         {
             "id": "attachment-1",

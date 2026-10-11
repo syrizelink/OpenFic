@@ -59,6 +59,90 @@ async def test_register_can_preserve_session_cancellation() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "cancel_path",
+    ["cancel", "cancel_task", "cancel_child", "cancel_all", "register", "register_child"],
+)
+async def test_registry_does_not_cancel_cleanup_again(cancel_path: str) -> None:
+    registry = AgentRunRegistry()
+    started = asyncio.Event()
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+    cleanup_finished = False
+
+    async def run() -> None:
+        nonlocal cleanup_finished
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cleanup_started.set()
+            await release_cleanup.wait()
+            cleanup_finished = True
+
+    task = asyncio.create_task(run())
+    other_tasks: list[asyncio.Task] = []
+    try:
+        if cancel_path in {"cancel_child", "register_child"}:
+            await registry.register_child("session", "child", task)
+        else:
+            await registry.register("session", task)
+        await asyncio.wait_for(started.wait(), timeout=2)
+        assert await registry.cancel_task("session", task)
+        await asyncio.wait_for(cleanup_started.wait(), timeout=2)
+
+        if cancel_path == "cancel":
+            assert await registry.cancel("session")
+        elif cancel_path == "cancel_task":
+            assert await registry.cancel_task("session", task)
+        elif cancel_path == "cancel_child":
+            assert await registry.cancel_child("session", "child")
+        elif cancel_path == "cancel_all":
+            other_tasks.append(asyncio.create_task(registry.cancel_all()))
+            await asyncio.sleep(0)
+        else:
+            replacement = asyncio.create_task(release_cleanup.wait())
+            other_tasks.append(replacement)
+            if cancel_path == "register":
+                await registry.register("session", replacement)
+            else:
+                await registry.register_child("session", "child", replacement)
+
+        assert task.cancelling() == 1
+        release_cleanup.set()
+        await asyncio.wait_for(asyncio.gather(task, *other_tasks), timeout=2)
+        assert cleanup_finished
+    finally:
+        release_cleanup.set()
+        for pending in [task, *other_tasks]:
+            if not pending.done() and not pending.cancelling():
+                pending.cancel()
+        await asyncio.wait_for(
+            asyncio.gather(task, *other_tasks, return_exceptions=True), timeout=2
+        )
+
+
+@pytest.mark.asyncio
+async def test_cancel_child_does_not_cancel_parent() -> None:
+    registry = AgentRunRegistry()
+    blocker = asyncio.Event()
+    parent = asyncio.create_task(blocker.wait())
+    child = asyncio.create_task(blocker.wait())
+    try:
+        await registry.register("session", parent)
+        await registry.register_child("session", "child", child)
+        assert await registry.cancel_child("session", "child")
+        await asyncio.wait_for(asyncio.gather(child, return_exceptions=True), timeout=2)
+        assert child.cancelled()
+        assert not parent.done()
+        assert parent.cancelling() == 0
+        assert not await registry.cancel_child("session", "child")
+    finally:
+        blocker.set()
+        await asyncio.wait_for(asyncio.gather(parent, child, return_exceptions=True), timeout=2)
+
+
+@pytest.mark.asyncio
 async def test_session_locks_are_not_retained_after_use() -> None:
     registry = AgentRunRegistry()
     lock = registry.session_lock("finished-session")

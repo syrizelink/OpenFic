@@ -919,6 +919,11 @@
   color: inherit;
 }
 
+.ai-sidebar-send-button[data-stopping][disabled] {
+  background-color: var(--accent-9);
+  color: var(--accent-contrast);
+}
+
 .ai-sidebar-input-stage {
   position: relative;
   display: flex;

@@ -6,6 +6,7 @@ import {
   CloudUpload,
   ExternalLink,
   Plus,
+  Play,
   ShieldCheck,
   Square,
   X,
@@ -72,6 +73,10 @@ interface AgentInputProps {
   onAttachmentsChange: (attachments: PendingAgentAttachment[]) => void;
   onSend: () => void;
   onAbort: () => void;
+  canContinue?: boolean;
+  isContinuing?: boolean;
+  isStopping?: boolean;
+  onContinue?: () => void | Promise<boolean>;
   onModelChange: (modelId: string) => void;
   onReasoningEffortChange?: (reasoningEffort: ReasoningEffort) => void;
   onAgentChange?: (agentKey: string) => void;
@@ -108,6 +113,10 @@ export function AgentInput({
   onAttachmentsChange,
   onSend,
   onAbort,
+  canContinue = false,
+  isContinuing = false,
+  isStopping = false,
+  onContinue,
   onModelChange,
   onReasoningEffortChange,
   onAgentChange,
@@ -130,7 +139,7 @@ export function AgentInput({
   const hasContent = value.trim().length > 0 || attachments.length > 0;
   const hasPendingMessage = pendingMessage !== null;
   const isComposerLocked = isAgentInputLocked({
-    disabled,
+    disabled: disabled || isStopping,
     readOnly,
     hasPendingMessage,
   });
@@ -138,16 +147,27 @@ export function AgentInput({
     attachments.some((attachment) => attachment.status === "uploading") ||
     (isSending &&
       attachments.some((attachment) => attachment.file && !attachment.uploadedAttachment));
-  const shouldAbort = isSending && !hasContent;
+  const shouldAbort = isSending && !isStopping && !hasContent;
   const canSend = canSendAgentInput({
     hasContent,
-    disabled: disabled || isProcessingAttachments,
+    disabled: disabled || isStopping || isProcessingAttachments,
     readOnly,
     hasPendingMessage,
     bodyMode,
   });
   const shouldShowPendingMessage = hasPendingMessage && bodyMode === "composer" && !readOnly;
-  const buttonActive = shouldAbort || canSend;
+  const shouldContinue =
+    canContinue &&
+    !hasContent &&
+    !hasPendingMessage &&
+    !isSending &&
+    !readOnly &&
+    bodyMode === "composer" &&
+    (agentStatus === "idle" || agentStatus === "error") &&
+    Boolean(onContinue);
+  const buttonActive = isStopping || shouldAbort || shouldContinue || canSend;
+  const isButtonDisabled =
+    isStopping || (shouldAbort ? false : shouldContinue ? disabled || isContinuing : !canSend);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const [pendingClearanceHeight, setPendingClearanceHeight] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(
@@ -266,9 +286,10 @@ export function AgentInput({
   );
 
   const handleSubmit = useCallback(() => {
+    if (isStopping) return;
     recordInputHistory(value);
     onSend();
-  }, [onSend, recordInputHistory, value]);
+  }, [isStopping, onSend, recordInputHistory, value]);
 
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
@@ -933,9 +954,22 @@ export function AgentInput({
                 variant="solid"
                 size="1"
                 className="ai-sidebar-send-button"
-                onClick={shouldAbort ? onAbort : handleSubmit}
-                disabled={shouldAbort ? false : !canSend}
-                aria-disabled={!buttonActive || undefined}
+                onClick={
+                  shouldAbort ? onAbort : shouldContinue ? () => void onContinue?.() : handleSubmit
+                }
+                disabled={isButtonDisabled}
+                data-stopping={isStopping || undefined}
+                aria-label={
+                  isStopping
+                    ? t("assistant.stopping")
+                    : shouldAbort
+                      ? t("assistant.stop")
+                      : shouldContinue
+                        ? t("assistant.continueSession")
+                        : t("assistant.sendMessage")
+                }
+                aria-busy={isStopping || undefined}
+                aria-disabled={isButtonDisabled || undefined}
                 style={{
                   width: "26px",
                   height: "26px",
@@ -948,9 +982,16 @@ export function AgentInput({
                   pointerEvents: buttonActive ? undefined : "none",
                 }}
               >
-                {shouldAbort ? (
+                {isStopping ? (
+                  <Spinner size={18} />
+                ) : shouldAbort ? (
                   <Square
                     size={12}
+                    fill="currentColor"
+                  />
+                ) : shouldContinue ? (
+                  <Play
+                    size={14}
                     fill="currentColor"
                   />
                 ) : disabled ? (

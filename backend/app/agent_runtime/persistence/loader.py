@@ -187,6 +187,7 @@ async def load_history(
             name=row.tool_name if row.role == "tool" else None,
             tool_call_id=row.tool_call_id,
             tool_calls=_tool_calls(row),
+            additional_kwargs=_user_additional_kwargs(row) if row.role == "user" else None,
             metadata={"part": "history", "row": row},
         )
         for row in filtered
@@ -217,7 +218,7 @@ async def load_history(
             messages.append(
                 HumanMessage(
                     content=part.content,
-                    additional_kwargs=_user_additional_kwargs(row),
+                    additional_kwargs=part.additional_kwargs or {},
                     response_metadata=_response_metadata(row),
                 )
             )

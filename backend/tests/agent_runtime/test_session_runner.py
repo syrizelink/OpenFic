@@ -25,6 +25,49 @@ def test_session_runner_exception_reason_includes_wrapped_cause() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_continue_run_uses_history_and_transient_prompt_without_persisting_user():
+    runner = SessionRunner("session", "task", {"max_context_tokens": 8000})
+    history = [HumanMessage(content="original task")]
+    captured = {}
+
+    class Graph:
+        async def astream_events(self, state, *, config, version):
+            captured.update(state=state, config=config)
+            if False:
+                yield None
+
+        async def aget_state(self, config):
+            return SimpleNamespace(next=(), tasks=())
+
+    revision = SimpleNamespace(id="new-revision", status="active", user_message_id="original-user")
+    session = MagicMock(close=AsyncMock(), commit=AsyncMock(), get=AsyncMock(return_value=revision))
+    persister = MagicMock(handle=AsyncMock(), finalize=AsyncMock(), mark_user_sent=AsyncMock())
+    with (
+        patch.object(runner, "_get_graph", new=AsyncMock(return_value=Graph())),
+        patch.object(runner, "_prepare_run_persistence", new=AsyncMock(return_value=history)),
+        patch.object(runner, "_persist_user_message", new=AsyncMock()) as persist,
+        patch.object(runner, "_begin_existing_user_turn", new=AsyncMock()) as begin,
+        patch.object(runner, "_make_persister", return_value=persister),
+        patch.object(runner, "_prune_thread_checkpoints", new=AsyncMock()),
+        patch("app.agent_runtime.runner.session_runner.create_session", new=AsyncMock(return_value=session)),
+        patch("app.agent_runtime.runner.session_runner.finalize_revision_status", new=AsyncMock()),
+        patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()),
+    ):
+        await runner.run("original task", user_message_id="original-user", revision_id="new-revision")
+    persist.assert_not_awaited()
+    begin.assert_not_awaited()
+    assert captured["state"]["messages"] == history
+    assert captured["state"]["user_request"] == ""
+    assert captured["state"]["current_revision_id"] == "new-revision"
+    assert captured["config"]["configurable"]["resumption_prompt"] == (
+        "[TASK RESUMPTION] Resume the interrupted task using the existing conversation. "
+        "Check the current state before retrying interrupted tools. "
+        "Do not repeat work that already completed."
+    )
+    assert "resumption_prompt" not in captured["state"]
+
+
 def test_interrupt_payloads_preserve_pending_resume_data() -> None:
     state = SimpleNamespace(
         tasks=(

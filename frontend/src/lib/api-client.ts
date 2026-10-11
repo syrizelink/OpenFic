@@ -2366,6 +2366,7 @@ import type {
   AgentSendMessageRequest,
   AgentSendMessageResponse,
   AgentSessionStateResponse,
+  AgentContinueResponse,
   AgentRollbackResponse,
   AgentCancelResponse,
   AgentInterruptBatchResponse,
@@ -2397,6 +2398,7 @@ export async function fetchAgentSessionState(
         ? (data.state as Record<string, unknown>)
         : {},
     isRunning: data.is_running === true,
+    canContinue: data.can_continue === true,
     interrupts: Array.isArray(data.interrupts)
       ? data.interrupts.filter((item): item is Record<string, unknown> =>
           Boolean(item && typeof item === "object" && !Array.isArray(item)),
@@ -2410,6 +2412,11 @@ export async function fetchAgentSessionChangeSummary(
 ): Promise<AgentSessionChanges> {
   const response = await apiClient.get(`/agent/sessions/${sessionId}/changes`);
   return transformAgentSessionChanges(response.data, sessionId);
+}
+
+export async function continueAgentSession(sessionId: string): Promise<AgentContinueResponse> {
+  const response = await apiClient.post(`/agent/sessions/${sessionId}/continue`);
+  return response.data;
 }
 
 export async function fetchAgentSessionChanges(

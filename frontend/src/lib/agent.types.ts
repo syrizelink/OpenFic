@@ -329,7 +329,14 @@ export interface AgentSessionStateResponse {
   sessionId: string;
   state: Record<string, unknown>;
   isRunning: boolean;
+  canContinue: boolean;
   interrupts: Record<string, unknown>[];
+}
+
+export interface AgentContinueResponse {
+  success: boolean;
+  session_id: string;
+  message: string;
 }
 
 export interface AgentSendMessageRequest {
