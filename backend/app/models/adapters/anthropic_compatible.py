@@ -38,6 +38,10 @@ class AnthropicCompatibleAdapter(BaseAdapter):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         url = self._normalize_url(base_url)
+        for suffix in ("/anthropic/v1", "/claude/v1"):
+            if url.endswith(suffix):
+                url = url.removesuffix(suffix)
+                break
         for suffix in ("/anthropic", "/claude"):
             if url.endswith(suffix):
                 url = url.removesuffix(suffix)

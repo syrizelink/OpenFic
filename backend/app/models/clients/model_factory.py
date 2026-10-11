@@ -195,10 +195,18 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     ):
         from langchain_anthropic import ChatAnthropic
 
+        # The Anthropic SDK appends "/v1/messages" to base_url verbatim, so a
+        # base_url already ending in "/v1" produces a doubled "/v1/v1" path
+        # (404 on providers like api.minimax.cn). Strip the trailing "/v1"
+        # so the SDK can safely re-add it.
+        _anthropic_base = (config.base_url or "").rstrip("/")
+        if _anthropic_base.endswith("/v1"):
+            _anthropic_base = _anthropic_base.removesuffix("/v1")
+
         return ChatAnthropic(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=_anthropic_base or None,
             default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
