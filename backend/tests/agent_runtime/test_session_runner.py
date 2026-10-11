@@ -1139,6 +1139,10 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
         runner,
         "_clear_replay_session",
         AsyncMock(),
+    ), patch.object(
+        runner,
+        "_prune_thread_checkpoints",
+        AsyncMock(),
     ):
         with pytest.raises(GraphRecursionError):
             await runner.run("触发异常")
@@ -1155,13 +1159,14 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
             "session_id": "sess_run_error_001",
             "type": "runtime_failure",
             "reason": "Recursion limit reached",
+            "round_id": "rev_error_1",
         },
         room=runner._room,
     )
  
  
 @pytest.mark.asyncio
-async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtime_exception():
+async def test_resume_suppresses_error_when_revision_finalization_is_lost():
     runner = SessionRunner(
         session_id="sess_resume_error_001",
         task_id="task_resume_error_001",
@@ -1222,6 +1227,10 @@ async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtim
         runner,
         "_clear_replay_session",
         AsyncMock(),
+    ), patch.object(
+        runner,
+        "_prune_thread_checkpoints",
+        AsyncMock(),
     ):
         with pytest.raises(GraphRecursionError):
             await runner.resume({"answer": "继续"})
@@ -1232,17 +1241,7 @@ async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtim
         "rev_resume_1",
         "interrupted",
     )
-    emit_mock.assert_any_await(
-        "agent:error",
-        {
-            "session_id": "sess_resume_error_001",
-            "type": "runtime_failure",
-            "reason": "Resume recursion limit reached",
-        },
-        room=runner._room,
-    )
-    event_names = [call.args[0] for call in emit_mock.await_args_list if call.args]
-    assert "agent:interrupt" not in event_names
+    emit_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio

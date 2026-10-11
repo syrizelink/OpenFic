@@ -1878,11 +1878,11 @@ class TestAgentAPI:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["session_id"] == session_id
-        assert data["state"] == {"agent_key": "build"}
+        assert data["state"] == {"agent_key": "build", "current_revision_id": None}
         assert data["is_running"] is True
         fake_registry.is_running.assert_awaited_once_with(session_id)
 
-    async def test_get_session_state_returns_only_agent_key_from_checkpoint(
+    async def test_get_session_state_returns_public_state_from_checkpoint(
         self,
         client: AsyncClient,
     ) -> None:
@@ -1912,7 +1912,7 @@ class TestAgentAPI:
             response = await client.get("/api/v1/agent/sessions/session-summary")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["state"] == {"agent_key": "writer"}
+        assert response.json()["state"] == {"agent_key": "writer", "current_revision_id": None}
 
     async def test_get_session_state_returns_pending_interrupts(
         self,
@@ -3370,7 +3370,7 @@ class TestAgentAPI:
         data = response.json()
         assert data["session_id"] == session_id
         assert data["is_running"] is False
-        assert data["state"] == {"agent_key": "build"}
+        assert data["state"] == {"agent_key": "build", "current_revision_id": None}
         assert session_id not in _SESSION_RUNNERS
 
     async def test_get_session_state_allows_deleted_model_without_runner(
@@ -3395,7 +3395,7 @@ class TestAgentAPI:
         response = await client.get(f"/api/v1/agent/sessions/{session_id}")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["state"] == {"agent_key": "build"}
+        assert response.json()["state"] == {"agent_key": "build", "current_revision_id": None}
         assert session_id not in _SESSION_RUNNERS
 
     async def test_get_session_state_reads_legacy_model_config_without_record_id(
@@ -3427,7 +3427,7 @@ class TestAgentAPI:
         response = await client.get(f"/api/v1/agent/sessions/{session_id}")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["state"] == {"agent_key": "build"}
+        assert response.json()["state"] == {"agent_key": "build", "current_revision_id": None}
         assert session_id not in _SESSION_RUNNERS
 
     async def test_agent_checkpoint_and_session_state_do_not_contain_api_key(
@@ -3458,7 +3458,7 @@ class TestAgentAPI:
         response = await client.get(f"/api/v1/agent/sessions/{session_id}")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["state"] == {"agent_key": "build"}
+        assert response.json()["state"] == {"agent_key": "build", "current_revision_id": None}
 
     async def test_list_subagent_sessions_returns_only_active_state_rows(
         self,
