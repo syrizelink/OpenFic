@@ -37,12 +37,9 @@ import { AgentMessageRenderer } from "./agent-message-renderer";
 import {
   getStreamingFollowSignal,
   getPrependedBlockCount,
-  resolveFollowBottomStateOnScroll,
   shouldAutoScrollOnFrameChange,
   shouldFollowBottom,
-  shouldResetFollowBottomForRun,
   shouldTrackStreamingFollowBottom,
-  type ScrollViewportMetrics,
 } from "./agent-messages-scroll";
 import { getAgentRunningStatus } from "./agent-running-status";
 import { AgentStatusMessage } from "./agent-status-message";
@@ -68,6 +65,7 @@ import { ExplorationMessage } from "./message-blocks/blocks/exploration/explorat
 const COPY_FEEDBACK_MS = 1200;
 const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
 const INITIAL_FIRST_ITEM_INDEX = 1_000_000_000;
+const OVERLAY_SCROLLBAR_HIT_AREA_PX = 16;
 
 function shouldShowAgentMessagesLoading(isListHidden: boolean, hasMessages: boolean): boolean {
   return isListHidden && hasMessages;
@@ -457,8 +455,6 @@ export function AgentMessages({
   const isRestoringLoadedSessionBottomRef = useRef(false);
   const pendingLoadedSessionRestoreKeyRef = useRef<string | null | undefined>(null);
   const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number } | null>(null);
-  const viewportMetricsRef = useRef<ScrollViewportMetrics | null>(null);
-  const previousIsRunningRef = useRef(isRunning);
   const lastLoadScrollKeyRef = useRef<string | null | undefined>(null);
   const copyFeedbackTimerRef = useRef<number | null>(null);
   const restoreScrollRafRef = useRef<number | null>(null);
@@ -539,6 +535,24 @@ export function AgentMessages({
       window.cancelAnimationFrame(historyRestoreRafRef.current);
     historyRestoreRafRef.current = null;
   }, [clearHistoryPresentation]);
+  const cancelFollowBottom = useCallback(() => {
+    // User intent must cancel pending writes before the browser emits a scroll event.
+    shouldFollowBottomRef.current = false;
+    isRestoringLoadedSessionBottomRef.current = false;
+    pendingLoadedSessionRestoreKeyRef.current = null;
+    if (streamingScrollRafRef.current !== null) {
+      window.cancelAnimationFrame(streamingScrollRafRef.current);
+      streamingScrollRafRef.current = null;
+    }
+    if (restoreScrollRafRef.current !== null) {
+      window.cancelAnimationFrame(restoreScrollRafRef.current);
+      restoreScrollRafRef.current = null;
+    }
+    if (isAtBottomRef.current) {
+      isAtBottomRef.current = false;
+      onAtBottomChange?.(false);
+    }
+  }, [onAtBottomChange]);
   const captureHistoryAnchor = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container || isRestoringHistoryRef.current) return;
@@ -593,11 +607,7 @@ export function AgentMessages({
       )
         return;
       historyTopArmedRef.current = false;
-      shouldFollowBottomRef.current = false;
-      if (streamingScrollRafRef.current !== null) {
-        window.cancelAnimationFrame(streamingScrollRafRef.current);
-        streamingScrollRafRef.current = null;
-      }
+      cancelFollowBottom();
       // Virtuoso updates its visible range after the scroll event.
       historyLoadRafRef.current = window.requestAnimationFrame(() => {
         historyLoadRafRef.current = null;
@@ -611,6 +621,7 @@ export function AgentMessages({
       });
     },
     [
+      cancelFollowBottom,
       captureHistoryAnchor,
       hasEarlierError,
       isLoadingEarlier,
@@ -706,38 +717,58 @@ export function AgentMessages({
         scrollTop: container.scrollTop,
         clientHeight: container.clientHeight,
       };
-      const atBottom = shouldFollowBottom(nextViewport);
+      const atBottom = shouldFollowBottomRef.current && shouldFollowBottom(nextViewport);
       if (isAtBottomRef.current !== atBottom) {
         isAtBottomRef.current = atBottom;
         onAtBottomChange?.(atBottom);
       }
-      if (!shouldTrackStreamingFollowBottom(isRunning)) {
-        return;
-      }
-      shouldFollowBottomRef.current = resolveFollowBottomStateOnScroll({
-        previous: viewportMetricsRef.current,
-        next: nextViewport,
-        wasFollowingBottom: shouldFollowBottomRef.current,
-        isAutoScrollPending: streamingScrollRafRef.current !== null,
-      });
-      viewportMetricsRef.current = nextViewport;
     };
 
     const handleHistoryIntent = (event: WheelEvent | TouchEvent) => {
-      if (isRestoringLoadedSessionBottomRef.current) return;
       if (isHistoryCommittingRef.current) {
         event.preventDefault();
         return;
       }
+      cancelFollowBottom();
       historyTopArmedRef.current = true;
       if (container.scrollTop <= 200) handleLoadEarlier();
     };
-    const handleHistoryKeyDown = (event: KeyboardEvent) => {
+    const handleScrollbarPointerDown = (event: PointerEvent) => {
       if (
-        isHistoryCommittingRef.current &&
-        ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)
+        event.button !== 0 ||
+        event.target !== container ||
+        container.scrollHeight <= container.clientHeight
       )
+        return;
+      const rect = container.getBoundingClientRect();
+      const contentLeft = rect.left + container.clientLeft;
+      const contentRight = contentLeft + container.clientWidth;
+      // Overlay scrollbars have no measurable gutter and occupy the viewport edge instead.
+      const overlayWidth =
+        container.offsetWidth === container.clientWidth ? OVERLAY_SCROLLBAR_HIT_AREA_PX : 0;
+      const isRtl = window.getComputedStyle(container).direction === "rtl";
+      if (
+        event.clientX < contentLeft + (isRtl ? overlayWidth : 0) ||
+        event.clientX >= contentRight - (isRtl ? 0 : overlayWidth)
+      )
+        cancelFollowBottom();
+    };
+    const handleScrollKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        event.defaultPrevented ||
+        !["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key) ||
+        target?.closest(
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
+        ) ||
+        (event.key === " " && target?.closest('button, summary, [role="button"]'))
+      )
+        return;
+      if (isHistoryCommittingRef.current) {
         event.preventDefault();
+        return;
+      }
+      cancelFollowBottom();
     };
 
     const syncFrameMetrics = () => {
@@ -752,11 +783,13 @@ export function AgentMessages({
         scheduleLoadedSessionBottomRestore();
         return;
       }
-      const atBottom = shouldFollowBottom({
-        scrollHeight: container.scrollHeight,
-        scrollTop: container.scrollTop,
-        clientHeight: container.clientHeight,
-      });
+      const atBottom =
+        shouldFollowBottomRef.current &&
+        shouldFollowBottom({
+          scrollHeight: container.scrollHeight,
+          scrollTop: container.scrollTop,
+          clientHeight: container.clientHeight,
+        });
       if (isAtBottomRef.current !== atBottom) {
         isAtBottomRef.current = atBottom;
         onAtBottomChange?.(atBottom);
@@ -783,7 +816,8 @@ export function AgentMessages({
     container.addEventListener("scroll", handleScroll, { passive: true });
     container.addEventListener("wheel", handleHistoryIntent, { passive: false });
     container.addEventListener("touchmove", handleHistoryIntent, { passive: false });
-    container.addEventListener("keydown", handleHistoryKeyDown);
+    container.addEventListener("pointerdown", handleScrollbarPointerDown);
+    container.addEventListener("keydown", handleScrollKeyDown);
     return () => {
       if (restoreScrollRafRef.current !== null) {
         window.cancelAnimationFrame(restoreScrollRafRef.current);
@@ -793,7 +827,8 @@ export function AgentMessages({
       container.removeEventListener("scroll", handleScroll);
       container.removeEventListener("wheel", handleHistoryIntent);
       container.removeEventListener("touchmove", handleHistoryIntent);
-      container.removeEventListener("keydown", handleHistoryKeyDown);
+      container.removeEventListener("pointerdown", handleScrollbarPointerDown);
+      container.removeEventListener("keydown", handleScrollKeyDown);
     };
   }, [
     isRunning,
@@ -804,16 +839,10 @@ export function AgentMessages({
     captureHistoryAnchor,
     handleLoadEarlier,
     isLoadingEarlier,
-    cancelHistoryRestore,
+    cancelFollowBottom,
   ]);
 
   useEffect(() => {
-    const previousIsRunning = previousIsRunningRef.current;
-    previousIsRunningRef.current = isRunning;
-    if (shouldResetFollowBottomForRun(previousIsRunning, isRunning)) {
-      shouldFollowBottomRef.current = true;
-      scheduleStreamingScrollToBottom();
-    }
     if (!shouldTrackStreamingFollowBottom(isRunning)) return;
     scheduleStreamingScrollToBottom();
   }, [currentStage, isRunning, scheduleStreamingScrollToBottom, streamFollowSignal]);
@@ -1113,11 +1142,6 @@ export function AgentMessages({
         historyAnchorRef.current = null;
         isRestoringHistoryRef.current = false;
         setIsRestoringHistory(false);
-        viewportMetricsRef.current = {
-          scrollHeight: container.scrollHeight,
-          scrollTop: container.scrollTop,
-          clientHeight: container.clientHeight,
-        };
         return;
       }
       historyRestoreRafRef.current = window.requestAnimationFrame(() => restore());
@@ -1234,15 +1258,15 @@ export function AgentMessages({
   const navigateToMessage = useCallback(
     (blockIndex: number) => {
       if (isHistoryCommittingRef.current) return;
+      cancelFollowBottom();
       cancelHistoryRestore();
-      shouldFollowBottomRef.current = false;
       virtuosoRef.current?.scrollToIndex({
         index: blockIndex,
         align: "start",
         behavior: "smooth",
       });
     },
-    [cancelHistoryRestore],
+    [cancelFollowBottom, cancelHistoryRestore],
   );
 
   const copyText = useCallback(

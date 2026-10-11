@@ -56,36 +56,6 @@ export function shouldTrackStreamingFollowBottom(isRunning: boolean): boolean {
   return isRunning;
 }
 
-export function shouldResetFollowBottomForRun(
-  previousIsRunning: boolean,
-  nextIsRunning: boolean,
-): boolean {
-  return !previousIsRunning && nextIsRunning;
-}
-
-export function resolveFollowBottomStateOnScroll({
-  previous,
-  next,
-  wasFollowingBottom,
-  isAutoScrollPending = false,
-}: {
-  previous: ScrollViewportMetrics | null;
-  next: ScrollViewportMetrics;
-  wasFollowingBottom: boolean;
-  isAutoScrollPending?: boolean;
-}): boolean {
-  const isAtBottomNow = shouldFollowBottom(next);
-  if (!previous) return isAtBottomNow;
-  if (!wasFollowingBottom) return isAtBottomNow;
-  if (isAutoScrollPending) return true;
-
-  const frameChanged =
-    previous.scrollHeight !== next.scrollHeight || previous.clientHeight !== next.clientHeight;
-
-  if (!frameChanged) return isAtBottomNow;
-  return true;
-}
-
 export function shouldAutoScrollOnFrameChange(
   previous: ScrollFrameMetrics | null,
   next: ScrollFrameMetrics,
