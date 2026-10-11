@@ -22,12 +22,14 @@ PREVIOUS_NODE_KEY = "previous_node"
 def with_node_events(node_name: str, node_func: NodeFunc) -> NodeFunc:
     async def wrapped(state: dict[str, Any], config: RunnableConfig | None = None) -> dict:
         session_id = str(state.get("session_id") or "")
+        revision_id = _string_or_none(state.get("current_revision_id"))
         await emit_node_event(
             config,
             session_id=session_id,
             node=node_name,
             phase="start",
             status="running",
+            revision_id=revision_id,
         )
         try:
             result = await node_func(state, config)
@@ -38,6 +40,7 @@ def with_node_events(node_name: str, node_func: NodeFunc) -> NodeFunc:
                 node=node_name,
                 phase="end",
                 status="error",
+                revision_id=revision_id,
             )
             raise
         await emit_node_event(
@@ -46,6 +49,7 @@ def with_node_events(node_name: str, node_func: NodeFunc) -> NodeFunc:
             node=node_name,
             phase="end",
             status="completed",
+            revision_id=revision_id,
         )
         return result
 
@@ -60,6 +64,7 @@ async def emit_node_event(
     node: str,
     phase: NodePhase,
     status: NodeStatus,
+    revision_id: str | None = None,
 ) -> None:
     if not session_id:
         return
@@ -88,6 +93,8 @@ async def emit_node_event(
         "current_node": current_node,
         "previous_node": previous_node,
     }
+    if revision_id:
+        payload["revision_id"] = revision_id
     node_event_sink = _get_node_event_sink(config)
     if node_event_sink is not None:
         await node_event_sink(payload)

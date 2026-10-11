@@ -25,6 +25,7 @@ from app.agent_runtime.attachments import (
     serialize_agent_attachment,
 )
 from app.agent_runtime.context.compaction.service import CompactionError
+from app.agent_runtime.current_errors import load_session_current_error, load_subagent_current_turn
 from app.agent_runtime.continuation import (
     SessionNotContinuableError,
     claim_continuation,
@@ -67,6 +68,7 @@ from app.api.schemas.agent import (
     AgentAttachmentResponse,
     AgentCompactionResponse,
     AgentContinueResponse,
+    AgentCurrentErrorResponse,
     AgentSessionChangesResponse,
     AgentForkRequest,
     AgentForkResponse,
@@ -1526,6 +1528,8 @@ async def get_agent_session_state(
     agent_key = state_values.get("agent_key")
     if isinstance(agent_key, str) and agent_key:
         state_summary["agent_key"] = agent_key
+    revision_id = state_values.get("current_revision_id")
+    state_summary["current_revision_id"] = revision_id if isinstance(revision_id, str) and revision_id else None
     is_cancelled = await _is_agent_session_cancelled(session, session_id)
     # A new run can be registered before it commits its new revision.  Keep
     # the live registry state authoritative for running status during that
@@ -1562,6 +1566,7 @@ async def get_agent_session_state(
                     payload["id"] = interrupt_id
                 interrupts.append(payload)
     can_continue = await continuation_target(session, session_id) is not None
+    current_error = await load_session_current_error(session, session_id)
     if not state_values and not is_running and not interrupts and not can_continue:
         raise NotFoundError(f"会话不存在: {session_id}")
     return AgentSessionStateResponse(
@@ -1569,6 +1574,7 @@ async def get_agent_session_state(
         state=state_summary,
         is_running=is_running,
         can_continue=can_continue,
+        current_error=AgentCurrentErrorResponse(**current_error) if current_error else None,
         interrupts=interrupts,
     )
 
@@ -1653,6 +1659,7 @@ async def get_subagent_session(
     metadata = dict(row.metadata_json or {})
     token_usage = metadata.pop("token_usage", {})
     usage = token_usage if isinstance(token_usage, dict) else {}
+    current_request_id, current_error = await load_subagent_current_turn(session, row)
     return SubagentSessionResponse(
         child_run_id=row.id,
         parent_session_id=row.parent_session_id,
@@ -1678,6 +1685,8 @@ async def get_subagent_session(
             else None
         ),
         error=row.error,
+        current_error=AgentCurrentErrorResponse(**current_error) if current_error else None,
+        current_request_id=current_request_id,
         metadata=metadata,
         token_input=int(usage.get("token_input", 0) or 0),
         token_output=int(usage.get("token_output", 0) or 0),

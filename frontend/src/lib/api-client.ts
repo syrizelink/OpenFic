@@ -2366,6 +2366,7 @@ import type {
   AgentSendMessageRequest,
   AgentSendMessageResponse,
   AgentSessionStateResponse,
+  AgentRunError,
   AgentContinueResponse,
   AgentRollbackResponse,
   AgentCancelResponse,
@@ -2392,6 +2393,7 @@ export async function fetchAgentSessionState(
   const response = await apiClient.get(`/agent/sessions/${sessionId}`);
   const data = response.data as Record<string, unknown>;
   return {
+    currentError: transformAgentRunError(data.current_error),
     sessionId: String(data.session_id ?? sessionId),
     state:
       data.state && typeof data.state === "object" && !Array.isArray(data.state)
@@ -2597,11 +2599,24 @@ function transformActiveSubagentState(raw: Record<string, unknown>): ActiveSubag
   };
 }
 
+function transformAgentRunError(raw: unknown): AgentRunError | null {
+  if (
+    !isRecord(raw) ||
+    typeof raw.type !== "string" ||
+    typeof raw.reason !== "string" ||
+    typeof raw.round_id !== "string"
+  )
+    return null;
+  return { type: raw.type, reason: raw.reason, roundId: raw.round_id };
+}
+
 function transformSubagentSessionPayload(raw: Record<string, unknown>): SubagentSessionPayload {
   const metadata = raw.metadata;
   const metadataRecord = isRecord(metadata) ? metadata : null;
   const pendingApproval = isRecord(raw.pending_approval) ? raw.pending_approval : null;
   return {
+    currentError: transformAgentRunError(raw.current_error),
+    currentRequestId: typeof raw.current_request_id === "string" ? raw.current_request_id : null,
     childRunId: String(raw.child_run_id ?? ""),
     childThreadId: String(raw.child_thread_id ?? ""),
     parentSessionId: String(raw.parent_session_id ?? ""),

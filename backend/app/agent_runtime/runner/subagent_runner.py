@@ -20,6 +20,7 @@ from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.context.helpers import extract_referenced_skill_ids
 from app.agent_runtime.context.pruning import OLD_TOOL_OUTPUT_PLACEHOLDER
+from app.agent_runtime.current_errors import load_subagent_current_turn
 from app.agent_runtime.graph.llm_invoke import format_error_message
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
@@ -783,13 +784,27 @@ class SubagentRunner:
         error = result.get("error")
         error_text = error if isinstance(error, str) and error else None
         if error_text or row.status == "error":
+            request_id = result.get("request_id")
+            if error_text and isinstance(request_id, str) and row.status == "error":
+                current_error = {
+                    "type": "subagent_failed",
+                    "reason": error_text,
+                    "round_id": request_id,
+                }
+            else:
+                session = await _open_session(self.session_factory)
+                try:
+                    _, current_error = await load_subagent_current_turn(session, row)
+                finally:
+                    await _close_session(session)
+            if current_error is None:
+                return
             await self._emit_child_terminal_event(
                 row,
                 event_name="agent:error",
                 payload={
                     "session_id": row.child_thread_id,
-                    "type": "subagent_failed",
-                    "reason": error_text or row.error or "Subagent run failed",
+                    **current_error,
                 },
             )
             return
@@ -1137,6 +1152,20 @@ class SubagentRunner:
                 request_kind=request_row.request_kind,
             )
 
+        await self._emit_child_agent_event(
+            row.child_thread_id,
+            "agent:node",
+            {
+                "session_id": row.child_thread_id,
+                "request_id": request_row.id,
+                "node": "agent",
+                "phase": "start",
+                "status": "running",
+                "current_node": "agent",
+                "previous_node": None,
+            },
+        )
+
         definition = await self._load_agent_definition(row.agent_key)
         history = await self._load_history(row.child_thread_id)
         runtime_state = await self._build_runtime_state(
@@ -1191,7 +1220,7 @@ class SubagentRunner:
                 refreshed,
                 request_kind=request_row.request_kind,
             )
-            return {"error": error}
+            return {"error": error, "request_id": request_row.id}
 
         interrupts = _extract_interrupts(result_state)
         if interrupts:
@@ -1214,7 +1243,7 @@ class SubagentRunner:
                 refreshed,
                 request_kind=request_row.request_kind,
             )
-            return {"error": error}
+            return {"error": error, "request_id": request_row.id}
 
         refreshed = await self._complete_request(
             row,
@@ -1368,16 +1397,21 @@ class SubagentRunner:
                 )
             if row is None:
                 return
+            if running_request is not None:
+                current_error = {"type": "subagent_failed", "reason": error, "round_id": running_request.id}
+            else:
+                _, current_error = await load_subagent_current_turn(session, row)
         finally:
             await _close_session(session)
 
         await self._publish_parent_subagent_status_row(row, force=True)
+        if current_error is None:
+            return
         await self._emit_child_terminal_event(
             row,
             event_name="agent:error",
             payload={
                 "session_id": row.child_thread_id,
-                "type": "subagent_failed",
-                "reason": error,
+                **current_error,
             },
         )

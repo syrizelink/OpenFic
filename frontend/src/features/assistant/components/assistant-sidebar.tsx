@@ -757,6 +757,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       currentConversation?.kind === "subagent" ? currentConversation.childThreadId : null,
       handleConversationTokenUsage,
     );
+    const handleSubagentStatusEvent = subagentSession.handleStatusEvent;
 
     const currentConversationSessionId =
       currentConversation?.kind === "subagent"
@@ -897,6 +898,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       const cleanup = subscribeSubagentStatusEvents(
         parentConversationSessionId,
         (event) => {
+          handleSubagentStatusEvent(event);
           setActiveSubagents((current) => upsertActiveSubagent(current, event));
           if (event.status === "completed" || event.status === "error" || !event.isActive) {
             void refreshAgentChanges();
@@ -926,7 +928,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       return () => {
         cleanup();
       };
-    }, [parentConversationSessionId, refreshAgentChanges]);
+    }, [handleSubagentStatusEvent, parentConversationSessionId, refreshAgentChanges]);
 
     useEffect(() => {
       if (!projectId) return;
@@ -1055,6 +1057,12 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             reconnect: true,
             isRemoteRunning,
             pendingInterrupts: bundle.sessionState?.interrupts,
+            currentError: bundle.sessionState?.currentError,
+            currentRoundId: bundle.sessionState
+              ? typeof bundle.sessionState.state.current_revision_id === "string"
+                ? bundle.sessionState.state.current_revision_id
+                : null
+              : fullTask.currentRevisionId,
             primaryAgentKey:
               typeof bundle.sessionState?.state.agent_key === "string"
                 ? bundle.sessionState.state.agent_key

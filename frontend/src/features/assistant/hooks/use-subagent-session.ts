@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components";
 import i18n from "@/i18n";
 import type {
+  ActiveSubagentState,
   AgentEvent,
   AgentMessage,
   AgentSessionStatus,
@@ -115,6 +116,7 @@ export function useSubagentSession(
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void,
 ) {
   const [session, setSession] = useState<SubagentSessionPayload | null>(null);
+  const activeSession = session?.childRunId === childRunId ? session : null;
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [sessionLoadVersion, setSessionLoadVersion] = useState(0);
   const [loadState, setLoadState] = useState<{ childRunId: string | null; isLoading: boolean }>({
@@ -133,6 +135,10 @@ export function useSubagentSession(
   });
   const transcriptStateRef = useRef(createAgentTranscriptLiveState());
   const suppressNextErrorAfterCompactionErrorRef = useRef(false);
+  const currentRequestIdRef = useRef<string | null>(null);
+  const retiredRequestIdsRef = useRef(new Set<string>());
+  const eventVersionRef = useRef(0);
+  const activeChildRunIdRef = useRef<string | null>(null);
 
   const commitTranscriptState = useCallback((nextState: AgentTranscriptState) => {
     syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
@@ -171,10 +177,47 @@ export function useSubagentSession(
 
   const applySubagentEvent = useCallback(
     (event: AgentEvent) => {
+      const payload = event.payload ?? {};
+      const requestId =
+        typeof payload.requestId === "string"
+          ? payload.requestId
+          : typeof payload.request_id === "string"
+            ? payload.request_id
+            : undefined;
+      if (
+        requestId &&
+        (requestId !== currentRequestIdRef.current ||
+          (event.type === "node_start" && event.status === "running"))
+      ) {
+        if (retiredRequestIdsRef.current.has(requestId)) return;
+        if (currentRequestIdRef.current && currentRequestIdRef.current !== requestId)
+          retiredRequestIdsRef.current.add(currentRequestIdRef.current);
+        currentRequestIdRef.current = requestId;
+        suppressNextErrorAfterCompactionErrorRef.current = false;
+        commitTranscriptState({
+          ...transcriptStateRef.current,
+          messages: transcriptStateRef.current.messages.filter(
+            (item) => item.payload?.run_error !== true,
+          ),
+        });
+        setSession((current) =>
+          current ? { ...current, currentRequestId: requestId, currentError: null } : current,
+        );
+      }
+      const errorRoundId = typeof payload.round_id === "string" ? payload.round_id : undefined;
+      if (event.type === "error" && errorRoundId) {
+        if (
+          retiredRequestIdsRef.current.has(errorRoundId) ||
+          (currentRequestIdRef.current && currentRequestIdRef.current !== errorRoundId)
+        )
+          return;
+        currentRequestIdRef.current = errorRoundId;
+      }
+      eventVersionRef.current += 1;
       const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
         approvalPreviewFactory: createApprovalPreviewToolMessage,
         defaultRunningStage: DEFAULT_RUNNING_STAGE,
-        fallbackAgent: session?.agentKey,
+        fallbackAgent: activeSession?.agentKey,
         getStageTextForAgent: getStageTextForAgentKey,
         getStageTextForStage: getStageTextForStageKey,
       });
@@ -191,15 +234,26 @@ export function useSubagentSession(
               : null;
         return {
           ...current,
+          currentRequestId: currentRequestIdRef.current,
           status: nextStatus,
           isRunning: result.state.isRunning,
           isActive: isTerminal ? false : current.isActive || result.state.isRunning,
           pendingApproval: nextPendingApproval,
+          currentError:
+            event.type === "error" && errorRoundId
+              ? {
+                  type: String(payload.type ?? "error"),
+                  reason: event.content ?? "",
+                  roundId: errorRoundId,
+                }
+              : result.state.isRunning || result.state.status === "completed"
+                ? null
+                : current.currentError,
         };
       });
       return result;
     },
-    [commitTranscriptState, session?.agentKey],
+    [activeSession?.agentKey, commitTranscriptState],
   );
 
   const applySubagentEventRef = useRef(applySubagentEvent);
@@ -216,7 +270,7 @@ export function useSubagentSession(
 
   const handleToolApproval = useCallback(
     async (approvalId: string, approved: boolean) => {
-      const parentSessionId = session?.parentSessionId;
+      const parentSessionId = activeSession?.parentSessionId;
       if (!parentSessionId) return;
 
       try {
@@ -262,11 +316,11 @@ export function useSubagentSession(
         );
       }
     },
-    [commitTranscriptState, session?.parentSessionId],
+    [activeSession?.parentSessionId, commitTranscriptState],
   );
 
   const cancelSession = useCallback(async () => {
-    const parentSessionId = session?.parentSessionId;
+    const parentSessionId = activeSession?.parentSessionId;
     if (!parentSessionId || !childRunId) return;
     try {
       await cancelSubagentSession(parentSessionId, childRunId);
@@ -285,17 +339,19 @@ export function useSubagentSession(
     setSession((current) =>
       current ? { ...current, status: "cancelled", isRunning: false, isActive: false } : current,
     );
-  }, [childRunId, commitTranscriptState, session?.parentSessionId]);
+  }, [activeSession?.parentSessionId, childRunId, commitTranscriptState]);
 
   const load = useCallback(async () => {
     const generation = ++loadGenerationRef.current;
     resetPagination(null);
-    if (!childRunId) {
+    if (activeChildRunIdRef.current !== childRunId) {
+      deltaCoalescerRef.current?.dispose();
+      activeChildRunIdRef.current = childRunId;
+      eventVersionRef.current = 0;
+      currentRequestIdRef.current = null;
+      retiredRequestIdsRef.current.clear();
+      suppressNextErrorAfterCompactionErrorRef.current = false;
       setSession(null);
-      setMessages([]);
-      setStatus("idle");
-      setIsRunning(false);
-      setCurrentStage("");
       setTokenUsage({
         tokenInput: 0,
         tokenOutput: 0,
@@ -304,8 +360,9 @@ export function useSubagentSession(
         contextLength: 0,
       });
       commitTranscriptState(createAgentTranscriptLiveState());
-      return;
     }
+    if (!childRunId) return;
+    const eventVersion = eventVersionRef.current;
 
     setLoadState({ childRunId, isLoading: true });
     let payload: SubagentSessionPayload;
@@ -314,12 +371,53 @@ export function useSubagentSession(
     } catch (error) {
       if (generation !== loadGenerationRef.current) return;
       setLoadState({ childRunId, isLoading: false });
-      setSession(null);
-      commitTranscriptState(createAgentTranscriptLiveState({ status: "error" }));
+      if (transcriptStateRef.current.messages.length === 0) {
+        setSession(null);
+        commitTranscriptState(createAgentTranscriptLiveState({ status: "error" }));
+      }
       throw error;
     }
     if (generation !== loadGenerationRef.current) return;
     setLoadState({ childRunId, isLoading: false });
+    if (eventVersion !== eventVersionRef.current) {
+      const currentState = transcriptStateRef.current;
+      const runError = currentState.messages.findLast(
+        (message) => message.payload?.run_error === true,
+      );
+      const roundId = runError?.payload?.round_id;
+      setSession(
+        (current) =>
+          current ?? {
+            ...payload,
+            currentRequestId: currentRequestIdRef.current,
+            status: toPayloadStatus(currentState.status, payload.status),
+            isRunning: currentState.isRunning,
+            currentError:
+              runError && typeof roundId === "string"
+                ? {
+                    type: String(runError.payload?.type ?? "error"),
+                    reason: runError.content ?? "",
+                    roundId,
+                  }
+                : null,
+          },
+      );
+      resetPagination(childRunId, payload);
+      commitTranscriptState({
+        ...currentState,
+        messages: prependAgentMessages(
+          currentState.messages,
+          buildAgentMessagesFromTaskMessages(
+            payload.messages,
+            buildTaskSnapshot(payload),
+            payload.messages[0]?.createdAt ?? new Date().toISOString(),
+          ),
+        ),
+      });
+      return;
+    }
+    if (payload.currentRequestId && retiredRequestIdsRef.current.has(payload.currentRequestId))
+      return;
     resetPagination(childRunId, payload);
     const nextTokenUsage = toTokenUsage(payload);
     const nextMessages = buildAgentMessagesFromTaskMessages(
@@ -327,17 +425,34 @@ export function useSubagentSession(
       buildTaskSnapshot(payload),
       payload.messages[0]?.createdAt ?? new Date().toISOString(),
     );
+    const requestId = payload.currentRequestId;
+    const currentError = payload.currentError?.roundId === requestId ? payload.currentError : null;
+    if (currentRequestIdRef.current && currentRequestIdRef.current !== requestId)
+      retiredRequestIdsRef.current.add(currentRequestIdRef.current);
+    currentRequestIdRef.current = requestId;
+    if (currentError) {
+      nextMessages.push({
+        id: `run-error:${currentError.roundId}`,
+        type: "error",
+        role: "system",
+        status: "error",
+        display: "list",
+        timestamp: Date.now(),
+        content: currentError.reason,
+        payload: { run_error: true, round_id: currentError.roundId, type: currentError.type },
+      });
+    }
     const nextState = createAgentTranscriptLiveState({
       messages: nextMessages,
-      status: toSessionStatus(payload),
-      isRunning: payload.isRunning,
-      currentStage: payload.isRunning ? DEFAULT_RUNNING_STAGE : "",
+      status: currentError ? "error" : toSessionStatus(payload),
+      isRunning: !currentError && payload.isRunning,
+      currentStage: !currentError && payload.isRunning ? DEFAULT_RUNNING_STAGE : "",
     });
     const pendingApprovalEvent = createPendingApprovalEvent(
       payload.pendingApproval,
       payload.messages[payload.messages.length - 1]?.createdAt,
     );
-    setSession(payload);
+    setSession({ ...payload, currentError, isRunning: nextState.isRunning });
     setSessionLoadVersion((version) => version + 1);
     commitTranscriptState(
       pendingApprovalEvent
@@ -356,11 +471,8 @@ export function useSubagentSession(
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      void load().catch(() => {
-        if (!cancelled) toast.error(i18n.t("writing.aiSidebar.taskLoadFailed"));
-      });
+    void load().catch(() => {
+      if (!cancelled) toast.error(i18n.t("writing.aiSidebar.taskLoadFailed"));
     });
     return () => {
       cancelled = true;
@@ -369,15 +481,33 @@ export function useSubagentSession(
     };
   }, [invalidatePagination, load]);
 
+  const handleStatusEvent = useCallback(
+    (event: ActiveSubagentState) => {
+      if (event.childRunId !== childRunId) return;
+      void load().catch((error) => console.warn("Failed to refresh subagent request", error));
+    },
+    [childRunId, load],
+  );
+
   useEffect(() => {
     if (!childRunId) return undefined;
 
-    const targetThreadId = childThreadId || session?.childThreadId;
+    const targetThreadId = childThreadId || activeSession?.childThreadId;
     if (!targetThreadId) return undefined;
+    let cancelled = false;
 
     const cleanup = subscribeSubagentSessionEvents(
       targetThreadId,
       (event) => {
+        if (cancelled) return;
+        const roundId = event.payload?.round_id;
+        if (
+          event.type === "error" &&
+          typeof roundId === "string" &&
+          (retiredRequestIdsRef.current.has(roundId) ||
+            (currentRequestIdRef.current && currentRequestIdRef.current !== roundId))
+        )
+          return;
         if (isStreamingDeltaEvent(event)) {
           deltaCoalescerRef.current?.push(event);
           return;
@@ -448,6 +578,7 @@ export function useSubagentSession(
         applySubagentEvent(event);
       },
       (error) => {
+        if (cancelled) return;
         setSession((current) =>
           current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
         );
@@ -462,6 +593,7 @@ export function useSubagentSession(
     );
 
     void joinSubagentSession(targetThreadId).catch((error) => {
+      if (cancelled) return;
       setSession((current) =>
         current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
       );
@@ -475,6 +607,7 @@ export function useSubagentSession(
     });
 
     return () => {
+      cancelled = true;
       cleanup();
       deltaCoalescerRef.current?.dispose();
     };
@@ -484,12 +617,12 @@ export function useSubagentSession(
     childThreadId,
     commitTranscriptState,
     onTokenUsage,
-    session?.agentKey,
-    session?.childThreadId,
+    activeSession?.agentKey,
+    activeSession?.childThreadId,
   ]);
 
   return {
-    session,
+    session: activeSession,
     isLoading: Boolean(childRunId && (loadState.childRunId !== childRunId || loadState.isLoading)),
     ...messagePagination,
     sessionLoadVersion,
@@ -501,5 +634,6 @@ export function useSubagentSession(
     load,
     handleToolApproval,
     cancelSession,
+    handleStatusEvent,
   };
 }

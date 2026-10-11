@@ -318,15 +318,6 @@ class SessionRunner:
                 await self._persister.finalize(reason="error")
             except PersistenceError:
                 pass
-        await emit(
-            "agent:error",
-            {
-                "session_id": self.session_id,
-                "type": error_type,
-                "reason": self._exception_reason(exc),
-            },
-            room=self._room,
-        )
         status_session = await create_session()
         try:
             revision_status = "interrupted" if resumable_state is not None else "failed"
@@ -334,7 +325,18 @@ class SessionRunner:
             await status_session.commit()
         finally:
             await status_session.close()
-        if resumable_state is not None and finalized:
+        if finalized or revision_id is None:
+            await emit(
+                "agent:error",
+                {
+                    "session_id": self.session_id,
+                    "type": error_type,
+                    "reason": self._exception_reason(exc),
+                    **({"round_id": revision_id} if revision_id else {}),
+                },
+                room=self._room,
+            )
+        if resumable_state is not None and finalized and revision_id:
             await self._emit_pending_interrupts(resumable_state)
         await self._clear_replay_session()
 

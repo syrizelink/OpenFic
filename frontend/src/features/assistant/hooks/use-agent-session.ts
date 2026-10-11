@@ -18,6 +18,7 @@ import type {
   AgentAttachment,
   AgentAttachmentError,
   AgentMessage,
+  AgentRunError,
   AgentPendingMessage,
   AgentSessionChanges,
   AgentSessionCreateResponse,
@@ -502,6 +503,9 @@ export function useAgentSession({
   const suppressSocketEventsAfterAbortRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
+  const currentRoundIdRef = useRef<string | null>(null);
+  const retiredRoundIdsRef = useRef(new Set<string>());
+  const isStartingRoundRef = useRef(false);
   const canContinueRef = useRef(false);
   const continueRefreshRef = useRef(0);
   const isContinuingRef = useRef(false);
@@ -884,6 +888,43 @@ export function useAgentSession({
         return;
       transportRetryAttemptRef.current = 0;
       const payload = event.payload ?? {};
+      const roundId = getString(payload.round_id);
+      if (event.type === "error" && !roundId) isStartingRoundRef.current = false;
+      if (event.type === "error" && roundId) {
+        if (retiredRoundIdsRef.current.has(roundId)) return;
+        if (
+          currentRoundIdRef.current &&
+          currentRoundIdRef.current !== roundId &&
+          !isStartingRoundRef.current
+        )
+          return;
+        if (currentRoundIdRef.current && currentRoundIdRef.current !== roundId) {
+          retiredRoundIdsRef.current.add(currentRoundIdRef.current);
+          updateTranscriptState((current) => ({
+            ...current,
+            messages: current.messages.filter((item) => item.payload?.run_error !== true),
+          }));
+        }
+        currentRoundIdRef.current = roundId;
+        isStartingRoundRef.current = false;
+      }
+      const progressRoundId = event.revision_id || getString(payload.revision_id);
+      if (
+        progressRoundId &&
+        (event.type === "node_start" || event.type === "user_request" || event.role === "user")
+      ) {
+        if (retiredRoundIdsRef.current.has(progressRoundId)) return;
+        if (progressRoundId !== currentRoundIdRef.current) {
+          if (currentRoundIdRef.current) retiredRoundIdsRef.current.add(currentRoundIdRef.current);
+          currentRoundIdRef.current = progressRoundId;
+          isStartingRoundRef.current = false;
+          suppressNextErrorAfterCompactionErrorRef.current = false;
+          updateTranscriptState((current) => ({
+            ...current,
+            messages: current.messages.filter((item) => item.payload?.run_error !== true),
+          }));
+        }
+      }
       const approvalId = typeof payload.approval_id === "string" ? payload.approval_id : "";
       if (
         event.type === "approval" &&
@@ -1456,6 +1497,16 @@ export function useAgentSession({
       clearCanContinue();
 
       const sessionWasRunning = transcriptStateRef.current.isRunning;
+      const generation = sessionGenerationRef.current;
+      const oldErrors = new Set(
+        transcriptStateRef.current.messages
+          .filter((item) => item.payload?.run_error === true)
+          .map((item) => item.id),
+      );
+      const previousRoundId = currentRoundIdRef.current;
+      isStartingRoundRef.current = !sessionWasRunning;
+      const previousCompactionSuppression = suppressNextErrorAfterCompactionErrorRef.current;
+      suppressNextErrorAfterCompactionErrorRef.current = false;
       const optimisticMessage = sessionWasRunning
         ? null
         : createOptimisticUserMessage(message, attachments);
@@ -1472,9 +1523,7 @@ export function useAgentSession({
         transportRetryAttemptRef.current = 0;
         updateTranscriptState((current) => ({
           ...current,
-          messages: optimisticMessage
-            ? [...current.messages.filter((item) => item.type !== "error"), optimisticMessage]
-            : current.messages.filter((item) => item.type !== "error"),
+          messages: optimisticMessage ? [...current.messages, optimisticMessage] : current.messages,
           status: "running",
           isRunning: true,
           currentStage: getBestEffortContinueStage(current.messages, agentKey),
@@ -1508,12 +1557,31 @@ export function useAgentSession({
           uploadResult.attachments.length > 0 ? uploadResult.attachments : undefined,
           uploadResult.failedAttachments,
         );
+        if (generation !== sessionGenerationRef.current)
+          return { sent: false, failedAttachmentIds };
+        if (!response.success) throw new Error(response.message);
+        if (!response.queued) {
+          if (previousRoundId && currentRoundIdRef.current === previousRoundId) {
+            retiredRoundIdsRef.current.add(previousRoundId);
+            currentRoundIdRef.current = null;
+          }
+          updateTranscriptState((current) => ({
+            ...current,
+            messages: current.messages.filter((item) => !oldErrors.has(item.id)),
+          }));
+        }
+        isStartingRoundRef.current = false;
         if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;
         if (response.queued && response.pending_message) {
           syncPendingMessageState(createPendingUserMessage(response.pending_message));
         }
         return { sent: true, failedAttachmentIds };
       } catch (error) {
+        if (generation !== sessionGenerationRef.current)
+          return { sent: false, failedAttachmentIds };
+        isStartingRoundRef.current = false;
+        if (currentRoundIdRef.current === previousRoundId)
+          suppressNextErrorAfterCompactionErrorRef.current = previousCompactionSuppression;
         console.error("Failed to send message:", error);
         updateTranscriptState((current) => ({
           ...current,
@@ -1556,6 +1624,13 @@ export function useAgentSession({
       return false;
 
     const generation = sessionGenerationRef.current;
+    const oldErrors = new Set(
+      previous.messages.filter((item) => item.payload?.run_error === true).map((item) => item.id),
+    );
+    const previousRoundId = currentRoundIdRef.current;
+    isStartingRoundRef.current = true;
+    const previousCompactionSuppression = suppressNextErrorAfterCompactionErrorRef.current;
+    suppressNextErrorAfterCompactionErrorRef.current = false;
     const previousSuppression = suppressSocketEventsAfterAbortRef.current;
     isContinuingRef.current = true;
     setIsContinuing(true);
@@ -1575,9 +1650,21 @@ export function useAgentSession({
       const result = await continueAgentSession(activeSessionId);
       if (generation !== sessionGenerationRef.current) return false;
       if (!result.success) throw new Error(result.message || i18n.t("assistant.continueFailed"));
+      if (previousRoundId && currentRoundIdRef.current === previousRoundId) {
+        retiredRoundIdsRef.current.add(previousRoundId);
+        currentRoundIdRef.current = null;
+      }
+      updateTranscriptState((current) => ({
+        ...current,
+        messages: current.messages.filter((item) => !oldErrors.has(item.id)),
+      }));
+      isStartingRoundRef.current = false;
       return true;
     } catch (error) {
       if (generation !== sessionGenerationRef.current) return false;
+      isStartingRoundRef.current = false;
+      if (currentRoundIdRef.current === previousRoundId)
+        suppressNextErrorAfterCompactionErrorRef.current = previousCompactionSuppression;
       if (transcriptStateRef.current.status === "running") {
         suppressSocketEventsAfterAbortRef.current = previousSuppression;
         updateTranscriptState((current) => ({
@@ -1838,6 +1925,9 @@ export function useAgentSession({
   );
 
   const resetSession = useCallback(() => {
+    isStartingRoundRef.current = false;
+    currentRoundIdRef.current = null;
+    retiredRoundIdsRef.current.clear();
     sessionGenerationRef.current += 1;
     isStoppingRef.current = false;
     setIsStopping(false);
@@ -1981,14 +2071,43 @@ export function useAgentSession({
         isRemoteRunning?: boolean;
         primaryAgentKey?: string;
         pendingInterrupts?: Record<string, unknown>[];
+        currentError?: AgentRunError | null;
+        currentRoundId?: string | null;
         initialChanges?: AgentSessionChanges | null;
         taskId: string;
         messagesCursor: number | null;
         messagesHasMore: boolean;
       },
     ) => {
+      const loadedRoundId =
+        options.currentRoundId !== undefined
+          ? options.currentRoundId
+          : (options.currentError?.roundId ??
+            existingMessages.findLast((message) => message.revisionId)?.revisionId ??
+            null);
+      const isSameSession = sessionIdRef.current === existingSessionId;
+      if (isSameSession && loadedRoundId && retiredRoundIdsRef.current.has(loadedRoundId)) return;
+      const currentError =
+        options.currentError?.roundId === loadedRoundId && !options.isRemoteRunning
+          ? options.currentError
+          : null;
+      const unscopedErrors =
+        isSameSession && !options.isRemoteRunning && loadedRoundId === currentRoundIdRef.current
+          ? transcriptStateRef.current.messages.filter(
+              (message) => message.payload?.run_error === true && !message.payload.round_id,
+            )
+          : [];
       sessionGenerationRef.current += 1;
       const generation = sessionGenerationRef.current;
+      if (!isSameSession) retiredRoundIdsRef.current.clear();
+      else if (currentRoundIdRef.current && currentRoundIdRef.current !== loadedRoundId)
+        retiredRoundIdsRef.current.add(currentRoundIdRef.current);
+      isStartingRoundRef.current = false;
+      currentRoundIdRef.current = loadedRoundId;
+      for (const message of existingMessages) {
+        if (message.revisionId && message.revisionId !== currentRoundIdRef.current)
+          retiredRoundIdsRef.current.add(message.revisionId);
+      }
       isStoppingRef.current = false;
       setIsStopping(false);
       clearCanContinue();
@@ -2016,7 +2135,26 @@ export function useAgentSession({
         options.pendingInterrupts ?? [],
       );
       const loadedMessages = [
-        ...existingMessages,
+        ...existingMessages.filter((message) => message.payload?.run_error !== true),
+        ...unscopedErrors,
+        ...(currentError
+          ? [
+              {
+                id: `run-error:${currentError.roundId}`,
+                type: "error" as const,
+                role: "system" as const,
+                status: "error" as const,
+                display: "list" as const,
+                timestamp: Date.now(),
+                content: currentError.reason,
+                payload: {
+                  run_error: true,
+                  round_id: currentError.roundId,
+                  type: currentError.type,
+                },
+              },
+            ]
+          : []),
         ...pendingInterruptMessages.filter(
           (interrupt) => !existingMessages.some((message) => message.id === interrupt.id),
         ),
@@ -2140,6 +2278,11 @@ export function useAgentSession({
         if (generation !== sessionGenerationRef.current) return null;
 
         if (result.success) {
+          const previousRoundId = currentRoundIdRef.current;
+          currentRoundIdRef.current = null;
+          retiredRoundIdsRef.current.clear();
+          if (previousRoundId) retiredRoundIdsRef.current.add(previousRoundId);
+          isStartingRoundRef.current = false;
           const currentMessages = transcriptStateRef.current.messages;
           const targetIndex = currentMessages.findIndex((m) => m.id === messageId);
           commitTranscriptState({
@@ -2153,6 +2296,9 @@ export function useAgentSession({
             try {
               const task = await fetchTask(taskId);
               if (generation !== sessionGenerationRef.current) return null;
+              currentRoundIdRef.current = task.currentRevisionId ?? null;
+              if (currentRoundIdRef.current)
+                retiredRoundIdsRef.current.delete(currentRoundIdRef.current);
               resetPagination(taskId, task);
               setSessionLoadVersion((version) => version + 1);
               commitTranscriptState({

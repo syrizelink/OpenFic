@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 import i18n from "@/i18n";
 import type { AgentEvent } from "@/lib/agent.types";
 
@@ -87,7 +89,12 @@ export function toAgentEvent(
       status: data.status === "running" ? "running" : "completed",
       display: data.display === "hidden" ? "hidden" : "list",
       content,
-      payload: isRecord(data.payload) ? data.payload : {},
+      payload: {
+        ...(isRecord(data.payload) ? data.payload : {}),
+        ...(getString(data.requestId) || getString(data.request_id)
+          ? { requestId: getString(data.requestId) || getString(data.request_id) }
+          : {}),
+      },
     } as AgentEvent;
   }
 
@@ -207,7 +214,10 @@ export function toAgentEvent(
       status,
       display: "hidden",
       agent: node,
+      revision_id: getString(data.revision_id),
       payload: {
+        revision_id: getString(data.revision_id),
+        requestId: getString(data.requestId) || getString(data.request_id),
         node,
         phase,
         status,
@@ -510,12 +520,15 @@ export function toAgentEvent(
       getString(data.message) ||
       i18n.t("assistant.agentRunFailed");
     return {
+      id: getString(data.round_id)
+        ? `run-error:${getString(data.round_id)}`
+        : `run-error:unscoped:${uuidv4()}`,
       type: "error",
       role: "system",
       status: "error",
       display: "list",
       content,
-      payload: data,
+      payload: { ...data, run_error: true },
     };
   }
 

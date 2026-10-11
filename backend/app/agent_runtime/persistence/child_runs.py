@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, literal, select
+from sqlalchemy import and_, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -385,6 +385,26 @@ async def get_child_run_request_by_seq(
             col(AgentChildRunRequest.child_run_id) == child_run_id,
             col(AgentChildRunRequest.seq) == seq,
         )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_current_child_run_request(
+    session: AsyncSession,
+    *,
+    child_run_id: str,
+) -> AgentChildRunRequest | None:
+    result = await session.execute(
+        select(AgentChildRunRequest)
+        .where(
+            col(AgentChildRunRequest.child_run_id) == child_run_id,
+            or_(
+                col(AgentChildRunRequest.started_at).is_not(None),
+                col(AgentChildRunRequest.status).in_({"running", "completed", "error"}),
+            ),
+        )
+        .order_by(col(AgentChildRunRequest.seq).desc())
         .limit(1)
     )
     return result.scalar_one_or_none()
