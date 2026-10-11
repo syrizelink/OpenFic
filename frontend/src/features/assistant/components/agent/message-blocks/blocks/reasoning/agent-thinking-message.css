@@ -20,6 +20,10 @@
 }
 
 .agent-reasoning-content {
+  max-height: min(280px, 40dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   color: var(--gray-10);
   --streaming-markdown-heading-color: var(--gray-11);
   --streaming-markdown-emphasis-color: var(--gray-11);
