@@ -48,6 +48,10 @@
   color: var(--gray-11);
 }
 
+.agent-status-message-header .agent-tool-error-indicator {
+  transform: translateY(2px);
+}
+
 .agent-status-message-icon[data-status-tone="retry"] {
   color: var(--amber-10);
   animation: agentRetrySpinCycle 1.8s ease-in-out infinite;
