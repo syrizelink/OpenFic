@@ -10,6 +10,7 @@ import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
+import { ExtensionsPage, PluginPage } from "./features/plugins/plugin-page";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
 import type { Settings } from "./features/settings/lib/settings.types";
@@ -222,6 +223,14 @@ function AppContent({
           <Route
             path="/world-info"
             element={<WorldInfoPage />}
+          />
+          <Route
+            path="/extensions"
+            element={<ExtensionsPage />}
+          />
+          <Route
+            path="/extensions/:pluginId/:viewId"
+            element={<PluginPage />}
           />
           <Route
             path="/characters"

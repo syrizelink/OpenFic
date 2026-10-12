@@ -1,0 +1,18 @@
+:root { color-scheme: light; --bg: #fafafa; --card: #fff; --line: #e5e7eb; --text: #202127; --muted: #6b7280; --accent: #7158d6; }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #171719; --card: #212124; --line: #36363c; --text: #f0f0f3; --muted: #a1a1aa; --accent: #a78bfa; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 system-ui, sans-serif; }
+main { max-width: 1100px; margin: auto; padding: 32px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+h1 { margin: 0; font-size: 28px; } h2 { font-size: 18px; }
+#eyebrow { letter-spacing: 2px; color: var(--accent); font-size: 11px; margin: 0 0 6px; }
+button, select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font: inherit; }
+button { cursor: pointer; } button:disabled { opacity: .5; cursor: wait; }
+label { display: block; margin-bottom: 6px; color: var(--muted); }
+select { width: min(100%, 440px); } #message, #updated { color: var(--muted); }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.metrics article, .panel { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 20px; }
+.metrics span { display: block; color: var(--muted); font-size: 12px; }.metrics strong { display: block; font-size: 28px; margin-top: 6px; overflow-wrap: anywhere; }
+.panel { margin-top: 20px; }.panel h2 { margin-top: 0; } progress { width: 100%; height: 12px; accent-color: var(--accent); }
+.table-scroll { overflow-x: auto; } table { border-collapse: collapse; width: 100%; text-align: left; } td, th { padding: 12px 8px; border-bottom: 1px solid var(--line); } th { color: var(--muted); font-weight: 500; } td:first-child { min-width: 120px; overflow-wrap: anywhere; }
+@media (max-width: 700px) { main { padding: 18px; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .metrics article { padding: 14px; } .metrics strong { font-size: 24px; } h1 { font-size: 22px; } }

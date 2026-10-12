@@ -46,6 +46,7 @@ from app.api.routers import (
     models,
     notes,
     projects,
+    plugins,
     prompt_chains,
     retrieval_index,
     runtime_config,
@@ -60,6 +61,8 @@ from app.api.routers import (
 )
 from app.tunnels import TUNNEL_STATUS_EVENT, TunnelManager
 from app.auth import AuthMiddleware, AuthService
+from app.plugins.host import PluginHost
+from app.settings import BACKEND_DATA_DIR
 from app.audit import start_audit_queue, stop_audit_queue
 from app.agent_runtime.persistence.child_runs import cancel_interrupted_child_runs
 from app.audit.queue import load_audit_details_persistence
@@ -659,6 +662,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         f"backend={app_settings.database_backend}"
     )
     await init_db()
+    await app.state.plugin_host.start()
     await _load_telemetry_enabled()
     cleared_tasks = await _reset_task_running_state()
     if cleared_tasks:
@@ -707,6 +711,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if cleared_tasks:
             logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
         await stop_background_runtime()
+        await app.state.plugin_host.close()
         await stop_audit_queue()
         await app.state.catalog_icon_proxy_service.aclose()
         await close_checkpointer()
@@ -724,6 +729,7 @@ def create_app() -> FastAPI:
     app.state.auth_service = AuthService(app_settings.auth_password)
     app.state.tunnel_manager = TunnelManager(on_status_change=emit_tunnel_status)
     app.state.tunnel_frontend_available = (FRONTEND_DIST_DIR / "index.html").is_file()
+    app.state.plugin_host = PluginHost(BACKEND_DATA_DIR / "plugins")
     app.state.catalog_icon_proxy_service = model_icons.CatalogIconProxyService()
 
     install_telemetry_sink()
@@ -745,6 +751,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix=app_settings.api_v1_prefix)
     app.include_router(runtime_config.router, prefix=app_settings.api_v1_prefix)
     app.include_router(projects.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(plugins.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(plugins.asset_router)
     app.include_router(volumes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapters.router, prefix=app_settings.api_v1_prefix)
     app.include_router(notes.router, prefix=app_settings.api_v1_prefix)

@@ -58,6 +58,10 @@ export default defineConfig(({ mode }) => {
       port: 9000,
       cors: true,
       proxy: {
+        "/plugin-assets": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
         "/api": {
           target: backendTarget,
           changeOrigin: true,

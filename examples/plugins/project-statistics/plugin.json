@@ -1,0 +1,15 @@
+{
+  "id": "project-statistics",
+  "name": "项目统计",
+  "version": "1.0.0",
+  "api_version": 1,
+  "description": "统计项目字数、章节、卷、角色、世界书和笔记，并展示各卷字数分布。",
+  "author": "OpenFic",
+  "backend": "backend/main.py",
+  "capabilities": ["projects.read", "project.entities.read"],
+  "views": [{"id": "overview", "title": "项目统计", "entry": "frontend/index.html", "slot": "sidebar.extensions"}],
+  "settings": [
+    {"key": "targetWords", "label": "目标字数 / Target words", "type": "integer", "default": 100000, "minimum": 1, "maximum": 100000000},
+    {"key": "showVolumes", "label": "显示卷统计 / Show volumes", "type": "boolean", "default": true}
+  ]
+}

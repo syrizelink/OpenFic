@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import { toast } from "@/components";
+import { ExtensionSlot } from "@/features/plugins/extension-slot";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { saveLanguagePreference, supportedLanguages, type LanguageCode } from "@/i18n";
 import { apiClient, fetchProject } from "@/lib/api-client";
@@ -373,6 +374,11 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
               ariaLabel={t("topbar.recentProjects")}
               closeLabel={t("common.close")}
               onRemove={handleRemoveRecentProject}
+            />
+
+            <ExtensionSlot
+              expanded={isMobile || isExpanded}
+              onNavigate={closeSidebar}
             />
 
             <MotionFlex

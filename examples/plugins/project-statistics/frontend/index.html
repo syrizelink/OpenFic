@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>项目统计</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="../../sdk.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header><div><p id="eyebrow">OPENFIC EXTENSION</p><h1 id="heading">项目统计</h1></div><button id="refresh" type="button">刷新</button></header>
+      <label for="project" id="project-label">选择项目</label>
+      <select id="project"></select>
+      <p id="message" role="status">正在加载…</p>
+      <section id="report" hidden>
+        <h2 id="project-title"></h2>
+        <div id="metrics" class="metrics"></div>
+        <section class="panel"><h2 id="goal-title">写作目标</h2><progress id="progress" max="100"></progress><p id="goal"></p></section>
+        <section class="panel" id="volumes"><h2 id="volume-title">各卷统计</h2><div class="table-scroll"><table><thead><tr><th id="volume-name">卷</th><th id="volume-chapters">章节</th><th id="volume-words">字数</th><th id="volume-share">占比</th></tr></thead><tbody id="volume-body"></tbody></table></div></section>
+        <p id="updated"></p>
+      </section>
+    </main>
+  </body>
+</html>

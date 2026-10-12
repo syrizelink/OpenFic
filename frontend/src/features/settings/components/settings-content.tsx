@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
+import { PluginManager } from "@/features/plugins/plugin-manager";
 import { saveLanguagePreference } from "@/i18n";
 import {
   applyBaseFontSize,
@@ -98,6 +99,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   skills: "settings.skills",
   agents: "settings.agents",
   advanced: "settings.advanced",
+  plugins: "plugins.management",
 };
 
 export function SettingsContent({
@@ -281,6 +283,7 @@ export function SettingsContent({
     activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
   const shouldUseFormPagePadding =
     activeCategory === "audio" ||
+    activeCategory === "plugins" ||
     activeCategory === "general" ||
     activeCategory === "personalization" ||
     activeCategory === "editor" ||
@@ -442,6 +445,7 @@ export function SettingsContent({
           </Flex>
         ) : displaySettings ? (
           <>
+            {activeCategory === "plugins" ? <PluginManager onOpenView={onClose} /> : null}
             {activeCategory === "general" ? (
               <GeneralSettings
                 settings={displaySettings}

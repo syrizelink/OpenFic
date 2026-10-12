@@ -38,7 +38,8 @@ export type SettingsCategory =
   | "rules"
   | "skills"
   | "agents"
-  | "advanced";
+  | "advanced"
+  | "plugins";
 
 interface SettingsCategoryItem {
   id: SettingsCategory;
@@ -48,6 +49,7 @@ interface SettingsCategoryItem {
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
+  { id: "plugins", icon: <Package size={16} />, labelKey: "plugins.management" },
   {
     id: "general",
     icon: <SettingsIcon size={16} />,

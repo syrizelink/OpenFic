@@ -1,0 +1,87 @@
+"""Public read-only data facade; plugins receive DTOs, never ORM sessions."""
+
+from dataclasses import dataclass
+from collections.abc import Sequence
+from typing import Any
+
+from sqlalchemy import select
+from sqlmodel import col
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.storage.models.project import Project
+from app.storage.models.chapter import Chapter
+from app.storage.models.volume import Volume
+from app.storage.models.character import Character
+from app.storage.models.note import Note
+from app.storage.models.world_info import WorldInfo
+from app.storage.models.world_info_entry import WorldInfoEntry
+
+
+class ProjectData:
+    def __init__(self, session: AsyncSession, capabilities: Sequence[str]):
+        self._session = session
+        self._capabilities = frozenset(capabilities)
+
+    def _require(self, capability: str):
+        if capability not in self._capabilities:
+            raise PermissionError(f"Plugin has not declared {capability}")
+
+    async def list_projects(self) -> list[dict[str, Any]]:
+        self._require("projects.read")
+        result = await self._session.execute(
+            select(col(Project.id), col(Project.title)).order_by(
+                col(Project.title), col(Project.id)
+            )
+        )
+        return [dict(row._mapping) for row in result]
+
+    async def project_entities(self, project_id: str) -> dict[str, Any]:
+        self._require("project.entities.read")
+        project = await self._session.get(Project, project_id)
+        if project is None:
+            raise ValueError("Project does not exist")
+        queries = {
+            "chapters": select(
+                col(Chapter.id),
+                col(Chapter.title),
+                col(Chapter.word_count),
+                col(Chapter.volume_id),
+                col(Chapter.order),
+            )
+            .where(col(Chapter.project_id) == project_id)
+            .order_by(col(Chapter.order), col(Chapter.id)),
+            "volumes": select(col(Volume.id), col(Volume.title), col(Volume.order))
+            .where(col(Volume.project_id) == project_id)
+            .order_by(col(Volume.order)),
+            "characters": select(col(Character.id), col(Character.name)).where(
+                col(Character.project_id) == project_id
+            ),
+            "notes": select(col(Note.id), col(Note.title)).where(
+                col(Note.project_id) == project_id
+            ),
+            "world_entries": select(
+                col(WorldInfoEntry.id),
+                col(WorldInfoEntry.name),
+                col(WorldInfoEntry.is_enabled),
+            )
+            .join(WorldInfo, col(WorldInfoEntry.world_info_id) == col(WorldInfo.id))
+            .where(col(WorldInfo.project_id) == project_id),
+        }
+        entities: dict[str, Any] = {
+            "project": {
+                "id": project.id,
+                "title": project.title,
+                "updated_at": project.updated_at.isoformat(),
+            }
+        }
+        for name, query in queries.items():
+            rows = await self._session.execute(query)
+            entities[name] = [dict(row._mapping) for row in rows]
+        return entities
+
+
+@dataclass(frozen=True)
+class PluginContext:
+    plugin_id: str
+    settings: dict[str, Any]
+    data: ProjectData

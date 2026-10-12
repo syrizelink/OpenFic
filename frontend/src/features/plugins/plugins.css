@@ -1,0 +1,132 @@
+.extensions-page {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+}
+.plugin-manager {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+.plugin-manager h2,
+.plugin-view h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+.plugin-muted {
+  color: var(--gray-11);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.plugin-install-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px;
+  border: 1px dashed var(--gray-7);
+  border-radius: var(--radius-3);
+  margin: 20px 0;
+}
+.plugin-card {
+  padding: 20px;
+  border: 1px solid var(--gray-6);
+  border-radius: var(--radius-3);
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.plugin-error {
+  color: var(--red-11);
+}
+.plugin-configuration {
+  margin-top: 16px;
+}
+.plugin-configuration summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.plugin-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0;
+}
+.plugin-setting .rt-TextFieldRoot {
+  max-width: 220px;
+}
+.plugin-logs {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+}
+.extension-slot {
+  flex-shrink: 0;
+  border-top: 1px solid var(--gray-a5);
+  margin: 12px 0;
+  padding-top: 10px;
+  max-height: 32vh;
+  overflow-y: auto;
+}
+.extension-slot-link {
+  color: var(--gray-11);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--radius-3);
+  text-decoration: none;
+}
+.extension-slot-link:hover,
+.extension-slot-link[aria-current="page"] {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+.extension-slot-link svg {
+  flex-shrink: 0;
+}
+.extension-slot-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.plugin-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.plugin-view-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--gray-6);
+  gap: 12px;
+}
+.plugin-view-header h2 {
+  margin: 0;
+}
+.plugin-frame {
+  border: 0;
+  width: 100%;
+  flex: 1;
+  min-height: 300px;
+  background: var(--color-background);
+}
+@media (max-width: 767px) {
+  .extensions-page {
+    padding: 16px;
+  }
+  .plugin-card,
+  .plugin-install-panel {
+    padding: 14px;
+  }
+  .plugin-view-header {
+    padding: 12px;
+  }
+  .plugin-setting {
+    flex-wrap: wrap;
+  }
+}
