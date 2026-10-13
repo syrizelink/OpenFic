@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenFic</string>
+    <string name="title_activity_main">OpenFic</string>
+    <string name="package_name">com.openfic.mobile</string>
+    <string name="custom_url_scheme">com.openfic.mobile</string>
+</resources>

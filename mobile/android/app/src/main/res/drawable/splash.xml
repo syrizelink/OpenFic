@@ -1,0 +1,1 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:drawable="@android:color/white"/><item android:drawable="@drawable/openfic_brand" android:gravity="center"/></layer-list>

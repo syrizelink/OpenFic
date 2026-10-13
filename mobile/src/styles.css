@@ -1,0 +1,212 @@
+.mobile-shell {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+}
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 19px;
+  font-weight: 600;
+}
+.mobile-brand img {
+  width: 29px;
+  height: 29px;
+}
+.mobile-content {
+  max-width: 520px;
+  margin: auto;
+  padding: 40px 24px 24px;
+}
+.mobile-intro {
+  margin-bottom: 32px;
+}
+.mobile-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
+  margin-bottom: 14px;
+}
+.mobile-intro h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-bottom: 10px;
+}
+.mobile-intro p,
+.mobile-field-help,
+.mobile-footer {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-base);
+  line-height: 1.75;
+}
+.mobile-connect {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-4);
+  background: var(--card);
+}
+.mobile-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.mobile-section-heading h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+.mobile-section-heading > span,
+.mobile-section-heading > svg {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+}
+.mobile-connect label {
+  display: block;
+  font-size: var(--font-size-base);
+  margin: 18px 0 8px;
+}
+.mobile-optional {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
+  margin-left: 5px;
+}
+.mobile-field-help {
+  font-size: var(--font-size-sm);
+  margin-top: 8px;
+}
+.mobile-http-note {
+  color: var(--amber-11);
+  font-size: var(--font-size-sm);
+  margin-top: 10px;
+}
+.mobile-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 24px;
+}
+.mobile-form-actions > button:first-child {
+  flex: 1;
+}
+.mobile-instance-list {
+  display: grid;
+  gap: 12px;
+}
+.mobile-instance {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 18px 14px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-4);
+  background: var(--card);
+}
+.mobile-instance-icon {
+  color: var(--muted-foreground);
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.mobile-instance-open {
+  display: grid;
+  text-align: left;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.mobile-instance-open:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.mobile-instance-open strong {
+  font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+.mobile-instance-open > span {
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+}
+.mobile-instance-open .mobile-instance-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  color: var(--foreground);
+}
+.mobile-add {
+  width: 100%;
+  margin-top: 16px;
+}
+.mobile-instances + .mobile-connect {
+  margin-top: 24px;
+}
+.mobile-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3);
+  font-size: var(--font-size-base);
+  overflow-wrap: anywhere;
+}
+.mobile-error {
+  display: block;
+  color: var(--red-11);
+  border-color: var(--red-a6);
+  background: var(--red-a2);
+}
+.mobile-error p {
+  margin-top: 6px;
+  font-size: var(--font-size-sm);
+}
+.mobile-footer {
+  margin-top: 32px;
+  font-size: var(--font-size-sm);
+}
+.mobile-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+@media (max-width: 360px) {
+  .mobile-content {
+    padding: 28px 16px 20px;
+  }
+  .mobile-connect {
+    padding: 16px;
+  }
+}
+
+.dark .mobile-brand img {
+  filter: invert(1);
+}
+/* Resolve shared semantic tokens within the shell's Radix theme scope. */
+.radix-themes {
+  --theme-background: var(--gray-1);
+  --theme-panel-background: var(--gray-1);
+  --theme-foreground: var(--gray-12);
+  --theme-muted-foreground: var(--gray-11);
+  --theme-border: var(--gray-6);
+  --theme-hover-background: var(--gray-3);
+  --theme-input-background: var(--gray-2);
+}

@@ -1,0 +1,33 @@
+{
+  "name": "openfic-mobile",
+  "version": "0.12.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build:shell": "vite build",
+    "build": "pnpm --dir ../frontend build && pnpm build:shell && node scripts/copy-frontend.mjs",
+    "sync": "pnpm build && cap sync android",
+    "apk": "pnpm sync && node scripts/build-apk.mjs",
+    "type-check": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.4.3",
+    "@radix-ui/themes": "^3.3.0",
+    "lucide-react": "^1.25.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.3"
+  },
+  "packageManager": "pnpm@11.8.0"
+}
