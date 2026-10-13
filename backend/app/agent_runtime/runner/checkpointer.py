@@ -2,9 +2,10 @@ import asyncio
 import dataclasses
 import os
 import shutil
+import sqlite3
 import time
 from collections import deque
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,90 @@ from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
 _checkpointer: AsyncSqliteSaver | None = None
+
+_CHECKPOINT_DB_BUSY_TIMEOUT_MS = 30_000
+_CHECKPOINT_DELETE_ATTEMPTS = 3
+_CHECKPOINT_DELETE_RETRY_BACKOFF_SECONDS = (0.5, 1.0)
+_BUSY_ERROR_MARKERS = ("database is locked", "database table is locked")
+
+
+def _is_busy_error(error: BaseException) -> bool:
+    return isinstance(error, sqlite3.OperationalError) and any(
+        marker in str(error).lower() for marker in _BUSY_ERROR_MARKERS
+    )
+
+
+async def _delete_with_retry(operation: Callable[[], Awaitable[int]]) -> int:
+    """对 busy 类错误做有界重试；其余异常立即抛出。
+
+    仅重试锁竞争（瞬态）：持久性错误（磁盘 I/O、库损坏）重试无意义，
+    且会无谓拖长失败路径的响应时间。
+    """
+    for attempt in range(1, _CHECKPOINT_DELETE_ATTEMPTS + 1):
+        try:
+            return await operation()
+        except Exception as error:
+            if attempt >= _CHECKPOINT_DELETE_ATTEMPTS or not _is_busy_error(error):
+                raise
+            delay = _CHECKPOINT_DELETE_RETRY_BACKOFF_SECONDS[
+                min(attempt - 1, len(_CHECKPOINT_DELETE_RETRY_BACKOFF_SECONDS) - 1)
+            ]
+            logger.bind(attempt=attempt, delay_seconds=delay).warning(
+                "checkpoint delete blocked by busy database, retrying"
+            )
+            await asyncio.sleep(delay)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+class _CancellationSafeSqliteSaver(AsyncSqliteSaver):
+    """写入被取消时回滚未完成的事务，避免连接滞留在打开的写事务中。
+
+    AsyncSqliteSaver 的写入路径（aput/aput_writes）在执行完 INSERT 后手动
+    ``conn.commit()``，没有事务上下文。若任务在这两者之间被取消
+    （CancelledError 不会被 ``except Exception`` 捕获），连接会一直持有
+    SQLite 写锁，之后所有会话的 checkpoint 写入与清理都会以
+    ``database is locked`` 失败，直到进程重启。
+    """
+
+    async def aput(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: Any,
+        new_versions: Any,
+    ) -> Any:
+        try:
+            return await super().aput(config, checkpoint, metadata, new_versions)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def aput_writes(
+        self,
+        config: RunnableConfig,
+        writes: Any,
+        task_id: str,
+        task_path: str = "",
+    ) -> None:
+        try:
+            return await super().aput_writes(config, writes, task_id, task_path)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def adelete_thread(self, thread_id: str) -> None:
+        try:
+            return await super().adelete_thread(thread_id)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def _rollback_pending_transaction(self) -> None:
+        # sqlite3 对无事务的连接是 no-op；失败只能吞掉，不能覆盖取消栈。
+        try:
+            await self.conn.rollback()
+        except Exception:
+            logger.warning("checkpoint connection rollback after cancellation failed")
 
 _ALLOWED_MSGPACK_MODULES = (
     ("app.agent_runtime.tools.impls.interaction.ask_user", "Question"),
@@ -366,7 +451,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
             await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
             await _mark_incremental_auto_vacuum_migration_completed(conn)
         await _configure_checkpoint_connection(conn)
-        _checkpointer = AsyncSqliteSaver(
+        _checkpointer = _CancellationSafeSqliteSaver(
             conn,
             serde=_CheckpointSerializer(
                 allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
@@ -510,26 +595,51 @@ async def _mark_incremental_auto_vacuum_migration_completed(
         await cursor.close()
 
 
-async def delete_checkpoints_for_thread(thread_id: str) -> int:
+async def _open_checkpoint_connection(db_path: str) -> aiosqlite.Connection:
+    """打开独立的 checkpoint 连接。
+
+    与常驻 saver 连接对齐 busy_timeout：裸连接默认只等 5 秒，
+    在写入方（WAL 单写者）持锁较久时会立即以 locked 失败。
+    """
+    conn = await aiosqlite.connect(db_path)
+    cursor = await conn.execute(f"PRAGMA busy_timeout = {_CHECKPOINT_DB_BUSY_TIMEOUT_MS}")
+    await cursor.close()
+    return conn
+
+
+async def delete_checkpoints_for_thread(
+    thread_id: str, *, retry_on_busy: bool = False
+) -> int:
     if not thread_id:
         return 0
 
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = await aiosqlite.connect(db_path)
+    conn = await _open_checkpoint_connection(db_path)
     try:
-        before = conn.total_changes
-        await conn.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
-        await conn.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
-        await conn.commit()
-        return conn.total_changes - before
+
+        async def _delete() -> int:
+            before = conn.total_changes
+            await conn.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
+            await conn.execute(
+                "DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,)
+            )
+            await conn.commit()
+            return conn.total_changes - before
+
+        if retry_on_busy:
+            return await _delete_with_retry(_delete)
+        return await _delete()
     finally:
         await conn.close()
 
 
 async def delete_checkpoints_after_for_thread(
-    thread_id: str, after_checkpoint_id: str
+    thread_id: str,
+    after_checkpoint_id: str,
+    *,
+    retry_on_busy: bool = False,
 ) -> int:
     # LangGraph checkpoint_id is UUID v6 (time-ordered), so lexicographic
     # comparison is equivalent to chronological order across all namespaces
@@ -540,19 +650,25 @@ async def delete_checkpoints_after_for_thread(
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = await aiosqlite.connect(db_path)
+    conn = await _open_checkpoint_connection(db_path)
     try:
-        before = conn.total_changes
-        await conn.execute(
-            "DELETE FROM writes WHERE thread_id = ? AND checkpoint_id > ?",
-            (thread_id, after_checkpoint_id),
-        )
-        await conn.execute(
-            "DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id > ?",
-            (thread_id, after_checkpoint_id),
-        )
-        await conn.commit()
-        return conn.total_changes - before
+
+        async def _delete() -> int:
+            before = conn.total_changes
+            await conn.execute(
+                "DELETE FROM writes WHERE thread_id = ? AND checkpoint_id > ?",
+                (thread_id, after_checkpoint_id),
+            )
+            await conn.execute(
+                "DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id > ?",
+                (thread_id, after_checkpoint_id),
+            )
+            await conn.commit()
+            return conn.total_changes - before
+
+        if retry_on_busy:
+            return await _delete_with_retry(_delete)
+        return await _delete()
     finally:
         await conn.close()
 
