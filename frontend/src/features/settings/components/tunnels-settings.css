@@ -1,0 +1,25 @@
+.tunnel-setting-label {
+  min-width: 0;
+}
+
+.tunnel-setting-row > :last-child {
+  flex-shrink: 0;
+}
+
+.tunnel-setting-field,
+.tunnel-setting-url {
+  width: 260px;
+}
+
+@media (max-width: 767px) {
+  .tunnel-setting-row.tunnel-setting-row--field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .tunnel-setting-field,
+  .tunnel-setting-url {
+    width: 100%;
+  }
+}

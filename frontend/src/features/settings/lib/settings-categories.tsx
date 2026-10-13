@@ -6,6 +6,7 @@ import {
   Database,
   FileText,
   Globe,
+  Network,
   MessagesSquare,
   Palette,
   Package,
@@ -23,6 +24,7 @@ export type SettingsCategory =
   | "editor"
   | "notifications"
   | "connections"
+  | "tunnels"
   | "models"
   | "index"
   | "context"
@@ -66,6 +68,7 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     icon: <Cable size={16} />,
     labelKey: "settings.connections",
   },
+  { id: "tunnels", icon: <Network size={16} />, labelKey: "settings.tunnels" },
   {
     id: "models",
     icon: <Brain size={16} />,

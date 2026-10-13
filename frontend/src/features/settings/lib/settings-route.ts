@@ -4,6 +4,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "editor",
   "notifications",
   "connections",
+  "tunnels",
   "models",
   "index",
   "context",
