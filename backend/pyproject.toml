@@ -89,6 +89,7 @@ dependencies = [
     "odfpy>=1.4.1",
     "ebooklib>=0.20",
     "extract-msg>=0.56.1",
+    "tornado>=6.5.2",
 ]
 
 [project.scripts]

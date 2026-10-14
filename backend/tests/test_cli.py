@@ -14,10 +14,10 @@ from app.storage import database_migration
 from uvicorn.config import Config
 
 
-def test_get_uvicorn_loop_factory_uses_selector_on_windows(monkeypatch) -> None:
+def test_get_uvicorn_loop_factory_uses_proactor_on_windows(monkeypatch) -> None:
     monkeypatch.setattr(cli.sys, "platform", "win32")
 
-    assert cli._get_uvicorn_loop_factory() == "app.cli:_windows_selector_loop_factory"
+    assert cli._get_uvicorn_loop_factory() == "app.cli:_windows_proactor_loop_factory"
 
 
 def test_get_uvicorn_loop_factory_uses_default_on_non_windows(monkeypatch) -> None:
@@ -26,31 +26,29 @@ def test_get_uvicorn_loop_factory_uses_default_on_non_windows(monkeypatch) -> No
     assert cli._get_uvicorn_loop_factory() == "auto"
 
 
-def test_windows_selector_loop_factory_creates_selector_loop() -> None:
-    loop = cli._windows_selector_loop_factory()
-    try:
-        assert isinstance(loop, cli.asyncio.SelectorEventLoop)
-    finally:
-        loop.close()
+def test_windows_proactor_loop_factory_creates_proactor_loop(monkeypatch) -> None:
+    proactor = Mock()
+    monkeypatch.setattr(cli.asyncio, "ProactorEventLoop", proactor, raising=False)
+    assert cli._windows_proactor_loop_factory() is proactor.return_value
+    proactor.assert_called_once_with()
 
 
-def test_uvicorn_loads_windows_selector_loop_factory() -> None:
-    config = Config("app.main:app", loop="app.cli:_windows_selector_loop_factory")
+def test_uvicorn_loads_windows_proactor_loop_factory(monkeypatch) -> None:
+    proactor = Mock()
+    monkeypatch.setattr(cli.asyncio, "ProactorEventLoop", proactor, raising=False)
+    config = Config("app.main:app", loop="app.cli:_windows_proactor_loop_factory", reload=True)
     factory = config.get_loop_factory()
     assert factory is not None
-    loop = factory()
-    try:
-        assert isinstance(loop, cli.asyncio.SelectorEventLoop)
-    finally:
-        loop.close()
+    assert factory() is proactor.return_value
+    proactor.assert_called_once_with()
 
 
-def test_dev_command_loads_windows_selector_loop_factory() -> None:
+def test_dev_command_loads_windows_proactor_loop_factory() -> None:
     justfile = Path(__file__).resolve().parents[1] / "justfile"
     content = justfile.read_text(encoding="utf-8")
 
     assert 'if os() == "windows"' in content
-    assert "--loop app.cli:_windows_selector_loop_factory" in content
+    assert "--loop app.cli:_windows_proactor_loop_factory" in content
 
 
 def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:
@@ -62,7 +60,7 @@ def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:
     monkeypatch.setattr(
         cli,
         "_get_uvicorn_loop_factory",
-        Mock(return_value="app.cli:_windows_selector_loop_factory"),
+        Mock(return_value="app.cli:_windows_proactor_loop_factory"),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -80,7 +78,7 @@ def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:
 
     cli.handle_serve(type("Args", (), {"host": "127.0.0.1", "port": 8000})())
 
-    assert sys.modules["uvicorn"].Config.call_args.kwargs["loop"] == "app.cli:_windows_selector_loop_factory"
+    assert sys.modules["uvicorn"].Config.call_args.kwargs["loop"] == "app.cli:_windows_proactor_loop_factory"
     assert fastapi_app.state.uvicorn_server is uvicorn_server
     uvicorn_server.run.assert_called_once_with()
 
@@ -467,3 +465,44 @@ asyncio.run(main())
             await engine.dispose()
 
     asyncio.run(verify())
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires Windows Proactor")
+def test_windows_proactor_supports_subprocess_and_zmq() -> None:
+    import zmq
+    import zmq.asyncio
+
+    async def smoke_test():
+        context = zmq.asyncio.Context()
+        sender = context.socket(zmq.PAIR)
+        receiver = context.socket(zmq.PAIR)
+        try:
+            sender.bind("inproc://windows-proactor-smoke")
+            receiver.connect("inproc://windows-proactor-smoke")
+            pending = receiver.recv()
+            await sender.send(b"background-message")
+            assert await asyncio.wait_for(pending, 5) == b"background-message"
+            process = await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-c",
+                "print('tunnel-subprocess')",
+                stdout=asyncio.subprocess.PIPE,
+            )
+            try:
+                output, _ = await asyncio.wait_for(process.communicate(), 5)
+                assert process.returncode == 0
+                assert output.strip() == b"tunnel-subprocess"
+            finally:
+                if process.returncode is None:
+                    process.kill()
+                    await process.wait()
+        finally:
+            sender.close(linger=0)
+            receiver.close(linger=0)
+            context.term()
+
+    loop = cli._windows_proactor_loop_factory()
+    try:
+        loop.run_until_complete(smoke_test())
+    finally:
+        loop.close()

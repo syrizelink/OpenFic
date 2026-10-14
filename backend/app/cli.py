@@ -22,14 +22,14 @@ _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
 
 
-def _windows_selector_loop_factory() -> asyncio.AbstractEventLoop:
-    return asyncio.SelectorEventLoop()
+def _windows_proactor_loop_factory() -> asyncio.AbstractEventLoop:
+    return getattr(asyncio, "ProactorEventLoop")()
 
 
 def _get_uvicorn_loop_factory() -> str:
-    """Use a selector loop on Windows because pyzmq requires add_reader."""
+    """Use Proactor for Windows subprocesses; pyzmq uses Tornado for add_reader."""
     if sys.platform == "win32":
-        return "app.cli:_windows_selector_loop_factory"
+        return "app.cli:_windows_proactor_loop_factory"
     return "auto"
 
 

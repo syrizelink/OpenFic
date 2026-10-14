@@ -177,7 +177,7 @@ export async function startDevBackend(
     "--port",
     String(port),
   ];
-  if (process.platform === "win32") args.push("--loop", "app.cli:_windows_selector_loop_factory");
+  if (process.platform === "win32") args.push("--loop", "app.cli:_windows_proactor_loop_factory");
 
   const handle = startBackendProcess({ command: "uv", args, port, dataDir: devDataDir });
   try {

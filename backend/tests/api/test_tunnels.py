@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -232,94 +231,3 @@ async def test_cloudflare_url_without_edge_connection_is_not_running(
         assert manager.config_dir is None
     finally:
         await manager.stop()
-
-
-@pytest.fixture
-def selector_launch(monkeypatch):
-    """Reproduce Windows Selector's NotImplementedError on any test host."""
-    original = subprocess.Popen
-    processes = []
-
-    def configure(
-        output="https://test-tunnel.trycloudflare.com\nRegistered tunnel connection",
-        lifetime=30,
-    ):
-        async def unsupported(*args, **kwargs):
-            raise NotImplementedError
-
-        def spawn(args, **kwargs):
-            script = (
-                f"import time; print({output!r}, flush=True); time.sleep({lifetime})"
-            )
-            process = original([sys.executable, "-c", script], **kwargs)
-            processes.append(process)
-            return process
-
-        monkeypatch.setattr(tunnels, "executable", lambda provider: provider)
-        monkeypatch.setattr(asyncio, "create_subprocess_exec", unsupported)
-        monkeypatch.setattr(subprocess, "Popen", spawn)
-        return processes
-
-    return configure
-
-
-@pytest.mark.parametrize("provider", ["cloudflare", "ngrok"])
-async def test_selector_loop_fallback_start_stop(selector_launch, provider):
-    output = (
-        "https://test-tunnel.trycloudflare.com\nRegistered tunnel connection"
-        if provider == "cloudflare"
-        else json.dumps({"msg": "started tunnel", "url": "https://test.ngrok-free.app"})
-    )
-    processes = selector_launch(output)
-    manager = TunnelManager()
-    try:
-        await manager.start(TunnelStart(provider=provider), 8000)
-        await wait_status(manager, "running")
-        assert isinstance(manager.process, tunnels.ThreadedTunnelProcess)
-        await manager.stop()
-        assert manager.status == "stopped"
-        assert manager.url is None
-        assert processes[0].poll() is not None
-        assert processes[0].stdout.closed
-        assert manager.config_dir is None
-    finally:
-        await manager.stop()
-
-
-async def test_selector_loop_fallback_timeout(selector_launch, monkeypatch):
-    processes = selector_launch(output="waiting")
-    monkeypatch.setattr(tunnels, "STARTUP_TIMEOUT", 0.1)
-    manager = TunnelManager()
-    try:
-        await manager.start(TunnelStart(), 8000)
-        await wait_status(manager, "error")
-        await manager.monitor
-        assert manager.error == "startup_timeout"
-        assert processes[0].poll() is not None
-        assert processes[0].stdout.closed
-        assert manager.config_dir is None
-    finally:
-        await manager.stop()
-
-
-async def test_selector_loop_fallback_immediate_stop(selector_launch):
-    processes = selector_launch()
-    manager = TunnelManager()
-    await manager.start(TunnelStart(), 8000)
-    await manager.stop()
-    assert processes[0].poll() is not None
-    assert processes[0].stdout.closed
-    assert manager.status == "stopped"
-
-
-async def test_selector_loop_fallback_launch_failure(selector_launch, monkeypatch):
-    selector_launch()
-
-    def failed_spawn(*args, **kwargs):
-        raise OSError("cannot execute")
-
-    monkeypatch.setattr(subprocess, "Popen", failed_spawn)
-    manager = TunnelManager()
-    assert (await manager.start(TunnelStart(), 8000))["error"] == "launch_failed"
-    assert manager.config_dir is None
-    assert manager.process is None
