@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 """角色 API 测试。"""
 
-from io import BytesIO
+from importlib import import_module
+from io import BytesIO, StringIO
 from pathlib import Path
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from httpx import AsyncClient
 from PIL import Image
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.engine import Dialect
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.schema import CreateTable
 
-from app.storage.models.character import Character
+from app.storage.models.character import Character, CharacterRelationship
 
 
 def make_image_file(color: str = "red") -> bytes:
@@ -46,13 +52,24 @@ async def create_character(
 
 
 @pytest.mark.asyncio
-async def test_character_graph_relationship_lifecycle(client: AsyncClient) -> None:
+@pytest.mark.parametrize("character_ids", [("0" * 21, "1" * 21), ("Z" * 21, "a" * 21)])
+async def test_character_graph_relationship_lifecycle(
+    client: AsyncClient,
+    session: AsyncSession,
+    character_ids: tuple[str, str],
+) -> None:
     project_id = await create_project(client, "关系图谱")
-    first = await create_character(client, project_id, "甲")
-    second = await create_character(client, project_id, "乙")
+    first = {"id": character_ids[0]}
+    second = {"id": character_ids[1]}
+    session.add_all([
+        Character(id=first["id"], project_id=project_id, name="甲"),
+        Character(id=second["id"], project_id=project_id, name="乙"),
+    ])
+    await session.flush()
     path = f"/api/v1/projects/{project_id}/character-relationships"
     created = await client.post(path, json={"source_character_id": first["id"], "target_character_id": second["id"], "name": "盟友", "description": "共同目标"})
     assert created.status_code == 201
+    assert (created.json()["source_character_id"], created.json()["target_character_id"]) == tuple(sorted(character_ids))
     relation_id = created.json()["id"]
     reverse = await client.post(path, json={"source_character_id": second["id"], "target_character_id": first["id"], "name": "同盟"})
     assert reverse.status_code == 409
@@ -65,6 +82,29 @@ async def test_character_graph_relationship_lifecycle(client: AsyncClient) -> No
     assert updated.json()["name"] == "好友"
     assert (await client.delete(f"/api/v1/character-relationships/{relation_id}")).status_code == 204
     assert (await client.get(f"/api/v1/projects/{project_id}/character-graph")).json()["relationships"] == []
+
+
+@pytest.mark.parametrize("dialect", [postgresql.dialect(), sqlite.dialect()], ids=["postgresql", "sqlite"])
+def test_character_relationship_order_check_keeps_published_migration(dialect: Dialect) -> None:
+    output = StringIO()
+    context = MigrationContext.configure(
+        dialect=dialect, opts={"as_sql": True, "output_buffer": output}
+    )
+    migration = import_module("app.storage.migrations.versions.1023_character_relationships")
+    with Operations.context(context):
+        migration.upgrade()
+
+    expected = (
+        'CHECK (source_character_id COLLATE "C" < target_character_id COLLATE "C")'
+        if dialect.name == "postgresql"
+        else "CHECK (source_character_id < target_character_id)"
+    )
+    ddl = str(CreateTable(CharacterRelationship.__table__).compile(dialect=dialect))
+    assert expected in ddl
+    assert ddl.count("CHECK (") == 1
+    if dialect.name == "sqlite":
+        assert "COLLATE" not in ddl
+    assert "CHECK (source_character_id < target_character_id)" in output.getvalue()
 
 
 @pytest.mark.asyncio

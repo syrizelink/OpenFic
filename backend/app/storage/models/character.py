@@ -30,7 +30,10 @@ class CharacterRelationship(SQLModel, table=True):
     __tablename__ = "character_relationships"
     __table_args__ = (
         UniqueConstraint("project_id", "source_character_id", "target_character_id"),
-        CheckConstraint("source_character_id < target_character_id"),
+        CheckConstraint("source_character_id < target_character_id").ddl_if(dialect="sqlite"),
+        CheckConstraint(
+            'source_character_id COLLATE "C" < target_character_id COLLATE "C"'
+        ).ddl_if(dialect="postgresql"),
     )
 
     id: str = Field(default_factory=generate_id, primary_key=True)

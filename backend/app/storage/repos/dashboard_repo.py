@@ -389,7 +389,9 @@ async def list_records(
     """索引分页及计数在同一 SQL 快照中返回，空页也保留总数。"""
     sort_column = SORT_COLUMNS.get(sort_by, LLMAuditLog.created_at)
     order_expression = (
-        col(sort_column).asc() if sort_order == "asc" else col(sort_column).desc()
+        col(sort_column).asc().nulls_first()
+        if sort_order == "asc"
+        else col(sort_column).desc().nulls_last()
     )
     page_query = select(
         col(LLMAuditLog.id).label("record_id"),

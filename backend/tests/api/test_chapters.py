@@ -551,7 +551,9 @@ async def test_reorder_only_updates_chapters_whose_order_changed(client: AsyncCl
         for index in range(1, 4)
     ]
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add_all(chapters)
     await session.flush()
 

@@ -160,7 +160,9 @@ async def test_get_metadata_by_ids_does_not_load_content(session):
         order=1,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
     await session.commit()
     session.sync_session.expunge_all()

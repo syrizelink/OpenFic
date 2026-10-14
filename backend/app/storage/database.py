@@ -38,9 +38,16 @@ def _set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
 
 def _set_postgresql_timezone(dbapi_connection: Any, _connection_record: Any) -> None:
     """Keep timestamp-without-time-zone columns in the application's UTC contract."""
-    cursor = dbapi_connection.cursor()
-    cursor.execute("SET TIME ZONE 'UTC'")
-    cursor.close()
+    autocommit = dbapi_connection.autocommit
+    dbapi_connection.autocommit = True
+    try:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("SET TIME ZONE 'UTC'")
+        finally:
+            cursor.close()
+    finally:
+        dbapi_connection.autocommit = autocommit
 
 
 def _is_sqlite_url(database_url: str) -> bool:

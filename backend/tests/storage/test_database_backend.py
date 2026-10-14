@@ -1,8 +1,12 @@
 import asyncio
+import os
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from sqlalchemy import event, text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.settings import BACKEND_DATA_DIR, Settings
 import app.storage.database as database
@@ -228,6 +232,42 @@ def test_postgresql_engine_does_not_run_sqlite_connect_setup(
         "connect",
         database._set_postgresql_timezone,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finish", ["commit", "rollback", "close"])
+async def test_postgresql_timezone_survives_transaction_and_connection_reuse(
+    finish: str,
+) -> None:
+    database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
+    if not database_url.startswith("postgresql"):
+        pytest.skip("Set OPENFIC_TEST_DATABASE_URL to test PostgreSQL")
+    engine = create_async_engine(
+        database_url,
+        connect_args={"options": "-c timezone=Asia/Shanghai"},
+        pool_size=1,
+        max_overflow=0,
+    )
+    event.listen(engine.sync_engine, "connect", database._set_postgresql_timezone)
+    try:
+        async with engine.connect() as connection:
+            backend_pid = (await connection.execute(text("SELECT pg_backend_pid()"))).scalar_one()
+            assert (await connection.execute(text("SHOW TimeZone"))).scalar_one() == "UTC"
+            if finish == "commit":
+                await connection.commit()
+            elif finish == "rollback":
+                await connection.rollback()
+        async with engine.connect() as connection:
+            assert (await connection.execute(text("SELECT pg_backend_pid()"))).scalar_one() == backend_pid
+            assert (await connection.execute(text("SHOW TimeZone"))).scalar_one() == "UTC"
+            created_at = datetime(2026, 10, 13, 8, 0, tzinfo=UTC)
+            stored_at = (await connection.execute(
+                text("SELECT CAST(CAST(:created_at AS timestamptz) AS timestamp)"),
+                {"created_at": created_at},
+            )).scalar_one()
+            assert stored_at == created_at.replace(tzinfo=None)
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy import and_, delete, func, or_, select, true
+from sqlalchemy import cast as sql_cast
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -177,9 +179,16 @@ async def load_page_projection_context(
     orchestration_tool_names: Sequence[str],
 ) -> tuple[bool, list[PersistedMessage], dict[str, tuple[str, datetime, int]]]:
     """Load only matching callers and canonical tool identities, never full history."""
-    calls = func.json_each(AgentRunMessage.tool_calls).table_valued("value")
-    call_id = func.json_extract(calls.c.value, "$.id")
-    call_name = func.json_extract(calls.c.value, "$.name")
+    if session.get_bind().dialect.name == "postgresql":
+        calls = func.jsonb_array_elements(
+            sql_cast(col(AgentRunMessage.tool_calls), JSONB),
+        ).table_valued("value")
+        call_id = func.jsonb_extract_path_text(calls.c.value, "id")
+        call_name = func.jsonb_extract_path_text(calls.c.value, "name")
+    else:
+        calls = func.json_each(AgentRunMessage.tool_calls).table_valued("value")
+        call_id = func.json_extract(calls.c.value, "$.id")
+        call_name = func.json_extract(calls.c.value, "$.name")
     try:
         dispatch = await session.execute(select(select(col(AgentRunMessage.id)).where(
             col(AgentRunMessage.session_id) == session_id,

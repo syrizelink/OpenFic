@@ -1,9 +1,14 @@
+from functools import partial, update_wrapper
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+from alembic.runtime.migration import RevisionStep
 
 from app.logging import configure_standard_logging
+
+from app.storage.migrations.postgresql_compat import upgrade_dashboard_metadata_indexes
 
 # 导入应用配置和模型
 from app.settings import settings, to_sync_database_url
@@ -23,6 +28,29 @@ from app.agent_runtime.persistence.model import (  # noqa: F401, F403
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+
+def _migration_steps(migration_fn, revisions, migration_context):
+    for step in migration_fn(revisions, migration_context):
+        if (
+            migration_context.dialect.name == "postgresql"
+            and isinstance(step, RevisionStep)
+            and step.is_upgrade
+            and step.to_revisions == ("1027",)
+        ):
+            # Keep published scripts immutable and replace only this execution step.
+            step.migration_fn = update_wrapper(
+                partial(upgrade_dashboard_metadata_indexes, step.revision.module),
+                step.migration_fn,
+            )
+        yield step
+
+
+def _configure_context(**options) -> None:
+    context.configure(**options)
+    migration_fn = context.get_context().opts["fn"]
+    context.configure(**options, fn=partial(_migration_steps, migration_fn))
+
 
 configure_standard_logging()
 
@@ -59,7 +87,7 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
+    _configure_context(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
@@ -79,7 +107,7 @@ def run_migrations_online() -> None:
     """
     connection = config.attributes.get("openfic_connection")
     if connection is not None:
-        context.configure(
+        _configure_context(
             connection=connection, target_metadata=target_metadata
         )
 
@@ -94,7 +122,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
+        _configure_context(
             connection=connection, target_metadata=target_metadata
         )
 

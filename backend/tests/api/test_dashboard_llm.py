@@ -668,6 +668,8 @@ async def test_llm_dashboard_covering_query_plans(
 
     queries = []
     bind = session.sync_session.get_bind()
+    if bind.dialect.name != "sqlite":
+        pytest.skip("EXPLAIN QUERY PLAN assertions target the SQLite query planner")
 
     def track(_conn, _cursor, statement, parameters, _context, _executemany):
         queries.append((statement, parameters))

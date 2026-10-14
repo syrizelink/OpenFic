@@ -2,9 +2,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from importlib import import_module
 from io import StringIO
+import os
 from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import uuid4
 
+from alembic import command
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 import pytest
@@ -27,6 +30,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 import app.storage.database_migration as database_migration
 from app.settings import to_sync_database_url
+from app.storage.models.project import Project
+from app.storage.models.llm_audit_log import LLMAuditLog
 
 
 def _run_migration_operation(connection, operation) -> None:
@@ -37,8 +42,142 @@ def _run_migration_operation(connection, operation) -> None:
 
 def _load_revisions_task_foreign_key_migration():
     return import_module(
-        "app.storage.migrations.versions.1028_repair_revisions_task_foreign_key"
+        "app.storage.migrations.versions.1028_postgresql_backend_repairs"
     )
+
+
+def test_character_order_migration_preserves_relationships_and_snapshots():
+    database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
+    if not database_url.startswith("postgresql"):
+        pytest.skip("Set OPENFIC_TEST_DATABASE_URL to test PostgreSQL")
+    migration = import_module(
+        "app.storage.migrations.versions.1028_postgresql_backend_repairs"
+    )
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection, connection.begin() as transaction:
+            schema = f"character_migration_{uuid4().hex}"
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            connection.execute(text("CREATE COLLATION id_locale (provider = icu, locale = 'en-US')"))
+            tables = ("character_relationships", "revision_character_relationship_snapshots")
+            for table_name in tables:
+                check = ", CHECK (source_character_id < target_character_id)" if table_name == tables[0] else ""
+                connection.execute(text(
+                    f"CREATE TABLE {table_name} (id TEXT PRIMARY KEY, "
+                    "source_character_id TEXT COLLATE id_locale, "
+                    f"target_character_id TEXT COLLATE id_locale{check})"
+                ))
+                connection.execute(text(
+                    f"INSERT INTO {table_name} VALUES ('existing', 'a', 'Z')"
+                ))
+                if table_name != tables[0]:
+                    connection.execute(text(
+                        f"INSERT INTO {table_name} VALUES ('empty', NULL, NULL)"
+                    ))
+            _run_migration_operation(connection, lambda: migration._repair_character_relationship_order(connection))
+            for table_name in tables:
+                assert connection.execute(text(
+                    f"SELECT source_character_id, target_character_id FROM {table_name} WHERE id='existing'"
+                )).one() == ("Z", "a")
+            connection.execute(text("INSERT INTO character_relationships VALUES ('new', 'A', 'a')"))
+            assert connection.execute(text(
+                "SELECT source_character_id, target_character_id FROM revision_character_relationship_snapshots WHERE id='empty'"
+            )).one() == (None, None)
+            _run_migration_operation(connection, lambda: migration._restore_character_relationship_order(connection))
+            for table_name in tables:
+                assert connection.execute(text(
+                    f"SELECT source_character_id, target_character_id FROM {table_name} WHERE id='existing'"
+                )).one() == ("a", "Z")
+            assert connection.execute(text(
+                "SELECT source_character_id, target_character_id FROM character_relationships WHERE id='new'"
+            )).one() == ("a", "A")
+            _run_migration_operation(connection, lambda: migration._repair_character_relationship_order(connection))
+            checks = inspect(connection).get_check_constraints(tables[0])
+            assert len(checks) == 1
+            assert 'COLLATE "C"' in checks[0]["sqltext"]
+            transaction.rollback()
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("database", ["sqlite", "postgresql"])
+def test_published_schema_upgrades_to_head_and_keeps_existing_data(tmp_path, database):
+    database_url = f"sqlite:///{tmp_path / 'published.db'}"
+    if database == "postgresql":
+        database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
+        if not database_url.startswith("postgresql"):
+            pytest.skip("Set OPENFIC_TEST_DATABASE_URL to test PostgreSQL")
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection, connection.begin() as transaction:
+            if database == "postgresql":
+                schema = f"published_migration_{uuid4().hex}"
+                connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+                connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            config = database_migration._create_alembic_config(database_url, connection)
+            command.upgrade(config, "1026")
+            connection.execute(Project.__table__.insert(), {"id": "published-project", "title": "published"})
+            audit_table = Table("agent_audit_logs", MetaData(), autoload_with=connection)
+            detail = "\u4e2d\u6587 audit"
+            audit_values = {
+                column.name: column.default.arg
+                for column in LLMAuditLog.__table__.columns
+                if column.default is not None and column.default.is_scalar
+                and column.name in audit_table.c
+            }
+            connection.execute(audit_table.insert(), {
+                **audit_values, "id": "published-audit", "project_id": "published-project",
+                "operation": "chat", "model_id": "test", "status": "success",
+                "created_at": datetime(2026, 10, 13), "response_content": detail,
+            })
+            command.upgrade(config, "1027")
+            assert connection.execute(text(
+                "SELECT has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
+            )).one() == (True, len(detail.encode("utf-8")))
+            original_foreign_keys = {
+                table_name: {
+                    (tuple(fk["constrained_columns"]), fk["referred_table"],
+                     tuple(fk["referred_columns"]), fk["options"].get("ondelete"))
+                    for fk in inspect(connection).get_foreign_keys(table_name)
+                }
+                for table_name in ("revisions", "commits", "agent_audit_logs")
+            }
+            command.upgrade(config, "head")
+            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1028"
+            assert connection.execute(text(
+                "SELECT response_content, has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
+            )).one() == (detail, True, len(detail.encode("utf-8")))
+            assert connection.execute(text("SELECT title FROM projects WHERE id='published-project'")).scalar_one() == "published"
+            checks = inspect(connection).get_check_constraints("character_relationships")
+            assert len(checks) == 1
+            if database == "postgresql":
+                assert 'COLLATE "C"' in checks[0]["sqltext"]
+            else:
+                assert "COLLATE" not in checks[0]["sqltext"]
+            revision_foreign_keys = inspect(connection).get_foreign_keys("revisions")
+            assert any(fk["constrained_columns"] == ["task_id"] for fk in revision_foreign_keys)
+            commit_foreign_keys = inspect(connection).get_foreign_keys("commits")
+            assert not any(fk["constrained_columns"] == ["chapter_id"] for fk in commit_foreign_keys)
+            assert next(fk for fk in commit_foreign_keys if fk["constrained_columns"] == ["revision_id"])["options"]["ondelete"] == "CASCADE"
+            assert {
+                fk["constrained_columns"][0]: fk["options"].get("ondelete")
+                for fk in inspect(connection).get_foreign_keys("agent_audit_logs")
+            } == {"task_id": "SET NULL", "revision_id": "SET NULL", "chapter_id": "SET NULL", "project_id": "CASCADE"}
+            command.downgrade(config, "1027")
+            for table_name, expected in original_foreign_keys.items():
+                assert {
+                    (tuple(fk["constrained_columns"]), fk["referred_table"],
+                     tuple(fk["referred_columns"]), fk["options"].get("ondelete"))
+                    for fk in inspect(connection).get_foreign_keys(table_name)
+                } == expected
+            assert connection.execute(text(
+                "SELECT response_content, has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
+            )).one() == (detail, True, len(detail.encode("utf-8")))
+            command.upgrade(config, "head")
+            transaction.rollback()
+    finally:
+        engine.dispose()
 
 
 def _create_revisions_task_tables(connection, *, with_foreign_key: bool) -> None:
@@ -90,8 +229,8 @@ def test_task_foreign_key_repair_rebuilds_sqlite_table_and_is_idempotent() -> No
         with engine.begin() as connection:
             _create_revisions_task_tables(connection, with_foreign_key=False)
 
-            _run_migration_operation(connection, migration.upgrade)
-            _run_migration_operation(connection, migration.upgrade)
+            _run_migration_operation(connection, lambda: migration._repair_revisions_task_foreign_key(connection))
+            _run_migration_operation(connection, lambda: migration._repair_revisions_task_foreign_key(connection))
 
             foreign_keys = inspect(connection).get_foreign_keys("revisions")
             assert [
@@ -104,7 +243,7 @@ def test_task_foreign_key_repair_rebuilds_sqlite_table_and_is_idempotent() -> No
                 for item in foreign_keys
             ] == [
                 (
-                    migration.CONSTRAINT_NAME,
+                    migration._TASK_CONSTRAINT_NAME,
                     ["task_id"],
                     "tasks",
                     ["id"],
@@ -123,16 +262,16 @@ def test_task_foreign_key_repair_downgrade_only_removes_repair_constraint() -> N
     try:
         with engine.begin() as connection:
             _create_revisions_task_tables(connection, with_foreign_key=False)
-            _run_migration_operation(connection, migration.upgrade)
-            _run_migration_operation(connection, migration.downgrade)
+            _run_migration_operation(connection, lambda: migration._repair_revisions_task_foreign_key(connection))
+            _run_migration_operation(connection, lambda: migration._restore_revisions_task_foreign_key(connection))
             assert inspect(connection).get_foreign_keys("revisions") == []
 
         engine.dispose()
         engine = create_engine("sqlite:///:memory:")
         with engine.begin() as connection:
             _create_revisions_task_tables(connection, with_foreign_key=True)
-            _run_migration_operation(connection, migration.upgrade)
-            _run_migration_operation(connection, migration.downgrade)
+            _run_migration_operation(connection, lambda: migration._repair_revisions_task_foreign_key(connection))
+            _run_migration_operation(connection, lambda: migration._restore_revisions_task_foreign_key(connection))
             foreign_keys = inspect(connection).get_foreign_keys("revisions")
             assert len(foreign_keys) == 1
             assert foreign_keys[0]["name"] == "existing_task_fk"
@@ -149,13 +288,13 @@ def test_task_foreign_key_repair_compiles_for_postgresql_dialect() -> None:
     )
 
     with Operations.context(migration_context):
-        migration.upgrade()
-        migration.downgrade()
+        migration._repair_revisions_task_foreign_key(migration_context.bind)
+        migration._restore_revisions_task_foreign_key(migration_context.bind)
 
     sql = output.getvalue()
     assert "ALTER TABLE revisions ADD CONSTRAINT" in sql
     assert "FOREIGN KEY(task_id) REFERENCES tasks (id)" in sql
-    assert f"ALTER TABLE revisions DROP CONSTRAINT {migration.CONSTRAINT_NAME}" in sql
+    assert f"ALTER TABLE revisions DROP CONSTRAINT {migration._TASK_CONSTRAINT_NAME}" in sql
 
 
 def test_resolve_source_url_uses_configured_database_by_default(
