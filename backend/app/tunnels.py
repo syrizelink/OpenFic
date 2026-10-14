@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -64,7 +65,67 @@ def public_url(provider: Provider, line: str) -> str | None:
     )
 
 
-async def terminate_process(process: asyncio.subprocess.Process) -> None:
+class ThreadedTunnelProcess:
+    """Subprocess I/O for event loops without subprocess transports (Windows Selector)."""
+
+    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+        self._process = process
+        self.stdout = self
+
+    @property
+    def returncode(self) -> int | None:
+        return self._process.poll()
+
+    async def readline(self) -> bytes:
+        assert self._process.stdout is not None
+        return await asyncio.to_thread(self._process.stdout.readline)
+
+    async def wait(self) -> int:
+        return await asyncio.to_thread(self._process.wait)
+
+    def terminate(self) -> None:
+        self._process.terminate()
+
+    def kill(self) -> None:
+        self._process.kill()
+
+    def close_output(self) -> None:
+        if self._process.stdout:
+            self._process.stdout.close()
+
+
+TunnelProcess = asyncio.subprocess.Process | ThreadedTunnelProcess
+
+
+async def spawn_tunnel(
+    binary: str, args: list[str], env: dict[str, str]
+) -> TunnelProcess:
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        return await asyncio.create_subprocess_exec(
+            binary,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            stdin=asyncio.subprocess.DEVNULL,
+            env=env,
+            creationflags=creationflags,
+        )
+    except NotImplementedError:
+        # Keep the Selector loop required by pyzmq; only blocking pipe I/O uses threads.
+        # Spawn synchronously so cancellation cannot leave an unowned process behind.
+        process = subprocess.Popen(
+            [binary, *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            env=env,
+            creationflags=creationflags,
+        )
+        return ThreadedTunnelProcess(process)
+
+
+async def terminate_process(process: TunnelProcess) -> None:
     if process.returncode is None:
         try:
             process.terminate()
@@ -78,12 +139,14 @@ async def terminate_process(process: asyncio.subprocess.Process) -> None:
             except ProcessLookupError:
                 pass
             await process.wait()
+    if isinstance(process, ThreadedTunnelProcess):
+        process.close_output()
 
 
 class TunnelManager:
     def __init__(self) -> None:
         self.lock = asyncio.Lock()
-        self.process: asyncio.subprocess.Process | None = None
+        self.process: TunnelProcess | None = None
         self.monitor: asyncio.Task[None] | None = None
         self.provider: Provider | None = None
         self.mode: str | None = None
@@ -138,14 +201,7 @@ class TunnelManager:
             self.provider, self.mode = payload.provider, payload.mode
             self.status, self.url, self.error = "starting", None, None
             try:
-                self.process = await asyncio.create_subprocess_exec(
-                    binary,
-                    *args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    stdin=asyncio.subprocess.DEVNULL,
-                    env=env,
-                )
+                self.process = await spawn_tunnel(binary, args, env)
             except OSError:
                 self._cleanup_config()
                 self.status, self.error = "error", "launch_failed"
