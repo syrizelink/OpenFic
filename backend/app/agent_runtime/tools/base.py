@@ -19,6 +19,7 @@ from app.agent_runtime.tools.errors import (
     serialize_tool_failure,
     tool_failure_from_exception,
 )
+from app.agent_runtime.tool_call_recovery import normalize_tool_input_for_schema
 
 
 _PYDANTIC_HELP_URL = re.compile(
@@ -119,6 +120,17 @@ class AgentTool(BaseTool):
     execute_during_prepare: bool = False
     emit_prepare_events: bool = False
 
+    def _parse_input(
+        self,
+        tool_input: str | dict[str, Any],
+        tool_call_id: str | None,
+    ) -> str | dict[str, Any]:
+        normalized_input = normalize_tool_input_for_schema(
+            tool_input,
+            self.args_schema,
+        )
+        return super()._parse_input(normalized_input, tool_call_id)
+
     @property
     def _state(self) -> dict[str, Any]:
         return self.runtime_state
@@ -195,7 +207,10 @@ class AgentTool(BaseTool):
         if runtime_config is None:
             context_config = var_child_runnable_config.get()
             runtime_config = context_config if isinstance(context_config, dict) else None
-        validated_args = dict(kwargs)
+        validated_args = normalize_tool_input_for_schema(
+            dict(kwargs),
+            self.args_schema,
+        )
         metadata = runtime_config.get("metadata") if isinstance(runtime_config, dict) else None
         metadata_dict = metadata if isinstance(metadata, dict) else {}
         phase = metadata_dict.get("openfic_phase")

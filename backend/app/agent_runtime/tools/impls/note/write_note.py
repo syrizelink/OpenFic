@@ -32,7 +32,9 @@ from app.storage.repos import note_category_repo, note_repo
 class WriteNoteInput(BaseModel):
     title: str = Field(description="笔记标题")
     content: str = Field(description="笔记内容")
-    category_ref: dict | None = Field(default=None, description="可选的目标分类引用")
+    category_ref: CategoryRef | None = Field(
+        default=None, description="可选的目标分类引用"
+    )
 
 
 @ToolRegistry.register

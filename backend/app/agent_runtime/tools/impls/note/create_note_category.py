@@ -29,7 +29,7 @@ from app.storage.repos import note_category_repo
 
 class CreateNoteCategoryInput(BaseModel):
     title: str = Field(description="分类标题")
-    parent_ref: dict | None = Field(
+    parent_ref: CategoryRef | None = Field(
         default=None, description="可选的父分类引用；省略则创建在根层级"
     )
 

@@ -76,6 +76,7 @@ from app.agent_runtime.tools.errors import (
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
     is_malformed_tool_call,
+    normalize_tool_input_for_schema,
     recover_message_tool_calls,
 )
 
@@ -1209,6 +1210,15 @@ def create_react_agent(
                         "latency_ms": int((time.perf_counter() - started_at) * 1000),
                 }
             )
+
+        normalized_tool_args = normalize_tool_input_for_schema(
+            tool_args,
+            getattr(tool_instance, "args_schema", None),
+        )
+        if isinstance(normalized_tool_args, dict):
+            tool_args = normalized_tool_args
+            tool_call = dict(tool_call)
+            tool_call["args"] = tool_args
 
         if phase == "prepare" and not getattr(tool_instance, "_pre_hooks", []):
             payload = {"__openfic_prepared": True}
