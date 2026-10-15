@@ -3,7 +3,6 @@ from collections.abc import Iterator
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -268,20 +267,6 @@ async def test_page_projection_context_preserves_latest_callers_and_canonical_to
         assert latest_seq == last_seq
 
 
-def test_project_postgresql_search_does_not_call_sqlite_pinyin_udfs(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "database_backend", "postgresql")
-
-    statement = project_repo._apply_search(select(Project), "hxxm")
-    sql = _compiled(statement, postgresql.dialect())
-
-    assert "pinyin_full" not in sql
-    assert "pinyin_initials" not in sql
-    assert "projects.title" in sql
-    assert "projects.description" in sql
-
-
 @pytest.mark.asyncio
 async def test_project_postgresql_title_sort_is_applied_in_memory(
     monkeypatch: pytest.MonkeyPatch,
@@ -294,6 +279,60 @@ async def test_project_postgresql_title_sort_is_applied_in_memory(
     sql = _compiled(session.statements[0], postgresql.dialect())
     assert "pinyin_full" not in sql
     assert "order by" not in sql
+
+
+@pytest.mark.asyncio
+async def test_project_search_matches_list_and_count_across_sort_orders(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        settings,
+        "database_backend",
+        session.sync_session.get_bind().dialect.name,
+    )
+    project = Project(title="西游记2")
+    session.add(project)
+    await session.flush()
+
+    for sort_by in ("updated_at", "created_at", "title"):
+        projects = await project_repo.list_all(
+            session,
+            search="xyj2",
+            sort_by=sort_by,
+            sort_order="asc",
+        )
+
+        assert [item.id for item in projects] == [project.id]
+        assert await project_repo.count(session, search="xyj2") == 1
+
+
+@pytest.mark.asyncio
+async def test_project_search_uses_unicode_casefold_for_all_sort_fields(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        settings,
+        "database_backend",
+        session.sync_session.get_bind().dialect.name,
+    )
+    project = Project(title="STRASSE")
+    session.add(project)
+    await session.flush()
+
+    for sort_by in ("updated_at", "created_at", "title"):
+        for sort_order in ("asc", "desc"):
+            projects = await project_repo.list_all(
+                session,
+                search="straße",
+                sort_by=sort_by,
+                sort_order=sort_order,
+            )
+
+            assert [item.id for item in projects] == [project.id]
+
+    assert await project_repo.count(session, search="straße") == 1
 
 
 def test_database_backend_helper_uses_configured_backend(

@@ -120,7 +120,7 @@ async def test_postgresql_checkpoint_maintenance_does_not_access_sqlite(
     monkeypatch.setattr(
         checkpointer_mod.app_settings,
         "settings",
-        SimpleNamespace(database_backend="postgresql"),
+        SimpleNamespace(database_backend="postgresql", checkpoint_database_url="postgresql://localhost/checkpoints"),
     )
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(tmp_path / "legacy.db"))
     monkeypatch.setattr(

@@ -74,6 +74,7 @@ from app.agent_runtime.runner.checkpointer import (
     full_vacuum_checkpoint_database,
     get_checkpointer,
     init_checkpointer,
+    is_postgresql_checkpointer,
     migrate_checkpoint_database_to_incremental,
     needs_incremental_auto_vacuum_migration,
     prune_reachable_checkpoints,
@@ -273,20 +274,25 @@ async def _run_startup_maintenance() -> None:
         f"Local database maintenance started backend={app_settings.database_backend}"
     )
     try:
-        if app_settings.database_backend == "sqlite":
-            maintenance_state.update(
-                phase="pruning",
-                message="Pruning obsolete checkpoints.",
-                progress=None,
-            )
-            deleted_rows = await _cleanup_unreachable_checkpoints()
-            maintenance_state.update(
-                phase="pruning",
-                message="Checkpoint pruning completed.",
-                progress=None,
-                deleted_rows=deleted_rows,
-            )
+        await init_checkpointer()
+    except BaseException:
+        await close_checkpointer()
+        raise
+    try:
+        maintenance_state.update(
+            phase="pruning",
+            message="Pruning obsolete checkpoints.",
+            progress=None,
+        )
+        deleted_rows = await _cleanup_unreachable_checkpoints()
+        maintenance_state.update(
+            phase="pruning",
+            message="Checkpoint pruning completed.",
+            progress=None,
+            deleted_rows=deleted_rows,
+        )
 
+        if not is_postgresql_checkpointer():
             await close_checkpointer()
 
             # 阶段 1：必要时迁移到 INCREMENTAL（普通 VACUUM，set_progress_handler 监控 VM 操作数）
@@ -331,13 +337,9 @@ async def _run_startup_maintenance() -> None:
                     f"Checkpoint free space below threshold, skipping vacuum "
                     f"({free_bytes / (1024**3):.1f}GB free, {free_ratio * 100:.0f}% of live data)"
                 )
-        elif app_settings.database_backend == "postgresql":
-            logger.info(
-                "PostgreSQL backend selected; skipping SQLite checkpoint maintenance"
-            )
         else:
-            raise RuntimeError(
-                f"Unsupported database backend: {app_settings.database_backend}"
+            logger.info(
+                "PostgreSQL checkpoint storage selected; skipping SQLite space reclamation"
             )
 
         maintenance_state.update(
@@ -384,8 +386,8 @@ def _friendly_maintenance_error(exc: Exception) -> str:
 
 async def _restore_checkpointer_and_runtime() -> None:
     """Best-effort recovery so a failed maintenance does not leave the backend degraded."""
+    await init_checkpointer()
     try:
-        await init_checkpointer()
         await start_background_runtime()
     except Exception:
         logger.exception(
@@ -663,7 +665,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await _seed_builtin_models()
     await load_audit_details_persistence()
     start_audit_queue()
-    await _run_startup_maintenance()
+    try:
+        await _run_startup_maintenance()
+    except BaseException:
+        try:
+            await stop_audit_queue()
+        finally:
+            try:
+                await close_checkpointer()
+            finally:
+                await close_db()
+        raise
     _print_startup_banner(app_settings.app_version)
     catalog_refresh_task = asyncio.create_task(
         ModelProviderCatalogService().refresh(),

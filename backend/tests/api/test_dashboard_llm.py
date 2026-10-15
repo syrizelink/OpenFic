@@ -286,6 +286,72 @@ async def test_llm_dashboard_searches_category_and_operation(
 
 
 @pytest.mark.asyncio
+async def test_llm_dashboard_search_is_case_insensitive_and_literal(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add_all(
+        [
+            LLMAuditLog(
+                id="literal-percent",
+                project_id=project_id,
+                operation="search",
+                model_id="model%literal",
+                status="success",
+            ),
+            LLMAuditLog(
+                id="literal-underscore",
+                project_id=project_id,
+                operation="search",
+                model_id="model_literal",
+                status="success",
+            ),
+            LLMAuditLog(
+                id="literal-backslash",
+                project_id=project_id,
+                operation="search",
+                model_id=r"model\literal",
+                status="success",
+            ),
+            LLMAuditLog(
+                id="case-insensitive",
+                project_id=project_id,
+                operation="search",
+                model_id="other-model",
+                model_name="MiXeD Model",
+                status="success",
+            ),
+            LLMAuditLog(
+                id="wildcard-decoy",
+                project_id=project_id,
+                operation="search",
+                model_id="modelXliteral",
+                status="success",
+            ),
+        ]
+    )
+    await session.commit()
+
+    for search, expected_id in (
+        ("model%literal", "literal-percent"),
+        ("model_literal", "literal-underscore"),
+        (r"model\literal", "literal-backslash"),
+        ("mixed model", "case-insensitive"),
+    ):
+        response = await client.get(
+            "/api/v1/dashboard/llm-api/records",
+            params={"search": search},
+        )
+
+        assert response.status_code == 200
+        records = response.json()["records"]
+        assert records["total"] == 1
+        assert [item["id"] for item in records["items"]] == [expected_id]
+
+
+@pytest.mark.asyncio
 async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
     client: AsyncClient,
     session: AsyncSession,

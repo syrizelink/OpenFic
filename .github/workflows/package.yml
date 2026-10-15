@@ -165,9 +165,27 @@ jobs:
           - runner: ubuntu-latest
             platform: linux/amd64
             suffix: linux-x86_64
+            variant: sqlite
+            tag_suffix: ''
+            extra: ''
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
             suffix: linux-aarch64
+            variant: sqlite
+            tag_suffix: ''
+            extra: ''
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            suffix: linux-x86_64
+            variant: postgresql
+            tag_suffix: -postgresql
+            extra: postgresql
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            suffix: linux-aarch64
+            variant: postgresql
+            tag_suffix: -postgresql
+            extra: postgresql
     runs-on: ${{ matrix.runner }}
     env:
       BUILDX_NO_DEFAULT_ATTESTATIONS: true
@@ -185,8 +203,9 @@ jobs:
           VERSION=${{ needs.context.outputs.version }}
           MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
           SUFFIX=${{ matrix.suffix }}
+          TAG_SUFFIX=${{ matrix.tag_suffix }}
 
-          echo "tags=${IMAGE}:latest-${SUFFIX},${IMAGE}:${VERSION}-${SUFFIX},${IMAGE}:${MAJOR_MINOR}-${SUFFIX}" >> "$GITHUB_OUTPUT"
+          echo "tags=${IMAGE}:latest${TAG_SUFFIX}-${SUFFIX},${IMAGE}:${VERSION}${TAG_SUFFIX}-${SUFFIX},${IMAGE}:${MAJOR_MINOR}${TAG_SUFFIX}-${SUFFIX}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -194,8 +213,10 @@ jobs:
           push: true
           provenance: false
           tags: ${{ steps.tags.outputs.tags }}
-          cache-from: type=gha,scope=docker-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=docker-${{ matrix.suffix }}
+          build-args: |
+            OPENFIC_EXTRA=${{ matrix.extra }}
+          cache-from: type=gha,scope=docker-${{ matrix.variant }}-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.variant }}-${{ matrix.suffix }}
 
   docker-manifest:
     needs: [context, docker]
@@ -213,18 +234,24 @@ jobs:
           VERSION=${{ needs.context.outputs.version }}
           MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
 
-          docker buildx imagetools create \
-            -t "${IMAGE}:latest" \
-            "${IMAGE}:latest-linux-x86_64" \
-            "${IMAGE}:latest-linux-aarch64"
-          docker buildx imagetools create \
-            -t "${IMAGE}:${VERSION}" \
-            "${IMAGE}:${VERSION}-linux-x86_64" \
-            "${IMAGE}:${VERSION}-linux-aarch64"
-          docker buildx imagetools create \
-            -t "${IMAGE}:${MAJOR_MINOR}" \
-            "${IMAGE}:${MAJOR_MINOR}-linux-x86_64" \
-            "${IMAGE}:${MAJOR_MINOR}-linux-aarch64"
+          create_manifest() {
+            local tag_suffix="$1"
+            docker buildx imagetools create \
+              -t "${IMAGE}:latest${tag_suffix}" \
+              "${IMAGE}:latest${tag_suffix}-linux-x86_64" \
+              "${IMAGE}:latest${tag_suffix}-linux-aarch64"
+            docker buildx imagetools create \
+              -t "${IMAGE}:${VERSION}${tag_suffix}" \
+              "${IMAGE}:${VERSION}${tag_suffix}-linux-x86_64" \
+              "${IMAGE}:${VERSION}${tag_suffix}-linux-aarch64"
+            docker buildx imagetools create \
+              -t "${IMAGE}:${MAJOR_MINOR}${tag_suffix}" \
+              "${IMAGE}:${MAJOR_MINOR}${tag_suffix}-linux-x86_64" \
+              "${IMAGE}:${MAJOR_MINOR}${tag_suffix}-linux-aarch64"
+          }
+
+          create_manifest ""
+          create_manifest "-postgresql"
 
   # ---------------------------------------------------------------- desktop
   desktop:

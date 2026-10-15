@@ -174,6 +174,10 @@ SORT_COLUMNS = {
 }
 
 
+def _escape_like_pattern(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _conditions(filters: DashboardFilters) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = []
     if filters.project_id:
@@ -197,17 +201,17 @@ def _conditions(filters: DashboardFilters) -> list[ColumnElement[bool]]:
     if filters.end_at:
         conditions.append(col(LLMAuditLog.created_at) <= filters.end_at)
     if filters.search:
-        like_value = f"%{filters.search}%"
+        like_value = f"%{_escape_like_pattern(filters.search)}%"
         conditions.append(
             or_(
-                col(LLMAuditLog.id).contains(filters.search),
-                col(LLMAuditLog.model_id).contains(filters.search),
-                col(LLMAuditLog.model_name).like(like_value),
-                col(LLMAuditLog.category).like(like_value),
-                col(LLMAuditLog.operation).like(like_value),
-                col(LLMAuditLog.task_id).like(like_value),
-                col(LLMAuditLog.session_id).like(like_value),
-                col(LLMAuditLog.error_message).like(like_value),
+                col(LLMAuditLog.id).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.model_id).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.model_name).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.category).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.operation).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.task_id).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.session_id).ilike(like_value, escape="\\"),
+                col(LLMAuditLog.error_message).ilike(like_value, escape="\\"),
             )
         )
     return conditions

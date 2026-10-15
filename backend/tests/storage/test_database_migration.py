@@ -46,6 +46,64 @@ def _load_revisions_task_foreign_key_migration():
     )
 
 
+def _postgresql_migration_url() -> str:
+    database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
+    if not database_url.startswith("postgresql"):
+        pytest.skip("Set OPENFIC_TEST_DATABASE_URL to test PostgreSQL")
+    return database_url
+
+
+def _foreign_key_snapshot(connection, table_names):
+    return {
+        table_name: tuple(
+            sorted(
+                (
+                    foreign_key.get("name"),
+                    tuple(foreign_key.get("constrained_columns") or ()),
+                    foreign_key.get("referred_table"),
+                    tuple(foreign_key.get("referred_columns") or ()),
+                    (foreign_key.get("options") or {}).get("ondelete"),
+                )
+                for foreign_key in inspect(connection).get_foreign_keys(table_name)
+            )
+        )
+        for table_name in table_names
+    }
+
+
+def _check_constraint_snapshot(connection):
+    return tuple(
+        sorted(
+            (
+                table_name,
+                constraint.get("name"),
+                constraint.get("sqltext"),
+            )
+            for table_name in ("character_relationships",)
+            for constraint in inspect(connection).get_check_constraints(table_name)
+        )
+    )
+
+
+def _generate_offline_migration_sql(database_url: str, *, downgrade: bool) -> str:
+    output = StringIO()
+    config = database_migration._create_alembic_config(database_url)
+    config.output_buffer = output
+    if downgrade:
+        command.downgrade(config, "1028:1027", sql=True)
+    else:
+        command.upgrade(config, "1027:1028", sql=True)
+    return output.getvalue()
+
+
+def _execute_offline_migration_sql(connection, sql: str) -> None:
+    assert sql.startswith("BEGIN;\n")
+    assert sql.rstrip().endswith("COMMIT;")
+    body = sql[len("BEGIN;\n") :]
+    body = body[: body.rfind("COMMIT;")]
+    connection.exec_driver_sql(body.replace("%", "%%"))
+
+
 def test_character_order_migration_preserves_relationships_and_snapshots():
     database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
     if not database_url.startswith("postgresql"):
@@ -97,6 +155,96 @@ def test_character_order_migration_preserves_relationships_and_snapshots():
             assert len(checks) == 1
             assert 'COLLATE "C"' in checks[0]["sqltext"]
             transaction.rollback()
+    finally:
+        engine.dispose()
+
+
+def test_postgresql_1028_offline_sql_executes_like_online_upgrade_and_downgrade():
+    database_url = _postgresql_migration_url()
+    engine = create_engine(database_url)
+    table_names = ("revisions", "agent_audit_logs", "commits")
+    try:
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+                schema = f"migration_sql_{uuid4().hex}"
+                connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+                connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+                config = database_migration._create_alembic_config(
+                    database_url, connection
+                )
+                command.upgrade(config, "1027")
+
+                initial_foreign_keys = _foreign_key_snapshot(connection, table_names)
+                initial_checks = _check_constraint_snapshot(connection)
+                assert not any(
+                    item[2] == "tasks" for item in initial_foreign_keys["revisions"]
+                )
+                assert next(
+                    item
+                    for item in initial_foreign_keys["agent_audit_logs"]
+                    if item[1] == ("task_id",)
+                )[0] == "agent_audit_logs_task_id_fkey"
+                assert next(
+                    item
+                    for item in initial_foreign_keys["commits"]
+                    if item[1] == ("chapter_id",)
+                )[0] == "commits_chapter_id_fkey"
+
+                upgrade_sql = _generate_offline_migration_sql(
+                    database_url, downgrade=False
+                )
+                downgrade_sql = _generate_offline_migration_sql(
+                    database_url, downgrade=True
+                )
+                for default_name in (
+                    "agent_audit_logs_task_id_fkey",
+                    "agent_audit_logs_revision_id_fkey",
+                    "agent_audit_logs_chapter_id_fkey",
+                    "agent_audit_logs_project_id_fkey",
+                    "commits_chapter_id_fkey",
+                    "commits_revision_id_fkey",
+                ):
+                    assert f"DROP CONSTRAINT {default_name}" in upgrade_sql
+
+                online_state = connection.begin_nested()
+                command.upgrade(config, "1028")
+                online_upgrade_foreign_keys = _foreign_key_snapshot(
+                    connection, table_names
+                )
+                online_upgrade_checks = _check_constraint_snapshot(connection)
+                command.downgrade(config, "1027")
+                online_downgrade_foreign_keys = _foreign_key_snapshot(
+                    connection, table_names
+                )
+                online_downgrade_checks = _check_constraint_snapshot(connection)
+                online_state.rollback()
+
+                _execute_offline_migration_sql(connection, upgrade_sql)
+                assert (
+                    connection.execute(text("SELECT version_num FROM alembic_version"))
+                    .scalar_one()
+                    == "1028"
+                )
+                assert _foreign_key_snapshot(connection, table_names) == (
+                    online_upgrade_foreign_keys
+                )
+                assert _check_constraint_snapshot(connection) == online_upgrade_checks
+
+                _execute_offline_migration_sql(connection, downgrade_sql)
+                assert (
+                    connection.execute(text("SELECT version_num FROM alembic_version"))
+                    .scalar_one()
+                    == "1027"
+                )
+                assert _foreign_key_snapshot(connection, table_names) == (
+                    initial_foreign_keys
+                )
+                assert _check_constraint_snapshot(connection) == initial_checks
+                assert online_downgrade_foreign_keys == initial_foreign_keys
+                assert online_downgrade_checks == initial_checks
+            finally:
+                transaction.rollback()
     finally:
         engine.dispose()
 
@@ -217,9 +365,22 @@ def test_business_table_names_exclude_runtime_maintenance_tables() -> None:
         metadata,
         Column("name", String, primary_key=True),
     )
+    for table_name in (
+        "checkpoints",
+        "checkpoint_blobs",
+        "checkpoint_writes",
+        "checkpoint_migrations",
+        "writes",
+        "openfic_checkpoint_migrations",
+    ):
+        Table(table_name, metadata, Column("id", String, primary_key=True))
     Table("projects", metadata, Column("id", String, primary_key=True))
+    Table("custom_business_table", metadata, Column("id", String, primary_key=True))
 
-    assert database_migration._business_table_names(metadata) == ("projects",)
+    assert database_migration._business_table_names(metadata) == (
+        "custom_business_table",
+        "projects",
+    )
 
 
 def test_task_foreign_key_repair_rebuilds_sqlite_table_and_is_idempotent() -> None:
@@ -295,6 +456,44 @@ def test_task_foreign_key_repair_compiles_for_postgresql_dialect() -> None:
     assert "ALTER TABLE revisions ADD CONSTRAINT" in sql
     assert "FOREIGN KEY(task_id) REFERENCES tasks (id)" in sql
     assert f"ALTER TABLE revisions DROP CONSTRAINT {migration._TASK_CONSTRAINT_NAME}" in sql
+
+
+def test_1028_postgresql_offline_upgrade_and_downgrade_do_not_inspect_bind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    migration = _load_revisions_task_foreign_key_migration()
+    output = StringIO()
+    migration_context = MigrationContext.configure(
+        dialect_name="postgresql",
+        opts={"as_sql": True, "output_buffer": output},
+    )
+    monkeypatch.setattr(
+        migration.sa,
+        "inspect",
+        Mock(side_effect=AssertionError("offline migration must not inspect bind")),
+    )
+
+    with Operations.context(migration_context):
+        migration.upgrade()
+        migration.downgrade()
+
+    sql = output.getvalue()
+    assert (
+        "ALTER TABLE revisions DROP CONSTRAINT IF EXISTS revisions_task_id_fkey"
+        in sql
+    )
+    assert (
+        f"ALTER TABLE revisions ADD CONSTRAINT {migration._TASK_CONSTRAINT_NAME}"
+        in sql
+    )
+    assert (
+        f"ALTER TABLE revisions DROP CONSTRAINT {migration._TASK_CONSTRAINT_NAME}"
+        in sql
+    )
+    assert (
+        f"ALTER TABLE commits DROP CONSTRAINT {migration._COMMIT_CHAPTER_CONSTRAINT_NAME}"
+        in sql
+    )
 
 
 def test_resolve_source_url_uses_configured_database_by_default(

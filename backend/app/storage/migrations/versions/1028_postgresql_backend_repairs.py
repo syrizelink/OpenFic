@@ -27,6 +27,7 @@ _CHARACTER_ORDER_CONSTRAINT_NAME = "ck_character_relationships_order_c"
 _CHARACTER_ORDER_CHECK = (
     'source_character_id COLLATE "C" < target_character_id COLLATE "C"'
 )
+_POSTGRESQL_DEFAULT_FOREIGN_KEY_SUFFIX = "fkey"
 
 ForeignKeySpec = tuple[str, tuple[str, ...], str, tuple[str, ...], str | None]
 
@@ -54,8 +55,12 @@ def _is_task_foreign_key(foreign_key: Mapping[str, object]) -> bool:
     )
 
 
+def _is_offline() -> bool:
+    return op.get_context().as_sql
+
+
 def _has_task_foreign_key(bind: Connection) -> bool:
-    if op.get_context().as_sql:
+    if _is_offline():
         return False
     return any(
         _is_task_foreign_key(foreign_key)
@@ -64,7 +69,7 @@ def _has_task_foreign_key(bind: Connection) -> bool:
 
 
 def _has_repair_foreign_key(bind: Connection) -> bool:
-    if op.get_context().as_sql:
+    if _is_offline():
         return True
     return any(
         foreign_key.get("name") == _TASK_CONSTRAINT_NAME
@@ -76,6 +81,13 @@ def _has_repair_foreign_key(bind: Connection) -> bool:
 def _repair_revisions_task_foreign_key(bind: Connection) -> None:
     if _has_task_foreign_key(bind):
         return
+    if _is_offline() and bind.dialect.name == "postgresql":
+        op.execute(
+            sa.text(
+                "ALTER TABLE revisions "
+                "DROP CONSTRAINT IF EXISTS revisions_task_id_fkey"
+            )
+        )
     if bind.dialect.name == "sqlite":
         with op.batch_alter_table("revisions", recreate="always") as batch_op:
             batch_op.create_foreign_key(
@@ -118,6 +130,15 @@ def _matches_foreign_key(
     )
 
 
+def _postgresql_default_foreign_key_name(
+    table_name: str, local_columns: tuple[str, ...]
+) -> str:
+    return (
+        f"{table_name}_{'_'.join(local_columns)}_"
+        f"{_POSTGRESQL_DEFAULT_FOREIGN_KEY_SUFFIX}"
+    )
+
+
 def _replace_postgresql_foreign_key(
     bind: Connection,
     table_name: str,
@@ -126,7 +147,25 @@ def _replace_postgresql_foreign_key(
     remote_columns: tuple[str, ...],
     ondelete: str | None,
     constraint_name: str | None,
+    existing_constraint_name: str | None = None,
 ) -> None:
+    if _is_offline():
+        existing_name = existing_constraint_name or (
+            constraint_name
+            if ondelete is None and constraint_name
+            else _postgresql_default_foreign_key_name(table_name, local_columns)
+        )
+        op.drop_constraint(existing_name, table_name, type_="foreignkey")
+        op.create_foreign_key(
+            constraint_name,
+            table_name,
+            remote_table,
+            list(local_columns),
+            list(remote_columns),
+            ondelete=ondelete,
+        )
+        return
+
     foreign_keys = sa.inspect(bind).get_foreign_keys(table_name)
     matching = [
         foreign_key
@@ -227,6 +266,14 @@ def _set_runtime_foreign_key_actions(bind: Connection, *, restore: bool = False)
 
     for table_name, local_columns, remote_table, remote_columns, ondelete in _FOREIGN_KEYS:
         action = None if restore else ondelete
+        constraint_name = f"fk_{table_name}_{local_columns[0]}_{remote_table}_1028"
+        existing_constraint_name = (
+            _COMMIT_CHAPTER_CONSTRAINT_NAME
+            if restore
+            and table_name == "commits"
+            and local_columns == ("chapter_id",)
+            else constraint_name if restore else None
+        )
         _replace_postgresql_foreign_key(
             bind,
             table_name,
@@ -234,11 +281,14 @@ def _set_runtime_foreign_key_actions(bind: Connection, *, restore: bool = False)
             remote_table,
             remote_columns,
             action,
-            f"fk_{table_name}_{local_columns[0]}_{remote_table}_1028",
+            None if restore else constraint_name,
+            existing_constraint_name,
         )
 
 
 def _matching_commit_chapter_foreign_keys(bind: Connection) -> list[Mapping[str, object]]:
+    if _is_offline():
+        return []
     return [
         foreign_key
         for foreign_key in sa.inspect(bind).get_foreign_keys("commits")
@@ -276,6 +326,14 @@ def _copy_commits(bind: Connection, include_chapter_foreign_key: bool) -> Table:
 
 
 def _remove_commit_chapter_foreign_key(bind: Connection) -> None:
+    if _is_offline():
+        op.drop_constraint(
+            _COMMIT_CHAPTER_CONSTRAINT_NAME,
+            "commits",
+            type_="foreignkey",
+        )
+        return
+
     matching = _matching_commit_chapter_foreign_keys(bind)
     if not matching:
         return
@@ -295,6 +353,17 @@ def _remove_commit_chapter_foreign_key(bind: Connection) -> None:
 
 
 def _restore_commit_chapter_foreign_key(bind: Connection) -> None:
+    if _is_offline():
+        op.create_foreign_key(
+            _COMMIT_CHAPTER_CONSTRAINT_NAME,
+            "commits",
+            "chapters",
+            ["chapter_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+        return
+
     if _matching_commit_chapter_foreign_keys(bind):
         return
     if bind.dialect.name == "sqlite":
@@ -306,7 +375,7 @@ def _restore_commit_chapter_foreign_key(bind: Connection) -> None:
             pass
         return
     op.create_foreign_key(
-        _COMMIT_CHAPTER_CONSTRAINT_NAME,
+        None,
         "commits",
         "chapters",
         ["chapter_id"],
@@ -316,6 +385,8 @@ def _restore_commit_chapter_foreign_key(bind: Connection) -> None:
 
 
 def _matching_character_order_checks(bind: Connection) -> list[Mapping[str, object]]:
+    if _is_offline():
+        return []
     return [
         constraint
         for constraint in sa.inspect(bind).get_check_constraints("character_relationships")
@@ -327,10 +398,35 @@ def _matching_character_order_checks(bind: Connection) -> list[Mapping[str, obje
 def _repair_character_relationship_order(bind: Connection) -> None:
     if bind.dialect.name != "postgresql":
         return
-    for constraint in _matching_character_order_checks(bind):
-        name = constraint.get("name")
-        if isinstance(name, str) and name:
-            op.drop_constraint(name, "character_relationships", type_="check")
+    if _is_offline():
+        op.execute(
+            sa.text(
+                """
+                DO $$
+                DECLARE constraint_name text;
+                BEGIN
+                    SELECT conname INTO constraint_name
+                    FROM pg_constraint
+                    WHERE conrelid = 'character_relationships'::regclass
+                      AND contype = 'c'
+                      AND pg_get_constraintdef(oid) LIKE '%source_character_id%'
+                      AND pg_get_constraintdef(oid) LIKE '%target_character_id%'
+                    LIMIT 1;
+                    IF constraint_name IS NOT NULL THEN
+                        EXECUTE format(
+                            'ALTER TABLE character_relationships DROP CONSTRAINT %I',
+                            constraint_name
+                        );
+                    END IF;
+                END $$
+                """
+            )
+        )
+    else:
+        for constraint in _matching_character_order_checks(bind):
+            name = constraint.get("name")
+            if isinstance(name, str) and name:
+                op.drop_constraint(name, "character_relationships", type_="check")
     for table_name in ("character_relationships", "revision_character_relationship_snapshots"):
         op.execute(sa.text(
             f'UPDATE {table_name} SET source_character_id = target_character_id, '
@@ -347,10 +443,17 @@ def _repair_character_relationship_order(bind: Connection) -> None:
 def _restore_character_relationship_order(bind: Connection) -> None:
     if bind.dialect.name != "postgresql":
         return
-    for constraint in _matching_character_order_checks(bind):
-        name = constraint.get("name")
-        if isinstance(name, str) and name:
-            op.drop_constraint(name, "character_relationships", type_="check")
+    if _is_offline():
+        op.drop_constraint(
+            _CHARACTER_ORDER_CONSTRAINT_NAME,
+            "character_relationships",
+            type_="check",
+        )
+    else:
+        for constraint in _matching_character_order_checks(bind):
+            name = constraint.get("name")
+            if isinstance(name, str) and name:
+                op.drop_constraint(name, "character_relationships", type_="check")
     for table_name in ("character_relationships", "revision_character_relationship_snapshots"):
         op.execute(sa.text(
             f"UPDATE {table_name} SET source_character_id = target_character_id, "
@@ -358,7 +461,7 @@ def _restore_character_relationship_order(bind: Connection) -> None:
             "WHERE source_character_id > target_character_id"
         ))
     op.create_check_constraint(
-        "ck_character_relationships_order",
+        None,
         "character_relationships",
         "source_character_id < target_character_id",
     )

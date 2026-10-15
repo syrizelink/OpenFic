@@ -46,9 +46,18 @@ _ALEMBIC_CONNECTION_ATTRIBUTE = "openfic_connection"
 _ALEMBIC_VERSION_TABLE = "alembic_version"
 _BATCH_SIZE = 500
 _ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
+_CHECKPOINT_TABLES = {
+    "checkpoints",
+    "checkpoint_blobs",
+    "checkpoint_writes",
+    "checkpoint_migrations",
+    "writes",
+    "openfic_checkpoint_migrations",
+}
 _NON_BUSINESS_TABLES = {
     _ALEMBIC_VERSION_TABLE,
     "openfic_maintenance_migrations",
+    *_CHECKPOINT_TABLES,
 }
 
 

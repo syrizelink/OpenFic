@@ -84,7 +84,7 @@ async def test_lifespan_refreshes_catalog_in_background_and_cancels_on_shutdown(
 
 
 @pytest.mark.asyncio
-async def test_postgresql_startup_skips_sqlite_checkpoint_maintenance(
+async def test_postgresql_startup_cleans_checkpoints_without_sqlite_vacuum(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
@@ -94,6 +94,7 @@ async def test_postgresql_startup_skips_sqlite_checkpoint_maintenance(
         return 0
 
     monkeypatch.setattr(main.app_settings, "database_backend", "postgresql")
+    monkeypatch.setattr(main, "is_postgresql_checkpointer", lambda: True, raising=False)
     monkeypatch.setattr(main, "logger", Mock())
     maintenance_state = SimpleNamespace(
         updates=[],
@@ -140,7 +141,7 @@ async def test_postgresql_startup_skips_sqlite_checkpoint_maintenance(
     assert "_cleanup_orphaned_revision_data" in calls
     assert "_backfill_revision_content" in calls
     assert "_vacuum_main_database" in calls
-    assert "checkpoint_cleanup" not in calls
+    assert "checkpoint_cleanup" in calls
     for name in sqlite_checkpoint_functions:
         assert not getattr(main, name).await_args_list
     assert all(update.get("phase") not in {"migrating", "vacuuming"} for update in maintenance_state.updates)
@@ -151,10 +152,13 @@ async def test_postgresql_startup_skips_sqlite_checkpoint_maintenance(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
 async def test_sqlite_startup_keeps_checkpoint_maintenance_path(
     monkeypatch: pytest.MonkeyPatch,
+    backend: str,
 ) -> None:
-    monkeypatch.setattr(main.app_settings, "database_backend", "sqlite")
+    monkeypatch.setattr(main.app_settings, "database_backend", backend)
+    monkeypatch.setattr(main.app_settings, "checkpoint_database_url", None)
     monkeypatch.setattr(main, "logger", Mock())
     monkeypatch.setattr(main, "maintenance_state", SimpleNamespace(
         start=Mock(),
@@ -187,3 +191,40 @@ async def test_sqlite_startup_keeps_checkpoint_maintenance_path(
 
     needs_migration.assert_awaited_once()
     free_pages.assert_awaited_once()
+
+
+async def test_startup_blocks_when_checkpoint_initialization_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    initialize = AsyncMock(side_effect=RuntimeError("checkpoint unavailable"))
+    runtime = AsyncMock()
+    monkeypatch.setattr(main, "init_checkpointer", initialize)
+    monkeypatch.setattr(main, "start_background_runtime", runtime)
+    monkeypatch.setattr(main, "maintenance_state", SimpleNamespace(start=Mock(), update=Mock(), fail=Mock()))
+    with pytest.raises(RuntimeError, match="checkpoint unavailable"):
+        await main._run_startup_maintenance()
+    runtime.assert_not_awaited()
+
+
+async def test_checkpoint_restore_failure_is_not_swallowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "init_checkpointer", AsyncMock(side_effect=RuntimeError("checkpoint unavailable")))
+    runtime = AsyncMock()
+    monkeypatch.setattr(main, "start_background_runtime", runtime)
+    with pytest.raises(RuntimeError, match="checkpoint unavailable"):
+        await main._restore_checkpointer_and_runtime()
+    runtime.assert_not_awaited()
+
+
+async def test_lifespan_releases_resources_when_checkpoint_startup_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("init_db", "_load_telemetry_enabled", "_seed_builtin_models", "load_audit_details_persistence"):
+        monkeypatch.setattr(main, name, AsyncMock())
+    for name in ("_reset_task_running_state", "_reset_active_revision_state", "_reset_interrupted_child_run_state"):
+        monkeypatch.setattr(main, name, AsyncMock(return_value=0))
+    monkeypatch.setattr(main, "start_audit_queue", Mock())
+    monkeypatch.setattr(main, "init_checkpointer", AsyncMock(side_effect=RuntimeError("checkpoint unavailable")))
+    for name in ("stop_audit_queue", "close_checkpointer", "close_db"):
+        monkeypatch.setattr(main, name, AsyncMock())
+    with pytest.raises(RuntimeError, match="checkpoint unavailable"):
+        async with main.lifespan(main.fastapi_app):
+            pytest.fail("The service must not start without checkpoint storage")
+    main.stop_audit_queue.assert_awaited_once()
+    main.close_checkpointer.assert_awaited()
+    main.close_db.assert_awaited_once()
