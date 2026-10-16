@@ -891,6 +891,11 @@ async def test_loads_only_requested_revision_range(
                 mode="agent",
                 agent_session_id="parent-session",
             ),
+        ]
+    )
+    await session.flush()
+    session.add_all(
+        [
             _message(
                 message_id="user-1",
                 session_id="parent-session",
