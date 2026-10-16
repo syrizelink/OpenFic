@@ -15,7 +15,9 @@ from app.agent_runtime.persistence.model import (
     AgentChildRunRequest,
     AgentRunMessage,
 )
+from app.storage.models.project import Project
 from app.storage.models.revision import Revision
+from app.storage.models.task import Task
 
 
 def _message(
@@ -881,6 +883,14 @@ async def test_loads_only_requested_revision_range(
 ):
     session.add_all(
         [
+            Project(id="project-1", title="测试项目"),
+            Task(
+                id="task-1",
+                project_id="project-1",
+                title="测试任务",
+                mode="agent",
+                agent_session_id="parent-session",
+            ),
             _message(
                 message_id="user-1",
                 session_id="parent-session",
