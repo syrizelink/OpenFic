@@ -10,6 +10,9 @@ from app.agent_runtime.tools.impls.chapter.delete_volume import DeleteVolumeTool
 from app.agent_runtime.tools.impls.chapter.move_chapter_to_volume import (
     MoveChapterToVolumeTool,
 )
+from app.agent_runtime.tools.impls.chapter.reorder_chapters import (
+    ReorderChaptersTool,
+)
 
 __all__ = [
     "ReadChapterTool",
@@ -22,4 +25,5 @@ __all__ = [
     "EditVolumeTool",
     "DeleteVolumeTool",
     "MoveChapterToVolumeTool",
+    "ReorderChaptersTool",
 ]
