@@ -40,6 +40,7 @@ interface SettingsCategoryItem {
   id: SettingsCategory;
   icon: ReactNode;
   labelKey: string;
+  badgeKey?: string;
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
@@ -68,7 +69,6 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     icon: <Cable size={16} />,
     labelKey: "settings.connections",
   },
-  { id: "tunnels", icon: <Network size={16} />, labelKey: "settings.tunnels" },
   {
     id: "models",
     icon: <Brain size={16} />,
@@ -113,6 +113,12 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "agents",
     icon: <Bot size={16} />,
     labelKey: "settings.agents",
+  },
+  {
+    id: "tunnels",
+    icon: <Network size={16} />,
+    labelKey: "settings.tunnels",
+    badgeKey: "settings.experimental",
   },
   {
     id: "advanced",

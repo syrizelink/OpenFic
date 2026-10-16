@@ -11,6 +11,20 @@
   width: 260px;
 }
 
+.tunnel-refresh-icon--spinning {
+  animation: tunnel-refresh-half-spin 500ms linear;
+}
+
+@keyframes tunnel-refresh-half-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(180deg);
+  }
+}
+
 @media (max-width: 767px) {
   .tunnel-setting-row.tunnel-setting-row--field {
     flex-direction: column;

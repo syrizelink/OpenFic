@@ -1,4 +1,4 @@
-"""Instance-owned tunnel processes. Credentials are never persisted or logged."""
+"""Instance-owned tunnel processes. Credentials are never logged or exposed in snapshots."""
 
 import asyncio
 import json
@@ -7,18 +7,23 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Literal
 
+from loguru import logger
 from pydantic import BaseModel, Field, SecretStr, model_validator
 
 Provider = Literal["cloudflare", "ngrok"]
+TunnelMode = Literal["quick", "managed-remote"]
 STARTUP_TIMEOUT = 60
+TUNNEL_STATUS_EVENT = "tunnel:status"
+TunnelStatusPublisher = Callable[[dict[str, object]], Awaitable[None]]
 
 
 class TunnelStart(BaseModel):
     provider: Provider = "cloudflare"
-    mode: Literal["quick", "managed-remote"] = "quick"
+    mode: TunnelMode = "quick"
     token: SecretStr | None = None
     hostname: str | None = Field(default=None, max_length=253)
 
@@ -37,6 +42,24 @@ class TunnelStart(BaseModel):
                     "A public hostname without a scheme or path is required"
                 )
         return self
+
+
+class TunnelStartRequest(BaseModel):
+    """API payload that may reuse a persisted managed-tunnel token."""
+
+    provider: Provider | None = None
+    mode: TunnelMode | None = None
+    token: SecretStr | None = None
+    hostname: str | None = Field(default=None, max_length=253)
+
+
+class TunnelConfigUpdate(BaseModel):
+    """Persisted tunnel configuration update payload."""
+
+    provider: Provider | None = None
+    mode: TunnelMode | None = None
+    token: SecretStr | None = None
+    hostname: str | None = Field(default=None, max_length=253)
 
 
 def executable(provider: Provider) -> str | None:
@@ -96,7 +119,7 @@ async def terminate_process(process: asyncio.subprocess.Process) -> None:
 
 
 class TunnelManager:
-    def __init__(self) -> None:
+    def __init__(self, on_status_change: TunnelStatusPublisher | None = None) -> None:
         self.lock = asyncio.Lock()
         self.process: asyncio.subprocess.Process | None = None
         self.monitor: asyncio.Task[None] | None = None
@@ -106,8 +129,10 @@ class TunnelManager:
         self.url: str | None = None
         self.error: str | None = None
         self.config_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._on_status_change = on_status_change
+        self._last_published_state = (None, None, "stopped", None, None)
 
-    def snapshot(self) -> dict:
+    def snapshot(self) -> dict[str, object]:
         return {
             "provider": self.provider,
             "mode": self.mode,
@@ -118,6 +143,25 @@ class TunnelManager:
                 name: bool(executable(name)) for name in ("cloudflare", "ngrok")
             },
         }
+
+    async def _publish_status(self) -> None:
+        if self._on_status_change is None:
+            return
+        snapshot = self.snapshot()
+        state = (
+            snapshot["provider"],
+            snapshot["mode"],
+            snapshot["status"],
+            snapshot["url"],
+            snapshot["error"],
+        )
+        if state == self._last_published_state:
+            return
+        self._last_published_state = state
+        try:
+            await self._on_status_change(snapshot)
+        except Exception as exc:
+            logger.warning("Tunnel status event publish failed: {}", exc)
 
     async def start(self, payload: TunnelStart, port: int) -> dict:
         async with self.lock:
@@ -152,11 +196,13 @@ class TunnelManager:
                 ]
             self.provider, self.mode = payload.provider, payload.mode
             self.status, self.url, self.error = "starting", None, None
+            await self._publish_status()
             try:
                 self.process = await spawn_tunnel(binary, args, env)
             except OSError:
                 self._cleanup_config()
                 self.status, self.error = "error", "launch_failed"
+                await self._publish_status()
                 return self.snapshot()
             self.monitor = asyncio.create_task(self._watch(payload.hostname))
             return self.snapshot()
@@ -183,6 +229,7 @@ class TunnelManager:
                     url = discovered_url if edge_connected else None
                 if url and self.status in {"starting", "running"}:
                     self.url, self.status = url, "running"
+                    await self._publish_status()
 
         reader = asyncio.create_task(read_output())
         try:
@@ -197,10 +244,13 @@ class TunnelManager:
             await reader
             await process.wait()
             self.url, self.status, self.error = None, "error", "process_exited"
+            await self._publish_status()
         except TimeoutError:
             self.url, self.status, self.error = None, "error", "startup_timeout"
+            await self._publish_status()
         except (ValueError, OSError):
             self.url, self.status, self.error = None, "error", "process_exited"
+            await self._publish_status()
         finally:
             await terminate_process(process)
             reader.cancel()
@@ -222,6 +272,7 @@ class TunnelManager:
         self._cleanup_config()
         self.process, self.monitor = None, None
         self.status, self.url, self.error = "stopped", None, None
+        await self._publish_status()
 
     async def stop(self) -> dict:
         async with self.lock:

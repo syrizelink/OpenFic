@@ -1,4 +1,4 @@
-import { Text } from "@radix-ui/themes";
+import { Badge, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
 import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
@@ -36,12 +36,27 @@ export function SettingsSidebar({ activeCategory, onCategoryChange }: SettingsSi
               >
                 {category.icon}
               </span>
-              <Text
-                size="2"
-                weight={isActive ? "medium" : "regular"}
+              <Flex
+                align="center"
+                gap="2"
+                className="settings-sidebar-item-label"
               >
-                {t(category.labelKey)}
-              </Text>
+                <Text
+                  size="2"
+                  weight={isActive ? "medium" : "regular"}
+                >
+                  {t(category.labelKey)}
+                </Text>
+                {category.badgeKey ? (
+                  <Badge
+                    size="1"
+                    variant="soft"
+                    color="green"
+                  >
+                    {t(category.badgeKey)}
+                  </Badge>
+                ) : null}
+              </Flex>
             </button>
           );
         })}

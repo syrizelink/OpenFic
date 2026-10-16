@@ -2,7 +2,7 @@ import { Badge, Box, Button, Flex, IconButton, Link, Text, TextField } from "@ra
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Copy, ExternalLink, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
@@ -10,7 +10,37 @@ import { LabeledSelect } from "@/components/select";
 
 import "./tunnels-settings.css";
 
-import { fetchTunnel, startTunnel, stopTunnel, type TunnelProvider } from "../lib/tunnels-api";
+import { ProviderIcon } from "../lib/provider-icons";
+import { subscribeTunnelStatus } from "../lib/tunnel-socket";
+import {
+  fetchTunnel,
+  startTunnel,
+  stopTunnel,
+  updateTunnelConfig,
+  type TunnelConfigUpdate,
+  type TunnelMode,
+  type TunnelProvider,
+  type TunnelStatus,
+} from "../lib/tunnels-api";
+
+const TUNNEL_PROVIDER_ICON_PATHS: Record<TunnelProvider, string> = {
+  cloudflare: "/provider-icons/tunnel/cloudflare.svg",
+  ngrok: "/provider-icons/tunnel/ngrok.svg",
+};
+const TUNNEL_CLIENT_NAMES: Record<TunnelProvider, string> = {
+  cloudflare: "Cloudflared",
+  ngrok: "Ngrok",
+};
+
+function TunnelProviderIcon({ provider }: { provider: TunnelProvider }) {
+  return (
+    <ProviderIcon
+      iconPath={TUNNEL_PROVIDER_ICON_PATHS[provider]}
+      preserveColors
+      size={18}
+    />
+  );
+}
 
 function TunnelSettingLabel({ label, description }: { label: string; description: string }) {
   return (
@@ -39,14 +69,84 @@ export function TunnelsSettings() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<TunnelProvider>("cloudflare");
-  const [mode, setMode] = useState<"quick" | "managed-remote">("quick");
+  const [mode, setMode] = useState<TunnelMode>("quick");
   const [token, setToken] = useState("");
   const [hostname, setHostname] = useState("");
-  const { data, isLoading, error, refetch } = useQuery({
+  const [hasSavedToken, setHasSavedToken] = useState(false);
+  const [isRefreshAnimationActive, setIsRefreshAnimationActive] = useState(false);
+  const hasHydratedConfigRef = useRef(false);
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["tunnels"],
     queryFn: fetchTunnel,
-    refetchInterval: 2000,
   });
+
+  useEffect(() => {
+    if (!data?.config || hasHydratedConfigRef.current) return;
+    hasHydratedConfigRef.current = true;
+    setProvider(data.config.provider);
+    setMode(data.config.mode);
+    setHostname(data.config.hostname ?? "");
+    setHasSavedToken(data.config.token_configured);
+  }, [data]);
+
+  function handleRefresh() {
+    setIsRefreshAnimationActive(true);
+    void refetch();
+  }
+
+  function handleRefreshAnimationEnd() {
+    setIsRefreshAnimationActive(false);
+  }
+
+  useEffect(() => {
+    return subscribeTunnelStatus(
+      (status) => {
+        queryClient.setQueryData<TunnelStatus>(["tunnels"], (current) =>
+          current ? { ...current, ...status } : current,
+        );
+      },
+      () => {
+        void queryClient.invalidateQueries({ queryKey: ["tunnels"] });
+      },
+    );
+  }, [queryClient]);
+
+  const configMutation = useMutation({
+    mutationFn: updateTunnelConfig,
+    onSuccess: (config, variables) => {
+      setHasSavedToken(config.token_configured);
+      if (variables.token !== undefined) setToken("");
+      queryClient.setQueryData<TunnelStatus>(["tunnels"], (current) =>
+        current ? { ...current, config } : current,
+      );
+    },
+  });
+
+  function persistConfig(
+    overrides: Partial<Pick<TunnelConfigUpdate, "provider" | "mode" | "hostname">> = {},
+  ) {
+    const nextHostname =
+      overrides.hostname !== undefined
+        ? overrides.hostname?.trim() || null
+        : hostname.trim() || null;
+    configMutation.mutate({
+      provider: overrides.provider ?? provider,
+      mode: overrides.mode ?? mode,
+      hostname: nextHostname,
+    });
+  }
+
+  function persistToken() {
+    const nextToken = token.trim();
+    if (!nextToken) return;
+    configMutation.mutate({
+      provider,
+      mode,
+      hostname: hostname.trim() || null,
+      token: nextToken,
+    });
+  }
+
   const mutation = useMutation({
     mutationFn: (action: "start" | "stop") =>
       action === "stop"
@@ -54,7 +154,12 @@ export function TunnelsSettings() {
         : startTunnel({
             provider,
             mode,
-            ...(mode === "managed-remote" ? { token, hostname: hostname.trim() } : {}),
+            ...(mode === "managed-remote"
+              ? {
+                  ...(token.trim() ? { token: token.trim() } : {}),
+                  hostname: hostname.trim(),
+                }
+              : {}),
           }),
     onSuccess: () => {
       setToken("");
@@ -62,9 +167,10 @@ export function TunnelsSettings() {
     },
   });
   const active = data?.status === "starting" || data?.status === "running";
-  const busy = mutation.isPending;
-  const mutationDetail = axios.isAxiosError(mutation.error)
-    ? mutation.error.response?.data?.detail
+  const configError = configMutation.error ?? mutation.error;
+  const busy = mutation.isPending || configMutation.isPending;
+  const mutationDetail = axios.isAxiosError(configError)
+    ? configError.response?.data?.detail
     : null;
   const errorMessage =
     typeof mutationDetail === "string" ? mutationDetail : t("settings.tunnelRequestFailed");
@@ -95,16 +201,16 @@ export function TunnelsSettings() {
         gap="3"
       >
         <Text>{t("settings.tunnelRequestFailed")}</Text>
-        <Button onClick={() => void refetch()}>{t("settings.tunnelRefresh")}</Button>
+        <Button onClick={handleRefresh}>{t("settings.tunnelRefresh")}</Button>
       </Flex>
     );
 
-  const binary = provider === "cloudflare" ? "cloudflared" : "ngrok";
+  const clientName = TUNNEL_CLIENT_NAMES[provider];
   const canStart =
     data.auth_enabled &&
     data.frontend_available &&
     data.providers[provider] &&
-    (mode !== "managed-remote" || (token.trim() && hostname.trim()));
+    (mode !== "managed-remote" || ((token.trim() || hasSavedToken) && hostname.trim()));
 
   return (
     <Box>
@@ -120,7 +226,7 @@ export function TunnelsSettings() {
         >
           <TunnelSettingLabel
             label={t("settings.tunnelConnectionStatus")}
-            description={t("settings.tunnelDescription")}
+            description={t(isFetching ? "settings.tunnelRefreshing" : "settings.tunnelDescription")}
           />
           <Badge
             variant="soft"
@@ -143,59 +249,73 @@ export function TunnelsSettings() {
           <LabeledSelect
             value={provider}
             options={[
-              { value: "cloudflare", label: "Cloudflare" },
-              { value: "ngrok", label: "Ngrok" },
+              {
+                value: "cloudflare",
+                label: "Cloudflare",
+                prefix: <TunnelProviderIcon provider="cloudflare" />,
+              },
+              {
+                value: "ngrok",
+                label: "Ngrok",
+                prefix: <TunnelProviderIcon provider="ngrok" />,
+              },
             ]}
             onChange={(value) => {
-              setProvider(value as TunnelProvider);
-              setMode("quick");
+              const nextProvider = value as TunnelProvider;
+              const nextMode: TunnelMode = "quick";
+              setProvider(nextProvider);
+              setMode(nextMode);
+              persistConfig({ provider: nextProvider, mode: nextMode });
             }}
             disabled={active || busy}
             triggerAriaLabel={t("settings.tunnelProvider")}
             triggerStyle={{ width: 160 }}
           />
         </Flex>
-        <Flex
-          align="center"
-          justify="between"
-          gap="4"
-          className="tunnel-setting-row"
-        >
-          <TunnelSettingLabel
-            label={t("settings.tunnelClient", { binary })}
-            description={t(
-              data.providers[provider] ? "settings.tunnelInstalled" : "settings.tunnelMissing",
-              { binary },
-            )}
-          />
+        {!data.providers[provider] && (
           <Flex
             align="center"
-            gap="3"
-            flexShrink="0"
+            justify="between"
+            gap="4"
+            className="tunnel-setting-row"
           >
-            <Link
-              size="2"
-              href={
-                provider === "cloudflare"
-                  ? "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/"
-                  : "https://ngrok.com/download"
-              }
-              target="_blank"
-              rel="noreferrer"
+            <TunnelSettingLabel
+              label={t("settings.tunnelClient", { binary: clientName })}
+              description={t("settings.tunnelMissing", { binary: clientName })}
+            />
+            <Flex
+              align="center"
+              gap="3"
+              flexShrink="0"
             >
-              {t("settings.tunnelInstallHelp")}
-            </Link>
-            <IconButton
-              variant="ghost"
-              color="gray"
-              aria-label={t("settings.tunnelRefresh")}
-              disabled={busy}
-              onClick={() => void refetch()}
-            >
-              <RefreshCw size={16} />
-            </IconButton>
+              <Link
+                size="2"
+                href={
+                  provider === "cloudflare"
+                    ? "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/"
+                    : "https://ngrok.com/download"
+                }
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t("settings.tunnelInstallHelp")}
+              </Link>
+              <IconButton
+                variant="ghost"
+                color="gray"
+                aria-label={t("settings.tunnelRefresh")}
+                disabled={busy || isFetching || isRefreshAnimationActive}
+                onClick={handleRefresh}
+              >
+                <RefreshCw
+                  size={16}
+                  className={isRefreshAnimationActive ? "tunnel-refresh-icon--spinning" : undefined}
+                  onAnimationEnd={handleRefreshAnimationEnd}
+                />
+              </IconButton>
+            </Flex>
           </Flex>
-        </Flex>
+        )}
         {provider === "ngrok" && (
           <Text
             size="1"
@@ -222,7 +342,11 @@ export function TunnelsSettings() {
                   { value: "quick", label: t("settings.tunnelQuick") },
                   { value: "managed-remote", label: t("settings.tunnelManaged") },
                 ]}
-                onChange={(value) => setMode(value as typeof mode)}
+                onChange={(value) => {
+                  const nextMode = value as TunnelMode;
+                  setMode(nextMode);
+                  persistConfig({ mode: nextMode });
+                }}
                 disabled={active || busy}
                 triggerAriaLabel={t("settings.tunnelMode")}
                 triggerStyle={{ width: 200 }}
@@ -246,6 +370,7 @@ export function TunnelsSettings() {
                     placeholder="openfic.example.com"
                     disabled={active || busy}
                     onChange={(event) => setHostname(event.target.value)}
+                    onBlur={(event) => persistConfig({ hostname: event.target.value })}
                     className="tunnel-setting-field"
                   />
                 </Flex>
@@ -264,8 +389,10 @@ export function TunnelsSettings() {
                     type="password"
                     autoComplete="off"
                     value={token}
+                    placeholder={hasSavedToken ? t("settings.tunnelTokenSaved") : undefined}
                     disabled={active || busy}
                     onChange={(event) => setToken(event.target.value)}
+                    onBlur={persistToken}
                     className="tunnel-setting-field"
                   />
                 </Flex>
@@ -346,18 +473,18 @@ export function TunnelsSettings() {
             {t("settings.tunnelFrontendRequired")}
           </Text>
         )}
-        {(data.error || mutation.error) && (
+        {(data.error || configError) && (
           <Text
             role="alert"
             size="1"
             color="red"
           >
-            {mutation.error ? errorMessage : t(`settings.tunnelError_${data.error}`)}
+            {configError ? errorMessage : t(`settings.tunnelError_${data.error}`)}
           </Text>
         )}
         <Box>
           <Button
-            disabled={busy || (!active && !canStart)}
+            disabled={mutation.isPending || (!active && !canStart)}
             color={active ? "red" : undefined}
             onClick={() => mutation.mutate(active ? "stop" : "start")}
           >

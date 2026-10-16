@@ -71,6 +71,25 @@ async def test_start_duplicate_stop_and_restart(launch):
         await manager.stop()
 
 
+@pytest.mark.asyncio
+async def test_status_changes_are_published(launch):
+    events = []
+
+    async def publish(snapshot):
+        events.append(snapshot)
+
+    launch()
+    manager = TunnelManager(on_status_change=publish)
+    try:
+        await manager.start(TunnelStart(), 8000)
+        await wait_status(manager, "running")
+        await manager.stop()
+    finally:
+        await manager.stop()
+
+    assert [event["status"] for event in events] == ["starting", "running", "stopped"]
+
+
 async def test_stop_before_monitor_runs(launch):
     launch()
     manager = TunnelManager()

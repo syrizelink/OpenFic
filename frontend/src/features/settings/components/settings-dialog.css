@@ -608,6 +608,11 @@
   color: currentColor;
 }
 
+.settings-sidebar-item-label,
+.settings-dialog-mobile-category-item-label {
+  min-width: 0;
+}
+
 .settings-dialog-visually-hidden {
   position: absolute;
   width: 1px;
