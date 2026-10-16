@@ -121,7 +121,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      OPENFIC_DATA_DIR: ${{ runner.temp }}/openfic-data
       OPENFIC_DATABASE_BACKEND: postgresql
       OPENFIC_DATABASE_URL: postgresql+psycopg://openfic:openfic@127.0.0.1:5432/openfic
       OPENFIC_CHECKPOINT_DATABASE_URL: postgresql://openfic:openfic@127.0.0.1:5432/openfic
@@ -140,6 +139,8 @@ jobs:
         working-directory: backend
         run: uv sync --frozen --extra postgresql
       - name: Run PostgreSQL backend tests
+        env:
+          OPENFIC_DATA_DIR: ${{ runner.temp }}/openfic-data
         working-directory: backend
         run: uv run --extra postgresql pytest
 
