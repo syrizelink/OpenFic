@@ -57,7 +57,7 @@ class AgentAttachment(SQLModel, table=True):
     project_id: str = Field(index=True, default="", max_length=64)
     storage_name: str = Field(max_length=500, unique=True)
     file_name: str = Field(max_length=255)
-    mime_type: str = Field(max_length=50)
+    mime_type: str = Field(max_length=255)
     size_bytes: int = Field(ge=0)
     content: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     content_length: int = Field(default=0, ge=0)

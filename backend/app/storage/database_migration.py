@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -63,6 +63,10 @@ _NON_BUSINESS_TABLES = {
 
 class DatabaseMigrationError(RuntimeError):
     """数据库迁移预检、导入或校验失败。"""
+
+
+class OrphanedForeignKeyError(DatabaseMigrationError):
+    """源数据库包含无法解析的外键引用。"""
 
 
 @dataclass(frozen=True)
@@ -201,6 +205,23 @@ def _validate_source_revision(connection: Connection, database_url: str) -> None
             "无法读取源数据库 Alembic revision", exc, (database_url,)
         ) from exc
 
+    if actual_heads == expected_heads:
+        return
+
+    # A source one revision behind the current head can be copied after the
+    # target is upgraded. Older revisions remain rejected because their data
+    # transformations may not be represented by the row copier.
+    script = ScriptDirectory.from_config(config)
+    direct_predecessors = {
+        predecessor
+        for head in expected_heads
+        for predecessor in _revision_predecessors(
+            script.get_revision(head).down_revision
+        )
+    }
+    if actual_heads and actual_heads == direct_predecessors:
+        return
+
     if actual_heads != expected_heads:
         actual = ", ".join(sorted(actual_heads)) or "未设置"
         expected = ", ".join(sorted(expected_heads)) or "未找到"
@@ -208,6 +229,16 @@ def _validate_source_revision(connection: Connection, database_url: str) -> None
             f"源数据库 Alembic revision 不匹配: 当前={actual}，要求={expected}；"
             "拒绝迁移 legacy 或未完成迁移的数据库"
         )
+
+
+def _revision_predecessors(
+    down_revision: str | Sequence[str] | None,
+) -> tuple[str, ...]:
+    if down_revision is None:
+        return ()
+    if isinstance(down_revision, str):
+        return (down_revision,)
+    return tuple(down_revision)
 
 
 def _foreign_key_signature(
@@ -275,7 +306,7 @@ def _validate_schema(
         for column_name in source_columns:
             source_column = source_table.c[column_name]
             target_column = target_table.c[column_name]
-            if _column_signature(source_column) != _column_signature(target_column):
+            if not _columns_are_compatible(source_column, target_column):
                 raise DatabaseMigrationError(
                     f"表 {table_name} 的列结构不匹配，拒绝猜测转换"
                 )
@@ -325,6 +356,26 @@ def _column_signature(column: Column[Any]) -> tuple[object, ...]:
             column_type.__class__.__name__,
         )
     return (*type_signature, bool(column.nullable))
+
+
+def _columns_are_compatible(
+    source_column: Column[Any], target_column: Column[Any]
+) -> bool:
+    source_signature = _column_signature(source_column)
+    target_signature = _column_signature(target_column)
+    if source_signature == target_signature:
+        return True
+    if not (
+        isinstance(source_column.type, String)
+        and isinstance(target_column.type, String)
+        and source_signature[-1] == target_signature[-1]
+    ):
+        return False
+    source_length = source_column.type.length
+    target_length = target_column.type.length
+    return target_length is None or (
+        source_length is not None and target_length >= source_length
+    )
 
 
 def _count_rows(connection: Connection, table: Table) -> int:
@@ -392,7 +443,11 @@ def _validate_foreign_keys(
                 .limit(1)
             )
             if connection.execute(violation).first() is not None:
-                raise DatabaseMigrationError(f"表 {table_name} 存在无法解析的外键引用")
+                raise OrphanedForeignKeyError(
+                    f"表 {table_name} 存在无法解析的外键引用；"
+                    "如需源库不修改、将可空引用置为 NULL、删除无法保留的悬空行，"
+                    "请重新执行并添加 --repair-orphaned-references 参数"
+                )
 
 
 def _collect_orphaned_foreign_key_repairs(

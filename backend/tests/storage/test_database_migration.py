@@ -292,7 +292,7 @@ def test_published_schema_upgrades_to_head_and_keeps_existing_data(tmp_path, dat
                 for table_name in ("revisions", "commits", "agent_audit_logs")
             }
             command.upgrade(config, "head")
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1028"
+            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1029"
             assert connection.execute(text(
                 "SELECT response_content, has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
             )).one() == (detail, True, len(detail.encode("utf-8")))
@@ -612,6 +612,35 @@ def test_schema_type_mismatch_is_rejected() -> None:
         )
 
 
+def test_schema_allows_target_string_columns_to_expand() -> None:
+    source_metadata = MetaData()
+    Table(
+        "items",
+        source_metadata,
+        Column("id", String, primary_key=True),
+        Column("mime_type", String(length=50), nullable=False),
+    )
+    target_metadata = MetaData()
+    Table(
+        "items",
+        target_metadata,
+        Column("id", String, primary_key=True),
+        Column("mime_type", String(length=255), nullable=False),
+    )
+
+    database_migration._validate_schema(source_metadata, target_metadata, ("items",))
+
+
+def test_schema_rejects_target_string_columns_to_shrink() -> None:
+    source_metadata = MetaData()
+    Table("items", source_metadata, Column("value", String(length=255)))
+    target_metadata = MetaData()
+    Table("items", target_metadata, Column("value", String(length=50)))
+
+    with pytest.raises(database_migration.DatabaseMigrationError, match="列结构"):
+        database_migration._validate_schema(source_metadata, target_metadata, ("items",))
+
+
 def test_float_precision_difference_between_dialects_is_portable() -> None:
     source_metadata = MetaData()
     Table(
@@ -909,11 +938,17 @@ def test_migration_can_repair_nullable_orphaned_foreign_keys(
         lambda _url, _connection=None: None,
     )
 
-    with pytest.raises(database_migration.DatabaseMigrationError, match="外键引用"):
+    with pytest.raises(database_migration.OrphanedForeignKeyError, match="外键引用") as exc_info:
         database_migration.migrate_database(
             source_url=source_url,
             target_url=target_url,
         )
+
+    error = str(exc_info.value)
+    assert "--repair-orphaned-references" in error
+    assert "NULL" in error
+    assert "删除" in error
+    assert "源库不修改" in error
 
     report = database_migration.migrate_database(
         source_url=source_url,
