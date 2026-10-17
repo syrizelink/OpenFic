@@ -9,10 +9,12 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.tunnels as tunnels
 from app.api.routers.tunnels import router
 from app.auth import AUTH_COOKIE_NAME, AuthMiddleware, AuthService
+from app.storage.database import get_session
 from app.tunnels import TunnelManager, TunnelStart, public_url
 
 
@@ -188,7 +190,7 @@ def test_url_extraction_ignores_help_links():
     assert public_url("cloudflare", "See https://developers.cloudflare.com") is None
 
 
-async def test_api_password_gate_and_frontend_requirement(launch):
+async def test_api_password_gate_and_frontend_requirement(launch, db_engine):
     calls = launch()
     app = FastAPI()
     service = AuthService(None)
@@ -196,36 +198,47 @@ async def test_api_password_gate_and_frontend_requirement(launch):
     app.state.tunnel_manager = TunnelManager()
     app.state.tunnel_frontend_available = True
     app.include_router(router, prefix="/api/v1")
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://localhost:9123"
-    ) as client:
-        assert (await client.get("/api/v1/tunnels")).json()["auth_enabled"] is False
-        assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 409
-    service = AuthService("test-password")
-    app.state.auth_service = service
-    protected = AuthMiddleware(app, service, "/api/v1")
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=protected), base_url="http://localhost:9123"
-    ) as client:
-        assert (await client.get("/api/v1/tunnels")).status_code == 401
-        assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 401
-        client.cookies.set(AUTH_COOKIE_NAME, service.create_cookie_value())
-        app.state.tunnel_frontend_available = False
-        assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 409
-        app.state.tunnel_frontend_available = True
-        assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 200
-        assert "http://127.0.0.1:9123" in calls[0][0]
-        invalid = await client.post(
-            "/api/v1/tunnels/start",
-            json={
-                "mode": "managed-remote",
-                "token": "sensitive-token",
-                "hostname": "bad",
-            },
-        )
-        assert invalid.status_code == 422
-        assert "sensitive-token" not in invalid.text
-        assert (await client.post("/api/v1/tunnels/stop")).json()["status"] == "stopped"
+    async with db_engine.connect() as connection:
+        await connection.begin()
+        session = AsyncSession(bind=connection, expire_on_commit=False, autoflush=False)
+
+        async def override_get_session():
+            yield session
+
+        app.dependency_overrides[get_session] = override_get_session
+        try:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://localhost:9123"
+            ) as client:
+                assert (await client.get("/api/v1/tunnels")).json()["auth_enabled"] is False
+                assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 409
+            service = AuthService("test-password")
+            app.state.auth_service = service
+            protected = AuthMiddleware(app, service, "/api/v1")
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=protected), base_url="http://localhost:9123"
+            ) as client:
+                assert (await client.get("/api/v1/tunnels")).status_code == 401
+                assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 401
+                client.cookies.set(AUTH_COOKIE_NAME, service.create_cookie_value())
+                app.state.tunnel_frontend_available = False
+                assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 409
+                app.state.tunnel_frontend_available = True
+                assert (await client.post("/api/v1/tunnels/start", json={})).status_code == 200
+                assert "http://127.0.0.1:9123" in calls[0][0]
+                invalid = await client.post(
+                    "/api/v1/tunnels/start",
+                    json={
+                        "mode": "managed-remote",
+                        "token": "sensitive-token",
+                        "hostname": "bad",
+                    },
+                )
+                assert invalid.status_code == 422
+                assert "sensitive-token" not in invalid.text
+                assert (await client.post("/api/v1/tunnels/stop")).json()["status"] == "stopped"
+        finally:
+            await session.close()
 
 
 async def test_missing_binary_and_launch_failure(launch, monkeypatch):
