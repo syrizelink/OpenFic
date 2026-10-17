@@ -28,6 +28,19 @@ export function publishLocalEvent(event: string, data: unknown) {
 export function editorSnapshot() {
   return activeEditor?.read() ?? null;
 }
+export async function applyEditorChange(previous: EditorSnapshot, next: EditorSnapshot) {
+  const current = activeEditor?.read();
+  if (
+    activeEditor &&
+    current &&
+    !current.locked &&
+    current.id === previous.id &&
+    current.content === previous.content &&
+    next.content !== previous.content
+  ) {
+    await activeEditor.run("setContent", { text: next.content });
+  }
+}
 
 export async function frontendCall(
   method: string,

@@ -1,4 +1,6 @@
-# 扩展宿主与插件开发（API v1）
+# 扩展宿主与插件开发（包 API v1 / SDK 2.0）
+
+新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph 与 Claude Mods 兼容，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。下文保留最小项目统计包示例。
 
 OpenFic 使用统一 ZIP 插件包。插件安装在当前连接的后端实例的 `OPENFIC_DATA_DIR/plugins/` 中；前端由内嵌的扩展宿主动态加载插件资源，不需要重新构建主应用。桌面版同样使用运行时配置中的后端地址。
 
@@ -81,11 +83,11 @@ Context 包含宿主绑定的 `plugin_id`、当前设置快照和数据接口：
 - `data.list_projects()`：项目 ID/title DTO，要求 `projects.read`。
 - `data.project_entities(project_id)`：项目及章节、卷、角色、笔记、世界书条目的元数据 DTO，要求 `project.entities.read`。不暴露 ORM session，不返回正文，不包含其他项目实体。
 
-插件自己进行统计聚合。配置在命令执行时读取，因此无需重启。RPC 参数最大 64 KB，返回值必须可 JSON 序列化，最大 4 MiB；异步命令超时 15 秒。启停和更新等待正在执行的命令完成，避免旧实现执行时被移除。错误记录到插件日志并返回可展示的错误响应。
+插件自己进行统计聚合。配置在命令执行时读取，因此无需重启。普通命令 RPC 参数最大 64 KB，SDK 方法参数最大 4 MiB，返回值必须可 JSON 序列化，最大 4 MiB；异步命令超时 120 秒。启停和更新等待正在执行的命令完成，避免旧实现执行时被移除。错误记录到插件日志并返回可展示的错误响应。
 
 ## 前端 SDK 与插槽
 
-API v1 提供 `sidebar.extensions` 插槽和独立页面宿主。插件页面在 `sandbox="allow-scripts"` 的 iframe 中运行，不能直接操作主页面 DOM、应用 cookie 或编辑器。资源响应 CSP 禁止页面直接发起网络请求；UI 通过消息桥调用本插件后端命令。
+SDK 2.0 提供多个 UI 插槽；以下以 `sidebar.extensions` 和独立页面宿主为例。插件页面在 `sandbox="allow-scripts"` 的 iframe 中运行，不能直接操作主页面 DOM、应用 cookie 或编辑器。资源响应 CSP 禁止页面直接发起网络请求；UI 通过消息桥调用本插件后端命令。
 
 位于 `frontend/index.html` 的页面可以这样加载公共 SDK：
 
@@ -132,7 +134,7 @@ OpenFic.ready.then(async (context) => {
 
 本版后端是**可信 Python 进程内插件**，不是安全沙箱。能力声明限制 SDK 可调用的方法，但无法阻止 Python 代码自行访问进程可达的文件、网络或内部模块。异步超时也不能强制终止阻塞的 Python 代码。只安装可信包。
 
-本版正式开放 UI、命令 RPC、配置和只读项目数据 SDK，完成项目统计这一完整切面。任意 Agent Graph/工具中间件、项目写入命令、原生编辑器扩展和隔离执行器需要进一步的版本化契约；本版不提前承诺这些内部接口为稳定 API。
+SDK 2.0 已开放业务读写、多个 UI 插槽、存储/密钥/文件/网络、编辑器操作、Agent 工具与中间件和自定义 Graph。详细能力、兼容边界、调用限制见新文档；进程级隔离执行器仍未实现。
 
 ## 验证
 

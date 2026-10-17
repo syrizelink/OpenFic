@@ -171,14 +171,13 @@ class PluginModels:
     def __init__(self, context):
         self.context = context
 
-    async def complete(self, messages: list[dict], model_id=None, **options):
+    async def create(self, model_id=None, **options):
         self.context.require("agent.models")
         from app.api.routers.agent_runtime import _resolve_model_config
         from app.agent_runtime.model_config import to_client_model_config
         from app.models.clients.model_factory import ModelConfig, create_chat_model
-        from langchain_core.messages import convert_to_messages
 
-        config = self.context.runtime.get("model_config")
+        config = self.context._private_runtime.get("model_config")
         if model_id:
             config = await _resolve_model_config(self.context.data._session, model_id)
         if not isinstance(config, dict):
@@ -188,12 +187,34 @@ class PluginModels:
             for k, v in options.items()
             if k in {"temperature", "max_tokens", "top_p"}
         }
-        model = create_chat_model(
+        return create_chat_model(
             ModelConfig(**{**to_client_model_config(config), **safe_options})
         )
+
+    async def complete(self, messages: list[dict], model_id=None, **options):
+        from langchain_core.messages import convert_to_messages
+
+        model = await self.create(model_id, **options)
         response = await model.ainvoke(convert_to_messages(messages))
         return {
             "role": "assistant",
             "content": response.content,
             "tool_calls": getattr(response, "tool_calls", []),
         }
+
+    async def invoke(self, model, messages):
+        self.context.require("agent.models")
+        from app.agent_runtime.graph.react_agent import _invoke_model
+        from app.agent_runtime.graph.llm_invoke import (
+            invoke_model_with_retry,
+            load_llm_invoke_settings,
+        )
+
+        return await invoke_model_with_retry(
+            model,
+            messages,
+            invoke=_invoke_model,
+            settings=load_llm_invoke_settings(),
+            session_id=self.context.runtime.get("session_id"),
+            node="plugin:" + self.context.plugin_id,
+        )

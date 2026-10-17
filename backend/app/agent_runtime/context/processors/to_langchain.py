@@ -47,4 +47,7 @@ def to_langchain_messages(parts: list[ContextMessage]) -> list[BaseMessage]:
             raise ContextBuildError(
                 "to_langchain", f"unknown role: {p.role}"
             )
+    for message, part in zip(out, parts):
+        if part.metadata:
+            message.response_metadata["openfic_context"] = dict(part.metadata)
     return out

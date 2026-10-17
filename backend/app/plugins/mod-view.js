@@ -20,7 +20,7 @@ function draw(node){
  if(type==='Client')el.textContent='Client renderer modules are not supported by this host.';
  return el;
 }
-async function runAction(id,value){if(!id)return;try{await OpenFic.call('mod.action',{id,value});await refresh();}catch(e){status.textContent=e.message;}}
+async function runAction(id,value){if(!id)return;try{await OpenFic.call('mod.action',{id,key:id,value});await refresh();}catch(e){status.textContent=e.message;}}
 async function refresh(){
  const result=await OpenFic.call('mod.inspect');current=result;
  status.textContent=(result.compatibility.warnings||[]).join('\n');
@@ -30,3 +30,5 @@ async function refresh(){
 }
 async function renderTrees(){const result=await OpenFic.call('mod.inspect');document.getElementById('render').replaceChildren(...result.trees.map(t=>draw(t.tree)));}
 OpenFic.ready.then(async c=>{document.getElementById('title').textContent=c.pluginId;try{await refresh();}catch(e){status.textContent=e.message;}});
+let refreshTimer;
+OpenFic.on('ui.invalidate',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>refresh().catch(e=>{status.textContent=e.message;}),50);});

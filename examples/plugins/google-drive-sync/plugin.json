@@ -1,0 +1,63 @@
+{
+  "id": "google-drive-sync",
+  "name": "Google Drive 章节同步",
+  "version": "1.0.0",
+  "api_version": 1,
+  "description": "双向同步已保存的章节，保护并发冲突，并提供 Agent 手动同步工具。",
+  "author": "OpenFic",
+  "backend": "backend/main.py",
+  "capabilities": [
+    "projects.read",
+    "project.entities.read",
+    "chapters.read",
+    "chapters.write",
+    "storage",
+    "secrets",
+    "network",
+    "events",
+    "ui",
+    "agent.tools",
+    "editor.write"
+  ],
+  "network_hosts": [
+    "accounts.google.com",
+    "oauth2.googleapis.com",
+    "www.googleapis.com"
+  ],
+  "views": [
+    {
+      "id": "sync",
+      "title": "Google Drive 章节同步",
+      "entry": "frontend/index.html",
+      "slot": "sidebar.extensions"
+    },
+    {
+      "id": "toolbar",
+      "title": "云同步",
+      "entry": "frontend/toolbar.html",
+      "slot": "editor.toolbar",
+      "height": 180
+    }
+  ],
+  "settings": [
+    {
+      "key": "clientId",
+      "label": "Google OAuth Client ID",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "clientSecret",
+      "label": "Google OAuth Client Secret",
+      "type": "string",
+      "default": "",
+      "secret": true
+    },
+    {
+      "key": "folderId",
+      "label": "Google Drive folder ID（可选）",
+      "type": "string",
+      "default": ""
+    }
+  ]
+}

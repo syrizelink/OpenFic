@@ -6,6 +6,7 @@ operation carries a resource capability, including nested project routes.
 
 import base64
 import importlib
+from copy import copy
 from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any
@@ -15,7 +16,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.routing import Match
+from starlette.routing import Match, compile_path
 
 from app.storage.database import get_session
 
@@ -72,8 +73,19 @@ def build_gateway() -> tuple[FastAPI, list[tuple[APIRoute, str]]]:
                 router = getattr(module, router_name, None)
                 if router is None:
                     continue
-                for route in router.routes:
+                prefix = "/agent" if name == "agent_runtime" else ""
+                app.include_router(router, prefix=prefix)
+                for original_route in router.routes:
+                    route = original_route
                     if isinstance(route, APIRoute):
+                        if prefix:
+                            route = copy(route)
+                            route.path = prefix + route.path
+                            (
+                                route.path_regex,
+                                route.path_format,
+                                route.param_convertors,
+                            ) = compile_path(route.path)
                         actual = resource
                         for keyword, category in [
                             ("relationships", "relationships"),
@@ -83,7 +95,6 @@ def build_gateway() -> tuple[FastAPI, list[tuple[APIRoute, str]]]:
                             if keyword in route.path:
                                 actual = category
                         operations.append((route, actual))
-                app.include_router(router)
     return app, operations
 
 
@@ -156,6 +167,18 @@ class BusinessAPI:
                     "data.changed",
                     {"resource": resource, "path": path, "method": method},
                 )
+            from app.plugins.runtime import dispatch
+
+            try:
+                await dispatch(
+                    "data.changed",
+                    {"resource": resource, "path": path, "method": method},
+                    self.session,
+                )
+            except Exception:
+                # The business write has committed; notification failure must
+                # not look like a failed write and invite duplicate retries.
+                pass
         if not response.content:
             return None
         if "json" in response.headers.get("content-type", ""):

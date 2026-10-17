@@ -2,6 +2,7 @@
 
 import asyncio
 import copy
+from contextvars import ContextVar
 
 from app.plugins.services import bounded_json
 
@@ -28,6 +29,9 @@ EVENTS = frozenset(
         "ui.input",
         "ui.select",
     }
+)
+_executing_plugins: ContextVar[tuple[tuple[str, object], ...]] = ContextVar(
+    "plugin_hook_stack", default=()
 )
 
 
@@ -94,12 +98,24 @@ async def sdk_call(context, method: str, params: dict):
             raise ValueError("Unknown graph provider")
         project_id = params["projectId"]
         await context.api.request("GET", f"/projects/{project_id}")
-        # Host-owned selector, deliberately outside plugin export/storage.
-        from app.plugins.services import PluginStorage
+        import json
 
-        storage = PluginStorage(context.host, plugin)
-        await storage.set(f"workflow:{project_id}", provider)
+        path = context.host.root / ".workflows.json"
+        selected = json.loads(path.read_text()) if path.exists() else {}
+        if provider:
+            selected[project_id] = f"{context.plugin_id}/{provider}"
+        else:
+            selected.pop(project_id, None)
+        context.host._write_json(path, selected)
         return {"provider": f"{context.plugin_id}/{provider}" if provider else None}
+    if method == "workflow.providers":
+        context.require("agent.graph")
+        return [
+            {"id": f"{p.manifest.id}/{name}", "plugin": p.manifest.name}
+            for p in context.host.plugins.values()
+            if p.registration
+            for name in p.registration.graphs
+        ]
     if method == "log":
         context.log(params["message"], params.get("level", "info"))
         return None
@@ -109,6 +125,7 @@ async def sdk_call(context, method: str, params: dict):
 async def dispatch(
     event: str, payload: dict, session=None, *, host=None, runtime=None, terminal=None
 ):
+    dispatch_identity = object()
     from app.plugins.host import active_host
 
     host = host or active_host()
@@ -125,18 +142,48 @@ async def dispatch(
         if index == len(handlers):
             return await terminal(data) if terminal else data
         _, plugin_id, handler = handlers[index]
+        if any(
+            owner == plugin_id and identity is not dispatch_identity
+            for owner, identity in _executing_plugins.get()
+        ):
+            return await step(index + 1, data)
         context = host.context(plugin_id, session, runtime)
         called = False
+        next_result = None
 
         async def next_handler(value=None):
-            nonlocal called
+            nonlocal called, next_result
             if called:
                 raise ValueError("Middleware next() may only be called once")
             called = True
-            return await step(index + 1, data if value is None else value)
+            changed_data = data if value is None else value
+            if event == "editor.change" and changed_data.get("content") != data.get(
+                "content"
+            ):
+                context.require("editor.write")
+            result = await step(index + 1, changed_data)
+            next_result = copy.deepcopy(result)
+            return result
 
-        async with asyncio.timeout(30):
-            return await handler(context, copy.deepcopy(data), next_handler)
+        token = _executing_plugins.set(
+            (*_executing_plugins.get(), (plugin_id, dispatch_identity))
+        )
+        try:
+            async with asyncio.timeout(30):
+                result = await handler(context, copy.deepcopy(data), next_handler)
+            baseline = next_result if called else data
+            if (
+                event == "editor.change"
+                and isinstance(result, dict)
+                and result.get("content") != (baseline or {}).get("content")
+            ):
+                context.require("editor.write")
+            return result
+        except Exception as error:
+            host._log(plugin_id, "hook", f"{event}: {error}", "error")
+            raise
+        finally:
+            _executing_plugins.reset(token)
 
     return await step(0, payload)
 
@@ -154,10 +201,23 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
 
     data = [
         {
-            "role": {"human": "user", "ai": "assistant"}.get(m.type, m.type),
+            "role": {
+                "human": "user",
+                "ai": "assistant",
+                "AIMessageChunk": "assistant",
+                "HumanMessageChunk": "user",
+                "SystemMessageChunk": "system",
+                "ToolMessageChunk": "tool",
+            }.get(m.type, m.type),
             "content": m.content,
-            **({"tool_call_id": m.tool_call_id} if m.type == "tool" else {}),
-            **({"tool_calls": m.tool_calls} if m.type == "ai" and m.tool_calls else {}),
+            "metadata": dict(m.response_metadata.get("openfic_context", {})),
+            "additional_kwargs": dict(m.additional_kwargs),
+            "response_metadata": dict(m.response_metadata),
+            **({"name": m.name} if m.name else {}),
+            **({"id": m.id} if m.id else {}),
+            **({"tool_call_id": m.tool_call_id} if hasattr(m, "tool_call_id") else {}),
+            **({"tool_calls": m.tool_calls} if getattr(m, "tool_calls", None) else {}),
+            **({"usage_metadata": m.usage_metadata} if getattr(m, "usage_metadata", None) else {}),
         }
         for m in messages
     ]
@@ -169,7 +229,11 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
     }
     base = await dispatch("context.build", base, session, host=host, runtime=runtime)
     sections = [
-        {"id": f"system-{i}", "text": m["content"], "scope": "system"}
+        {
+            "id": f"{(m.get('metadata') or {}).get('part', 'system')}-{i}",
+            "text": m["content"],
+            "scope": "system",
+        }
         for i, m in enumerate(base["messages"])
         if m["role"] == "system"
     ]
@@ -189,9 +253,23 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
             host=host,
             runtime=runtime,
         )
-        if result.get("text") is not None:
-            sections.append({"role": "system", "content": result["text"]})
-    final = [*sections, *(m for m in base["messages"] if m["role"] != "system")]
+        sections.append({"role": "system", "content": result.get("text")})
+    final = []
+    pending_sections = list(sections)
+    system_indexes = [
+        i for i, m in enumerate(base["messages"]) if m["role"] == "system"
+    ]
+    for index, message in enumerate(base["messages"]):
+        if message["role"] == "system":
+            if pending_sections:
+                final.append(pending_sections.pop(0))
+            if index == system_indexes[-1]:
+                final.extend(pending_sections)
+                pending_sections.clear()
+        else:
+            final.append(message)
+    if pending_sections:
+        final = [*pending_sections, *final]
     result = await dispatch(
         "prompt.context",
         {**base, "messages": final, "blocks": []},
@@ -204,8 +282,11 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
         {"role": "system", "content": b if isinstance(b, str) else b.get("text", "")}
         for b in result.get("blocks", [])
     )
+    final = [message for message in final if message.get("content") is not None]
     bounded_json(final, 8 * 1024 * 1024)
-    return convert_to_messages(final)
+    return convert_to_messages(
+        [{k: v for k, v in message.items() if k != "metadata"} for message in final]
+    )
 
 
 def plugin_tools(state: dict, names=None):
@@ -236,20 +317,23 @@ def plugin_tools(state: dict, names=None):
 
 async def selected_graph(state, config, model):
     from app.plugins.host import active_host
-    from app.plugins.services import PluginStorage
 
     host = active_host()
     if host is None:
         return None
+    import json
+
+    path = host.root / ".workflows.json"
+    selection = (json.loads(path.read_text()) if path.exists() else {}).get(
+        state.get("project_id")
+    )
     for plugin in host.plugins.values():
-        if (
-            not plugin.registration
-            or not plugin.registration.graphs
-            or "storage" not in plugin.manifest.capabilities
-        ):
+        if not plugin.registration or not plugin.registration.graphs:
             continue
-        provider = await PluginStorage(host, plugin).get(
-            f"workflow:{state.get('project_id')}"
+        provider = (
+            selection.removeprefix(plugin.manifest.id + "/")
+            if selection and selection.startswith(plugin.manifest.id + "/")
+            else None
         )
         if provider:
             session = (config or {}).get("configurable", {}).get("db_session")

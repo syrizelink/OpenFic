@@ -731,6 +731,9 @@ def create_app() -> FastAPI:
     app.state.tunnel_frontend_available = (FRONTEND_DIST_DIR / "index.html").is_file()
     app.state.plugin_host = PluginHost(BACKEND_DATA_DIR / "plugins")
     app.state.plugin_host.application = app
+    from app.plugins.middleware import PluginEventsMiddleware
+
+    app.add_middleware(PluginEventsMiddleware, api_prefix=app_settings.api_v1_prefix)
     app.state.catalog_icon_proxy_service = model_icons.CatalogIconProxyService()
 
     install_telemetry_sink()
@@ -819,6 +822,8 @@ def create_app() -> FastAPI:
 
     # 注册全局异常处理器
     register_exception_handlers(app)
+    from app.plugins.host import PluginError
+    app.add_exception_handler(PluginError, plugins.plugin_exception_handler)
 
     return app
 

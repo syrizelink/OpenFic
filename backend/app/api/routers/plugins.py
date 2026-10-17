@@ -6,10 +6,11 @@ import mimetypes
 import zipfile
 from pathlib import Path
 from typing import Annotated, Any
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, Response, HTMLResponse
-from pydantic import BaseModel, Field, field_validator
+from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.plugins.host import PluginError, PluginHost
@@ -31,7 +32,7 @@ ASSET_HEADERS = {
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
 }
 
 
@@ -40,6 +41,15 @@ def host(request: Request) -> PluginHost:
 
 
 Host = Annotated[PluginHost, Depends(host)]
+
+
+async def plugin_exception_handler(request: Request, error: Exception):
+    # The access log already records status/path. Do not dump plugin command
+    # frames, which may contain OAuth tokens or other private settings.
+    assert isinstance(error, PluginError)
+    return JSONResponse(
+        status_code=error.status_code, content={"detail": str(error.detail)}
+    )
 
 
 @oauth_router.get("/callback", response_class=HTMLResponse)
@@ -62,6 +72,35 @@ class EnableRequest(BaseModel):
     enabled: bool
 
 
+class EditorEventRequest(BaseModel):
+    event: Literal["editor.change"]
+    data: dict[str, Any]
+
+
+@router.post("/events/dispatch")
+async def dispatch_editor_event(
+    payload: EditorEventRequest,
+    manager: Host,
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
+    from app.plugins.runtime import dispatch
+    from app.plugins.services import bounded_json
+
+    value = bounded_json(payload.data)
+    try:
+        return {
+            "data": await dispatch(
+                payload.event,
+                value,
+                session,
+                host=manager,
+                runtime={"project_id": value.get("projectId")},
+            )
+        }
+    except Exception as error:
+        raise PluginError(str(error), 422) from error
+
+
 class ConfigurationRequest(BaseModel):
     settings: dict[str, Any]
 
@@ -72,9 +111,16 @@ class CallRequest(BaseModel):
 
     @field_validator("params")
     @classmethod
-    def bounded_params(cls, value: dict[str, Any]) -> dict[str, Any]:
-        if len(json.dumps(value, ensure_ascii=False).encode("utf-8")) > 64_000:
-            raise ValueError("RPC parameters exceed 64 KB")
+    def bounded_params(
+        cls, value: dict[str, Any], info: ValidationInfo
+    ) -> dict[str, Any]:
+        limit = (
+            4 * 1024 * 1024
+            if info.data.get("method", "").startswith("sdk.")
+            else 64_000
+        )
+        if len(json.dumps(value, ensure_ascii=False).encode("utf-8")) > limit:
+            raise ValueError(f"RPC parameters exceed {limit} bytes")
         return value
 
 
@@ -111,6 +157,11 @@ async def sdk_catalogue():
     }
 
 
+@router.get("/events")
+async def plugin_events(manager: Host, after: int | None = None):
+    return manager.events(manager._event_sequence if after is None else max(0, after))
+
+
 @router.post("", status_code=201)
 async def install_plugin(
     manager: Host,
@@ -126,6 +177,13 @@ async def frontend_sdk():
         Path(__file__).parents[2] / "plugins" / "frontend-sdk.js",
         media_type="text/javascript",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/sdk.d.ts")
+async def frontend_types():
+    return FileResponse(
+        Path(__file__).parents[2] / "plugins" / "sdk.d.ts", media_type="text/plain"
     )
 
 

@@ -142,6 +142,21 @@ export function PluginManager({ onOpenView }: { onOpenView?: () => void } = {}) 
           <p className="plugin-muted">
             {t("plugins.capabilities")}: {plugin.capabilities.join(", ") || t("plugins.none")}
           </p>
+          {plugin.format === "claude-mod" && (
+            <details className="plugin-compatibility">
+              <summary>Claude Mods compatibility</summary>
+              <p>{plugin.compatibility?.supported?.join(", ")}</p>
+              {plugin.compatibility?.warnings?.map((warning, index) => (
+                <p key={index}>{warning}</p>
+              ))}
+            </details>
+          )}
+          {!!plugin.tools?.length && (
+            <p className="plugin-muted">Agent tools: {plugin.tools.join(", ")}</p>
+          )}
+          {!!plugin.graphs?.length && (
+            <p className="plugin-muted">Graphs: {plugin.graphs.join(", ")}</p>
+          )}
           {plugin.error && (
             <p
               role="alert"
@@ -209,21 +224,23 @@ export function PluginManager({ onOpenView }: { onOpenView?: () => void } = {}) 
               {t("plugins.uninstall")}
             </Button>
             {plugin.status === "enabled" &&
-              plugin.views.map((view) => (
-                <Button
-                  asChild
-                  key={view.id}
-                  size="1"
-                  variant="outline"
-                >
-                  <Link
-                    to={`/extensions/${plugin.id}/${view.id}`}
-                    onClick={onOpenView}
+              plugin.views
+                .filter((view) => view.slot === "sidebar.extensions")
+                .map((view) => (
+                  <Button
+                    asChild
+                    key={view.id}
+                    size="1"
+                    variant="outline"
                   >
-                    {view.title}
-                  </Link>
-                </Button>
-              ))}
+                    <Link
+                      to={`/extensions/${plugin.id}/${view.id}`}
+                      onClick={onOpenView}
+                    >
+                      {view.title}
+                    </Link>
+                  </Button>
+                ))}
           </Flex>
           {plugin.settings.length > 0 && (
             <PluginConfiguration

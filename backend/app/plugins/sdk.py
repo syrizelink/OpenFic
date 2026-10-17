@@ -83,10 +83,11 @@ class ProjectData:
 @dataclass(frozen=True)
 class PluginContext:
     plugin_id: str
-    settings: dict[str, Any]
+    settings: dict[str, Any] = field(repr=False)
     data: ProjectData
     host: Any = field(default=None, repr=False)
-    runtime: dict[str, Any] = field(default_factory=dict)
+    runtime: dict[str, Any] = field(default_factory=dict, repr=False)
+    _private_runtime: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def plugin(self):
@@ -157,6 +158,12 @@ class PluginContext:
         from app.plugins.oauth import PluginOAuth
 
         return PluginOAuth(self)
+
+    @property
+    def agent(self):
+        from app.plugins.agent import PluginAgent
+
+        return PluginAgent(self)
 
     def emit(self, event: str, data: dict):
         self.require("events")

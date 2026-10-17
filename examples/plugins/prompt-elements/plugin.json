@@ -1,0 +1,41 @@
+{
+  "id": "prompt-elements",
+  "name": "动态提示词元素",
+  "version": "1.0.0",
+  "api_version": 1,
+  "description": "按上下文、用户消息、系统片段和规则动态开关提示词元素，并支持注入、替换、移除和预览。",
+  "author": "OpenFic",
+  "backend": "backend/main.py",
+  "capabilities": [
+    "projects.read",
+    "storage",
+    "events",
+    "ui",
+    "agent.hooks",
+    "editor.read",
+    "editor.write"
+  ],
+  "views": [
+    {
+      "id": "rules",
+      "title": "动态提示词元素",
+      "entry": "frontend/index.html",
+      "slot": "sidebar.extensions"
+    },
+    {
+      "id": "switches",
+      "title": "提示词开关",
+      "entry": "frontend/switches.html",
+      "slot": "assistant.above-prompt",
+      "height": 170
+    },
+    {
+      "id": "editor",
+      "title": "提示词与编辑器",
+      "entry": "frontend/editor.html",
+      "slot": "editor.toolbar",
+      "height": 220
+    }
+  ],
+  "settings": []
+}

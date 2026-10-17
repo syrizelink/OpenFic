@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Outlet } from "react-router";
 
 import type { AssistantSidebarHandle } from "@/features/assistant";
+import { PluginRuntime } from "@/features/plugins/plugin-runtime";
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
 import type { ThemeMode, ThemeSettings } from "@/lib/theme";
@@ -196,6 +197,7 @@ export function AppLayout({
 
   return (
     <AppShellContext.Provider value={contextValue}>
+      <PluginRuntime />
       <div className="app-layout-root">
         <div className="app-layout-body">
           <AppSidebar

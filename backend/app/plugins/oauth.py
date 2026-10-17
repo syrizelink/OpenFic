@@ -24,6 +24,16 @@ class PluginOAuth:
         context = self.context
         context.require("network")
         context.require("secrets")
+        if set(extra or {}) & {
+            "state",
+            "redirect_uri",
+            "client_id",
+            "code_challenge",
+            "code_challenge_method",
+            "response_type",
+            "scope",
+        }:
+            raise ValueError("OAuth extra parameters cannot override protocol fields")
         base = context.runtime.get("backend_url")
         if not base:
             raise ValueError("OAuth must be started from a plugin UI request")
@@ -82,6 +92,7 @@ async def finish_oauth(host, state: str, code: str | None, error: str | None):
     if not flow or flow["expires"] < time.monotonic():
         raise ValueError("OAuth state expired, invalid, or already used")
     plugin = host.get(flow["plugin_id"])
+    registration = plugin.registration
     if not plugin.registration:
         raise ValueError("Plugin is no longer enabled")
     if error:
@@ -98,7 +109,12 @@ async def finish_oauth(host, state: str, code: str | None, error: str | None):
     }
     if flow["client_secret"]:
         form["client_secret"] = flow["client_secret"]
-    response = await context.http.request("POST", flow["token_url"], form=form)
+    try:
+        response = await context.http.request("POST", flow["token_url"], form=form)
+    except Exception:
+        raise ValueError(
+            "OAuth token exchange could not reach the configured provider"
+        ) from None
     if (
         not response["ok"]
         or not isinstance(response["json"], dict)
@@ -106,6 +122,11 @@ async def finish_oauth(host, state: str, code: str | None, error: str | None):
     ):
         raise ValueError("OAuth token exchange failed")
     tokens = response["json"]
+    if (
+        host.get(flow["plugin_id"]) is not plugin
+        or plugin.registration is not registration
+    ):
+        raise ValueError("Plugin changed while OAuth was completing")
     tokens["obtained_at"] = time.time()
     await context.secrets.set("oauth.tokens", tokens)
     host.emit("oauth.connected", {"pluginId": plugin.manifest.id}, plugin.manifest.id)

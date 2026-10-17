@@ -94,28 +94,13 @@ export function PluginFrame({
       );
     const localEvent = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail.event === "data.changed") void queryClient.invalidateQueries();
+      if (detail.event.startsWith("editor.") && !capabilityKey.split(",").includes("editor.read"))
+        return;
+      if (!detail.event.startsWith("editor.") && !capabilityKey.split(",").includes("events"))
+        return;
       reply({ type: "event", ...detail });
     };
     window.addEventListener("openfic:plugin-event", localEvent);
-    let cursor = 0;
-    const poll = capabilityKey.split(",").includes("events")
-      ? window.setInterval(() => {
-          void apiClient
-            .post(`/plugins/${plugin.id}/rpc`, {
-              method: "sdk.events.poll",
-              params: { after: cursor },
-            })
-            .then(({ data }) => {
-              cursor = data.result.cursor;
-              for (const event of data.result.events) {
-                reply({ type: "event", event: event.event, data: event.data });
-                if (event.event === "data.changed") void queryClient.invalidateQueries();
-              }
-            })
-            .catch(() => {});
-        }, 2000)
-      : undefined;
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== "null") return;
       const message = event.data;
@@ -148,7 +133,10 @@ export function PluginFrame({
           !message.params ||
           typeof message.params !== "object" ||
           Array.isArray(message.params) ||
-          JSON.stringify(message.params).length > 64000 ||
+          JSON.stringify(message.params).length >
+            (message.method.startsWith("sdk.") || message.method.startsWith("host.")
+              ? 4 * 1024 * 1024
+              : 64000) ||
           inFlight >= 8
         ) {
           reply({
@@ -187,7 +175,6 @@ export function PluginFrame({
       window.clearTimeout(timer);
       window.removeEventListener("message", receive);
       window.removeEventListener("openfic:plugin-event", localEvent);
-      if (poll) window.clearInterval(poll);
     };
   }, [
     channel,

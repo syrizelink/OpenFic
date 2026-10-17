@@ -64,6 +64,7 @@ CAPABILITIES = frozenset(
         "agent.models",
         "agent.invoke",
         "files",
+        "timers",
     ]
 )
 MAX_PACKAGE_BYTES = 20 * 1024 * 1024
@@ -124,6 +125,14 @@ class Setting(Contract):
         if self.type == "number":
             if type(value) not in (int, float):
                 raise ValueError(f"Invalid setting type: {self.key}")
+            import math
+
+            if (
+                not math.isfinite(value)
+                or (self.minimum is not None and value < self.minimum)
+                or (self.maximum is not None and value > self.maximum)
+            ):
+                raise ValueError(f"Setting outside finite bounds: {self.key}")
             return value
         expected = {"string": str, "boolean": bool, "integer": int}[self.type]
         if type(value) is not expected:

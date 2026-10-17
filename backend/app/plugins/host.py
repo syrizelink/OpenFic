@@ -60,6 +60,7 @@ class Registration:
     hooks: dict[str, list] = field(default_factory=dict)
     graphs: dict[str, Any] = field(default_factory=dict)
     disposables: list[Any] = field(default_factory=list)
+    intervals: list[tuple[float, Any]] = field(default_factory=list)
 
     def register_command(self, name: str, handler: Handler) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_.-]{0,79}", name) or not callable(handler):
@@ -83,6 +84,21 @@ class Registration:
             raise ValueError(
                 "Tools require an object JSON schema and valid access level"
             )
+        import jsonschema
+
+        jsonschema.Draft202012Validator.check_schema(schema)
+
+        def references(value):
+            if isinstance(value, dict):
+                if "$ref" in value and not value["$ref"].startswith("#"):
+                    raise ValueError("Tool schemas cannot fetch external references")
+                for child in value.values():
+                    references(child)
+            elif isinstance(value, list):
+                for child in value:
+                    references(child)
+
+        references(schema)
         self.tools[name] = {
             "description": description,
             "schema": schema,
@@ -104,6 +120,11 @@ class Registration:
 
     def on_dispose(self, callback):
         self.disposables.append(callback)
+
+    def register_interval(self, seconds: float, handler):
+        if not 5 <= seconds <= 86400 or not callable(handler):
+            raise ValueError("Intervals must be between 5 seconds and 24 hours")
+        self.intervals.append((seconds, handler))
 
 
 @dataclass
@@ -332,18 +353,51 @@ class PluginHost:
                 (registration.tools, "agent.tools"),
                 (registration.hooks, "agent.hooks"),
                 (registration.graphs, "agent.graph"),
+                (registration.intervals, "timers"),
+                (registration.hooks.get("editor.change"), "editor.read"),
             ]
             for entries, capability in requirements:
                 if entries and capability not in manifest.capabilities:
                     raise PermissionError(f"Plugin has not declared {capability}")
             plugin.module_name = module_name if manifest.backend else None
             plugin.registration = registration
+            for seconds, handler in registration.intervals:
+                task = asyncio.create_task(self._run_interval(plugin, seconds, handler))
+
+                async def dispose(task=task):
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+
+                registration.on_dispose(dispose)
             plugin.error = None
             self._log(manifest.id, "enable", "Plugin activated")
         except BaseException:
+            if plugin.registration is None:
+                plugin.registration = registration
             await self._deactivate(plugin)
             sys.modules.pop(module_name, None)
             raise
+
+    async def _run_interval(self, plugin, seconds, handler):
+        from app.storage.database import create_session
+
+        while True:
+            await asyncio.sleep(seconds)
+            async with self._lock:
+                if not plugin.registration:
+                    return
+                try:
+                    async with await create_session() as session:
+                        async with asyncio.timeout(60):
+                            await _await_result(
+                                handler(self.context(plugin.manifest.id, session), {})
+                            )
+                        await session.commit()
+                except Exception as error:
+                    self._log(plugin.manifest.id, "timer", str(error), "error")
 
     async def _deactivate(self, plugin: Installed):
         self.oauth_flows = {
@@ -587,12 +641,21 @@ class PluginHost:
 
     def context(self, plugin_id, session, runtime=None):
         plugin = self.get(plugin_id)
+        private = dict(runtime or {})
+        public = dict(private)
+        if isinstance(public.get("model_config"), dict):
+            public["model_config"] = {
+                key: value
+                for key, value in public["model_config"].items()
+                if key not in {"api_key", "custom_headers"}
+            }
         return PluginContext(
             plugin_id,
             dict(plugin.settings),
             ProjectData(session, plugin.manifest.capabilities),
             self,
-            dict(runtime or {}),
+            public,
+            private,
         )
 
     def emit(self, event: str, data: dict, plugin_id=None):

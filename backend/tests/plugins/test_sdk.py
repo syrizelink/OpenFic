@@ -96,6 +96,9 @@ async def test_business_crud_catalogue_validation_and_capabilities(plugin_api, s
     catalogue = BusinessAPI.catalogue()
     assert len(catalogue["operations"]) > 180
     assert "/chapters/{chapter_id}" in catalogue["openapi"]["paths"]
+    assert any(
+        operation["path"] == "/agent/sessions" for operation in catalogue["operations"]
+    )
     assert any(event["event"] == "data.changed" for event in host.events()["events"])
 
 
@@ -271,3 +274,75 @@ export function register(on: On, options: {suffix:string}) {
     assert (await dispatch("prompt.submit", {"text": "User"}, session, host=host))[
         "text"
     ] == "User"
+
+
+async def test_hook_order_reentry_and_read_only_editor_observer(plugin_api, session):
+    host, _, _ = plugin_api
+    observer = """
+async def observe(ctx,event,next): return await next(event)
+def register(host): host.register_hook('editor.change',observe,priority=-10)
+"""
+    writer = """
+async def first(ctx,event,next):
+    event['content'] += ' first'
+    return await next(event)
+async def second(ctx,event,next):
+    event['content'] += ' second'
+    return await next(event)
+def register(host):
+    host.register_hook('editor.change',first)
+    host.register_hook('editor.change',second)
+"""
+    await host.install(
+        bundle(
+            {"id": "observer", "capabilities": ["agent.hooks", "editor.read"]}, observer
+        )
+    )
+    await host.install(
+        bundle(
+            {
+                "id": "writer",
+                "capabilities": ["agent.hooks", "editor.read", "editor.write"],
+            },
+            writer,
+        )
+    )
+    await host.set_enabled("observer", True)
+    await host.set_enabled("writer", True)
+    result = await dispatch(
+        "editor.change", {"id": "chapter", "content": "text"}, session, host=host
+    )
+    assert result["content"] == "text first second"
+
+
+async def test_editor_mutation_requires_write_capability(plugin_api, session):
+    host, _, _ = plugin_api
+    source = """
+async def edit(ctx,event,next): return await next({**event,'content':'overwrite'})
+def register(host): host.register_hook('editor.change',edit)
+"""
+    await host.install(bundle({"capabilities": ["agent.hooks", "editor.read"]}, source))
+    await host.set_enabled("sdk-test", True)
+    with pytest.raises(PermissionError, match="editor.write"):
+        await dispatch("editor.change", {"content": "original"}, session, host=host)
+
+
+async def test_mod_cpu_limit_and_unsupported_node_import(plugin_api, session):
+    host, _, _ = plugin_api
+    await host.install(
+        mod_bundle(
+            "export function register(on) {on('command.run',async()=>{while(true){}})}"
+        )
+    )
+    await host.set_enabled("demo-mod", True)
+    with pytest.raises(PluginError, match="interrupted"):
+        await host.call("demo-mod", "mod.command", {"command": "loop"}, session)
+    await host.uninstall("demo-mod")
+    await host.install(
+        mod_bundle(
+            "import fs from 'node:fs'; export function register(on){fs.readFileSync('/etc/passwd')}"
+        )
+    )
+    with pytest.raises(PluginError, match="Unsupported module"):
+        await host.set_enabled("demo-mod", True)
+    assert host.describe(host.get("demo-mod"))["status"] == "error"

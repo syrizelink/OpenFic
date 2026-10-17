@@ -170,6 +170,13 @@ class ModRuntime:
         )
         base = host.root / plugin.manifest.id
         for path in sorted(base.rglob("*")):
+            if path.suffix == ".json" and path.is_file():
+                value = json.loads(path.read_text())
+                name = path.relative_to(base).as_posix()
+                self.js.eval(
+                    f"__modules[{json.dumps(name)}]=function(module){{module.exports={json.dumps(value)}}}"
+                )
+                continue
             if (
                 path.suffix
                 not in {".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"}
@@ -201,6 +208,8 @@ class ModRuntime:
             deadline = time.monotonic() + 25
             while time.monotonic() < deadline:
                 for _ in range(100):
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("Claude Mod hook exceeded 25 seconds")
                     if not self.js.execute_pending_job():
                         break
                 queue = json.loads(self.js.eval("__drain()"))
@@ -286,7 +295,7 @@ async def activate_mod(host, plugin, registration):
         "session.start", {"sessionId": None, "projectId": None}, context
     )
     hooks = json.loads(runtime.js.eval("JSON.stringify(__hooks.map(h=>h.event))"))
-    supported = sorted(set(hooks) & EVENTS)
+    supported = sorted(EVENTS if "*" in hooks else set(hooks) & EVENTS)
     unsupported = sorted(
         set(hooks) - EVENTS - {"*", "command.run", "command.describe", "ui.resolve"}
     )
@@ -331,6 +340,10 @@ async def activate_mod(host, plugin, registration):
         return await runtime.invoke("command.run", params, context)
 
     async def action(context, params):
+        if not runtime.js.eval(f"Boolean(__actions[{json.dumps(params.get('id'))}])"):
+            return await runtime.invoke(
+                params.get("event", "ui.press"), params, context
+            )
         return await runtime.invoke("action", params, context)
 
     registration.register_command("mod.command", command)

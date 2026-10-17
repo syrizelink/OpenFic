@@ -281,6 +281,20 @@ class AgentTool(BaseTool):
                     raise PermissionError(str(event["deny"]))
                 if event.get("tool") != self.name:
                     raise ValueError("Tool middleware cannot change the tool identity")
+                if event["input"] != validated_args:
+                    rewritten_args = self._parse_input(event["input"], self.tool_call_id)
+                    if not isinstance(rewritten_args, dict):
+                        raise ValueError("Rewritten tool arguments must be an object")
+                    rewritten_context = HookContext(tool_name=self.name, access_level=self.access_level,
+                        args=rewritten_args,state=self.runtime_state,config=runtime_config,tool_call_id=self.tool_call_id)
+                    for hook in self._pre_hooks:
+                        checked = await hook(rewritten_context)
+                        if not checked.proceed:
+                            from langgraph.types import interrupt
+                            answer = interrupt(await self._finalize_interrupt_payload(checked.interrupt_payload,args=rewritten_args))
+                            if isinstance(answer,dict) and answer.get("approved") is False:
+                                return {"result":json.dumps({"success":False,"status":"approval_denied","message":"Rewritten tool call was denied"})}
+                    event["input"] = rewritten_args
                 return {"result": await cast(Callable[..., Awaitable[str]], execute)(**event["input"])}
 
             plugin_result = await dispatch(

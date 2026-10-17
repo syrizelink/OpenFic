@@ -536,6 +536,15 @@ class SubagentRunner:
                 inherited_config=model_config,
                 configured_reasoning_effort=definition.reasoning_effort,
             )
+            from app.plugins.runtime import dispatch as plugin_dispatch
+            event = await plugin_dispatch("agent.spawn", {"agent":row.agent_key,"agentId":row.child_thread_id,
+                                                         "projectId":self.project_id}, session,
+                                          runtime=runtime_state)
+            if event.get("deny"):
+                raise PermissionError(str(event["deny"]))
+            if event.get("model"):
+                from app.api.routers.agent_runtime import _resolve_model_config
+                model_config = await _resolve_model_config(session,event["model"])
         finally:
             await _close_session(session)
         runtime_state["model_config"] = model_config

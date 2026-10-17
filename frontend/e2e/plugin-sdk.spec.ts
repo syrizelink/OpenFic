@@ -1,0 +1,395 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { expect, test, type Page } from "@playwright/test";
+
+const backend = process.env.OPENFIC_E2E_BACKEND ?? "http://127.0.0.1:8011";
+const api = `${backend}/api/v1`;
+const root = fileURLToPath(new URL("../../", import.meta.url));
+const examples = ["google-drive-sync", "handoff-workflow", "prompt-elements"];
+test.use({ video: "off" });
+test.beforeEach(async ({ page }) => {
+  await expect
+    .poll(
+      async () => {
+        try {
+          const response = await page.request.get(`${backend}/_e2e/drive`);
+          return response.ok() && response.headers()["content-type"]?.includes("application/json");
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 30000 },
+    )
+    .toBeTruthy();
+});
+
+async function rpc(page: Page, id: string, method: string, params: Record<string, unknown> = {}) {
+  const response = await page.request.post(`${api}/plugins/${id}/rpc`, {
+    data: { method, params },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return (await response.json()).result;
+}
+async function openPlugin(page: Page, id: string, view: string, projectId: string) {
+  await page.goto(`/extensions/${id}/${view}?projectId=${projectId}`);
+  const frame = page.frameLocator(".plugin-frame").first();
+  await expect(frame.locator("main")).toBeVisible();
+  return frame;
+}
+
+test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt injection and editor", async ({
+  page,
+}) => {
+  if (process.env.OPENFIC_E2E_PASSWORD) {
+    expect(
+      (
+        await page.request.post(`${api}/auth/login`, {
+          data: { password: process.env.OPENFIC_E2E_PASSWORD },
+        })
+      ).ok(),
+    ).toBeTruthy();
+  }
+  // This test requires the dedicated tests.plugins.e2e_app; never point at user data.
+  expect((await page.request.get(`${backend}/_e2e/drive`)).ok()).toBeTruthy();
+  const created = await page.request.post(`${api}/projects`, {
+    multipart: { title: "SDK 示例端到端验证" },
+  });
+  expect(created.status()).toBe(201);
+  const project = await created.json();
+  let providerId: string | undefined;
+  let modelId: string | undefined;
+  try {
+    const volumes = await (await page.request.get(`${api}/projects/${project.id}/volumes`)).json();
+    const chapter = await (
+      await page.request.post(`${api}/projects/${project.id}/chapters`, {
+        data: {
+          title: "验证章节",
+          volume_id: volumes[0].id,
+          content: "初始章节内容。",
+          word_count: 7,
+        },
+      })
+    ).json();
+    const provider = await page.request.post(`${api}/model-providers`, {
+      multipart: {
+        name: "SDK test provider",
+        provider_type: "openai_compatible",
+        url: `${backend}/_e2e/provider/v1`,
+        api_key: "e2e-dummy-key",
+      },
+    });
+    expect(provider.ok(), await provider.text()).toBeTruthy();
+    providerId = (await provider.json()).id;
+    const model = await page.request.post(`${api}/models`, {
+      data: {
+        name: "SDK Test Model",
+        model_id: "sdk-test-model",
+        provider_id: providerId,
+        context_length: 32000,
+      },
+    });
+    expect(model.ok(), await model.text()).toBeTruthy();
+    modelId = (await model.json()).id;
+    expect(
+      (
+        await page.request.patch(`${api}/settings`, {
+          data: { default_model: modelId, light_model: modelId, agent_bypass_tool_approval: true },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto("/extensions");
+    await page.getByRole("checkbox").check();
+    for (const id of examples) {
+      execFileSync("python3", [
+        `${root}examples/plugins/build_package.py`,
+        `${root}examples/plugins/${id}`,
+        `${root}examples/plugins/dist/${id}-1.0.0.zip`,
+      ]);
+      await page
+        .locator('input[type="file"]')
+        .setInputFiles(`${root}examples/plugins/dist/${id}-1.0.0.zip`);
+      const card = page.locator(`[data-plugin-id="${id}"]`);
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: "启用", exact: true }).click();
+      await expect(card.getByText("已启用", { exact: true })).toBeVisible();
+    }
+    await page.request.put(`${api}/plugins/google-drive-sync/settings`, {
+      data: { settings: { clientId: "test-client", clientSecret: "test-secret", folderId: "" } },
+    });
+    const oauth = await rpc(page, "google-drive-sync", "drive.connect");
+    const state = new URL(oauth.url).searchParams.get("state");
+    expect(
+      (
+        await page.request.get(
+          `${backend}/plugin-oauth/callback?state=${state}&code=test-auth-code`,
+        )
+      ).ok(),
+    ).toBeTruthy();
+    expect(
+      (
+        await page.request.get(
+          `${backend}/plugin-oauth/callback?state=${state}&code=test-auth-code`,
+        )
+      ).status(),
+    ).toBe(400);
+    const drive = await openPlugin(page, "google-drive-sync", "sync", project.id);
+    await expect(drive.locator("#connection")).toHaveText("已连接");
+    await drive.getByRole("button", { name: "立即同步", exact: true }).click();
+    await expect(drive.locator("#status")).toHaveText("同步完成");
+    await expect(drive.locator("#report")).toContainText("上传 1");
+    let remote = (await (await page.request.get(`${backend}/_e2e/drive`)).json()).files.find(
+      (f: { payload: { chapterId: string } }) => f.payload.chapterId === chapter.id,
+    );
+    expect(remote.payload.content).toBe("初始章节内容。");
+    await page.request.patch(`${api}/chapters/${chapter.id}`, { data: { content: "本地编辑。" } });
+    await page.request.post(`${backend}/_e2e/drive/change`, {
+      data: { id: remote.id, content: "云端编辑。" },
+    });
+    await drive.getByRole("button", { name: "立即同步", exact: true }).click();
+    await expect(drive.locator("#conflicts")).toContainText("本地与云端均有修改");
+    page.once("dialog", (d) => void d.accept());
+    await drive.getByRole("button", { name: "使用云端版本" }).click();
+    await expect(drive.locator("#report")).toContainText("下载 1");
+    expect((await (await page.request.get(`${api}/chapters/${chapter.id}`)).json()).content).toBe(
+      "云端编辑。",
+    );
+
+    const handoff = await openPlugin(page, "handoff-workflow", "workflow", project.id);
+    await handoff.locator("#model").selectOption(modelId!);
+    await handoff.getByRole("button", { name: "运行工作流", exact: true }).click();
+    await expect(handoff.locator("#status")).toHaveText("工作流完成", { timeout: 60000 });
+    await expect(handoff.locator("#trace")).toContainText("planner → writer");
+    await expect(handoff.locator("#trace")).toContainText("writer → reviewer");
+    await expect(handoff.locator("#output")).toContainText("真实模型路径审核通过");
+    await handoff.getByRole("button", { name: "保存为项目笔记" }).click();
+    await expect(handoff.locator("#status")).toHaveText("已保存为项目笔记");
+    await handoff.getByRole("button", { name: "为此项目启用 Handoff" }).click();
+    await expect(handoff.locator("#status")).toContainText("已为此项目启用");
+    const handoffRequestStart = (
+      await (await page.request.get(`${backend}/_e2e/model-requests`)).json()
+    ).length;
+    const session = await page.request.post(`${api}/agent/sessions`, {
+      data: { project_id: project.id, model_id: modelId },
+    });
+    expect(session.ok(), await session.text()).toBeTruthy();
+    const sessionData = await session.json();
+    expect(
+      (
+        await page.request.post(`${api}/agent/sessions/${sessionData.session_id}/message`, {
+          data: { message: "用 handoff 写一个重逢故事。" },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await expect
+      .poll(
+        async () =>
+          (await (await page.request.get(`${api}/agent/sessions/${sessionData.session_id}`)).json())
+            .is_running,
+        { timeout: 60000 },
+      )
+      .toBe(false);
+    const recorded = await (await page.request.get(`${backend}/_e2e/model-requests`)).json();
+    expect(
+      recorded
+        .slice(handoffRequestStart)
+        .some((r: { messages: { content: unknown }[] }) =>
+          r.messages.some((m) => String(m.content).includes("reviewer in a handoff")),
+        ),
+    ).toBeTruthy();
+    const task = await (await page.request.get(`${api}/tasks/${sessionData.task_id}`)).json();
+    expect(
+      task.messages.some(
+        (m: { role: string; content: string }) =>
+          m.role === "assistant" && m.content.includes("真实模型路径审核通过"),
+      ),
+    ).toBeTruthy();
+    const handoffCalls = task.messages.flatMap(
+      (m: { tool_calls?: { id: string }[] }) => m.tool_calls ?? [],
+    );
+    for (const call of handoffCalls)
+      expect(
+        task.messages.some(
+          (m: { role: string; tool_call_id?: string }) =>
+            m.role === "tool" && m.tool_call_id === call.id,
+        ),
+      ).toBeTruthy();
+    await handoff.getByRole("button", { name: "恢复内置工作流" }).click();
+    await expect(handoff.locator("#status")).toHaveText("已恢复内置工作流");
+
+    const prompt = await openPlugin(page, "prompt-elements", "rules", project.id);
+    await prompt.getByRole("button", { name: "预览注入结果" }).click();
+    await expect(prompt.locator("#matched")).toContainText("combat-detection");
+    await expect(prompt.locator("#output")).toContainText("不可靠感知");
+    await prompt.getByRole("button", { name: "保存规则", exact: true }).click();
+    await expect(prompt.locator("#status")).toContainText("规则已保存");
+    const driveRequestStart = (await (await page.request.get(`${backend}/_e2e/drive`)).json())
+      .requests.length;
+    const nativeRequestStart = (
+      await (await page.request.get(`${backend}/_e2e/model-requests`)).json()
+    ).length;
+    const native = await page.request.post(`${api}/agent/sessions`, {
+      data: { project_id: project.id, model_id: modelId },
+    });
+    expect(native.ok(), await native.text()).toBeTruthy();
+    const nativeData = await native.json();
+    await page.request.post(`${api}/agent/sessions/${nativeData.session_id}/message`, {
+      data: { message: "插件同步验证：请手动触发云同步，然后描写梦境中的战斗。" },
+    });
+    await expect
+      .poll(
+        async () =>
+          (await (await page.request.get(`${api}/agent/sessions/${nativeData.session_id}`)).json())
+            .is_running,
+        { timeout: 60000 },
+      )
+      .toBe(false);
+    const stateAfter = await (
+      await page.request.get(`${api}/agent/sessions/${nativeData.session_id}`)
+    ).json();
+    expect(stateAfter.error ?? null).toBeNull();
+    const calls = await (await page.request.get(`${backend}/_e2e/model-requests`)).json();
+    expect(
+      calls
+        .slice(nativeRequestStart)
+        .some((r: { messages: { content: unknown }[] }) =>
+          r.messages.some((m) => String(m.content).includes("空间位置")),
+        ),
+    ).toBeTruthy();
+    expect(
+      (await (await page.request.get(`${backend}/_e2e/drive`)).json()).requests.length,
+    ).toBeGreaterThan(driveRequestStart);
+    remote = (await (await page.request.get(`${backend}/_e2e/drive`)).json()).files.find(
+      (f: { payload: { chapterId: string } }) => f.payload.chapterId === chapter.id,
+    );
+    expect(remote).toBeTruthy();
+    const logs = await (await page.request.get(`${api}/plugins/google-drive-sync/logs`)).json();
+    expect(logs).toBeTruthy();
+
+    await page.goto(`/projects/${project.id}`);
+    await page.getByText("验证章节", { exact: true }).first().click();
+    await expect(page.locator(".tiptap.ProseMirror").first()).toBeVisible();
+    await page
+      .locator('[data-plugin-slot="editor.toolbar"]')
+      .getByRole("button", { name: "提示词与编辑器", exact: true })
+      .click();
+    const editor = page.frameLocator('iframe[title="提示词与编辑器"]');
+    await editor.getByRole("button", { name: "读取编辑器" }).click();
+    await expect(editor.locator("#status")).toContainText("验证章节");
+    await editor.getByLabel("插入文本").fill("插件写入并保存。");
+    await editor.getByRole("button", { name: "插入并保存" }).click();
+    await expect(editor.locator("#status")).toHaveText("已插入并保存");
+    await expect
+      .poll(
+        async () =>
+          (await (await page.request.get(`${api}/chapters/${chapter.id}`)).json()).content,
+      )
+      .toContain("插件写入并保存。");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/extensions/prompt-elements/rules?projectId=${project.id}`);
+    const mobile = page.frameLocator(".plugin-frame").first();
+    await expect(mobile.locator("#preview")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    expect(
+      await mobile
+        .locator("body")
+        .evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+  } finally {
+    for (const id of examples) await page.request.delete(`${api}/plugins/${id}`);
+    await page.request.delete(`${api}/projects/${project.id}`);
+    await page.request.patch(`${api}/settings`, {
+      data: { default_model: "", light_model: "", agent_bypass_tool_approval: false },
+    });
+    if (modelId) await page.request.delete(`${api}/models/${modelId}`);
+    if (providerId) await page.request.delete(`${api}/model-providers/${providerId}`);
+  }
+});
+
+test("original Claude TSX Mod installs, draws UI and executes controls", async ({ page }) => {
+  if (process.env.OPENFIC_E2E_PASSWORD)
+    await page.request.post(`${api}/auth/login`, {
+      data: { password: process.env.OPENFIC_E2E_PASSWORD },
+    });
+  const output = "/tmp/openfic-e2e-claude-mod.zip";
+  execFileSync("python3", [
+    "-c",
+    `import zipfile,json\nwith zipfile.ZipFile('${output}','w') as z:\n z.writestr('.claude-plugin/plugin.json',json.dumps({'name':'claude-counter','version':'1.0.0'}))\n z.writestr('hooks/hooks.json',json.dumps({'modules':['./register.tsx']}))\n z.writestr('hooks/register.tsx',"let count: number=0; export function register(on) { on('session.start',async($,e,next)=>{await $.command.register({name:'hello',description:'Hello'});return next(e)});on('command.run',{command:'hello'},async()=>({text:'Hello from Claude Mod'}));on('ui.render',{component:'Pane'},async($,e,next)=>{const {Box,Text,Button}=$.ui.resolve(e);return <Box><Text>Counter: {count}</Text><Button label='Increment' onPress={()=>{count++}} /></Box>}) }")`,
+  ]);
+  try {
+    await page.goto("/extensions");
+    await page.getByRole("checkbox").check();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "claude-counter.zip",
+      mimeType: "application/zip",
+      buffer: readFileSync(output),
+    });
+    const card = page.locator('[data-plugin-id="claude-counter"]');
+    await expect(card).toBeVisible();
+    await expect(card.getByText("Claude Mods compatibility", { exact: true })).toBeVisible();
+    await card.getByRole("button", { name: "启用", exact: true }).click();
+    await expect(card.getByText("已启用", { exact: true })).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "扩展", exact: true })
+      .getByRole("link", { name: "claude-counter", exact: true })
+      .click();
+    const frame = page.frameLocator('iframe[title="claude-counter"]');
+    await expect(frame.locator("#render")).toContainText("Counter: 0");
+    await frame.getByRole("button", { name: "Increment" }).click();
+    await expect(frame.locator("#render")).toContainText("Counter: 1");
+    await frame.getByRole("button", { name: "/hello", exact: true }).click();
+    await expect(frame.locator("#status")).toHaveText("Hello from Claude Mod");
+  } finally {
+    await page.request.delete(`${api}/plugins/claude-counter`);
+  }
+});
+
+test("React plugin uses the typed SDK package, inline styles, persistence and capability checks", async ({
+  page,
+}) => {
+  if (process.env.OPENFIC_E2E_PASSWORD)
+    await page.request.post(`${api}/auth/login`, {
+      data: { password: process.env.OPENFIC_E2E_PASSWORD },
+    });
+  const directory = "/tmp/openfic-e2e-react-plugin";
+  execFileSync("node", [`${root}frontend/e2e/build-react-plugin.mjs`, `${directory}/frontend`], {
+    cwd: `${root}frontend`,
+  });
+  execFileSync("python3", [
+    "-c",
+    `from pathlib import Path;import json\np=Path('${directory}');p.mkdir(exist_ok=True);(p/'plugin.json').write_text(json.dumps({'id':'react-sdk-test','name':'React SDK fixture','version':'1.0.0','api_version':1,'capabilities':['storage','ui'],'views':[{'id':'react','title':'React SDK fixture','entry':'frontend/index.html','slot':'sidebar.extensions'}]}))`,
+  ]);
+  const zip = "/tmp/openfic-e2e-react-plugin.zip";
+  execFileSync("python3", [`${root}examples/plugins/build_package.py`, directory, zip]);
+  try {
+    const installed = await page.request.post(`${api}/plugins`, {
+      multipart: {
+        trusted: "true",
+        file: { name: "react.zip", mimeType: "application/zip", buffer: readFileSync(zip) },
+      },
+    });
+    expect(installed.ok(), await installed.text()).toBeTruthy();
+    expect(
+      (
+        await page.request.patch(`${api}/plugins/react-sdk-test/enabled`, {
+          data: { enabled: true },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto("/extensions/react-sdk-test/react");
+    const frame = page.frameLocator('iframe[title="React SDK fixture"]');
+    await expect(frame.getByRole("status")).toHaveText("Ready");
+    await expect(frame.locator("main")).toHaveCSS("color", "rgb(12, 34, 56)");
+    await frame.getByRole("button", { name: "Increment", exact: true }).click();
+    await expect(frame.locator("output")).toHaveText("1");
+    await page.reload();
+    await expect(frame.locator("output")).toHaveText("1");
+    await frame.getByRole("button", { name: "Try undeclared access" }).click();
+    await expect(frame.getByRole("status")).toContainText("projects.read");
+  } finally {
+    await page.request.delete(`${api}/plugins/react-sdk-test`);
+  }
+});

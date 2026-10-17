@@ -896,6 +896,9 @@ async def create_agent_session(
         )
         _SESSION_RUNNERS[session_id] = runner
         await session.commit()
+        from app.plugins.runtime import dispatch as plugin_dispatch
+        await plugin_dispatch("session.start", {"sessionId":session_id, "projectId":request.project_id}, session,
+                              runtime={"session_id":session_id,"project_id":request.project_id})
         return AgentSessionCreateResponse(
             session_id=session_id,
             project_id=request.project_id,
@@ -2059,6 +2062,12 @@ async def cancel_agent_session(
             request_task = asyncio.current_task()
             if request_task is not None and request_task.cancelling():
                 raise
+    from app.plugins.runtime import dispatch as plugin_dispatch
+    try:
+        await plugin_dispatch("session.end", {"sessionId":session_id,"projectId":runner.project_id,"reason":"cancel"}, session,
+                              runtime={"session_id":session_id,"project_id":runner.project_id})
+    except Exception as error:
+        logger.warning("Plugin session.end handler failed: {}", error)
     return AgentCancelResponse(
         success=True,
         session_id=session_id,
