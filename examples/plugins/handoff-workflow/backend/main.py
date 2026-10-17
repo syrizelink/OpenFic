@@ -139,7 +139,11 @@ def handoff_graph(ctx, model):
                     "rounds": rounds,
                     "final_output": str(reply.content)
                     if not reply.tool_calls
-                    else (str(reply.content) + "\n[交接已因步骤上限或无效目标停止。]" if target == END else (state.get("final_output") or "")),
+                    else (
+                        str(reply.content) + "\n[交接已因步骤上限或无效目标停止。]"
+                        if target == END
+                        else (state.get("final_output") or "")
+                    ),
                 },
             )
 

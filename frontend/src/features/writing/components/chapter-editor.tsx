@@ -15,7 +15,11 @@ import {
   buildChapterMentionTag,
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
-import { registerPluginEditor, publishLocalEvent } from "@/features/plugins/frontend-host";
+import {
+  registerPluginEditor,
+  publishLocalEvent,
+  hasEditorEventConsumers,
+} from "@/features/plugins/frontend-host";
 import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
@@ -429,8 +433,12 @@ function ChapterEditorContent({
         return read();
       },
     });
-    const changed = () => publishLocalEvent("editor.change", read());
-    const selectionChanged = () => publishLocalEvent("editor.selection", read().selection);
+    const changed = () => {
+      if (hasEditorEventConsumers()) publishLocalEvent("editor.change", read());
+    };
+    const selectionChanged = () => {
+      if (hasEditorEventConsumers()) publishLocalEvent("editor.selection", read().selection);
+    };
     editor.on("update", changed);
     editor.on("selectionUpdate", selectionChanged);
     return () => {

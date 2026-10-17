@@ -43,6 +43,7 @@ export interface OpenFicSDK {
   editor: { read(): Promise<EditorSnapshot>; insert(text: string): Promise<EditorSnapshot>; replaceSelection(text: string): Promise<EditorSnapshot>; setContent(text: string): Promise<EditorSnapshot>; setSelection(from: number, to: number): Promise<EditorSnapshot>; focus(): Promise<void>; save(): Promise<void>; undo(): Promise<void>; redo(): Promise<void> };
   ui: { navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(): Promise<void> };
   assistant: { fill(text: string): Promise<void> }; log(message: string, level?: "info" | "warning" | "error"): Promise<void>;
+  agent: { tools(): Promise<{name:string;description:string;access_level:string;inputSchema:Json}[]>; start(projectId:string,modelId:string,options?:Record<string,Json>):Promise<Json>; send(sessionId:string,message:string,options?:Record<string,Json>):Promise<Json>; cancel(sessionId:string):Promise<Json> };
 }
 export function getSDK(): OpenFicSDK;
 export const OpenFic: OpenFicSDK;

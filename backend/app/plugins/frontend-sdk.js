@@ -69,6 +69,7 @@
     editor: { read: () => local("editor.read", {}), insert: text => local("editor.insert", { text }), replaceSelection: text => local("editor.replaceSelection", { text }), setContent: text => local("editor.setContent", { text }), setSelection: (from, to) => local("editor.setSelection", { from, to }), focus: () => local("editor.focus", {}), save: () => local("editor.save", {}), undo: () => local("editor.undo", {}), redo: () => local("editor.redo", {}) },
     ui: { navigate: path => local("ui.navigate", { path }), openExternal: url => local("ui.openExternal", { url }), toast: text => local("ui.toast", { text }), confirm: text => local("ui.confirm", { text }), copy: text => local("ui.copy", { text }), download: (name, text, mime) => local("ui.download", { name, text, mime }), context: () => local("ui.context", {}), invalidate: () => local("ui.invalidate", {}) },
     assistant: { fill: text => local("assistant.fill", { text }) },
+    agent: { tools: () => remote("agent.tools", {}), start: (project_id, model_id, options = {}) => remote("agent.start", {project_id,model_id,...options}), send: (session_id,message,options = {}) => remote("agent.send",{session_id,message,...options}), cancel: session_id => remote("agent.cancel",{session_id}) },
     log: (message, level = "info") => remote("log", { message, level }),
   });
   parent.postMessage({ protocol: "openfic.plugin.v1", type: "ready" }, "*");

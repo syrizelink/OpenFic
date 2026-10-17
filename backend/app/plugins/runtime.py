@@ -74,6 +74,10 @@ async def sdk_call(context, method: str, params: dict):
         return await context.oauth.start(**params)
     if method == "models.complete":
         return await context.models.complete(**params)
+    if method == "agent.tools":
+        return context.agent.tools()
+    if method in {"agent.start", "agent.send", "agent.cancel"}:
+        return await getattr(context.agent, method.split(".")[1])(**params)
     if method == "events.emit":
         return context.emit(params["event"], params.get("data", {}))
     if method == "events.poll":
@@ -217,7 +221,11 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
             **({"id": m.id} if m.id else {}),
             **({"tool_call_id": m.tool_call_id} if hasattr(m, "tool_call_id") else {}),
             **({"tool_calls": m.tool_calls} if getattr(m, "tool_calls", None) else {}),
-            **({"usage_metadata": m.usage_metadata} if getattr(m, "usage_metadata", None) else {}),
+            **(
+                {"usage_metadata": m.usage_metadata}
+                if getattr(m, "usage_metadata", None)
+                else {}
+            ),
         }
         for m in messages
     ]

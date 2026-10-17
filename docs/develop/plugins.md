@@ -156,4 +156,4 @@ pnpm exec playwright test e2e/plugins.spec.ts
 
 密码保护实例可设置 `OPENFIC_E2E_PASSWORD`；本机 Chromium 可通过 `OPENFIC_E2E_CHROMIUM_PATH` 指定。测试使用项目临时数据，并在结束时清理。
 
-本次实现已验证：后端插件及认证、访问日志、应用启动回归共 34 项通过；Python/TypeScript 类型检查、lint 和生产构建通过；密码保护下的完整浏览器流程通过。浏览器流程同时在开发服务器和构建后的静态前端上运行，静态前端通过运行时配置连接独立后端，安装插件无需重新构建前端。未运行原生桌面安装包。
+最初项目统计宿主的后端插件及认证、访问日志、应用启动回归共 34 项通过；Python/TypeScript 类型检查、lint 和生产构建通过；密码保护下的完整浏览器流程通过。SDK 2.0 的完整验证范围和复现方式见 [验证记录](./plugin-sdk-verification.md)。静态前端通过运行时配置连接独立后端，安装插件无需重新构建前端。未运行原生桌面安装包。

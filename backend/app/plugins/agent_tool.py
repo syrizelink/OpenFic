@@ -13,6 +13,10 @@ class PluginAgentTool(AgentTool):
     host: Any = Field(exclude=True)
 
     async def _execute(self, **params):
+        async with self.host._lock:
+            return await self._execute_locked(params)
+
+    async def _execute_locked(self, params):
         from app.storage.database import create_session
 
         plugin = self.host.get(self.plugin_id)
@@ -30,7 +34,15 @@ class PluginAgentTool(AgentTool):
             import jsonschema
 
             jsonschema.validate(params, spec["schema"])
-            context = self.host.context(self.plugin_id, session, self.runtime_state)
+            context = self.host.context(
+                self.plugin_id,
+                session,
+                {
+                    **self.runtime_state,
+                    "_runnable_config": self.config,
+                    "_tool_call_id": self.tool_call_id,
+                },
+            )
             result = await spec["handler"](context, params)
             await session.commit()
             return (

@@ -14,12 +14,19 @@ export interface PluginEditor {
   run: (action: string, params: Record<string, unknown>) => unknown;
 }
 let activeEditor: PluginEditor | null = null;
+let editorEventsEnabled = false;
+export function setEditorEventsEnabled(value: boolean) {
+  editorEventsEnabled = value;
+}
+export function hasEditorEventConsumers() {
+  return editorEventsEnabled;
+}
 export function registerPluginEditor(editor: PluginEditor) {
   activeEditor = editor;
-  publishLocalEvent("editor.open", editor.read());
+  if (editorEventsEnabled) publishLocalEvent("editor.open", editor.read());
   return () => {
     if (activeEditor === editor) activeEditor = null;
-    publishLocalEvent("editor.close", { id: editor.read().id });
+    if (editorEventsEnabled) publishLocalEvent("editor.close", { id: editor.read().id });
   };
 }
 export function publishLocalEvent(event: string, data: unknown) {

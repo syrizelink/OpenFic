@@ -324,6 +324,12 @@ async def sync(ctx, params):
     return report
 
 
+async def agent_sync(ctx, params):
+    # A backup tool must not silently change the active Agent revision through
+    # user-edit APIs. Downloads and conflict resolution stay in the plugin UI.
+    return await sync(ctx, {**params, "mode": "push"})
+
+
 def register(host):
     host.register_command("drive.connect", connect)
     host.register_command("drive.status", status)
@@ -331,13 +337,12 @@ def register(host):
     host.register_command("drive.sync", sync)
     host.register_tool(
         "sync_chapters",
-        "Synchronize this project’s saved chapters with Google Drive. Conflicts are reported without overwriting. Requires a connected Drive account.",
+        "Upload this project’s saved chapters to Google Drive. Conflicts are reported without overwriting. Downloads and two-way conflict resolution are available in the plugin UI. Requires a connected Drive account.",
         {
             "type": "object",
             "properties": {
                 "projectId": {"type": "string"},
-                "mode": {"type": "string", "enum": ["push", "pull", "two-way"]},
             },
         },
-        sync,
+        agent_sync,
     )

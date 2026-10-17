@@ -15,7 +15,7 @@
 1. 在 Google Cloud 创建 OAuth 客户端，启用 Drive API。将后端 `/plugin-oauth/callback` 登记为客户端的 Redirect URI。生产环境使用 HTTPS；本机开发可使用 loopback。
 2. 在插件配置填写 Client ID、Client Secret。Secret 加密保存。可选设置一个 Google Drive 文件夹 ID。
 3. 在独立页面点击「连接 Google Drive」并完成 Google 授权。请求最小 `drive.file` scope，只访问该应用获准访问的文件。已有令牌也可从页面导入，值不会读回前端。
-4. 选择项目和同步方向，先预览或立即同步。原生 Agent 可调用 `plugin_google_drive_sync_sync_chapters`；写工具沿用应用审批。
+4. 选择项目和同步方向，先预览或立即同步。原生 Agent 可调用 `plugin_google_drive_sync_sync_chapters` 上传已保存章节；写工具沿用应用审批。双向下载和冲突解决在插件 UI 执行。
 5. 章节工具栏「云同步」可以先保存当前编辑器，再同步项目。
 
 每章保存成带版本标记、标题和正文的 `.openfic.json` 文件，以项目/章节 ID 关联。相同内容不重复上传，支持分页、令牌刷新和暂时错误重试。两端都改变时不会自动覆盖，页面列出冲突并允许显式选择本地或云端版本；下载也走业务更新 API。远程 ETag 可用时进行条件更新。
@@ -72,7 +72,15 @@ OPENFIC_DATA_DIR=/tmp/openfic-sdk-test-data OPENFIC_AUTH_PASSWORD=test-password 
   uv run uvicorn tests.plugins.e2e_app:app --host 127.0.0.1 --port 8011
 ```
 
-构建前端后用静态服务器运行，并提供 `runtime-config.json`：`{"backendBaseUrl":"http://127.0.0.1:8011"}`。也可使用开发服务器的对应后端配置。然后：
+构建前端后运行专门的静态预览服务（已提供运行时后端配置）：
+
+```bash
+cd frontend
+pnpm build
+OPENFIC_E2E_BACKEND=http://127.0.0.1:8011 node e2e/serve-plugin-preview.mjs
+```
+
+也可使用开发服务器的对应后端配置。然后：
 
 ```bash
 cd frontend

@@ -4,7 +4,12 @@ import { useEffect } from "react";
 import { apiClient } from "@/lib/api-client";
 
 import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
-import { publishLocalEvent, applyEditorChange, type EditorSnapshot } from "./frontend-host";
+import {
+  publishLocalEvent,
+  applyEditorChange,
+  setEditorEventsEnabled,
+  type EditorSnapshot,
+} from "./frontend-host";
 
 export function PluginRuntime() {
   const queryClient = useQueryClient();
@@ -14,6 +19,13 @@ export function PluginRuntime() {
     refetchInterval: 5000,
   });
   const enabled = plugins.some((p) => p.status === "enabled");
+  const editorReads = plugins.some(
+    (p) => p.status === "enabled" && p.capabilities.includes("editor.read"),
+  );
+  useEffect(() => {
+    setEditorEventsEnabled(editorReads);
+    return () => setEditorEventsEnabled(false);
+  }, [editorReads]);
   const editorHooks = plugins.some(
     (p) => p.status === "enabled" && p.hooks?.includes("editor.change"),
   );

@@ -642,7 +642,9 @@ class PluginHost:
     def context(self, plugin_id, session, runtime=None):
         plugin = self.get(plugin_id)
         private = dict(runtime or {})
-        public = dict(private)
+        public = {
+            key: value for key, value in private.items() if not key.startswith("_")
+        }
         if isinstance(public.get("model_config"), dict):
             public["model_config"] = {
                 key: value

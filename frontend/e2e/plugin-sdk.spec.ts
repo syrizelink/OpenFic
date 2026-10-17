@@ -381,14 +381,14 @@ test("React plugin uses the typed SDK package, inline styles, persistence and ca
     ).toBeTruthy();
     await page.goto("/extensions/react-sdk-test/react");
     const frame = page.frameLocator('iframe[title="React SDK fixture"]');
-    await expect(frame.getByRole("status")).toHaveText("Ready");
+    await expect(frame.locator("p[role=status]")).toHaveText("Ready");
     await expect(frame.locator("main")).toHaveCSS("color", "rgb(12, 34, 56)");
     await frame.getByRole("button", { name: "Increment", exact: true }).click();
     await expect(frame.locator("output")).toHaveText("1");
     await page.reload();
     await expect(frame.locator("output")).toHaveText("1");
     await frame.getByRole("button", { name: "Try undeclared access" }).click();
-    await expect(frame.getByRole("status")).toContainText("projects.read");
+    await expect(frame.locator("p[role=status]")).toContainText("projects.read");
   } finally {
     await page.request.delete(`${api}/plugins/react-sdk-test`);
   }
