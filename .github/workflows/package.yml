@@ -253,6 +253,89 @@ jobs:
           create_manifest ""
           create_manifest "-postgresql"
 
+  # ---------------------------------------------------------------- android
+  android:
+    needs: [context, build-frontend]
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/openfic-release.keystore
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: 安装 Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - name: 安装构建依赖
+        run: |
+          pnpm --dir frontend install --frozen-lockfile
+          pnpm --dir mobile install --frozen-lockfile
+      - name: 校验移动端版本与更新清单逻辑
+        working-directory: mobile
+        env:
+          RELEASE_VERSION: ${{ needs.context.outputs.version }}
+        run: |
+          pnpm test
+          pnpm type-check
+          pnpm exec node --input-type=module -e 'import p from "./package.json" with { type: "json" }; if (p.version !== process.env.RELEASE_VERSION) throw new Error("Mobile version does not match release tag")'
+      - name: 准备正式签名
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing Android signing secret: $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
+      - name: 构建移动端并同步 Android
+        working-directory: mobile
+        run: |
+          pnpm build:shell
+          pnpm exec node scripts/copy-frontend.mjs
+          pnpm exec cap sync android
+      - name: 运行 Android 单元测试
+        working-directory: mobile/android
+        run: ./gradlew testDebugUnitTest --no-daemon
+      - name: 构建正式 APK 与更新清单
+        working-directory: mobile
+        run: pnpm exec node scripts/build-apk.mjs --release
+      - name: 校验 APK 签名
+        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose mobile/out/OpenFic-*-android.apk'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-update
+          path: |
+            mobile/out/OpenFic-*-android.apk
+            mobile/out/android-update.json
+          if-no-files-found: error
+      - name: 发布 Android 安装包及更新清单
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.context.outputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" mobile/out/OpenFic-*-android.apk mobile/out/android-update.json --clobber
+      - name: 清理签名文件
+        if: always()
+        run: rm -f "$ANDROID_KEYSTORE_PATH"
+
   # ---------------------------------------------------------------- desktop
   desktop:
     needs: [context, build-frontend, pypi]

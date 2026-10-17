@@ -1,13 +1,16 @@
-import { StrictMode, useEffect, useState, type FormEvent } from "react";
-import { createRoot } from "react-dom/client";
 import { Theme, Button, TextField, Dialog, IconButton } from "@radix-ui/themes";
 import { ArrowRight, Check, Globe, Moon, Plus, Server, Sun, Trash2 } from "lucide-react";
+import { StrictMode, useEffect, useState, type FormEvent } from "react";
+import { createRoot } from "react-dom/client";
+
+import { AppUpdatePanel } from "./app-update";
 import { normalizeInstanceUrl, readInstances, STORAGE_KEY, type Instance } from "./instances.mjs";
 import { checkInstance, openInstance } from "./native";
+
 import "../../frontend/src/styles/index.css";
 import "./styles.css";
 
-function App() {
+export function App() {
   const [instances, setInstances] = useState<Instance[]>(() => readInstances(localStorage));
   const [dark, setDark] = useState(
     () =>
@@ -83,8 +86,15 @@ function App() {
     >
       <main className="mobile-shell">
         <header className="mobile-header">
-          <a className="mobile-brand" href="/" aria-label="OpenFic 首页">
-            <img src="/openfic.svg" alt="" />
+          <a
+            className="mobile-brand"
+            href="/"
+            aria-label="OpenFic 首页"
+          >
+            <img
+              src="/openfic.svg"
+              alt=""
+            />
             OpenFic
           </a>
           <IconButton
@@ -106,15 +116,24 @@ function App() {
             <p>连接你的 OpenFic 实例，继续写下一个故事。</p>
           </div>
           {instances.length > 0 && (
-            <section aria-labelledby="instances-title" className="mobile-instances">
+            <section
+              aria-labelledby="instances-title"
+              className="mobile-instances"
+            >
               <div className="mobile-section-heading">
                 <h2 id="instances-title">我的实例</h2>
                 <span>{instances.length} 个</span>
               </div>
               <div className="mobile-instance-list">
                 {instances.map((instance) => (
-                  <article className="mobile-instance" key={instance.id}>
-                    <Server size={20} className="mobile-instance-icon" />
+                  <article
+                    className="mobile-instance"
+                    key={instance.id}
+                  >
+                    <Server
+                      size={20}
+                      className="mobile-instance-icon"
+                    />
                     <button
                       className="mobile-instance-open"
                       disabled={busy || activeId !== null}
@@ -158,7 +177,10 @@ function App() {
             </Button>
           )}
           {adding && (
-            <section className="mobile-connect" aria-labelledby="connect-title">
+            <section
+              className="mobile-connect"
+              aria-labelledby="connect-title"
+            >
               <div className="mobile-section-heading">
                 <h2 id="connect-title">连接远程实例</h2>
                 <Server size={18} />
@@ -196,7 +218,12 @@ function App() {
                   <p className="mobile-http-note">HTTP 连接未加密，建议仅在可信局域网内使用。</p>
                 )}
                 <div className="mobile-form-actions">
-                  <Button type="submit" size="3" loading={busy} disabled={activeId !== null}>
+                  <Button
+                    type="submit"
+                    size="3"
+                    loading={busy}
+                    disabled={activeId !== null}
+                  >
                     <Check size={17} />
                     验证并添加
                   </Button>
@@ -216,18 +243,25 @@ function App() {
             </section>
           )}
           {error && (
-            <div className="mobile-message mobile-error" role="alert">
+            <div
+              className="mobile-message mobile-error"
+              role="alert"
+            >
               {error}
               <p>请确认服务器在线、地址正确，且证书有效。</p>
             </div>
           )}
           {status && (
-            <p className="mobile-message" role="status">
+            <p
+              className="mobile-message"
+              role="status"
+            >
               <Check size={16} />
               {status}
             </p>
           )}
           <footer className="mobile-footer">
+            <AppUpdatePanel />
             <p>创作数据保存在远程实例中。</p>
             <p>此 APP 不会安装或启动本地实例。</p>
           </footer>
@@ -246,7 +280,10 @@ function App() {
           </Dialog.Description>
           <div className="mobile-dialog-actions">
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 取消
               </Button>
             </Dialog.Close>

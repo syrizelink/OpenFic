@@ -31,6 +31,11 @@
           "jsonpath": "$.version"
         },
         {
+          "type": "json",
+          "path": "mobile/package.json",
+          "jsonpath": "$.version"
+        },
+        {
           "type": "toml",
           "path": "backend/pyproject.toml",
           "jsonpath": "$.project.version"

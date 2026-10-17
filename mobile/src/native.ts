@@ -4,6 +4,23 @@ interface RemoteInstancePlugin {
   open(options: { url: string; name: string }): Promise<void>;
 }
 const RemoteInstance = registerPlugin<RemoteInstancePlugin>("RemoteInstance");
+
+export interface UpdateState {
+  status: "unsupported" | "idle" | "checking" | "downloading" | "ready" | "error";
+  currentVersion?: string;
+  version?: string;
+  progress?: number;
+  message?: string;
+}
+
+interface AppUpdatePlugin {
+  check(): Promise<UpdateState>;
+  getStatus(): Promise<UpdateState>;
+  install(): Promise<{ permissionRequired: boolean }>;
+}
+
+export const AppUpdate = registerPlugin<AppUpdatePlugin>("AppUpdate");
+export const supportsAppUpdates = Capacitor.getPlatform() === "android";
 export async function checkInstance(url: string): Promise<{ version: string }> {
   if (Capacitor.isNativePlatform()) return RemoteInstance.check({ url });
   const response = await fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(10000) });

@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+def mobilePackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def version = mobilePackage.version.toString()
+if (!(version ==~ /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/)) {
+    throw new GradleException('Android requires a stable major.minor.patch version')
+}
+def (major, minor, patch) = version.tokenize('.').collect { it.toBigInteger() }
+def androidVersionCode = major * 1000000 + minor * 1000 + patch
+if (minor > 999 || patch > 999 || androidVersionCode < 1 || androidVersionCode > 2100000000) {
+    throw new GradleException('Android version is outside the supported versionCode range')
+}
+def signingVariables = ['ANDROID_KEYSTORE_PATH', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']
+def hasReleaseSigning = signingVariables.every { System.getenv(it) }
+
 android {
     namespace "com.openfic.mobile"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +20,8 @@ android {
         applicationId "com.openfic.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.12.1"
+        versionCode androidVersionCode.intValue()
+        versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +29,28 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    if (!hasReleaseSigning && graph.allTasks.any { it.name in ['packageRelease', 'signReleaseBundle'] }) {
+        throw new GradleException('Release APK requires ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD')
     }
 }
 
@@ -53,7 +83,3 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
-
-// Keep the APK version aligned with the mobile package.
-def mobilePackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
-android.defaultConfig.versionName = mobilePackage.version

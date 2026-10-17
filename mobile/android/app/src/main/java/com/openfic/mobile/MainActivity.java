@@ -9,6 +9,7 @@ import android.view.View;
 public class MainActivity extends BridgeActivity {
     @Override public void onCreate(Bundle savedInstanceState) {
         registerPlugin(RemoteInstancePlugin.class);
+        registerPlugin(AppUpdatePlugin.class);
         super.onCreate(savedInstanceState);
         // Keep both the connection UI and keyboard clear of system bars on Android 15.
         View content = findViewById(android.R.id.content);

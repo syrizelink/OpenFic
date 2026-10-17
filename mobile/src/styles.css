@@ -182,6 +182,34 @@
   margin-top: 32px;
   font-size: var(--font-size-sm);
 }
+.mobile-update {
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3);
+}
+.mobile-update h2 {
+  color: var(--foreground);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+.mobile-update p {
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.mobile-update-actions,
+.mobile-update-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.mobile-update-progress progress {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--gray-12);
+}
 .mobile-dialog-actions {
   display: flex;
   justify-content: flex-end;
