@@ -1015,6 +1015,12 @@ def create_react_agent(
         else:
             messages.extend(transient_messages)
 
+        from app.plugins.runtime import dispatch as plugin_dispatch, model_messages
+        plugin_runtime = dict(effective_runtime_state or runtime_state or {})
+        messages = await model_messages(messages, db_session, runtime=plugin_runtime)
+        await plugin_dispatch("turn.step", {"agent": react_config.name,
+                                            "iteration": state["iteration_count"]},
+                              db_session, runtime=plugin_runtime)
         audit = await _start_audit(configurable, messages)
         active_audit = audit
         try:

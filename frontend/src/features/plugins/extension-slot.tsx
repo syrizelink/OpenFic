@@ -26,10 +26,12 @@ export function ExtensionSlot({
   const entries = plugins
     .filter((plugin) => plugin.status === "enabled")
     .flatMap((plugin) =>
-      plugin.views.map((view) => ({
-        title: view.title,
-        href: `/extensions/${plugin.id}/${view.id}`,
-      })),
+      plugin.views
+        .filter((view) => view.slot === "sidebar.extensions")
+        .map((view) => ({
+          title: view.title,
+          href: `/extensions/${plugin.id}/${view.id}`,
+        })),
     );
   return (
     <nav

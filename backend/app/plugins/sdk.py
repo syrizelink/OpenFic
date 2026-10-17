@@ -1,6 +1,6 @@
 """Public read-only data facade; plugins receive DTOs, never ORM sessions."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Sequence
 from typing import Any
 
@@ -85,3 +85,82 @@ class PluginContext:
     plugin_id: str
     settings: dict[str, Any]
     data: ProjectData
+    host: Any = field(default=None, repr=False)
+    runtime: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def plugin(self):
+        return self.host.get(self.plugin_id)
+
+    def require(self, capability: str):
+        self.data._require(capability)
+
+    @property
+    def api(self):
+        from app.plugins.gateway import BusinessAPI
+
+        return BusinessAPI(
+            self.data._session,
+            self.plugin.manifest.capabilities,
+            lambda event, data: self.host.emit(event, data, self.plugin_id),
+        )
+
+    def resource(self, name: str):
+        from app.plugins.gateway import ResourceClient
+
+        return ResourceClient(self.api, name)
+
+    @property
+    def chapters(self):
+        return self.resource("chapters")
+
+    @property
+    def projects(self):
+        return self.resource("projects")
+
+    @property
+    def notes(self):
+        return self.resource("notes")
+
+    @property
+    def storage(self):
+        from app.plugins.services import PluginStorage
+
+        return PluginStorage(self.host, self.plugin)
+
+    @property
+    def secrets(self):
+        from app.plugins.services import PluginStorage
+
+        return PluginStorage(self.host, self.plugin, secret=True)
+
+    @property
+    def files(self):
+        from app.plugins.services import PluginFiles
+
+        return PluginFiles(self.host, self.plugin)
+
+    @property
+    def http(self):
+        from app.plugins.services import PluginHTTP
+
+        return PluginHTTP(self.plugin, getattr(self.host, "http_transport", None))
+
+    @property
+    def models(self):
+        from app.plugins.services import PluginModels
+
+        return PluginModels(self)
+
+    @property
+    def oauth(self):
+        from app.plugins.oauth import PluginOAuth
+
+        return PluginOAuth(self)
+
+    def emit(self, event: str, data: dict):
+        self.require("events")
+        return self.host.emit(f"plugin.{self.plugin_id}.{event}", data, self.plugin_id)
+
+    def log(self, message: str, level="info"):
+        self.host._log(self.plugin_id, "plugin", str(message)[:4000], level)

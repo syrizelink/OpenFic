@@ -6,6 +6,66 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 API_VERSION = 1
+SDK_VERSION = "2.0.0"
+UI_SLOTS = (
+    "sidebar.extensions",
+    "project.toolbar",
+    "editor.toolbar",
+    "editor.context",
+    "editor.panel",
+    "assistant.toolbar",
+    "assistant.above-prompt",
+    "statusbar",
+    "settings.plugins",
+    "dashboard",
+)
+RESOURCE_NAMES = (
+    "projects",
+    "chapters",
+    "volumes",
+    "characters",
+    "relationships",
+    "notes",
+    "worldbooks",
+    "rules",
+    "skills",
+    "agents",
+    "sessions",
+    "tasks",
+    "summaries",
+    "retrieval",
+    "revisions",
+    "models",
+    "settings",
+    "exports",
+    "imports",
+    "background",
+    "providers",
+    "prompts",
+    "memories",
+    "dashboard",
+    "audit",
+    "tunnels",
+)
+CAPABILITIES = frozenset(
+    [f"{name}.{mode}" for name in RESOURCE_NAMES for mode in ("read", "write")]
+    + [
+        "project.entities.read",
+        "storage",
+        "secrets",
+        "network",
+        "events",
+        "ui",
+        "editor.read",
+        "editor.write",
+        "agent.tools",
+        "agent.hooks",
+        "agent.graph",
+        "agent.models",
+        "agent.invoke",
+        "files",
+    ]
+)
 MAX_PACKAGE_BYTES = 20 * 1024 * 1024
 MAX_EXPANDED_BYTES = 40 * 1024 * 1024
 
@@ -34,22 +94,41 @@ class View(Contract):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     title: str = Field(min_length=1, max_length=80)
     entry: str
-    slot: Literal["sidebar.extensions"] = "sidebar.extensions"
+    slot: str = "sidebar.extensions"
+    height: int = Field(default=320, ge=80, le=1600)
+
+    @model_validator(mode="after")
+    def known_slot(self):
+        if self.slot not in UI_SLOTS:
+            raise ValueError(f"Unknown UI slot: {self.slot}")
+        return self
 
 
 class Setting(Contract):
     key: str = Field(pattern=r"^[a-z][a-zA-Z0-9_]{0,63}$")
     label: str = Field(min_length=1, max_length=80)
-    type: Literal["string", "boolean", "integer"]
+    type: Literal["string", "boolean", "integer", "json", "number"]
     default: Any
     minimum: int | None = None
     maximum: int | None = None
+    secret: bool = False
+    description: str = ""
 
     def validate_value(self, value: Any) -> Any:
+        if self.type == "json":
+            import json
+
+            if len(json.dumps(value, allow_nan=False).encode()) > 256_000:
+                raise ValueError(f"Setting is too large: {self.key}")
+            return value
+        if self.type == "number":
+            if type(value) not in (int, float):
+                raise ValueError(f"Invalid setting type: {self.key}")
+            return value
         expected = {"string": str, "boolean": bool, "integer": int}[self.type]
         if type(value) is not expected:
             raise ValueError(f"Invalid setting type: {self.key}")
-        if isinstance(value, str) and len(value) > 2000:
+        if isinstance(value, str) and len(value) > 256_000:
             raise ValueError(f"Setting is too long: {self.key}")
         if self.type == "integer":
             if self.minimum is not None and value < self.minimum:
@@ -72,14 +151,21 @@ class Manifest(Contract):
     description: str = Field(default="", max_length=1000)
     author: str = Field(default="", max_length=100)
     backend: str | None = None
-    capabilities: list[Literal["projects.read", "project.entities.read"]] = Field(
-        default_factory=list
-    )
-    views: list[View] = Field(default_factory=list, max_length=20)
-    settings: list[Setting] = Field(default_factory=list, max_length=30)
+    capabilities: list[str] = Field(default_factory=list)
+    views: list[View] = Field(default_factory=list, max_length=60)
+    settings: list[Setting] = Field(default_factory=list, max_length=100)
+    network_hosts: list[str] = Field(default_factory=list, max_length=50)
+    format: Literal["openfic", "claude-mod"] = "openfic"
+    compatibility: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_entries(self):
+        if set(self.capabilities) - CAPABILITIES:
+            raise ValueError(
+                f"Unknown capabilities: {set(self.capabilities) - CAPABILITIES}"
+            )
+        if any("/" in host or ":" in host or not host for host in self.network_hosts):
+            raise ValueError("Network hosts must be hostnames without scheme or port")
         if self.backend:
             safe_path(self.backend)
             if not self.backend.endswith(".py"):

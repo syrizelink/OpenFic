@@ -28,6 +28,8 @@ class ToolRegistry:
         tools = []
         for name in target_names:
             if name not in cls._tools:
+                if name.startswith("plugin_"):
+                    continue
                 raise KeyError(f"Tool not registered: {name}")
             tool_cls = cls._tools[name]
             instance = tool_cls(
@@ -38,8 +40,15 @@ class ToolRegistry:
             for hook in build_hooks or []:
                 hook(instance)
             tools.append(instance)
+        from app.plugins.runtime import plugin_tools
+        extensions = plugin_tools(state)
+        for instance in extensions:
+            instance.pre_hooks = list(pre_hooks or [])
+            instance.post_hooks = list(post_hooks or [])
+            tools.append(instance)
         return tools
 
     @classmethod
     def list_names(cls) -> list[str]:
-        return list(cls._tools.keys())
+        from app.plugins.runtime import plugin_tools
+        return [*cls._tools.keys(), *(tool.name for tool in plugin_tools({}))]

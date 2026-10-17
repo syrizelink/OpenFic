@@ -130,3 +130,43 @@
     flex-wrap: wrap;
   }
 }
+
+.plugin-slot {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  position: relative;
+}
+.plugin-slot > div > button {
+  border: 1px solid var(--gray-a5);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--gray-12);
+  background: var(--gray-a2);
+  cursor: pointer;
+}
+.plugin-slot-open {
+  width: 100%;
+  min-width: 0;
+}
+.plugin-slot-content {
+  border: 1px solid var(--gray-a5);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 0;
+}
+.plugin-slot-content .plugin-view {
+  height: 100%;
+}
+.plugin-slot-statusbar .plugin-slot-content {
+  position: fixed;
+  bottom: 28px;
+  right: 8px;
+  width: min(600px, calc(100vw - 16px));
+  z-index: 100;
+  background: var(--color-background);
+}
+.plugin-slot-statusbar .plugin-slot-open {
+  width: auto;
+}

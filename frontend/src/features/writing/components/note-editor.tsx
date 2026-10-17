@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
 import { toast } from "@/components/toast";
+import { registerPluginEditor } from "@/features/plugins/frontend-host";
 import { fetchNote } from "@/lib/api-client";
 import {
   getEditorContentLimit,
@@ -255,6 +256,34 @@ function NoteEditorContent({
       onScrollPositionChange?.(note.id, nextScrollTop);
     },
     [note.id, onScrollPositionChange],
+  );
+
+  useEffect(
+    () =>
+      registerPluginEditor({
+        read: () => ({
+          kind: "note",
+          id: note.id,
+          projectId: note.projectId,
+          title: titleRef.current,
+          content: savedContentRef.current,
+          locked: isAgentLocked || note.isLocked,
+          selection: { from: 0, to: 0, text: "" },
+        }),
+        run: async (action, params) => {
+          if (isAgentLocked || note.isLocked) throw new Error("Note is locked");
+          if (action === "save") {
+            await handleSave();
+            return null;
+          }
+          if (action === "setContent") handleContentChange(String(params.text ?? ""));
+          else if (action === "insert")
+            handleContentChange(savedContentRef.current + String(params.text ?? ""));
+          else throw new Error(`Note editor does not support ${action}`);
+          return null;
+        },
+      }),
+    [note.id, note.projectId, note.isLocked, isAgentLocked, handleSave, handleContentChange],
   );
 
   const lockedBanner = note.isLocked ? (

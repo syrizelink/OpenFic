@@ -6,15 +6,18 @@ export interface PluginView {
   id: string;
   title: string;
   entry: string;
-  slot: "sidebar.extensions";
+  slot: string;
+  height?: number;
 }
 export interface PluginSetting {
   key: string;
   label: string;
-  type: "string" | "boolean" | "integer";
+  type: "string" | "boolean" | "integer" | "json" | "number";
   default: string | boolean | number;
   minimum?: number;
   maximum?: number;
+  secret?: boolean;
+  description?: string;
 }
 export interface InstalledPlugin {
   id: string;
@@ -28,7 +31,12 @@ export interface InstalledPlugin {
   capabilities: string[];
   views: PluginView[];
   settings: PluginSetting[];
-  configuration: Record<string, string | boolean | number>;
+  configuration: Record<string, unknown>;
+  format?: "openfic" | "claude-mod";
+  compatibility?: { warnings?: string[]; supported?: string[]; [key: string]: unknown };
+  tools?: string[];
+  hooks?: string[];
+  graphs?: string[];
 }
 export const PLUGINS_QUERY_KEY = ["plugins"] as const;
 export async function fetchPlugins(): Promise<InstalledPlugin[]> {

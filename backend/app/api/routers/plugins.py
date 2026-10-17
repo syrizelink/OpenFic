@@ -8,16 +8,24 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, HTMLResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.plugins.host import PluginError, PluginHost
-from app.plugins.manifest import API_VERSION, MAX_PACKAGE_BYTES
+from app.plugins.manifest import (
+    API_VERSION,
+    MAX_PACKAGE_BYTES,
+    SDK_VERSION,
+    UI_SLOTS,
+    CAPABILITIES,
+)
 from app.storage.database import get_session
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 asset_router = APIRouter(prefix="/plugin-assets", tags=["plugin views"])
+oauth_router = APIRouter(prefix="/plugin-oauth", tags=["plugin OAuth"])
+
 
 ASSET_HEADERS = {
     "Cache-Control": "no-store",
@@ -32,6 +40,22 @@ def host(request: Request) -> PluginHost:
 
 
 Host = Annotated[PluginHost, Depends(host)]
+
+
+@oauth_router.get("/callback", response_class=HTMLResponse)
+async def oauth_callback(
+    manager: Host, state: str = "", code: str | None = None, error: str | None = None
+):
+    from app.plugins.oauth import finish_oauth
+
+    try:
+        await finish_oauth(manager, state, code, error)
+    except ValueError as exc:
+        raise PluginError(str(exc), 400) from exc
+    return HTMLResponse(
+        "<!doctype html><meta charset=utf-8><title>OpenFic</title><p>授权成功。请关闭此页面，返回 OpenFic 插件。</p>",
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
 
 
 class EnableRequest(BaseModel):
@@ -67,7 +91,23 @@ async def read_package(file: UploadFile, trusted: bool) -> bytes:
 async def list_plugins(manager: Host):
     return {
         "api_version": API_VERSION,
+        "sdk_version": SDK_VERSION,
+        "slots": UI_SLOTS,
         "plugins": [manager.describe(p) for p in manager.plugins.values()],
+    }
+
+
+@router.get("/catalogue")
+async def sdk_catalogue():
+    from app.plugins.gateway import BusinessAPI
+    from app.plugins.runtime import EVENTS
+
+    return {
+        "version": SDK_VERSION,
+        "capabilities": sorted(CAPABILITIES),
+        "slots": UI_SLOTS,
+        "events": sorted(EVENTS),
+        **BusinessAPI.catalogue(),
     }
 
 
@@ -147,8 +187,17 @@ async def call_plugin(
     data: CallRequest,
     manager: Host,
     session: Annotated[AsyncSession, Depends(get_session)],
+    request: Request,
 ):
-    return {"result": await manager.call(plugin_id, data.method, data.params, session)}
+    return {
+        "result": await manager.call(
+            plugin_id,
+            data.method,
+            data.params,
+            session,
+            runtime={"backend_url": str(request.base_url).rstrip("/")},
+        )
+    }
 
 
 @router.get("/{plugin_id}/assets/{filename:path}")

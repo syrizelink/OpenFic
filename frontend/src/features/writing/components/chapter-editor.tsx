@@ -15,6 +15,8 @@ import {
   buildChapterMentionTag,
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { registerPluginEditor, publishLocalEvent } from "@/features/plugins/frontend-host";
+import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
@@ -386,6 +388,59 @@ function ChapterEditorContent({
   }, [title]);
 
   useEffect(() => {
+    if (!editor) return;
+    const read = () => ({
+      kind: "chapter" as const,
+      id: chapter.id,
+      projectId: chapter.projectId,
+      title: titleRef.current,
+      content: editor.getText({ blockSeparator: "\n" }),
+      locked: isAgentLocked,
+      selection: {
+        from: editor.state.selection.from,
+        to: editor.state.selection.to,
+        text: editor.state.doc.textBetween(
+          editor.state.selection.from,
+          editor.state.selection.to,
+          "\n",
+        ),
+      },
+    });
+    const dispose = registerPluginEditor({
+      read,
+      run: async (action, params) => {
+        if (isAgentLocked) throw new Error("Editor is locked");
+        const text = String(params.text ?? "");
+        if (text.length > MAX_EDITOR_CONTENT_CHARACTERS)
+          throw new Error("Editor content exceeds limit");
+        if (action === "save") {
+          await handleSave(true);
+          return null;
+        }
+        if (action === "focus") editor.commands.focus();
+        else if (action === "undo") editor.commands.undo();
+        else if (action === "redo") editor.commands.redo();
+        else if (action === "setSelection")
+          editor.commands.setTextSelection({ from: Number(params.from), to: Number(params.to) });
+        else if (action === "setContent") editor.commands.setContent(newlinesToHtml(text));
+        else if (action === "insert" || action === "replaceSelection")
+          editor.commands.insertContent(newlinesToHtml(text));
+        else throw new Error(`Unsupported editor action: ${action}`);
+        return read();
+      },
+    });
+    const changed = () => publishLocalEvent("editor.change", read());
+    const selectionChanged = () => publishLocalEvent("editor.selection", read().selection);
+    editor.on("update", changed);
+    editor.on("selectionUpdate", selectionChanged);
+    return () => {
+      dispose();
+      editor.off("update", changed);
+      editor.off("selectionUpdate", selectionChanged);
+    };
+  }, [editor, chapter.id, chapter.projectId, isAgentLocked, handleSave]);
+
+  useEffect(() => {
     const handleManualSave = () => {
       void handleSave(true);
     };
@@ -650,6 +705,20 @@ function ChapterEditorContent({
           />
         )}
       </AnimatePresence>
+
+      <PluginSlot
+        slot="editor.toolbar"
+        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
+      />
+      <PluginSlot
+        slot="editor.context"
+        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
+      />
+      <PluginSlot
+        slot="editor.panel"
+        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
+        inline
+      />
 
       <Box
         ref={containerRef}

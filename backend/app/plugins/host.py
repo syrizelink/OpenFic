@@ -30,6 +30,14 @@ from app.plugins.manifest import (
     safe_path,
 )
 from app.plugins.sdk import PluginContext, ProjectData
+from app.plugins.services import bounded_json
+
+_active_host: Any = None
+
+
+def active_host():
+    return _active_host
+
 
 Handler = Callable[[PluginContext, dict[str, Any]], Awaitable[Any]]
 
@@ -48,6 +56,10 @@ class Registration:
     """A fresh registry per activation; disposal removes every command at once."""
 
     commands: dict[str, Handler] = field(default_factory=dict)
+    tools: dict[str, dict] = field(default_factory=dict)
+    hooks: dict[str, list] = field(default_factory=dict)
+    graphs: dict[str, Any] = field(default_factory=dict)
+    disposables: list[Any] = field(default_factory=list)
 
     def register_command(self, name: str, handler: Handler) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_.-]{0,79}", name) or not callable(handler):
@@ -55,6 +67,43 @@ class Registration:
         if name in self.commands:
             raise ValueError(f"Duplicate command: {name}")
         self.commands[name] = handler
+
+    def register_tool(
+        self,
+        name: str,
+        description: str,
+        schema: dict,
+        handler: Handler,
+        *,
+        access_level="write",
+    ):
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", name) or name in self.tools:
+            raise ValueError("Invalid or duplicate tool name")
+        if schema.get("type") != "object" or access_level not in {"write", "readonly"}:
+            raise ValueError(
+                "Tools require an object JSON schema and valid access level"
+            )
+        self.tools[name] = {
+            "description": description,
+            "schema": schema,
+            "handler": handler,
+            "access_level": access_level,
+        }
+
+    def register_hook(self, event: str, handler, *, priority=0):
+        from app.plugins.runtime import EVENTS
+
+        if event not in EVENTS:
+            raise ValueError(f"Unsupported event: {event}")
+        self.hooks.setdefault(event, []).append((priority, handler))
+
+    def register_graph(self, name: str, factory):
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,39}", name) or name in self.graphs:
+            raise ValueError("Invalid or duplicate graph provider")
+        self.graphs[name] = factory
+
+    def on_dispose(self, callback):
+        self.disposables.append(callback)
 
 
 @dataclass
@@ -80,6 +129,11 @@ class PluginHost:
         self._lock = asyncio.Lock()
         self._started = False
         self._view_tickets: dict[str, tuple[str, float]] = {}
+        self._events: list[dict] = []
+        self._event_sequence = 0
+        self.http_transport = None
+        self.application = None
+        self.oauth_flows: dict[str, dict] = {}
 
     def _log(self, plugin_id: str, action: str, message: str, level: str = "info"):
         entry = {
@@ -106,15 +160,30 @@ class PluginHost:
         temporary.replace(path)
 
     def _persist(self):
+        def saved_settings(plugin):
+            values = dict(plugin.settings)
+            for setting in plugin.manifest.settings:
+                if setting.secret and values.get(setting.key):
+                    from app.plugins.services import PluginStorage
+
+                    cipher = PluginStorage(self, plugin, secret=True)._cipher()
+                    values[setting.key] = {
+                        "encrypted": cipher.encrypt(
+                            json.dumps(values[setting.key]).encode()
+                        ).decode()
+                    }
+            return values
+
         self._write_json(
             self.root / ".registry.json",
             {
-                key: {"enabled": plugin.enabled, "settings": plugin.settings}
+                key: {"enabled": plugin.enabled, "settings": saved_settings(plugin)}
                 for key, plugin in self.plugins.items()
             },
         )
 
     async def start(self):
+        global _active_host
         async with self._lock:
             if self._started:
                 return
@@ -150,7 +219,21 @@ class PluginHost:
                     if manifest.id != directory.name:
                         raise ValueError("Plugin directory identity mismatch")
                     saved = state.get(manifest.id, {})
-                    settings = manifest.validate_settings(saved.get("settings", {}))
+                    settings_values = saved.get("settings", {})
+                    for setting in manifest.settings:
+                        value = settings_values.get(setting.key)
+                        if (
+                            setting.secret
+                            and isinstance(value, dict)
+                            and "encrypted" in value
+                        ):
+                            from app.plugins.services import PluginStorage
+
+                            cipher = PluginStorage(self, None, secret=True)._cipher()
+                            settings_values[setting.key] = json.loads(
+                                cipher.decrypt(value["encrypted"].encode())
+                            )
+                    settings = manifest.validate_settings(settings_values)
                     plugin = Installed(
                         manifest, bool(saved.get("enabled", False)), settings
                     )
@@ -166,13 +249,17 @@ class PluginHost:
                         "Unable to discover plugin {}: {}", directory.name, error
                     )
             self._started = True
+            _active_host = self
 
     async def close(self):
+        global _active_host
         async with self._lock:
             for plugin in self.plugins.values():
                 await self._deactivate(plugin)
             self._started = False
             self.plugins.clear()
+            if _active_host is self:
+                _active_host = None
 
     def get(self, plugin_id: str) -> Installed:
         plugin = self.plugins.get(plugin_id)
@@ -190,8 +277,28 @@ class PluginHost:
             if plugin.registration
             else "disabled",
             "error": plugin.error,
-            "configuration": plugin.settings,
+            "configuration": {
+                s.key: ("" if s.secret else plugin.settings[s.key])
+                for s in plugin.manifest.settings
+            },
+            "configured_secrets": [
+                s.key
+                for s in plugin.manifest.settings
+                if s.secret and plugin.settings[s.key]
+            ],
             "commands": sorted(plugin.registration.commands)
+            if plugin.registration
+            else [],
+            "tools": [
+                f"plugin_{plugin.manifest.id.replace('-', '_')}_{name}"
+                for name in plugin.registration.tools
+            ]
+            if plugin.registration
+            else [],
+            "hooks": list(plugin.registration.hooks) if plugin.registration else [],
+            "graphs": [
+                f"{plugin.manifest.id}/{name}" for name in plugin.registration.graphs
+            ]
             if plugin.registration
             else [],
         }
@@ -217,6 +324,18 @@ class PluginHost:
                     raise ValueError("Backend must export register(host)")
                 async with asyncio.timeout(15):
                     await _await_result(register(registration))
+            if manifest.format == "claude-mod":
+                from app.plugins.mods import activate_mod
+
+                await activate_mod(self, plugin, registration)
+            requirements = [
+                (registration.tools, "agent.tools"),
+                (registration.hooks, "agent.hooks"),
+                (registration.graphs, "agent.graph"),
+            ]
+            for entries, capability in requirements:
+                if entries and capability not in manifest.capabilities:
+                    raise PermissionError(f"Plugin has not declared {capability}")
             plugin.module_name = module_name if manifest.backend else None
             plugin.registration = registration
             plugin.error = None
@@ -227,11 +346,23 @@ class PluginHost:
             raise
 
     async def _deactivate(self, plugin: Installed):
+        self.oauth_flows = {
+            k: v
+            for k, v in self.oauth_flows.items()
+            if v["plugin_id"] != plugin.manifest.id
+        }
         self._view_tickets = {
             token: ticket
             for token, ticket in self._view_tickets.items()
             if ticket[0] != plugin.manifest.id
         }
+        if plugin.registration:
+            for callback in reversed(plugin.registration.disposables):
+                try:
+                    async with asyncio.timeout(5):
+                        await _await_result(callback())
+                except Exception as error:
+                    self._log(plugin.manifest.id, "dispose", str(error), "error")
         if plugin.module_name:
             module = sys.modules.get(plugin.module_name)
             deactivate = getattr(module, "deactivate", None)
@@ -276,6 +407,10 @@ class PluginHost:
                     destination = target / name
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(archive.read(info))
+                if not (target / "plugin.json").exists():
+                    from app.plugins.mods import convert_mod
+
+                    convert_mod(target)
                 manifest = Manifest.model_validate_json(
                     (target / "plugin.json").read_bytes()
                 )
@@ -392,6 +527,11 @@ class PluginHost:
         async with self._lock:
             plugin = self.get(plugin_id)
             try:
+                for setting in plugin.manifest.settings:
+                    if setting.secret and settings.get(setting.key) == "":
+                        settings[setting.key] = plugin.settings.get(
+                            setting.key, setting.default
+                        )
                 plugin.settings = plugin.manifest.validate_settings(settings)
             except ValueError as error:
                 raise PluginError(str(error)) from error
@@ -404,28 +544,37 @@ class PluginHost:
             plugin = self.get(plugin_id)
             await self._deactivate(plugin)
             shutil.rmtree(self.root / plugin_id)
+            shutil.rmtree(self.root / ".data" / plugin_id, ignore_errors=True)
             del self.plugins[plugin_id]
             self._persist()
             self._log(plugin_id, "uninstall", "Plugin removed")
 
     async def call(
-        self, plugin_id: str, method: str, params: dict[str, Any], session: AsyncSession
+        self,
+        plugin_id: str,
+        method: str,
+        params: dict[str, Any],
+        session: AsyncSession,
+        *,
+        runtime: dict | None = None,
     ):
         async with self._lock:
             plugin = self.get(plugin_id)
             if not plugin.enabled or plugin.registration is None:
                 raise PluginError("Plugin is not active", 409)
             handler = plugin.registration.commands.get(method)
-            if handler is None:
+            if handler is None and not method.startswith("sdk."):
                 raise PluginError("Plugin command not found", 404)
-            context = PluginContext(
-                plugin_id,
-                dict(plugin.settings),
-                ProjectData(session, plugin.manifest.capabilities),
-            )
+            context = self.context(plugin_id, session, runtime)
             try:
-                async with asyncio.timeout(15):
-                    result = await _await_result(handler(context, params))
+                async with asyncio.timeout(120):
+                    if method.startswith("sdk."):
+                        from app.plugins.runtime import sdk_call
+
+                        result = await sdk_call(context, method[4:], params)
+                    else:
+                        assert handler is not None
+                        result = await _await_result(handler(context, params))
                 encoded = json.dumps(result, allow_nan=False)
                 if len(encoded.encode()) > 4 * 1024 * 1024:
                     raise ValueError("Plugin response exceeds 4 MiB")
@@ -435,6 +584,35 @@ class PluginHost:
                 raise PluginError(
                     str(error) or "Plugin command timed out", 422
                 ) from error
+
+    def context(self, plugin_id, session, runtime=None):
+        plugin = self.get(plugin_id)
+        return PluginContext(
+            plugin_id,
+            dict(plugin.settings),
+            ProjectData(session, plugin.manifest.capabilities),
+            self,
+            dict(runtime or {}),
+        )
+
+    def emit(self, event: str, data: dict, plugin_id=None):
+        self._event_sequence += 1
+        self._events.append(
+            {
+                "sequence": self._event_sequence,
+                "event": event,
+                "data": bounded_json(data, 256_000),
+                "pluginId": plugin_id,
+            }
+        )
+        self._events = self._events[-500:]
+        return self._event_sequence
+
+    def events(self, after=0):
+        return {
+            "cursor": self._event_sequence,
+            "events": [event for event in self._events if event["sequence"] > after],
+        }
 
     def logs(self, plugin_id: str) -> list[dict[str, Any]]:
         self.get(plugin_id)

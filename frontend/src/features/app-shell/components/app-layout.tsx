@@ -105,6 +105,18 @@ export function AppLayout({
     assistantSidebarRef.current?.appendToComposer(markup);
   }, []);
 
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail.event === "assistant.fill") {
+        setIsAssistantSidebarOpen(true);
+        window.setTimeout(() => appendToAssistant(detail.data.text), 100);
+      }
+    };
+    window.addEventListener("openfic:plugin-event", listener);
+    return () => window.removeEventListener("openfic:plugin-event", listener);
+  }, [appendToAssistant]);
+
   const openAssistantSidebar = useCallback(() => setIsAssistantSidebarOpen(true), []);
   const closeAssistantSidebar = useCallback(() => setIsAssistantSidebarOpen(false), []);
 

@@ -1,8 +1,8 @@
 import { Button, Flex } from "@radix-ui/themes";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams, useNavigate } from "react-router";
 
 import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 
@@ -13,6 +13,7 @@ import {
   type InstalledPlugin,
   type PluginView,
 } from "./api";
+import { frontendCall } from "./frontend-host";
 import { PluginManager } from "./plugin-manager";
 
 import "./plugins.css";
@@ -52,15 +53,30 @@ export function PluginPage() {
   );
 }
 
-function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginView }) {
+export function PluginFrame({
+  plugin,
+  view,
+  context = {},
+  embedded = false,
+}: {
+  plugin: InstalledPlugin;
+  view: PluginView;
+  context?: Record<string, unknown>;
+  embedded?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const [search] = useSearchParams();
+  const routeParams = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const frame = useRef<HTMLIFrameElement>(null);
   const [channel] = useState(() => crypto.randomUUID());
   const [ready, setReady] = useState(false);
   const [fault, setFault] = useState(false);
   const language = i18n.language;
-  const projectId = search.get("projectId");
+  const projectId = context.projectId ?? routeParams.projectId ?? search.get("projectId");
+  const extraContext = JSON.stringify(context);
+  const capabilityKey = plugin.capabilities.join(",");
   const configuration = JSON.stringify(plugin.configuration);
   const theme =
     document.documentElement.classList.contains("dark") ||
@@ -76,6 +92,30 @@ function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginVi
         { protocol: "openfic.plugin.v1", channel, ...payload },
         "*",
       );
+    const localEvent = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail.event === "data.changed") void queryClient.invalidateQueries();
+      reply({ type: "event", ...detail });
+    };
+    window.addEventListener("openfic:plugin-event", localEvent);
+    let cursor = 0;
+    const poll = capabilityKey.split(",").includes("events")
+      ? window.setInterval(() => {
+          void apiClient
+            .post(`/plugins/${plugin.id}/rpc`, {
+              method: "sdk.events.poll",
+              params: { after: cursor },
+            })
+            .then(({ data }) => {
+              cursor = data.result.cursor;
+              for (const event of data.result.events) {
+                reply({ type: "event", event: event.event, data: event.data });
+                if (event.event === "data.changed") void queryClient.invalidateQueries();
+              }
+            })
+            .catch(() => {});
+        }, 2000)
+      : undefined;
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== "null") return;
       const message = event.data;
@@ -89,6 +129,10 @@ function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginVi
             language,
             theme,
             settings: JSON.parse(configuration),
+            ...JSON.parse(extraContext),
+            sdkVersion: "2.0.0",
+            capabilities: capabilityKey.split(","),
+            slot: view.slot,
           },
         });
         setReady(true);
@@ -115,10 +159,19 @@ function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginVi
           return;
         }
         inFlight++;
-        void apiClient
-          .post(`/plugins/${plugin.id}/rpc`, { method: message.method, params: message.params })
-          .then(({ data }) => {
-            if (!disposed) reply({ type: "result", id: message.id, result: data.result });
+        const operation = message.method.startsWith("host.")
+          ? frontendCall(
+              message.method.slice(5),
+              message.params,
+              capabilityKey.split(","),
+              navigate,
+            )
+          : apiClient
+              .post(`/plugins/${plugin.id}/rpc`, { method: message.method, params: message.params })
+              .then(({ data }) => data.result);
+        void operation
+          .then((result) => {
+            if (!disposed) reply({ type: "result", id: message.id, result });
           })
           .catch((error: unknown) => {
             if (!disposed) reply({ type: "result", id: message.id, error: pluginError(error) });
@@ -133,8 +186,22 @@ function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginVi
       disposed = true;
       window.clearTimeout(timer);
       window.removeEventListener("message", receive);
+      window.removeEventListener("openfic:plugin-event", localEvent);
+      if (poll) window.clearInterval(poll);
     };
-  }, [channel, language, plugin.id, configuration, projectId, theme]);
+  }, [
+    channel,
+    language,
+    plugin.id,
+    configuration,
+    projectId,
+    theme,
+    extraContext,
+    view.slot,
+    navigate,
+    queryClient,
+    capabilityKey,
+  ]);
   const { data: viewUrl, error: viewError } = useQuery({
     queryKey: ["plugin-view-url", plugin.id, plugin.version, view.id, configuration],
     queryFn: async () => {
@@ -148,20 +215,22 @@ function PluginFrame({ plugin, view }: { plugin: InstalledPlugin; view: PluginVi
   });
   return (
     <section className="plugin-view">
-      <Flex
-        className="plugin-view-header"
-        align="center"
-        justify="between"
-      >
-        <h2>{view.title}</h2>
-        <Button
-          asChild
-          size="1"
-          variant="soft"
+      {!embedded && (
+        <Flex
+          className="plugin-view-header"
+          align="center"
+          justify="between"
         >
-          <Link to="/extensions">{t("plugins.management")}</Link>
-        </Button>
-      </Flex>
+          <h2>{view.title}</h2>
+          <Button
+            asChild
+            size="1"
+            variant="soft"
+          >
+            <Link to="/extensions">{t("plugins.management")}</Link>
+          </Button>
+        </Flex>
+      )}
       {!ready && !fault && <p role="status">{t("plugins.loading")}</p>}
       {fault && <p role="alert">{t("plugins.viewFailed")}</p>}
       {viewError && <p role="alert">{pluginError(viewError)}</p>}

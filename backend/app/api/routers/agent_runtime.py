@@ -839,7 +839,7 @@ async def list_agent_tools() -> list[AgentToolMetadataResponse]:
     items_by_key: dict[str, AgentToolMetadataResponse] = {}
 
     for tool in ToolRegistry.get_tools(state={"session_id": "", "project_id": ""}):
-        if tool.name not in TOOL_DISPLAY_ORDER:
+        if tool.name not in TOOL_DISPLAY_ORDER and not tool.name.startswith("plugin_"):
             continue
         items_by_key[tool.name] = AgentToolMetadataResponse(
             key=tool.name,

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
 import { PluginManager } from "@/features/plugins/plugin-manager";
+import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { saveLanguagePreference } from "@/i18n";
 import {
   applyBaseFontSize,
@@ -445,7 +446,12 @@ export function SettingsContent({
           </Flex>
         ) : displaySettings ? (
           <>
-            {activeCategory === "plugins" ? <PluginManager onOpenView={onClose} /> : null}
+            {activeCategory === "plugins" ? (
+              <>
+                <PluginManager onOpenView={onClose} />
+                <PluginSlot slot="settings.plugins" />
+              </>
+            ) : null}
             {activeCategory === "general" ? (
               <GeneralSettings
                 settings={displaySettings}

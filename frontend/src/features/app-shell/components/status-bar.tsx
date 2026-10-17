@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { useTranslation } from "react-i18next";
 
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
+import { PluginSlot } from "@/features/plugins/plugin-slot";
 import type { TunnelStatus } from "@/features/settings/lib/tunnels-api";
 import { useOverallIndexStatus, type ProjectIndexStatus } from "@/lib/index-status";
 import { getSocketConnectionStatus, subscribeSocketConnectionStatus } from "@/lib/socket-client";
@@ -317,6 +318,7 @@ export function StatusBar({ version }: StatusBarProps) {
         items={leftItems}
         side="left"
       />
+      <PluginSlot slot="statusbar" />
       <StatusBarSection
         items={rightItems}
         side="right"

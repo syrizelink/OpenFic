@@ -305,13 +305,24 @@ function PluginConfiguration({
 }) {
   const { t } = useTranslation();
   const [values, setValues] = useState(plugin.configuration);
+  const [configError, setConfigError] = useState("");
   return (
     <details className="plugin-configuration">
       <summary>{t("plugins.configuration")}</summary>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void onSave(values);
+          try {
+            const parsed = { ...values };
+            for (const setting of plugin.settings) {
+              if (setting.type === "json" && typeof parsed[setting.key] === "string")
+                parsed[setting.key] = JSON.parse(parsed[setting.key] as string);
+            }
+            setConfigError("");
+            void onSave(parsed);
+          } catch (error) {
+            setConfigError(String(error));
+          }
         }}
       >
         {plugin.settings.map((setting) => (
@@ -326,25 +337,45 @@ function PluginConfiguration({
                 disabled={disabled}
                 onCheckedChange={(value) => setValues({ ...values, [setting.key]: value === true })}
               />
+            ) : setting.type === "json" ? (
+              <textarea
+                aria-label={setting.label}
+                disabled={disabled}
+                value={
+                  typeof values[setting.key] === "string"
+                    ? (values[setting.key] as string)
+                    : JSON.stringify(values[setting.key], null, 2)
+                }
+                onChange={(event) => setValues({ ...values, [setting.key]: event.target.value })}
+                rows={8}
+              />
             ) : (
               <TextField.Root
-                type={setting.type === "integer" ? "number" : "text"}
+                type={
+                  setting.secret
+                    ? "password"
+                    : ["integer", "number"].includes(setting.type)
+                      ? "number"
+                      : "text"
+                }
                 min={setting.minimum}
                 max={setting.maximum}
-                required
+                required={!setting.secret}
                 disabled={disabled}
                 value={String(values[setting.key] ?? "")}
                 onChange={(event) =>
                   setValues({
                     ...values,
-                    [setting.key]:
-                      setting.type === "integer" ? Number(event.target.value) : event.target.value,
+                    [setting.key]: ["integer", "number"].includes(setting.type)
+                      ? Number(event.target.value)
+                      : event.target.value,
                   })
                 }
               />
             )}
           </label>
         ))}
+        {configError && <p role="alert">{configError}</p>}
         <Button
           size="1"
           disabled={disabled}

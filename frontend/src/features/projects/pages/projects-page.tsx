@@ -1,10 +1,9 @@
+import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
 /**
  * ProjectsPage Component
  *
  * 项目列表主页面，整合所有项目管理功能。
  */
-
-import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -13,6 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import type { Project } from "@/lib/project.types";
 
@@ -181,6 +181,8 @@ export function ProjectsPage() {
           />
         </Box>
       </Container>
+
+      <PluginSlot slot="project.toolbar" />
 
       {/* 主内容区域 */}
       <Container

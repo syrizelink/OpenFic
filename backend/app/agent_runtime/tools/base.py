@@ -274,7 +274,26 @@ class AgentTool(BaseTool):
             execute = getattr(self, "_execute", None)
             if not callable(execute):
                 raise NotImplementedError("AgentTool subclasses must define _execute")
-            output = await cast(Callable[..., Awaitable[str]], execute)(**validated_args)
+            from app.plugins.runtime import dispatch
+
+            async def run_plugin_checked(event):
+                if event.get("deny"):
+                    raise PermissionError(str(event["deny"]))
+                if event.get("tool") != self.name:
+                    raise ValueError("Tool middleware cannot change the tool identity")
+                return {"result": await cast(Callable[..., Awaitable[str]], execute)(**event["input"])}
+
+            plugin_result = await dispatch(
+                "tool.call", {"tool": self.name, "input": validated_args,
+                              "projectId": self.runtime_state.get("project_id")},
+                self.get_runtime_db_session(), runtime=self.runtime_state,
+                terminal=run_plugin_checked,
+            )
+            if plugin_result.get("deny"):
+                raise PermissionError(str(plugin_result["deny"]))
+            output = plugin_result.get("result", "")
+            if not isinstance(output, str):
+                output = json.dumps(output, ensure_ascii=False)
         except ToolExecutionError as e:
             failure = tool_failure_from_exception(e, source="tool_execution")
             log_tool_failure(
@@ -313,6 +332,12 @@ class AgentTool(BaseTool):
                 hook_ctx.output = output
 
         normalized_output, failure = normalize_tool_failure_result(output)
+        from app.plugins.runtime import dispatch
+        plugin_result = await dispatch(
+            "tool.result", {"tool": self.name, "input": validated_args, "result": normalized_output},
+            self.get_runtime_db_session(), runtime=self.runtime_state,
+        )
+        normalized_output = plugin_result.get("result", normalized_output)
         if failure is not None:
             log_tool_failure(
                 failure,
