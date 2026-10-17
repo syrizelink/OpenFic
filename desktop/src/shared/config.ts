@@ -49,6 +49,7 @@ export interface DesktopInstance extends DesktopInstanceAppearance {
   /** Works data directory. `null` means the default (current) location. */
   dataDir: string | null;
   favorite?: boolean;
+  hasAccessKey?: boolean;
 }
 
 export interface DesktopConfig {

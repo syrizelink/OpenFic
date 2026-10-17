@@ -1,11 +1,11 @@
 /* OpenFic Desktop — setup wizard */
 
 .setup-wizard {
-  --app-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", sans-serif;
-  --code-font-family: ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Code",
-    "Segoe UI Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --app-font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
+  --code-font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", Menlo, monospace;
   font-family: var(--app-font-family);
   width: min(680px, 100%);
   display: flex;
@@ -126,7 +126,9 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .setup-configured-instance:hover,
@@ -199,7 +201,9 @@
   background: transparent;
   color: var(--gray-10);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .setup-configured-instance-settings:hover {
@@ -223,6 +227,16 @@
   gap: 4px;
   color: var(--gray-10);
   font-size: 12px;
+}
+
+.setup-configured-instance-action svg {
+  flex: 0 0 auto;
+}
+
+.setup-configured-instance-access-indicator {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
 }
 
 .setup-configured-instance:hover .setup-configured-instance-action,

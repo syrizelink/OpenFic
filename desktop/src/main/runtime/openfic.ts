@@ -3,11 +3,7 @@ import { spawn } from "node:child_process";
 import { access, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { findFreePort } from "../ports.js";
-import {
-  abortStartingBackendProcess,
-  startBackendProcess,
-  type BackendProcessHandle,
-} from "../process.js";
+import { abortStartingBackendProcess, startBackendProcess, type BackendProcessHandle } from "../process.js";
 import { configureDefaultSystemProxy, getSystemProxyEnvironment } from "../proxy.js";
 import { throwIfAborted, waitForBackend } from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
@@ -70,11 +66,7 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
-function forwardLines(
-  stream: NodeJS.ReadableStream | null,
-  logStream: NodeJS.WritableStream,
-  onLine?: (line: string) => void,
-): void {
+function forwardLines(stream: NodeJS.ReadableStream | null, logStream: NodeJS.WritableStream, onLine?: (line: string) => void): void {
   if (!stream) return;
 
   let buffer = "";
@@ -267,13 +259,7 @@ async function runUvInstallWithSystemCertsRetry(
   } catch (error) {
     if (error instanceof Error && error.message.includes(UV_SYSTEM_CERTS_HINT)) {
       appendLog("runtime", "检测到 TLS 证书错误，使用 --system-certs 重试");
-      await run(
-        uvPath,
-        ["--system-certs", ...args],
-        cwd,
-        (line) => onProgress("install-openfic", line),
-        environment,
-      );
+      await run(uvPath, ["--system-certs", ...args], cwd, (line) => onProgress("install-openfic", line), environment);
       return;
     }
     throw error;
@@ -300,10 +286,7 @@ async function runInstallWithIndexFallback(
   throw lastError;
 }
 
-export async function inspectOpenFicRuntime(
-  runtimeDir: string,
-  expectedVersion: string,
-): Promise<RuntimeIntegrityCheck> {
+export async function inspectOpenFicRuntime(runtimeDir: string, expectedVersion: string): Promise<RuntimeIntegrityCheck> {
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   if (!(await pathExists(venvPythonPath))) {
     return { complete: false, message: "未找到 Python 虚拟环境" };
@@ -353,8 +336,7 @@ export async function ensureOpenFicRuntime(
     await rm(venvDir, { recursive: true, force: true });
   }
 
-  const venvIsUsable =
-    (await pathExists(venvPythonPath)) && Boolean(await readOutput(venvPythonPath, ["--version"], runtimeDir));
+  const venvIsUsable = (await pathExists(venvPythonPath)) && Boolean(await readOutput(venvPythonPath, ["--version"], runtimeDir));
   if (!venvIsUsable) {
     appendLog("runtime", "虚拟环境不存在或不可用，开始创建");
     await rm(venvDir, { recursive: true, force: true });
@@ -381,13 +363,9 @@ export async function ensureOpenFicRuntime(
   const versionCommand = createOpenFicVersionCommand(venvPythonPath);
   const installedVersion = await readOutput(versionCommand.command, versionCommand.args, runtimeDir);
   const openFicCliPath = resolveOpenFicCliPath(venvPythonPath);
-  const openFicCliIsUsable =
-    (await pathExists(openFicCliPath)) && (await succeeds(openFicCliPath, ["--help"], runtimeDir));
+  const openFicCliIsUsable = (await pathExists(openFicCliPath)) && (await succeeds(openFicCliPath, ["--help"], runtimeDir));
   if (installedVersion !== expectedVersion || !openFicCliIsUsable) {
-    appendLog(
-      "runtime",
-      installedVersion ? `OpenFic 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFic 后端尚未安装",
-    );
+    appendLog("runtime", installedVersion ? `OpenFic 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFic 后端尚未安装");
     onProgress("install-openfic", installedVersion ? "更新 OpenFic 后端" : "安装 OpenFic 后端");
     const packageIndexEnvironments = await getPypiEnvironments();
     const installCommand = createOpenFicInstallCommand(
@@ -580,6 +558,7 @@ export async function startLocalOpenFicBackend(
   startupProgress?: StartupProgressTracker,
   signal?: AbortSignal,
   dataDir?: string,
+  accessKey?: string,
 ): Promise<{ handle: BackendProcessHandle; maintenanceError: string | null }> {
   throwIfAborted(signal);
   startupProgress?.begin({
@@ -600,7 +579,10 @@ export async function startLocalOpenFicBackend(
     args: command.args,
     port,
     dataDir,
-    environment: proxyEnvironment,
+    environment: {
+      ...proxyEnvironment,
+      OPENFIC_AUTH_PASSWORD: accessKey ?? "",
+    },
     onOutputLine: (line) => {
       const progress = matchStartupLogLine(line);
       if (!progress) return;

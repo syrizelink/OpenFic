@@ -1,0 +1,208 @@
+.instance-access-key-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-overlay);
+  animation: instance-access-key-overlay-in 160ms ease;
+}
+
+.instance-access-key-overlay.is-closing {
+  animation: instance-access-key-overlay-out 160ms ease forwards;
+}
+
+.instance-access-key-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 14px;
+  background: var(--color-panel-solid);
+  box-shadow: 0 16px 48px var(--black-a6);
+  animation: instance-access-key-dialog-in 180ms ease;
+}
+
+.instance-access-key-dialog.is-closing {
+  animation: instance-access-key-dialog-out 160ms ease forwards;
+}
+
+.instance-access-key-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-10);
+}
+
+.instance-access-key-head h2 {
+  margin: 0;
+  color: var(--gray-12);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.instance-access-key-description,
+.instance-access-key-hint {
+  margin: 0;
+  color: var(--gray-11);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.instance-access-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instance-access-key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--gray-12);
+  font-size: 12px;
+}
+
+.instance-access-key-field input {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+}
+
+.instance-access-key-field input:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 1px;
+}
+
+.instance-access-key-field input::placeholder {
+  color: var(--gray-9);
+}
+
+.instance-access-key-hint {
+  color: var(--gray-10);
+  font-size: 12px;
+}
+
+.instance-access-key-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--red-a5);
+  border-radius: 8px;
+  background: var(--red-a3);
+  color: var(--red-11);
+  font-size: 12px;
+}
+
+.instance-access-key-error svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.instance-access-key-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.instance-access-key-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.instance-access-key-button:hover {
+  border-color: var(--gray-a8);
+  background: var(--color-panel-solid);
+}
+
+.instance-access-key-button:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.instance-access-key-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.instance-access-key-button-primary {
+  border-color: var(--accent-9);
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+}
+
+.instance-access-key-button-primary:hover {
+  border-color: var(--accent-10);
+  background: var(--accent-10);
+}
+
+@keyframes instance-access-key-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes instance-access-key-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes instance-access-key-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes instance-access-key-dialog-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instance-access-key-overlay,
+  .instance-access-key-dialog {
+    animation: none;
+  }
+}

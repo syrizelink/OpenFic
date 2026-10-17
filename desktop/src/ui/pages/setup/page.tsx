@@ -8,6 +8,8 @@ import {
   FolderOpen,
   HardDrive,
   HardDriveDownload,
+  KeyRound,
+  LockKeyhole,
   RefreshCw,
   Server,
   Settings,
@@ -31,13 +33,7 @@ interface StepEntry {
 
 type StepState = Record<SetupStep, StepEntry>;
 
-const STEP_ORDER: SetupStep[] = [
-  "download-python",
-  "extract-python",
-  "create-venv",
-  "install-uv",
-  "install-openfic",
-];
+const STEP_ORDER: SetupStep[] = ["download-python", "extract-python", "create-venv", "install-uv", "install-openfic"];
 
 const STEP_TITLE_KEYS: Record<SetupStep, string> = {
   "download-python": "desktop.setup.downloadPython",
@@ -80,15 +76,12 @@ interface SetupPageProps {
   onConnectRemote: (url: string) => void;
   onConnectInstance: (instanceId: string) => void;
   onRequestDeleteInstance: (instanceId: string) => void;
+  onRequestAccessKey: (instanceId: string) => void;
   onOpenDataManagementFor: (instanceId: string) => void;
   onStartLocal: (installDir: string, dataDir: string) => void;
 }
 
-function getInstanceDetail(
-  instance: DesktopInstance,
-  remoteAddressNotSet: string,
-  runtimeDirectoryNotSet: string,
-): string {
+function getInstanceDetail(instance: DesktopInstance, remoteAddressNotSet: string, runtimeDirectoryNotSet: string): string {
   if (instance.mode === "remote") return instance.remoteUrl ?? remoteAddressNotSet;
   return instance.installDir ? getRuntimeDisplayPath(instance.installDir) : runtimeDirectoryNotSet;
 }
@@ -123,6 +116,7 @@ export function SetupPage({
   onConnectRemote,
   onConnectInstance,
   onRequestDeleteInstance,
+  onRequestAccessKey,
   onOpenDataManagementFor,
   onStartLocal,
 }: SetupPageProps) {
@@ -172,10 +166,8 @@ export function SetupPage({
     setRuntimeChecking(true);
     setRuntimeInspection(null);
     setRuntimeDirWarning(false);
-    void Promise.all([
-      window.openficDesktop.inspectLocalRuntime(installDir),
-      window.openficDesktop.checkPathOverlap(installDir),
-    ]).then(([result, isNested]) => {
+    void Promise.all([window.openficDesktop.inspectLocalRuntime(installDir), window.openficDesktop.checkPathOverlap(installDir)])
+      .then(([result, isNested]) => {
         if (!cancelled) {
           setRuntimeInspection(result);
           setRuntimeDirWarning(isNested);
@@ -204,10 +196,7 @@ export function SetupPage({
     setDataDirChecking(true);
     setDataDirWarning(false);
     setRuntimeDirWarning(false);
-    void Promise.all([
-      window.openficDesktop.checkPathOverlap(dataDir, installDir),
-      window.openficDesktop.checkPathOverlap(installDir),
-    ])
+    void Promise.all([window.openficDesktop.checkPathOverlap(dataDir, installDir), window.openficDesktop.checkPathOverlap(installDir)])
       .then(([isDataNested, isRuntimeNested]) => {
         if (!cancelled) {
           setDataDirWarning(isDataNested);
@@ -279,9 +268,7 @@ export function SetupPage({
   const runtimeIsReady = runtimeInspection?.status === "ready";
   const runtimeNeedsRepair = runtimeInspection?.status === "incomplete";
   const configuredInstance = runtimeInspection?.configuredInstance ?? null;
-  const primaryActionLabel = runtimeIsReady && configuredInstance
-    ? t("desktop.setup.useExistingInstance")
-    : t("desktop.setup.continue");
+  const primaryActionLabel = runtimeIsReady && configuredInstance ? t("desktop.setup.useExistingInstance") : t("desktop.setup.continue");
 
   const dataStepPrimaryActionLabel = runtimeIsReady
     ? t("desktop.setup.startLocalInstance")
@@ -303,9 +290,7 @@ export function SetupPage({
             <div className="setup-heading">
               {EYEBROW[step] ? <p className="eyebrow">{EYEBROW[step]}</p> : null}
               <h1>{TITLE_KEYS[step] ? t(TITLE_KEYS[step]) : ""}</h1>
-              {DESCRIPTION_KEYS[step] ? (
-                <p className="description">{t(DESCRIPTION_KEYS[step])}</p>
-              ) : null}
+              {DESCRIPTION_KEYS[step] ? <p className="description">{t(DESCRIPTION_KEYS[step])}</p> : null}
             </div>
           </div>
         ) : null}
@@ -374,11 +359,7 @@ export function SetupPage({
                           }}
                         >
                           <span className="setup-configured-instance-icon">
-                            {instance.mode === "remote" ? (
-                              <Server size={16} strokeWidth={2} />
-                            ) : (
-                              <HardDrive size={16} strokeWidth={2} />
-                            )}
+                            {instance.mode === "remote" ? <Server size={16} strokeWidth={2} /> : <HardDrive size={16} strokeWidth={2} />}
                           </span>
                           <span className="setup-configured-instance-copy">
                             <span className="setup-configured-instance-title">
@@ -398,6 +379,21 @@ export function SetupPage({
                                   }}
                                 >
                                   <Settings size={13} strokeWidth={2} />
+                                </button>
+                              ) : null}
+                              {instance.mode === "local" ? (
+                                <button
+                                  className="setup-configured-instance-settings"
+                                  type="button"
+                                  title={t("desktop.setup.instanceAccessKey")}
+                                  aria-label={t("desktop.setup.instanceAccessKey")}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRequestAccessKey(instance.id);
+                                  }}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                >
+                                  <LockKeyhole size={13} strokeWidth={2} />
                                 </button>
                               ) : null}
                               <button
@@ -433,6 +429,16 @@ export function SetupPage({
                             </span>
                           </span>
                           <span className="setup-configured-instance-action">
+                            {instance.mode === "local" && instance.hasAccessKey ? (
+                              <span
+                                className="setup-configured-instance-access-indicator"
+                                role="img"
+                                title={t("desktop.setup.accessKeyEnabled")}
+                                aria-label={t("desktop.setup.accessKeyEnabled")}
+                              >
+                                <KeyRound size={14} strokeWidth={2} aria-hidden="true" />
+                              </span>
+                            ) : null}
                             {isActive ? t("desktop.setup.reconnect") : t("desktop.setup.connect")}
                             <ArrowRight size={15} strokeWidth={2} />
                           </span>
@@ -463,12 +469,7 @@ export function SetupPage({
               </label>
 
               <div className="setup-actions">
-                <button
-                  className="primary-button"
-                  type="button"
-                  disabled={!remoteUrl.trim()}
-                  onClick={() => onConnectRemote(remoteUrl)}
-                >
+                <button className="primary-button" type="button" disabled={!remoteUrl.trim()} onClick={() => onConnectRemote(remoteUrl)}>
                   {t("desktop.setup.connect")}
                 </button>
               </div>
@@ -514,7 +515,11 @@ export function SetupPage({
               {runtimeNeedsRepair ? (
                 <div className="setup-alert setup-alert-warning">
                   <AlertTriangle size={16} strokeWidth={2} className="setup-alert-icon" />
-                  <span>{t("desktop.setup.incompleteRuntimeFound", { message: runtimeInspection.message })}</span>
+                  <span>
+                    {t("desktop.setup.incompleteRuntimeFound", {
+                      message: runtimeInspection.message,
+                    })}
+                  </span>
                 </div>
               ) : null}
 
@@ -602,8 +607,7 @@ export function SetupPage({
                 {STEP_ORDER.map((stepKey) => {
                   const entry = steps[stepKey];
                   const isDownload = stepKey === "download-python";
-                  const showProgress =
-                    isDownload && entry.status === "running" && typeof entry.progress === "number";
+                  const showProgress = isDownload && entry.status === "running" && typeof entry.progress === "number";
                   return (
                     <div
                       className="setup-step"
@@ -625,15 +629,14 @@ export function SetupPage({
                       <div className="setup-step-body">
                         <span className="setup-step-title">{t(STEP_TITLE_KEYS[stepKey])}</span>
                         {(entry.status === "running" || entry.status === "failed") && !showProgress ? (
-                          <span className="setup-step-detail">{entry.status === "failed" ? entry.message : t(STEP_DETAIL_KEYS[stepKey])}</span>
+                          <span className="setup-step-detail">
+                            {entry.status === "failed" ? entry.message : t(STEP_DETAIL_KEYS[stepKey])}
+                          </span>
                         ) : null}
                         {showProgress ? (
                           <div className="setup-progress">
                             <div className="setup-progress-track">
-                              <div
-                                className="setup-progress-fill"
-                                style={{ width: `${Math.round((entry.progress ?? 0) * 100)}%` }}
-                              />
+                              <div className="setup-progress-fill" style={{ width: `${Math.round((entry.progress ?? 0) * 100)}%` }} />
                             </div>
                             <div className="setup-progress-meta">
                               <span>{t(STEP_DETAIL_KEYS[stepKey])}</span>
@@ -671,16 +674,10 @@ export function SetupPage({
               </span>
               <div>
                 <p className="setup-success-title">{t("desktop.setup.installComplete")}</p>
-                <p className="setup-success-desc">
-                  {t("desktop.setup.runtimeReady")}
-                </p>
+                <p className="setup-success-desc">{t("desktop.setup.runtimeReady")}</p>
               </div>
               <div className="setup-actions" style={{ width: "100%", justifyContent: "center" }}>
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={() => onStartLocal(installDir, dataDir)}
-                >
+                <button className="primary-button" type="button" onClick={() => onStartLocal(installDir, dataDir)}>
                   {t("desktop.setup.getStarted")}
                 </button>
               </div>

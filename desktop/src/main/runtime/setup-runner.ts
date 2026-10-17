@@ -2,12 +2,7 @@ import { app, type WebContents } from "electron";
 import { stat } from "node:fs/promises";
 import { IpcChannels, type SetupProgressEvent } from "../../shared/ipc.js";
 import { describeDownloadProgress, ensurePortablePython, inspectPortablePython, resolveRuntimeDir } from "./python.js";
-import {
-  ensureOpenFicRuntime,
-  inspectOpenFicRuntime,
-  resolveVenvPythonPath,
-  startLocalOpenFicBackend,
-} from "./openfic.js";
+import { ensureOpenFicRuntime, inspectOpenFicRuntime, resolveVenvPythonPath, startLocalOpenFicBackend } from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
 import type { StartupProgressTracker } from "../startup-progress.js";
 import { appendLog, getLogPath } from "../logging.js";
@@ -98,6 +93,7 @@ export async function startLocalBackendFromInstall(
   startupProgress?: StartupProgressTracker,
   signal?: AbortSignal,
   dataDir?: string,
+  accessKey?: string,
 ): Promise<{ handle: BackendProcessHandle; maintenanceError: string | null }> {
   throwIfAborted(signal);
   const inspection = await inspectLocalRuntime(installDir);
@@ -106,5 +102,5 @@ export async function startLocalBackendFromInstall(
   }
   throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);
-  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion(), startupProgress, signal, dataDir);
+  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion(), startupProgress, signal, dataDir, accessKey);
 }

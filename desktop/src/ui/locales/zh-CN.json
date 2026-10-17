@@ -135,6 +135,8 @@
     "goToSetup": "前往设置",
     "configuredInstances": "已配置的实例",
     "instanceSettings": "数据管理",
+    "instanceAccessKey": "设置访问密钥",
+    "accessKeyEnabled": "已启用访问密钥",
     "currentInstance": "当前",
     "reconnect": "重新连接",
     "connect": "连接",
@@ -180,6 +182,16 @@
     "remoteDescription": "远程实例的数据保存在服务端，不会删除服务端数据。",
     "confirm": "确认删除",
     "deleting": "正在删除…"
+  },
+  "instanceAccessKey": {
+    "title": "设置访问密钥",
+    "description": "为本地实例启用访问保护。密钥会加密保存在此设备上，并在下次连接实例时生效。",
+    "label": "访问密钥",
+    "placeholder": "输入访问密钥",
+    "configured": "当前已设置密钥。输入新密钥可替换；留空保存将移除访问保护。",
+    "notConfigured": "设置后，访问本地实例需要输入此密钥。",
+    "save": "保存",
+    "saving": "正在保存…"
   },
   "data": {
     "title": "数据管理",
