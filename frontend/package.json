@@ -84,6 +84,7 @@
     "lucide-react": "^1.25.0",
     "motion": "^12.38.0",
     "posthog-js": "^1.417.1",
+    "qr-code-styling": "^1.9.2",
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",
     "react-colorful": "^5.8.1",

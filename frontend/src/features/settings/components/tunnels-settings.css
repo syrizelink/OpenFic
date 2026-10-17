@@ -11,8 +11,38 @@
   width: 260px;
 }
 
+.tunnel-error-message {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.rt-CalloutRoot.tunnel-info-callout {
+  align-items: center;
+}
+
 .tunnel-refresh-icon--spinning {
   animation: tunnel-refresh-half-spin 500ms linear;
+}
+
+.tunnel-qr-dialog-description {
+  text-align: center;
+}
+
+.tunnel-qr-dialog-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-4);
+  overflow: hidden;
+  border-radius: var(--radius-3);
+  background: #fff;
+  padding: var(--space-3);
+}
+
+.tunnel-qr-dialog-code svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 @keyframes tunnel-refresh-half-spin {

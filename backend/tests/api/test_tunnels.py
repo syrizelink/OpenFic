@@ -113,6 +113,20 @@ async def test_exit_clears_url(launch):
         await manager.stop()
 
 
+async def test_process_exit_exposes_sanitized_output_error(launch):
+    launch("ERROR: authentication failed token=private-token", lifetime=0.2)
+    manager = TunnelManager()
+    try:
+        await manager.start(TunnelStart(), 8000)
+        await wait_status(manager, "error")
+        await manager.monitor
+        assert manager.error_message == "ERROR: authentication failed token=[REDACTED]"
+        assert manager.snapshot()["error_message"] == manager.error_message
+        assert "private-token" not in repr(manager.snapshot())
+    finally:
+        await manager.stop()
+
+
 async def test_timeout_terminates_process(launch, monkeypatch):
     launch(output="waiting")
     monkeypatch.setattr(tunnels, "STARTUP_TIMEOUT", 0.1)

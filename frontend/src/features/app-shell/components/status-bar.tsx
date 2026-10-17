@@ -1,10 +1,13 @@
 import { HoverCard, Text } from "@radix-ui/themes";
-import { useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from "lucide-react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
+import type { TunnelStatus } from "@/features/settings/lib/tunnels-api";
 import { useOverallIndexStatus, type ProjectIndexStatus } from "@/lib/index-status";
 import { getSocketConnectionStatus, subscribeSocketConnectionStatus } from "@/lib/socket-client";
+import { useTunnelStatus } from "@/lib/tunnel-status";
 
 import "./status-bar.css";
 
@@ -70,6 +73,61 @@ function SocketStatusItem() {
       />
       {isConnected ? "已连接" : "连接断开"}
     </span>
+  );
+}
+
+const CONNECTING_WIFI_ICONS = [WifiZero, WifiLow, WifiHigh] as const;
+
+function TunnelStatusItem({ status }: { status: TunnelStatus["status"] }) {
+  const { t } = useTranslation();
+  const { openSettings } = useAppShell();
+  const [connectingFrame, setConnectingFrame] = useState(0);
+
+  useEffect(() => {
+    if (status !== "starting") {
+      setConnectingFrame(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setConnectingFrame((frame) => (frame + 1) % CONNECTING_WIFI_ICONS.length);
+    }, 360);
+    return () => window.clearInterval(interval);
+  }, [status]);
+
+  if (status === "stopped") return null;
+
+  const isConnecting = status === "starting";
+  const state = isConnecting ? "connecting" : status === "running" ? "connected" : "error";
+  const Icon = isConnecting
+    ? CONNECTING_WIFI_ICONS[connectingFrame]
+    : status === "running"
+      ? Wifi
+      : WifiOff;
+  const label = t(isConnecting ? "settings.tunnelStatusBarConnecting" : "settings.tunnelStatusBar");
+  const ariaLabel = t(
+    status === "running"
+      ? "settings.tunnelStatusBarConnected"
+      : status === "starting"
+        ? "settings.tunnelStatusBarConnecting"
+        : "settings.tunnelStatusBarError",
+  );
+
+  return (
+    <button
+      type="button"
+      className="app-status-bar__tunnel-button"
+      data-state={state}
+      aria-label={ariaLabel}
+      onClick={() => openSettings({ category: "tunnels" })}
+    >
+      <Icon
+        size={14}
+        className="app-status-bar__tunnel-icon"
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -208,10 +266,16 @@ function IndexProgressStatusItem({
 
 export function StatusBar({ version }: StatusBarProps) {
   const { data: indexStatus } = useOverallIndexStatus();
+  const { data: tunnelStatus } = useTunnelStatus();
   const indexProgressState = useMemo(
     () => getIndexProgressState(indexStatus?.projects ?? []),
     [indexStatus?.projects],
   );
+  const tunnelStatusValue = tunnelStatus?.status;
+  const hasTunnelStatus =
+    tunnelStatusValue === "starting" ||
+    tunnelStatusValue === "running" ||
+    tunnelStatusValue === "error";
   const leftItems = useMemo<StatusBarItem[]>(
     () => [
       {
@@ -231,11 +295,16 @@ export function StatusBar({ version }: StatusBarProps) {
         isVisible: indexProgressState.hasFailure || indexProgressState.activeProjects.length > 0,
       },
       {
+        id: "tunnel-status",
+        content: <TunnelStatusItem status={tunnelStatusValue ?? "stopped"} />,
+        isVisible: hasTunnelStatus,
+      },
+      {
         id: "socket-status",
         content: <SocketStatusItem />,
       },
     ],
-    [indexProgressState],
+    [hasTunnelStatus, indexProgressState, tunnelStatusValue],
   );
 
   return (

@@ -14,6 +14,7 @@ export interface TunnelStatus {
   status: "stopped" | "starting" | "running" | "error";
   url: string | null;
   error: string | null;
+  error_message: string | null;
   providers: Record<TunnelProvider, boolean>;
   auth_enabled: boolean;
   frontend_available: boolean;
@@ -25,6 +26,7 @@ export interface TunnelStatusEvent {
   status: TunnelStatus["status"];
   url: string | null;
   error: string | null;
+  error_message: string | null;
   providers: Record<TunnelProvider, boolean>;
 }
 export interface TunnelStartRequest {

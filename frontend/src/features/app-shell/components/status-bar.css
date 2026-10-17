@@ -55,6 +55,47 @@
   box-shadow: 0 0 0 1px var(--green-a5);
 }
 
+.app-status-bar__tunnel-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  margin: 0 -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--gray-11);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.app-status-bar__tunnel-icon {
+  transform: translateY(-1px);
+}
+
+.app-status-bar__tunnel-button:hover {
+  background: var(--gray-a3);
+}
+
+.app-status-bar__tunnel-button[data-state="connected"] {
+  color: var(--green-11);
+}
+
+.app-status-bar__tunnel-button[data-state="connecting"] {
+  color: var(--yellow-11);
+}
+
+.app-status-bar__tunnel-button[data-state="error"] {
+  color: var(--red-11);
+}
+
+.app-status-bar__tunnel-button:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
 .app-status-bar__index-button {
   display: inline-flex;
   align-items: center;
