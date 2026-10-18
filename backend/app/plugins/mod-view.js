@@ -2,6 +2,16 @@
 const status = document.getElementById("status");
 let context;
 let panes = [];
+let lastHeight = -1;
+let paneKey = "";
+function resizeToContent(force = false) {
+  if (!context || context.slot === "sidebar.extensions") return;
+  const main = document.querySelector("main");
+  const height = Math.ceil(main.getBoundingClientRect().height);
+  if (height === lastHeight && force !== true) return;
+  lastHeight = height;
+  OpenFic.ui.resize(height).catch((error) => { status.textContent = error.message; });
+}
 function draw(node) {
   if (node == null || node === false) return document.createTextNode("");
   if (Array.isArray(node)) {
@@ -18,6 +28,8 @@ function draw(node) {
   if (type === "Button") {
     element.textContent = props.label || "Run";
     element.disabled = Boolean(props.disabled);
+    if (props.hotkey) element.dataset.hotkey = props.hotkey;
+    if (props.autoFocus) element.dataset.autoFocus = "true";
     element.onclick = () => runAction(props.onPress);
   } else if (type === "Input") {
     element.placeholder = props.placeholder || "";
@@ -49,12 +61,21 @@ function draw(node) {
   }
   if (props.bold) element.style.fontWeight = "bold";
   if (props.dimColor) element.style.opacity = "0.65";
-  if (props.color) element.style.color = props.color;
+  if (props.color) {
+    const palette = document.documentElement.dataset.theme === "dark"
+      ? { yellow: "#e2c072", blue: "#89b4fa", cyan: "#7ed5de", magenta: "#d3a2df", red: "#f78b8b", green: "#a6d189" }
+      : { yellow: "#8a6500", blue: "#365dba", cyan: "#087b83", magenta: "#944ca8", red: "#bd3030", green: "#247443" };
+    element.style.color = palette[props.color] || props.color;
+  }
+  if (props.inverse) { element.style.fontWeight = "bold"; element.style.background = "#8883"; }
   if (type === "Text") element.style.whiteSpace = "pre-wrap";
   if (type === "Box") {
     element.style.display = "flex";
     element.style.flexDirection = props.flexDirection || "column";
-    element.style.gap = "6px";
+    if (props.justifyContent) element.style.justifyContent = props.justifyContent;
+    if (props.alignItems) element.style.alignItems = props.alignItems;
+    element.style.gap = (Number(props.gap) || 0) * 4 + "px";
+    if (props.marginTop) element.style.marginTop = Number(props.marginTop) * 4 + "px";
     element.style.minWidth = "0";
     element.style.flexWrap = "wrap";
   }
@@ -62,23 +83,37 @@ function draw(node) {
   return element;
 }
 function paint(result) {
+  const focused = document.hasFocus() && document.activeElement?.tagName === "BUTTON" ? document.activeElement.textContent : null;
   panes = result.panes || [];
   const trees = result.trees.filter((entry) => entry.tree != null);
-  document.getElementById("render").replaceChildren(...trees.map((entry) => draw(entry.tree)));
+  document.getElementById("render").replaceChildren(...trees.map((entry) => {
+    const section = document.createElement("section");
+    section.dataset.component = entry.component;
+    if (entry.component === "Pane") {
+      section.setAttribute("role", "region");
+      section.setAttribute("aria-label", panes.find((pane) => pane.id === entry.requestId)?.title || context.pluginId);
+    } else section.setAttribute("aria-live", "polite");
+    section.append(draw(entry.tree));
+    return section;
+  }));
   document.getElementById("render").dataset.empty = String(trees.length === 0);
+  const nextKey = panes.map((pane) => pane.id).join("/");
+  if (nextKey && nextKey !== paneKey && panes.some((pane) => pane.focus)) {
+    document.querySelector('button[data-auto-focus="true"]')?.focus();
+  } else if (focused) {
+    [...document.querySelectorAll("button")].find((button) => button.textContent === focused)?.focus();
+  }
+  paneKey = nextKey;
+  resizeToContent();
 }
 async function inspect() {
-  return OpenFic.call("mod.inspect", { slot: context.slot, columns: Math.floor(innerWidth / 9) });
+  return OpenFic.call("mod.inspect", { slot: context.slot, columns: Math.floor(innerWidth / 7.2) });
 }
 async function runAction(id, value) {
   if (!id) return;
   try {
     await OpenFic.call("mod.action", { id, key: id, value });
-    const result = await refresh();
-    if (context.slot !== "sidebar.extensions" && result.panes.length) {
-      const query = context.projectId ? "?projectId=" + encodeURIComponent(context.projectId) : "";
-      await OpenFic.ui.navigate("/extensions/" + context.pluginId + "/mod" + query);
-    }
+    await refresh();
   } catch (error) { status.textContent = error.message; }
 }
 async function refresh() {
@@ -104,18 +139,27 @@ async function refresh() {
 OpenFic.ready.then(async (value) => {
   context = value;
   const embedded = context.slot !== "sidebar.extensions";
+  document.documentElement.dataset.embedded = String(embedded);
   document.getElementById("title").textContent = context.pluginId;
   if (embedded) {
     document.getElementById("title").hidden = true;
     document.getElementById("commands").hidden = true;
-    document.querySelector("main").style.padding = "8px";
   }
+  new ResizeObserver(resizeToContent).observe(document.querySelector("main"));
+  window.addEventListener("resize", () => resizeToContent(true));
   try { await refresh(); } catch (error) { status.textContent = error.message; }
 });
 let refreshTimer;
 window.addEventListener("keydown", async (event) => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   const pane = panes.find((pane) => pane.closeOnEscape);
-  if (event.key !== "Escape" || !pane) return;
+  if (event.key !== "Escape") {
+    if (document.activeElement?.matches("input,textarea,[contenteditable=true]")) return;
+    const button = [...document.querySelectorAll("button[data-hotkey]")].find((button) => button.dataset.hotkey.toLowerCase() === event.key.toLowerCase());
+    if (button) { event.preventDefault(); button.click(); }
+    return;
+  }
+  if (!pane) return;
   event.preventDefault();
   try {
     await OpenFic.call("mod.close", { id: pane.id });

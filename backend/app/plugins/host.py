@@ -239,6 +239,21 @@ class PluginHost:
                     )
                     if manifest.id != directory.name:
                         raise ValueError("Plugin directory identity mismatch")
+                    if manifest.format == "claude-mod":
+                        from app.plugins.mods import MOD_ADAPTER_VERSION, convert_mod
+
+                        if (
+                            manifest.compatibility.get("adapterVersion")
+                            != MOD_ADAPTER_VERSION
+                        ):
+                            convert_mod(directory)
+                            manifest = Manifest.model_validate_json(
+                                (directory / "plugin.json").read_bytes()
+                            )
+                            if manifest.id != directory.name:
+                                raise ValueError(
+                                    "Plugin directory identity mismatch after Mod migration"
+                                )
                     saved = state.get(manifest.id, {})
                     settings_values = saved.get("settings", {})
                     for setting in manifest.settings:

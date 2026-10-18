@@ -21,6 +21,7 @@ from app.plugins.manifest import Manifest, safe_path
 from app.plugins.runtime import EVENTS, sdk_call
 
 ROOT = Path(__file__).parent
+MOD_ADAPTER_VERSION = 2
 
 
 def convert_mod(target: Path):
@@ -94,6 +95,7 @@ def convert_mod(target: Path):
         for p in target.rglob("*")
         if p.suffix in {".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".mts", ".cts"}
         and p.is_file()
+        and "frontend" not in p.relative_to(target).parts
     )
     if re.search(r"\$\s*\.\s*process\s*\.", sources):
         warnings.append(
@@ -151,13 +153,14 @@ def convert_mod(target: Path):
             "warnings": warnings,
             "runtime": "QuickJS + Sucrase",
             "mode": "best-effort",
+            "adapterVersion": MOD_ADAPTER_VERSION,
             "documentMapping": "Chapter/note creation and body edits use virtual Write/Edit events; no host filesystem access.",
         },
     }
     if "AbovePrompt" in sources and not any(
         "$.process" in warning for warning in warnings
     ):
-        native["views"].append(
+        native["views"] = [
             {
                 "id": "band",
                 "title": name,
@@ -165,7 +168,7 @@ def convert_mod(target: Path):
                 "slot": "assistant.above-prompt",
                 "height": 100,
             }
-        )
+        ]
     manifest = Manifest.model_validate(native)
     (target / "plugin.json").write_text(manifest.model_dump_json(indent=2))
     frontend = target / "frontend"
@@ -175,7 +178,7 @@ def convert_mod(target: Path):
     )
     shutil.copyfile(ROOT / "mod-view.js", frontend / "mod.js")
     (frontend / "mod.css").write_text(
-        "body{font:14px system-ui;margin:0;background:#fafafa;color:#242424}main{padding:20px;max-width:1000px;margin:auto}button,input,select{font:inherit;padding:7px;margin:4px;border:1px solid #bbb;border-radius:5px}pre{white-space:pre-wrap}#status{white-space:pre-wrap}a{color:#6650c8}html[data-theme=dark] body{background:#181818;color:#eee}"
+        "body{font:14px system-ui;margin:0;background:#fafafa;color:#242424}main{padding:20px;max-width:1000px;margin:auto}button,input,select{font:inherit;padding:7px;margin:4px;border:1px solid #bbb;border-radius:5px}pre{white-space:pre-wrap}#status{white-space:pre-wrap}#status:empty{display:none}a{color:#6650c8}html[data-theme=dark] body{background:#181818;color:#eee}html[data-embedded=true] body{background:transparent;font:12px/1.5 ui-monospace,monospace;overflow-x:hidden}html[data-embedded=true] main{padding:0}section[data-component=Pane]{border:1px solid #8885;border-radius:8px;padding:10px;margin:4px 0}section[data-component=Pane] button{padding:4px 8px}"
     )
 
 
@@ -299,7 +302,7 @@ class ModRuntime:
         )
         trees = []
         components = (
-            ["AbovePrompt"]
+            (["Pane"] if data["panes"] else []) + ["AbovePrompt"]
             if params.get("slot") == "assistant.above-prompt"
             else ["Pane", "AbovePrompt", "Spinner"]
         )
@@ -337,7 +340,9 @@ class ModRuntime:
                 context,
                 fallback,
             )
-            trees.append({"component": component, "tree": rendered})
+            trees.append(
+                {"component": component, "requestId": request_id, "tree": rendered}
+            )
         return {
             **data,
             "trees": trees,

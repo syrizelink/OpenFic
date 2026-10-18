@@ -74,6 +74,9 @@ async def test_official_packages_are_unmodified_and_installable(
         assert any(
             view["slot"] == "assistant.above-prompt" for view in description["views"]
         )
+        assert not any(
+            view["slot"] == "sidebar.extensions" for view in description["views"]
+        )
     result = await host.call(name, "mod.inspect", {}, session)
     assert all(tree["tree"] is None for tree in result["trees"])
 
@@ -178,6 +181,12 @@ async def test_official_replay_records_native_chapter_tools_and_pane_controls(
     assert first["panes"][0]["id"] == "replay-theater"
     assert "step 1 of 2" in rendered(first)
     assert "Created chapter body" in rendered(first)
+    embedded = await host.call(
+        "replay-theater", "mod.inspect", {"slot": "assistant.above-prompt"}, session
+    )
+    assert embedded["trees"][0]["component"] == "Pane"
+    assert embedded["trees"][0]["requestId"] == "replay-theater"
+    assert "step 1 of 2" in rendered(embedded)
     await host.call(
         "replay-theater", "mod.action", {"id": action_id(first, "Next ▶")}, session
     )
@@ -193,6 +202,11 @@ async def test_official_replay_records_native_chapter_tools_and_pane_controls(
         "replay-theater", "mod.action", {"id": action_id(previous, "Close")}, session
     )
     assert not (await host.call("replay-theater", "mod.inspect", {}, session))["panes"]
+    embedded_closed = await host.call(
+        "replay-theater", "mod.inspect", {"slot": "assistant.above-prompt"}, session
+    )
+    assert len(embedded_closed["trees"]) == 1
+    assert "Replay: 2 edits" in rendered(embedded_closed)
     await host.call("replay-theater", "mod.command", {"command": "replay"}, session)
     await host.call("replay-theater", "mod.close", {"id": "replay-theater"}, session)
     closed = await host.call("replay-theater", "mod.inspect", {}, session)
@@ -333,3 +347,38 @@ async def test_official_mod_preserves_langgraph_interrupts(plugin_api, session):
             "trees"
         ]
     )
+
+
+async def test_official_mod_migrates_legacy_generated_ui_without_reinstall(
+    plugin_api, session
+):
+    host, _, _ = plugin_api
+    await host.install(official_package("replay-theater"))
+    await host.set_enabled("replay-theater", True)
+    await host.context("replay-theater", session).storage.set("keep", {"value": 42})
+    directory = host.root / "replay-theater"
+    original = (directory / "hooks/replay-theater.mjs").read_bytes()
+    manifest_path = directory / "plugin.json"
+    legacy = json.loads(manifest_path.read_text())
+    legacy["compatibility"].pop("adapterVersion")
+    legacy["views"].append(
+        {
+            "id": "mod",
+            "title": "Legacy page",
+            "slot": "sidebar.extensions",
+            "entry": "frontend/mod.html",
+        }
+    )
+    manifest_path.write_text(json.dumps(legacy))
+    (directory / "frontend/mod.js").write_text("OpenFic.ui.navigate('/extensions');")
+    await host.close()
+    await host.start()
+    description = host.describe(host.get("replay-theater"))
+    assert description["status"] == "enabled"
+    assert [view["slot"] for view in description["views"]] == ["assistant.above-prompt"]
+    assert "OpenFic.ui.navigate" not in (directory / "frontend/mod.js").read_text()
+    assert "ui.resize" in (directory / "frontend/mod.js").read_text()
+    assert (directory / "hooks/replay-theater.mjs").read_bytes() == original
+    assert await host.context("replay-theater", session).storage.get("keep") == {
+        "value": 42
+    }

@@ -19,6 +19,7 @@ export function PluginSlot({
     refetchInterval: 5000,
   });
   const [selected, setSelected] = useState<string | null>(null);
+  const [heights, setHeights] = useState<Record<string, number>>({});
   const entries = plugins
     .filter((p) => p.status === "enabled")
     .flatMap((plugin) =>
@@ -33,10 +34,12 @@ export function PluginSlot({
       {entries.map(({ plugin, view }) => {
         const id = `${plugin.id}/${view.id}`;
         const open = inline || selected === id;
+        const compact = plugin.format === "claude-mod" && slot === "assistant.above-prompt";
+        const height = heights[id] ?? (compact ? 0 : (view.height ?? 320));
         return (
           <div
             key={id}
-            className={open ? "plugin-slot-open" : undefined}
+            className={`${open ? "plugin-slot-open" : ""}${compact ? " plugin-slot-compact" : ""}`}
           >
             {!inline && (
               <button
@@ -50,7 +53,7 @@ export function PluginSlot({
             {open && (
               <div
                 className="plugin-slot-content"
-                style={{ height: view.height ?? 320 }}
+                style={{ height }}
               >
                 <PluginFrame
                   key={`${id}:${plugin.version}`}
@@ -58,6 +61,11 @@ export function PluginSlot({
                   view={view}
                   context={context}
                   embedded
+                  onHeightChange={(next) =>
+                    setHeights((current) =>
+                      current[id] === next ? current : { ...current, [id]: next },
+                    )
+                  }
                 />
               </div>
             )}

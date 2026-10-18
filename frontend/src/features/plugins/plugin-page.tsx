@@ -58,11 +58,13 @@ export function PluginFrame({
   view,
   context = {},
   embedded = false,
+  onHeightChange,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   context?: Record<string, unknown>;
   embedded?: boolean;
+  onHeightChange?: (height: number) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [search] = useSearchParams();
@@ -70,6 +72,11 @@ export function PluginFrame({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const frame = useRef<HTMLIFrameElement>(null);
+  const heightChange = useRef(onHeightChange);
+  const requestedHeight = useRef<number | null>(null);
+  useEffect(() => {
+    heightChange.current = onHeightChange;
+  }, [onHeightChange]);
   const [channel] = useState(() => crypto.randomUUID());
   const [ready, setReady] = useState(false);
   const [fault, setFault] = useState(false);
@@ -92,6 +99,19 @@ export function PluginFrame({
         { protocol: "openfic.plugin.v1", channel, ...payload },
         "*",
       );
+    const resizeView = (height: number) => {
+      const maximum =
+        view.slot === "assistant.above-prompt"
+          ? Math.min(420, Math.floor(window.innerHeight * 0.45))
+          : 1600;
+      const bounded = Math.max(0, Math.min(maximum, Math.ceil(height)));
+      heightChange.current?.(bounded);
+      return bounded;
+    };
+    const viewportResize = () => {
+      if (requestedHeight.current !== null) resizeView(requestedHeight.current);
+    };
+    window.addEventListener("resize", viewportResize);
     const localEvent = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (detail.event.startsWith("editor.") && !capabilityKey.split(",").includes("editor.read"))
@@ -147,16 +167,32 @@ export function PluginFrame({
           return;
         }
         inFlight++;
-        const operation = message.method.startsWith("host.")
-          ? frontendCall(
-              message.method.slice(5),
-              message.params,
-              capabilityKey.split(","),
-              navigate,
-            )
-          : apiClient
-              .post(`/plugins/${plugin.id}/rpc`, { method: message.method, params: message.params })
-              .then(({ data }) => data.result);
+        const operation =
+          message.method === "host.ui.resize"
+            ? Promise.resolve().then(() => {
+                if (!capabilityKey.split(",").includes("ui"))
+                  throw new Error("Plugin has not declared ui");
+                if (!embedded || !heightChange.current)
+                  throw new Error("Resizing requires an embedded plugin view");
+                const height = message.params.height;
+                if (typeof height !== "number" || !Number.isFinite(height))
+                  throw new Error("Plugin height must be a finite number");
+                requestedHeight.current = height;
+                return resizeView(height);
+              })
+            : message.method.startsWith("host.")
+              ? frontendCall(
+                  message.method.slice(5),
+                  message.params,
+                  capabilityKey.split(","),
+                  navigate,
+                )
+              : apiClient
+                  .post(`/plugins/${plugin.id}/rpc`, {
+                    method: message.method,
+                    params: message.params,
+                  })
+                  .then(({ data }) => data.result);
         void operation
           .then((result) => {
             if (!disposed) reply({ type: "result", id: message.id, result });
@@ -175,6 +211,7 @@ export function PluginFrame({
       window.clearTimeout(timer);
       window.removeEventListener("message", receive);
       window.removeEventListener("openfic:plugin-event", localEvent);
+      window.removeEventListener("resize", viewportResize);
     };
   }, [
     channel,
@@ -188,6 +225,7 @@ export function PluginFrame({
     navigate,
     queryClient,
     capabilityKey,
+    embedded,
   ]);
   const { data: viewUrl, error: viewError } = useQuery({
     queryKey: ["plugin-view-url", plugin.id, plugin.version, view.id, configuration],
@@ -227,7 +265,7 @@ export function PluginFrame({
           src={viewUrl}
           title={view.title}
           sandbox="allow-scripts"
-          className="plugin-frame"
+          className={embedded ? "plugin-frame plugin-frame-embedded" : "plugin-frame"}
           onError={() => setFault(true)}
         />
       )}

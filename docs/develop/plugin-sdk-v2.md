@@ -135,6 +135,8 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 
 `OpenFic.ui` 提供应用内导航、外部 HTTPS 页面、通知、确认、复制、文本下载、当前 UI 上下文和缓存刷新；`OpenFic.assistant.fill` 将文字追加到 Agent 输入框。程序化打开外部页面/剪贴板仍受浏览器平台权限约束。
 
+内嵌视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px，对话输入框上方最高为 420px 或窗口高度的 45%。宿主在窗口尺寸变化时重新应用上限。
+
 `OpenFic.on` 可订阅 `editor.open/change/selection/close`、`data.changed` 和插件事件。没有 `editor.read` 的视图不会收到编辑器正文；服务端的 `editor.change` hook 也要求读取能力，改写还要求 `editor.write`。异步编辑器结果只在原内容和当前实体仍匹配时应用，避免覆盖用户后续输入。
 
 ## Claude Mods 兼容边界
@@ -153,7 +155,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `clock.now/sleep` | 支持；原生 SDK 的周期任务使用 register_interval |
 | `session.usage()` | 当前任务最近模型输入 token 数与当前模型上下文窗口 |
 | Claude `Write/Edit` 文档事件 | 映射章节/笔记创建与正文编辑；逻辑路径，不开放主机文件系统 |
-| `ui.open/close` | 插件独立页面中的 Pane；输入框区域入口可打开该页面，支持按钮与 Escape |
+| `ui.open/close` | 当前对话区域原位展开/收起 Pane，自动高度，保留消息与输入；支持按钮、快捷键和 Escape |
 | `turn.step` async generator | 可执行预调用控制流，不提供替换 Claude token stream 的等价能力 |
 | shell hooks、process/MCP、组织权限/优先级、Client、音频 | 不自动执行或不支持；相关事件/API 无等价保证 |
 
