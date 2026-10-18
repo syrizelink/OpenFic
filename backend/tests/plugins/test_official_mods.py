@@ -61,6 +61,7 @@ async def test_official_packages_are_unmodified_and_installable(
     description = host.describe(host.get(name))
     assert description["status"] == "enabled"
     assert description["format"] == "claude-mod"
+    assert all(view["renderer"] == "declarative" for view in description["views"])
     if name == "blast-radius":
         assert any(
             "$.process" in warning
@@ -349,8 +350,9 @@ async def test_official_mod_preserves_langgraph_interrupts(plugin_api, session):
     )
 
 
+@pytest.mark.parametrize("adapter_version", [None, 2])
 async def test_official_mod_migrates_legacy_generated_ui_without_reinstall(
-    plugin_api, session
+    plugin_api, session, adapter_version
 ):
     host, _, _ = plugin_api
     await host.install(official_package("replay-theater"))
@@ -360,7 +362,15 @@ async def test_official_mod_migrates_legacy_generated_ui_without_reinstall(
     original = (directory / "hooks/replay-theater.mjs").read_bytes()
     manifest_path = directory / "plugin.json"
     legacy = json.loads(manifest_path.read_text())
-    legacy["compatibility"].pop("adapterVersion")
+    legacy["compatibility"]["adapterVersion"] = adapter_version
+    legacy["views"] = [
+        {
+            "id": "band",
+            "title": "Legacy band",
+            "slot": "assistant.above-prompt",
+            "entry": "frontend/mod.html",
+        }
+    ]
     legacy["views"].append(
         {
             "id": "mod",
@@ -370,14 +380,16 @@ async def test_official_mod_migrates_legacy_generated_ui_without_reinstall(
         }
     )
     manifest_path.write_text(json.dumps(legacy))
+    (directory / "frontend").mkdir(exist_ok=True)
     (directory / "frontend/mod.js").write_text("OpenFic.ui.navigate('/extensions');")
     await host.close()
     await host.start()
     description = host.describe(host.get("replay-theater"))
     assert description["status"] == "enabled"
     assert [view["slot"] for view in description["views"]] == ["assistant.above-prompt"]
-    assert "OpenFic.ui.navigate" not in (directory / "frontend/mod.js").read_text()
-    assert "ui.resize" in (directory / "frontend/mod.js").read_text()
+    assert description["views"][0]["renderer"] == "declarative"
+    assert description["views"][0]["entry"] is None
+    assert description["compatibility"]["adapterVersion"] == 3
     assert (directory / "hooks/replay-theater.mjs").read_bytes() == original
     assert await host.context("replay-theater", session).storage.get("keep") == {
         "value": 42

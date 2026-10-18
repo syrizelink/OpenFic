@@ -34,7 +34,9 @@ export function PluginSlot({
       {entries.map(({ plugin, view }) => {
         const id = `${plugin.id}/${view.id}`;
         const open = inline || selected === id;
-        const compact = plugin.format === "claude-mod" && slot === "assistant.above-prompt";
+        const native = view.renderer === "declarative";
+        const compact =
+          (native || plugin.format === "claude-mod") && slot === "assistant.above-prompt";
         const height = heights[id] ?? (compact ? 0 : (view.height ?? 320));
         return (
           <div
@@ -53,7 +55,7 @@ export function PluginSlot({
             {open && (
               <div
                 className="plugin-slot-content"
-                style={{ height }}
+                style={native ? undefined : { height }}
               >
                 <PluginFrame
                   key={`${id}:${plugin.version}`}

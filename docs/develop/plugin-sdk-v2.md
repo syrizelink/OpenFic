@@ -13,7 +13,7 @@
 | 插件数据 | 独立 JSON KV、加密密钥存储、插件目录内文本文件 |
 | 网络与模型 | 显式网络域名、受限 HTTP 客户端；已配置模型的调用接口 |
 | Agent 扩展 | 注册动态工具、事件中间件、编译后的 LangGraph/Runnable 提供者 |
-| UI | 多位置 iframe 视图、导航、通知、下载、剪贴板、编辑器操作和事件 |
+| UI | 多位置声明式原生组件或 iframe 视图、导航、通知、下载、剪贴板、编辑器操作和事件 |
 
 这些能力是可信插件 SDK 的接口约束。原生 Python 插件仍在后端进程内运行，不是隔离沙箱。SDK 不开放认证管理、宿主插件管理或任意内部 URL。
 
@@ -131,11 +131,13 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `settings.plugins` | 设置内插件区域的附加视图 |
 | `dashboard` | 仪表盘中的常驻区域 |
 
-入口通过 manifest 的 `views` 声明，内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章节、插槽、语言和主题上下文；缺少当前编辑器时编辑器 API 明确报错。页面运行在无同源权限的 iframe，CSP 阻止直接联网；允许内联样式以支持框架组件。网络访问走后端 SDK。
+入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 使用项目 Radix 组件原生渲染组件树，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
+
+iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章节、插槽、语言和主题上下文；缺少当前编辑器时编辑器 API 明确报错。页面运行在无同源权限的 iframe，CSP 阻止直接联网；允许内联样式以支持框架组件。网络访问走后端 SDK。
 
 `OpenFic.ui` 提供应用内导航、外部 HTTPS 页面、通知、确认、复制、文本下载、当前 UI 上下文和缓存刷新；`OpenFic.assistant.fill` 将文字追加到 Agent 输入框。程序化打开外部页面/剪贴板仍受浏览器平台权限约束。
 
-内嵌视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px，对话输入框上方最高为 420px 或窗口高度的 45%。宿主在窗口尺寸变化时重新应用上限。
+内嵌 iframe 视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px，对话输入框上方最高为 420px 或窗口高度的 45%。宿主在窗口尺寸变化时重新应用上限。
 
 `OpenFic.on` 可订阅 `editor.open/change/selection/close`、`data.changed` 和插件事件。没有 `editor.read` 的视图不会收到编辑器正文；服务端的 `editor.change` hook 也要求读取能力，改写还要求 `editor.write`。异步编辑器结果只在原内容和当前实体仍匹配时应用，避免覆盖用户后续输入。
 
@@ -150,7 +152,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `register(on, options)`、matcher、`.catch`、`next` | 支持常见观察、改写、短路及真实宿主 continuation |
 | command/tool register | 映射到命令 UI 和命名空间 Agent 工具 |
 | prompt/tool/turn/session/agent 事件 | 映射到已接入的宿主事件；不实现 Claude 的所有事件 |
-| `ui.resolve` 与 Box/Text/Button/Input/Select/Link/Code/Markdown | 基本树渲染和回调；不复制终端布局与键盘系统 |
+| `ui.resolve` 与组件树 | 使用宿主 Radix 组件原生渲染和回调，不使用 iframe；Code/Markdown 暂为安全预格式文本 |
 | `store`、基础 `state`、文件、HTTP、模型 | 常用方法映射到插件作用域服务；不是 Claude 项目工作目录 |
 | `clock.now/sleep` | 支持；原生 SDK 的周期任务使用 register_interval |
 | `session.usage()` | 当前任务最近模型输入 token 数与当前模型上下文窗口 |

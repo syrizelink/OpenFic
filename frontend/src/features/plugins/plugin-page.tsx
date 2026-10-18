@@ -13,6 +13,7 @@ import {
   type InstalledPlugin,
   type PluginView,
 } from "./api";
+import { DeclarativeView } from "./declarative-view";
 import { frontendCall } from "./frontend-host";
 import { PluginManager } from "./plugin-manager";
 
@@ -54,6 +55,39 @@ export function PluginPage() {
 }
 
 export function PluginFrame({
+  plugin,
+  view,
+  context,
+  embedded,
+  onHeightChange,
+}: {
+  plugin: InstalledPlugin;
+  view: PluginView;
+  context?: Record<string, unknown>;
+  embedded?: boolean;
+  onHeightChange?: (height: number) => void;
+}) {
+  if (view.renderer === "declarative")
+    return (
+      <DeclarativeView
+        plugin={plugin}
+        view={view}
+        context={context}
+        embedded={embedded}
+      />
+    );
+  return (
+    <IframeView
+      plugin={plugin}
+      view={view}
+      context={context}
+      embedded={embedded}
+      onHeightChange={onHeightChange}
+    />
+  );
+}
+
+function IframeView({
   plugin,
   view,
   context = {},

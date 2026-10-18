@@ -94,7 +94,10 @@ class Contract(BaseModel):
 class View(Contract):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     title: str = Field(min_length=1, max_length=80)
-    entry: str
+    renderer: Literal["iframe", "declarative"] = "iframe"
+    entry: str | None = None
+    render: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
+    action: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
     slot: str = "sidebar.extensions"
     height: int = Field(default=320, ge=80, le=1600)
 
@@ -102,6 +105,24 @@ class View(Contract):
     def known_slot(self):
         if self.slot not in UI_SLOTS:
             raise ValueError(f"Unknown UI slot: {self.slot}")
+        if self.renderer == "iframe":
+            if not self.entry or self.render or self.action:
+                raise ValueError(
+                    "Iframe views require entry and cannot bind render/action commands"
+                )
+            safe_path(self.entry)
+            if not self.entry.startswith("frontend/") or not self.entry.endswith(
+                ".html"
+            ):
+                raise ValueError("Views must reference an HTML file under frontend/")
+        elif self.entry or not self.render or not self.action:
+            raise ValueError(
+                "Declarative views require render/action commands and cannot have entry"
+            )
+        elif self.render.startswith("sdk.") or self.action.startswith("sdk."):
+            raise ValueError(
+                "Declarative views must bind plugin commands, not SDK methods"
+            )
         return self
 
 
@@ -179,12 +200,11 @@ class Manifest(Contract):
             safe_path(self.backend)
             if not self.backend.endswith(".py"):
                 raise ValueError("Backend entry must be a Python file")
-        for view in self.views:
-            safe_path(view.entry)
-            if not view.entry.endswith(".html") or not view.entry.startswith(
-                "frontend/"
-            ):
-                raise ValueError("Views must reference an HTML file under frontend/")
+        if (
+            any(view.renderer == "declarative" for view in self.views)
+            and "ui" not in self.capabilities
+        ):
+            raise ValueError("Declarative views require ui capability")
         for values in (
             [view.id for view in self.views],
             [s.key for s in self.settings],

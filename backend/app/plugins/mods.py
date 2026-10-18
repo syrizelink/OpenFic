@@ -21,7 +21,7 @@ from app.plugins.manifest import Manifest, safe_path
 from app.plugins.runtime import EVENTS, sdk_call
 
 ROOT = Path(__file__).parent
-MOD_ADAPTER_VERSION = 2
+MOD_ADAPTER_VERSION = 3
 
 
 def convert_mod(target: Path):
@@ -142,7 +142,9 @@ def convert_mod(target: Path):
             {
                 "id": "mod",
                 "title": name,
-                "entry": "frontend/mod.html",
+                "renderer": "declarative",
+                "render": "mod.inspect",
+                "action": "mod.ui.action",
                 "slot": "sidebar.extensions",
             }
         ],
@@ -164,22 +166,15 @@ def convert_mod(target: Path):
             {
                 "id": "band",
                 "title": name,
-                "entry": "frontend/mod.html",
+                "renderer": "declarative",
+                "render": "mod.inspect",
+                "action": "mod.ui.action",
                 "slot": "assistant.above-prompt",
                 "height": 100,
             }
         ]
     manifest = Manifest.model_validate(native)
     (target / "plugin.json").write_text(manifest.model_dump_json(indent=2))
-    frontend = target / "frontend"
-    frontend.mkdir(exist_ok=True)
-    (frontend / "mod.html").write_text(
-        '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="mod.css"><script src="../../sdk.js" defer></script><script src="mod.js" defer></script></head><body><main><h1 id="title">Claude Mod</h1><p id="status" role="status"></p><div id="commands"></div><section id="render"></section></main></body></html>'
-    )
-    shutil.copyfile(ROOT / "mod-view.js", frontend / "mod.js")
-    (frontend / "mod.css").write_text(
-        "body{font:14px system-ui;margin:0;background:#fafafa;color:#242424}main{padding:20px;max-width:1000px;margin:auto}button,input,select{font:inherit;padding:7px;margin:4px;border:1px solid #bbb;border-radius:5px}pre{white-space:pre-wrap}#status{white-space:pre-wrap}#status:empty{display:none}a{color:#6650c8}html[data-theme=dark] body{background:#181818;color:#eee}html[data-embedded=true] body{background:transparent;font:12px/1.5 ui-monospace,monospace;overflow-x:hidden}html[data-embedded=true] main{padding:0}section[data-component=Pane]{border:1px solid #8885;border-radius:8px;padding:10px;margin:4px 0}section[data-component=Pane] button{padding:4px 8px}"
-    )
 
 
 class ModRuntime:
@@ -433,3 +428,15 @@ async def activate_mod(host, plugin, registration):
     registration.register_command("mod.command", command)
     registration.register_command("mod.action", action)
     registration.register_command("mod.close", close)
+
+    async def ui_action(context, params):
+        kind = params.get("event", "press")
+        if kind == "close":
+            return await close(context, params)
+        if kind == "command":
+            return await command(
+                context, {"command": params["id"], "args": params.get("value") or ""}
+            )
+        return await action(context, params)
+
+    registration.register_command("mod.ui.action", ui_action)

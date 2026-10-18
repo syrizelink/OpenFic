@@ -5,7 +5,10 @@ import { apiClient } from "@/lib/api-client";
 export interface PluginView {
   id: string;
   title: string;
-  entry: string;
+  renderer?: "iframe" | "declarative";
+  entry?: string;
+  render?: string;
+  action?: string;
   slot: string;
   height?: number;
 }

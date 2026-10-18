@@ -374,6 +374,14 @@ class PluginHost:
             for entries, capability in requirements:
                 if entries and capability not in manifest.capabilities:
                     raise PermissionError(f"Plugin has not declared {capability}")
+            for view in manifest.views:
+                if view.renderer == "declarative" and (
+                    view.render not in registration.commands
+                    or view.action not in registration.commands
+                ):
+                    raise ValueError(
+                        f"Declarative view {view.id} references an unregistered command"
+                    )
             plugin.module_name = module_name if manifest.backend else None
             plugin.registration = registration
             for seconds, handler in registration.intervals:
@@ -483,7 +491,7 @@ class PluginHost:
                 manifest = Manifest.model_validate_json(
                     (target / "plugin.json").read_bytes()
                 )
-                entries = [view.entry for view in manifest.views]
+                entries = [view.entry for view in manifest.views if view.entry]
                 if manifest.backend:
                     entries.append(manifest.backend)
                 if any(not (target / entry).is_file() for entry in entries):
@@ -720,6 +728,8 @@ class PluginHost:
         )
         if plugin.registration is None or view is None:
             raise PluginError("Plugin view is unavailable", 404)
+        if view.renderer != "iframe" or view.entry is None:
+            raise PluginError("This view uses declarative rendering", 409)
         now = time.monotonic()
         self._view_tickets = {
             token: ticket

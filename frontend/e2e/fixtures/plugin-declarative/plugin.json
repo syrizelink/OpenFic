@@ -1,0 +1,18 @@
+{
+  "id": "declarative-test",
+  "name": "Declarative UI fixture",
+  "version": "1.0.0",
+  "api_version": 1,
+  "backend": "backend/main.py",
+  "capabilities": ["ui", "storage"],
+  "views": [
+    {
+      "id": "native",
+      "title": "Native controls",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    { "id": "legacy", "title": "Legacy iframe", "entry": "frontend/index.html" }
+  ]
+}

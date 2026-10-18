@@ -122,20 +122,17 @@ test("unmodified official Mods: install, live token weather, native edit replay 
     await page.goto(`/projects/${project.id}`);
     await page.getByText("待编辑章节", { exact: true }).first().click();
     const weatherHost = page.locator(
-      '[data-plugin-slot="assistant.above-prompt"] iframe[title="token-weather"]',
+      '[data-plugin-view="token-weather/band"][data-renderer="declarative"]',
     );
     const replayHost = page.locator(
-      '[data-plugin-slot="assistant.above-prompt"] iframe[title="replay-theater"]',
+      '[data-plugin-view="replay-theater/band"][data-renderer="declarative"]',
     );
-    const weather = page.frameLocator(
-      '[data-plugin-slot="assistant.above-prompt"] iframe[title="token-weather"]',
-    );
-    const replay = page.frameLocator(
-      '[data-plugin-slot="assistant.above-prompt"] iframe[title="replay-theater"]',
-    );
+    const weather = weatherHost;
+    const replay = replayHost;
+    await expect(page.locator('[data-plugin-slot="assistant.above-prompt"] iframe')).toHaveCount(0);
     const composer = page.locator('.agent-composer-prosemirror[contenteditable="true"]');
     await expect(composer).toBeVisible();
-    await expect(weather.locator("#render")).toHaveAttribute("data-empty", "true");
+    await expect(weather).toHaveAttribute("data-empty", "true");
     await expect.poll(async () => (await weatherHost.boundingBox())?.height ?? -1).toBe(0);
     await expect.poll(async () => (await replayHost.boundingBox())?.height ?? -1).toBe(0);
     await expect(
@@ -190,9 +187,9 @@ test("unmodified official Mods: install, live token weather, native edit replay 
         .some((item: { title: string }) => item.title === "官方Mod新章节"),
     ).toBeTruthy();
     await expect(page.locator(".ai-sidebar-messages")).toContainText("官方 Mod 验证完成");
-    await expect(weather.locator("#render")).toContainText("50% of context");
-    await expect(weather.locator("#render")).toContainText("16k / 32k");
-    await expect(weather.locator("#render")).toContainText("Showers");
+    await expect(weather).toContainText("50% of context");
+    await expect(weather).toContainText("16k / 32k");
+    await expect(weather).toContainText("Showers");
     await expect(weatherHost).toBeVisible();
     const weatherBox = (await weatherHost.boundingBox())!;
     const composerBox = (await composer.boundingBox())!;
@@ -211,8 +208,8 @@ test("unmodified official Mods: install, live token weather, native edit replay 
     await replay.getByRole("button", { name: "Replay", exact: true }).click();
     await expect(page).toHaveURL(conversationURL);
     await expect(replay.getByRole("region", { name: "Replay Theater", exact: true })).toBeVisible();
-    await expect(replay.locator("#render")).toContainText("step 1 of 2");
-    await expect(replay.locator("#render")).toContainText("+ 新建章节的第一行。");
+    await expect(replay).toContainText("step 1 of 2");
+    await expect(replay).toContainText("+ 新建章节的第一行。");
     await expect
       .poll(async () => (await replayHost.boundingBox())?.height ?? 0)
       .toBeGreaterThan(100);
@@ -221,46 +218,35 @@ test("unmodified official Mods: install, live token weather, native edit replay 
     await expect(composer).toBeVisible();
     await expect(composer).toHaveText("保留未发送的草稿");
     await replay.getByRole("button", { name: "Next ▶", exact: true }).click();
-    await expect(replay.locator("#render")).toContainText("step 2 of 2");
-    await expect(replay.locator("#render")).toContainText("- 原来的句子");
-    await expect(replay.locator("#render")).toContainText("+ 修改后的句子");
+    await expect(replay).toContainText("step 2 of 2");
+    await expect(replay).toContainText("- 原来的句子");
+    await expect(replay).toContainText("+ 修改后的句子");
     await page.screenshot({
       path: testInfo.outputPath("official-replay-theater.png"),
       fullPage: true,
     });
     await replay.getByRole("button", { name: "◀ Prev", exact: true }).press("p");
-    await expect(replay.locator("#render")).toContainText("step 1 of 2");
+    await expect(replay).toContainText("step 1 of 2");
     await replay.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(replay.locator("#render")).toContainText("Replay: 2 edits");
+    await expect(replay).toContainText("Replay: 2 edits");
     await expect(replay.getByRole("region", { name: "Replay Theater", exact: true })).toHaveCount(
       0,
     );
     await expect.poll(async () => (await replayHost.boundingBox())?.height ?? 100).toBeLessThan(80);
     await replay.getByRole("button", { name: "Replay", exact: true }).click();
-    await expect(replay.locator("#render")).toContainText("step 1 of 2");
+    await expect(replay).toContainText("step 1 of 2");
     await replay.getByRole("button", { name: "Close", exact: true }).press("Escape");
-    await expect(replay.locator("#render")).toContainText("Replay: 2 edits");
+    await expect(replay).toContainText("Replay: 2 edits");
     await expect(page).toHaveURL(conversationURL);
     await expect(composer).toHaveText("保留未发送的草稿");
-    // The new general resize API may only resize its own iframe and is bounded.
-    expect(
-      await weather.locator("main").evaluate(async () => {
-        const sdk = (
-          window as unknown as { OpenFic: { ui: { resize(height: number): Promise<number> } } }
-        ).OpenFic;
-        return sdk.ui.resize(1e9);
-      }),
-    ).toBeLessThanOrEqual(420);
-    await weather.locator("main").evaluate(async () => {
-      const sdk = (
-        window as unknown as { OpenFic: { ui: { resize(height: number): Promise<number> } } }
-      ).OpenFic;
-      return sdk.ui.resize(document.querySelector("main")!.getBoundingClientRect().height);
-    });
+    await expect(replay.getByRole("button", { name: "Replay", exact: true })).toHaveClass(
+      /rt-Button/,
+    );
     await page.goto(`/extensions/blast-radius/mod?projectId=${project.id}`);
-    const blast = page.frameLocator('iframe[title="blast-radius"]');
-    await expect(blast.locator("#status")).toContainText("Unsupported API: $.process");
-    await expect(blast.locator("#status")).toContainText("Unavailable tool: Bash");
+    const blast = page.locator('[data-plugin-view="blast-radius/mod"]');
+    await expect(blast).toContainText("Unsupported API: $.process");
+    await expect(blast).toContainText("Unavailable tool: Bash");
+    await expect(page.locator("iframe")).toHaveCount(0);
     const tools = await (await page.request.get(`${api}/agent/tools`)).json();
     expect(tools.some((tool: { name: string }) => tool.name === "Bash")).toBe(false);
     // Event contract check only: no shell command is executed.

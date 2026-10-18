@@ -119,6 +119,32 @@
   min-height: 0;
   height: 100%;
 }
+.plugin-declarative {
+  min-width: 0;
+  padding: 20px;
+  overflow: auto;
+  max-height: 100%;
+  color: var(--gray-12);
+}
+.plugin-declarative-embedded {
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.plugin-slot-assistant-above-prompt .plugin-declarative {
+  max-height: min(420px, 45vh);
+}
+.plugin-declarative [data-component="Pane"] {
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  padding: 8px;
+  margin: 4px 0;
+}
+.plugin-declarative-code {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 767px) {
   .extensions-page {
     padding: 16px;

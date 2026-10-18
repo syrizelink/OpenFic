@@ -1,5 +1,36 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type UIAction = "sidebar.extensions" | "project.toolbar" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
+/** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
+export type PluginView = { id: string; title: string; slot?: UIAction; height?: number } & (
+  { renderer?: "iframe"; entry: string; render?: never; action?: never } |
+  { renderer: "declarative"; entry?: never; render: string; action: string }
+);
+export type UIComponent = "Box" | "Text" | "Button" | "Input" | "Select" | "Code" | "Markdown" | "Link" | "Checkbox" | "Switch" | "Separator" | "Badge" | "Progress";
+export interface UIProps {
+  key?: string; text?: string; source?: string; label?: string; value?: string | number | boolean | null;
+  placeholder?: string; disabled?: boolean; autoFocus?: boolean; hotkey?: string;
+  /** Opaque action IDs, never JavaScript source or browser callbacks. */
+  onPress?: string; onInput?: string; onSubmit?: string; onSelect?: string; onChange?: string;
+  options?: { value: string; label: string }[]; checked?: boolean;
+  bold?: boolean; dimColor?: boolean; inverse?: boolean; italic?: boolean;
+  color?: "red" | "green" | "blue" | "cyan" | "magenta" | "yellow" | "gray" | "white" | "black";
+  flexDirection?: "row" | "column"; justifyContent?: "space-between" | "space-around" | "center" | "flex-end";
+  alignItems?: "center" | "flex-start" | "flex-end" | "stretch";
+  /** Spacing units are 4px, clamped to 0–8. */
+  gap?: number; marginTop?: number; paddingX?: number; paddingY?: number; padding?: number;
+  href?: string; children?: UINode;
+}
+export type UINode = null | boolean | number | string | UINode[] | { type: UIComponent; props?: UIProps; children?: UINode };
+export type UIDocument = { tree: UINode } | {
+  trees: { component: "View" | "AbovePrompt" | "Pane" | "Spinner"; requestId?: string; tree: UINode }[];
+  panes?: { id: string; title?: string; focus?: boolean; closeOnEscape?: boolean }[];
+  commands?: { name: string }[];
+};
+export interface UIRenderRequest { viewId: string; slot: UIAction; columns: number; context: Partial<Context>; }
+export interface UIEventRequest extends UIRenderRequest {
+  id: string; event: "press" | "input" | "submit" | "select" | "change" | "command" | "close";
+  value: string | number | boolean | null;
+}
 export interface Context {
   pluginId: string; projectId: string | null; chapterId?: string; noteId?: string;
   language: string; theme: "light" | "dark"; settings: Record<string, Json>;

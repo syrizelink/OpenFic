@@ -22,7 +22,7 @@ function on(event, filter, handler) {
 }
 function __element(type,props) {
   props={...(props||{})};
-  for(const key of ['onPress','onInput','onSubmit','onSelect']) {
+  for(const key of ['onPress','onInput','onSubmit','onSelect','onChange']) {
     if(typeof props[key]==='function') { const id='a'+(++__actionCounter); __actions[id]=props[key]; props[key]=id; const keys=Object.keys(__actions);if(keys.length>4096)delete __actions[keys[0]]; }
   }
   return {type,props,children:props.children||[]};
@@ -32,7 +32,7 @@ function h(type,props,...children) {
   return typeof type==='function'?type(props):__element(type||'Box',props);
 }
 function Fragment(props){return __element('Box',props);}
-var __elements = Object.fromEntries(['Box','Text','Button','Link','Code','Markdown','Input','Select','Svg','Client','Image'].map(k=>[k,p=>__element(k,p)]));
+var __elements = Object.fromEntries(['Box','Text','Button','Link','Code','Markdown','Input','Select','Checkbox','Switch','Separator','Badge','Progress','Svg','Client','Image'].map(k=>[k,p=>__element(k,p)]));
 var __atoms={};
 var __claude = {
   atom: value=>({__atom:true,key:'atom'+(++__atomCounter),initial:value}),

@@ -336,12 +336,13 @@ test("original Claude TSX Mod installs, draws UI and executes controls", async (
       .getByRole("navigation", { name: "扩展", exact: true })
       .getByRole("link", { name: "claude-counter", exact: true })
       .click();
-    const frame = page.frameLocator('iframe[title="claude-counter"]');
-    await expect(frame.locator("#render")).toContainText("Counter: 0");
+    const frame = page.locator('[data-plugin-view="claude-counter/mod"]');
+    await expect(page.locator("iframe")).toHaveCount(0);
+    await expect(frame).toContainText("Counter: 0");
     await frame.getByRole("button", { name: "Increment" }).click();
-    await expect(frame.locator("#render")).toContainText("Counter: 1");
+    await expect(frame).toContainText("Counter: 1");
     await frame.getByRole("button", { name: "/hello", exact: true }).click();
-    await expect(frame.locator("#status")).toHaveText("Hello from Claude Mod");
+    await expect(frame.getByRole("status")).toHaveText("Hello from Claude Mod");
   } finally {
     await page.request.delete(`${api}/plugins/claude-counter`);
   }

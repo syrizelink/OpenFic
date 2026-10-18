@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field, field_validator, ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.plugins.host import PluginError, PluginHost
@@ -271,6 +271,63 @@ async def plugin_asset(plugin_id: str, filename: str, manager: Host):
 @router.post("/{plugin_id}/views/{view_id}")
 async def open_view(plugin_id: str, view_id: str, manager: Host):
     return {"url": manager.open_view(plugin_id, view_id)}
+
+
+class ViewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    context: dict[str, Any] = Field(default_factory=dict)
+    columns: int = Field(default=100, ge=20, le=240)
+    id: str = Field(default="", max_length=128)
+    event: Literal[
+        "press", "input", "submit", "select", "change", "command", "close"
+    ] = "press"
+    value: str | bool | int | float | None = None
+
+    @field_validator("context", "value")
+    @classmethod
+    def bounded(cls, value):
+        if len(json.dumps(value, allow_nan=False).encode()) > 64_000:
+            raise ValueError("UI request exceeds 64 KiB")
+        return value
+
+
+@router.post("/{plugin_id}/views/{view_id}/{operation}")
+async def declarative_view(
+    plugin_id: str,
+    view_id: str,
+    operation: Literal["render", "action"],
+    data: ViewRequest,
+    manager: Host,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    request: Request,
+):
+    from app.plugins.declarative import validate_document
+
+    plugin = manager.get(plugin_id)
+    view = next((v for v in plugin.manifest.views if v.id == view_id), None)
+    if view is None or view.renderer != "declarative":
+        raise PluginError("Declarative view is unavailable", 404)
+    if "ui" not in plugin.manifest.capabilities:
+        raise PluginError("Plugin has not declared ui", 403)
+    method = view.render if operation == "render" else view.action
+    assert method is not None
+    params = {**data.model_dump(), "slot": view.slot, "viewId": view.id}
+    result = await manager.call(
+        plugin_id,
+        method,
+        params,
+        session,
+        runtime={
+            "backend_url": str(request.base_url).rstrip("/"),
+            "project_id": data.context.get("projectId"),
+        },
+    )
+    if operation == "action":
+        return {"result": result}
+    try:
+        return validate_document(result)
+    except (ValueError, KeyError, TypeError) as error:
+        raise PluginError(f"Invalid declarative UI: {error}", 422) from error
 
 
 @asset_router.get("/{ticket}/sdk.js")

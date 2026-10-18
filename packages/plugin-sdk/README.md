@@ -9,3 +9,6 @@ const chapter = await OpenFic.chapters.get(context.chapterId!);
 ```
 
 The same API is available as `window.OpenFic` without installing a package. See `docs/develop/plugin-sdk-v2.md` and the runtime capability/OpenAPI catalogue. This directory is not published to npm by this task.
+
+
+For native host UI, declare `renderer: "declarative"` with backend `render`/`action` commands. Exported `PluginView`, `UINode`, `UIProps`, `UIDocument`, `UIRenderRequest`, and `UIEventRequest` describe this data-only protocol; no browser SDK script is needed for these views. See `docs/develop/declarative-plugin-ui.md`. HTML/React/Vue applications continue to use the iframe SDK above.
