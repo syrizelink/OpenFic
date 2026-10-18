@@ -14,6 +14,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import quickjs
+from langgraph.errors import GraphBubbleUp
+from pydantic_core import to_jsonable_python
 
 from app.plugins.manifest import Manifest, safe_path
 from app.plugins.runtime import EVENTS, sdk_call
@@ -93,6 +95,14 @@ def convert_mod(target: Path):
         if p.suffix in {".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".mts", ".cts"}
         and p.is_file()
     )
+    if re.search(r"\$\s*\.\s*process\s*\.", sources):
+        warnings.append(
+            "Unsupported API: $.process (no shell or subprocess execution host)."
+        )
+    if re.search(r"tool\s*:\s*['\"]Bash['\"]", sources):
+        warnings.append(
+            "Unavailable tool: Bash. OpenFic has no built-in Bash tool; shell interception is inactive."
+        )
     hosts = sorted(
         {
             urlsplit(url).hostname
@@ -122,6 +132,7 @@ def convert_mod(target: Path):
             "projects.read",
             "chapters.read",
             "notes.read",
+            "sessions.read",
         ],
         "network_hosts": hosts,
         "settings": settings,
@@ -140,8 +151,21 @@ def convert_mod(target: Path):
             "warnings": warnings,
             "runtime": "QuickJS + Sucrase",
             "mode": "best-effort",
+            "documentMapping": "Chapter/note creation and body edits use virtual Write/Edit events; no host filesystem access.",
         },
     }
+    if "AbovePrompt" in sources and not any(
+        "$.process" in warning for warning in warnings
+    ):
+        native["views"].append(
+            {
+                "id": "band",
+                "title": name,
+                "entry": "frontend/mod.html",
+                "slot": "assistant.above-prompt",
+                "height": 100,
+            }
+        )
     manifest = Manifest.model_validate(native)
     (target / "plugin.json").write_text(manifest.model_dump_json(indent=2))
     frontend = target / "frontend"
@@ -203,7 +227,7 @@ class ModRuntime:
             request_id = uuid.uuid4().hex
             self.js.eval(f"__hasContinuation={json.dumps(next_handler is not None)}")
             self.js.eval(
-                f"__begin({json.dumps(request_id)},{json.dumps(name)},{json.dumps(payload)})"
+                f"__begin({json.dumps(request_id)},{json.dumps(name)},{json.dumps(to_jsonable_python(payload))})"
             )
             deadline = time.monotonic() + 25
             while time.monotonic() < deadline:
@@ -223,11 +247,18 @@ class ModRuntime:
                                 context, item["method"], item["args"]
                             )
                         error = None
+                    except GraphBubbleUp:
+                        # Approval/question interrupts belong to LangGraph. A
+                        # JavaScript Error would turn a resumable pause into a
+                        # failed tool result and lose the approval flow.
+                        if item["id"]:
+                            self.js.eval(f"delete __waiters[{json.dumps(item['id'])}]")
+                        raise
                     except Exception as exc:
                         value, error = None, str(exc)
                     if item["id"]:
                         self.js.eval(
-                            f"__settle({json.dumps(item['id'])},{json.dumps(value)},{json.dumps(error)})"
+                            f"__settle({json.dumps(item['id'])},{json.dumps(to_jsonable_python(value))},{json.dumps(error)})"
                         )
                 result = json.loads(self.js.eval(f"__take({json.dumps(request_id)})"))
                 if result:
@@ -238,6 +269,10 @@ class ModRuntime:
             raise TimeoutError("Claude Mod hook exceeded 25 seconds")
 
     async def bridge(self, context, method, args):
+        if method == "compat.session.usage":
+            from app.plugins.mod_events import session_usage
+
+            return await session_usage(context)
         if method == "compat.ui":
             self.host.emit(args["event"], args.get("data", {}), self.plugin.manifest.id)
             return None
@@ -263,13 +298,34 @@ class ModRuntime:
             )
         )
         trees = []
-        for component in ("Pane", "AbovePrompt", "Spinner"):
+        components = (
+            ["AbovePrompt"]
+            if params.get("slot") == "assistant.above-prompt"
+            else ["Pane", "AbovePrompt", "Spinner"]
+        )
+        requests = [
+            (component, pane.get("id", "mod"))
+            for component in components
+            for pane in (
+                (data["panes"] or [{"id": "mod"}])
+                if component == "Pane"
+                else [{"id": "mod"}]
+            )
+        ]
+
+        async def fallback(event):
+            return None
+
+        for component, request_id in requests:
             rendered = await self.invoke(
                 "ui.render",
                 {
                     "component": component,
                     "surface": "desktop",
-                    "requestId": "mod",
+                    "requestId": request_id,
+                    "bodyColumns": min(max(int(params.get("columns", 100)), 20), 240),
+                    "maxRows": 24,
+                    "hasSurvey": False,
                     "props": {
                         "title": self.plugin.manifest.name,
                         "word": "OpenFic",
@@ -279,6 +335,7 @@ class ModRuntime:
                     },
                 },
                 context,
+                fallback,
             )
             trees.append({"component": component, "tree": rendered})
         return {
@@ -297,7 +354,9 @@ async def activate_mod(host, plugin, registration):
     hooks = json.loads(runtime.js.eval("JSON.stringify(__hooks.map(h=>h.event))"))
     supported = sorted(EVENTS if "*" in hooks else set(hooks) & EVENTS)
     unsupported = sorted(
-        set(hooks) - EVENTS - {"*", "command.run", "command.describe", "ui.resolve"}
+        set(hooks)
+        - EVENTS
+        - {"*", "command.run", "command.describe", "ui.resolve", "ui.close"}
     )
     plugin.manifest.compatibility["supported"] = supported
     plugin.manifest.compatibility["warnings"] = [
@@ -311,6 +370,15 @@ async def activate_mod(host, plugin, registration):
                 f"plugin_{plugin.manifest.id.replace('-', '_')}_"
             ):
                 return await next_handler(data)
+            if event == "tool.call":
+                from app.plugins.mod_events import tool_event
+
+                translated, restore = tool_event(data, context.runtime)
+
+                async def continuation(value):
+                    return await next_handler(restore(value))
+
+                return await runtime.invoke(event, translated, context, continuation)
             return await runtime.invoke(event, data, context, next_handler)
 
         registration.register_hook(event, hook)
@@ -346,5 +414,17 @@ async def activate_mod(host, plugin, registration):
             )
         return await runtime.invoke("action", params, context)
 
+    async def close(context, params):
+        pane_id = params["id"]
+        runtime.js.eval(
+            f"__panes=__panes.filter(pane=>pane.id!=={json.dumps(pane_id)})"
+        )
+        result = await runtime.invoke(
+            "ui.close", {"id": pane_id, "requestId": pane_id}, context
+        )
+        host.emit("ui.invalidate", {}, plugin.manifest.id)
+        return result
+
     registration.register_command("mod.command", command)
     registration.register_command("mod.action", action)
+    registration.register_command("mod.close", close)

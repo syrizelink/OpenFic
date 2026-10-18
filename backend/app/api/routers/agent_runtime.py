@@ -898,7 +898,8 @@ async def create_agent_session(
         await session.commit()
         from app.plugins.runtime import dispatch as plugin_dispatch
         await plugin_dispatch("session.start", {"sessionId":session_id, "projectId":request.project_id}, session,
-                              runtime={"session_id":session_id,"project_id":request.project_id})
+                              runtime={"session_id":session_id,"project_id":request.project_id,
+                                       "task_id":task.id,"model_config":model_config})
         return AgentSessionCreateResponse(
             session_id=session_id,
             project_id=request.project_id,

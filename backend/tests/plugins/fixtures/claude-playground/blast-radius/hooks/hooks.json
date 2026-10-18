@@ -1,0 +1,6 @@
+{
+  "description": "Blast Radius: a tool.call hook that holds risky Bash commands, and a Pane that shows their blast radius.",
+  "modules": [
+    "./blast-radius.mjs"
+  ]
+}

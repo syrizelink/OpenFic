@@ -139,6 +139,8 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 
 ## Claude Mods 兼容边界
 
+已对官方 playground 的全部三个 Mod 实际安装并做浏览器验证，详细结果见 [官方 Mods 兼容性报告](./claude-mods-compatibility.md)。Token Weather 可用，Replay Theater 可通过章节逻辑文档映射使用；Blast Radius 的 Bash/process 核心功能不兼容，安装成功不代表功能兼容。
+
 | 能力 | 本宿主支持程度 |
 | --- | --- |
 | 原始目录 ZIP、单层包装目录、`hooks.json` modules | 直接导入；保留源文件并生成宿主视图 |
@@ -149,6 +151,9 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `ui.resolve` 与 Box/Text/Button/Input/Select/Link/Code/Markdown | 基本树渲染和回调；不复制终端布局与键盘系统 |
 | `store`、基础 `state`、文件、HTTP、模型 | 常用方法映射到插件作用域服务；不是 Claude 项目工作目录 |
 | `clock.now/sleep` | 支持；原生 SDK 的周期任务使用 register_interval |
+| `session.usage()` | 当前任务最近模型输入 token 数与当前模型上下文窗口 |
+| Claude `Write/Edit` 文档事件 | 映射章节/笔记创建与正文编辑；逻辑路径，不开放主机文件系统 |
+| `ui.open/close` | 插件独立页面中的 Pane；输入框区域入口可打开该页面，支持按钮与 Escape |
 | `turn.step` async generator | 可执行预调用控制流，不提供替换 Claude token stream 的等价能力 |
 | shell hooks、process/MCP、组织权限/优先级、Client、音频 | 不自动执行或不支持；相关事件/API 无等价保证 |
 

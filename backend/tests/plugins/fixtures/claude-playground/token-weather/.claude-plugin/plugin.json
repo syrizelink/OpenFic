@@ -1,0 +1,8 @@
+{
+  "name": "token-weather",
+  "version": "0.1.0",
+  "description": "A live forecast of the context window, drawn above the prompt: a weather icon, the fill percentage, and a chart of the last turns.",
+  "author": {
+    "name": "Claude Code DevRel"
+  }
+}

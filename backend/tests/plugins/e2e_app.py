@@ -5,6 +5,7 @@ Run with OPENFIC_DATA_DIR pointing at a disposable directory:
 """
 
 import json
+import re
 import time
 import uuid
 
@@ -60,7 +61,54 @@ async def completion(request: Request):
     content = "模型回答：验证完成。"
     tool = None
     args = {}
-    if "planner in a handoff" in system:
+    official_request = next(
+        (
+            match
+            for message in body.get("messages", [])
+            if message.get("role") == "user"
+            if (
+                match := re.search(
+                    r"官方Mod兼容验证: (\{[^\n]+\})", str(message.get("content", ""))
+                )
+            )
+        ),
+        None,
+    )
+    if official_request:
+        target = json.loads(official_request[1])
+        completed = {
+            message.get("name")
+            for message in body.get("messages", [])
+            if message.get("role") == "tool"
+        }
+        # Some providers omit ToolMessage.name; the paired AI call remains canonical.
+        completed.update(
+            call.get("function", {}).get("name")
+            for message in body.get("messages", [])
+            if message.get("role") == "assistant"
+            for call in message.get("tool_calls", [])
+        )
+        if "write_chapter" not in completed:
+            tool, args = (
+                "write_chapter",
+                {
+                    "volume_ref": {"type": "title", "value": target["volumeTitle"]},
+                    "title": "官方Mod新章节",
+                    "content": "新建章节的第一行。\n新建章节的第二行。",
+                },
+            )
+        elif "edit_chapter" not in completed:
+            tool, args = (
+                "edit_chapter",
+                {
+                    "volume_ref": {"type": "title", "value": target["volumeTitle"]},
+                    "chapter_ref": {"type": "title", "value": target["chapterTitle"]},
+                    "old_content": "原来的句子",
+                    "new_content": "修改后的句子",
+                },
+            )
+        content = "官方 Mod 验证完成：已创建章节并修改已有章节。"
+    elif "planner in a handoff" in system:
         tool = "handoff_to_writer"
         args = {"reason": "规划完成，交接写作"}
     elif "writer in a handoff" in system:
@@ -77,7 +125,11 @@ async def completion(request: Request):
     if tool and tool not in tools:
         tool = None
     call_id = "call_" + uuid.uuid4().hex
-    usage = {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}
+    usage = {
+        "prompt_tokens": 16000 if official_request else 100,
+        "completion_tokens": 20,
+        "total_tokens": 16020 if official_request else 120,
+    }
     if not body.get("stream"):
         message = {"role": "assistant", "content": content}
         if tool:
