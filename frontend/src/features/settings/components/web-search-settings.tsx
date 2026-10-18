@@ -59,6 +59,7 @@ const FIELD_OPTION_LABEL_KEY_MAP: Record<string, Record<string, string>> = {
 const PROVIDER_LABEL_KEY_MAP: Record<string, string> = {
   brave: "settings.webSearchProviderBrave",
   ddgs: "settings.webSearchProviderDdgs",
+  deepseek: "settings.webSearchProviderDeepSeek",
   exa: "settings.webSearchProviderExa",
   jina: "settings.webSearchProviderJina",
   perplexity: "settings.webSearchProviderPerplexity",
@@ -70,6 +71,7 @@ const PROVIDER_LABEL_KEY_MAP: Record<string, string> = {
 
 const PROVIDER_ICON_PATH_MAP: Record<string, string> = {
   brave: "/provider-icons/web-search/brave.svg",
+  deepseek: "/provider-icons/web-search/deepseek.svg",
   exa: "/provider-icons/web-search/exa.svg",
   jina: "/provider-icons/web-search/jina.svg",
   perplexity: "/provider-icons/web-search/perplexity.svg",
