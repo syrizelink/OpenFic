@@ -6,22 +6,18 @@
 .mobile-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 14px 24px;
   border-bottom: 1px solid var(--border);
 }
 .mobile-brand {
   display: flex;
   align-items: center;
-  gap: 9px;
   color: inherit;
   text-decoration: none;
-  font-size: 19px;
-  font-weight: 600;
 }
 .mobile-brand img {
-  width: 29px;
-  height: 29px;
+  width: 132px;
+  height: auto;
 }
 .mobile-content {
   max-width: 520px;
@@ -225,9 +221,6 @@
   }
 }
 
-.dark .mobile-brand img {
-  filter: invert(1);
-}
 /* Resolve shared semantic tokens within the shell's Radix theme scope. */
 .radix-themes {
   --theme-background: var(--gray-1);

@@ -1,8 +1,9 @@
 import { Theme, Button, TextField, Dialog, IconButton } from "@radix-ui/themes";
-import { ArrowRight, Check, Globe, Moon, Plus, Server, Sun, Trash2 } from "lucide-react";
-import { StrictMode, useEffect, useState, type FormEvent } from "react";
+import { ArrowRight, Check, Globe, Plus, Server, Trash2 } from "lucide-react";
+import { StrictMode, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 
+import brandLogo from "../../frontend/public/brand.svg";
 import { AppUpdatePanel } from "./app-update";
 import { normalizeInstanceUrl, readInstances, STORAGE_KEY, type Instance } from "./instances.mjs";
 import { checkInstance, openInstance } from "./native";
@@ -12,12 +13,6 @@ import "./styles.css";
 
 export function App() {
   const [instances, setInstances] = useState<Instance[]>(() => readInstances(localStorage));
-  const [dark, setDark] = useState(
-    () =>
-      localStorage.getItem("openfic.mobile.theme") === "dark" ||
-      (!localStorage.getItem("openfic.mobile.theme") &&
-        matchMedia("(prefers-color-scheme: dark)").matches),
-  );
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
@@ -26,10 +21,6 @@ export function App() {
   const [status, setStatus] = useState("");
   const [adding, setAdding] = useState(instances.length === 0);
   const [removing, setRemoving] = useState<Instance | null>(null);
-  useEffect(() => {
-    document.documentElement.style.colorScheme = dark ? "dark" : "light";
-    localStorage.setItem("openfic.mobile.theme", dark ? "dark" : "light");
-  }, [dark]);
 
   function save(next: Instance[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -78,7 +69,7 @@ export function App() {
   }
   return (
     <Theme
-      appearance={dark ? "dark" : "light"}
+      appearance="light"
       accentColor="gray"
       grayColor="gray"
       radius="medium"
@@ -92,19 +83,10 @@ export function App() {
             aria-label="OpenFic 首页"
           >
             <img
-              src="/openfic.svg"
+              src={brandLogo}
               alt=""
             />
-            OpenFic
           </a>
-          <IconButton
-            variant="ghost"
-            size="3"
-            aria-label={dark ? "切换浅色主题" : "切换深色主题"}
-            onClick={() => setDark(!dark)}
-          >
-            {dark ? <Sun size={20} /> : <Moon size={20} />}
-          </IconButton>
         </header>
         <div className="mobile-content">
           <div className="mobile-intro">
