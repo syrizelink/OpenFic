@@ -258,7 +258,6 @@ jobs:
     needs: [context, build-frontend]
     runs-on: ubuntu-latest
     env:
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/openfic-release.keystore
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -293,6 +292,8 @@ jobs:
           pnpm test
           pnpm type-check
           pnpm exec node --input-type=module -e 'import p from "./package.json" with { type: "json" }; if (p.version !== process.env.RELEASE_VERSION) throw new Error("Mobile version does not match release tag")'
+      - name: 设置签名文件路径
+        run: echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/openfic-release.keystore" >> "$GITHUB_ENV"
       - name: 准备正式签名
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
