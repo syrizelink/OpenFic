@@ -17,6 +17,14 @@ buildscript {
 
 apply from: "variables.gradle"
 
+subprojects { subproject ->
+    def pinAndroidBuildTools = {
+        subproject.android.buildToolsVersion = '35.0.0'
+    }
+    subproject.plugins.withId('com.android.application', pinAndroidBuildTools)
+    subproject.plugins.withId('com.android.library', pinAndroidBuildTools)
+}
+
 allprojects {
     repositories {
         google()

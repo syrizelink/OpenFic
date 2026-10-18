@@ -49,6 +49,22 @@ public class AppUpdatePlugin extends Plugin {
                     return;
                 }
                 preferences.edit().remove("error").commit();
+                String testBaseUrl = BuildConfig.OPENFIC_UPDATE_TEST_BASE_URL;
+                if (!testBaseUrl.isEmpty()) {
+                    JSONObject testManifest = fetchJson(testBaseUrl + "/android-update.json");
+                    if (testManifest == null) {
+                        call.resolve(status());
+                        return;
+                    }
+                    validate(testManifest);
+                    if (testManifest.getLong("versionCode") <= installedCode()) {
+                        call.resolve(status());
+                        return;
+                    }
+                    enqueueTestDownload(testManifest);
+                    call.resolve(status());
+                    return;
+                }
                 JSONObject release = fetchJson(LATEST);
                 if (release == null || release.optBoolean("draft") || release.optBoolean("prerelease")) {
                     call.resolve(status());
@@ -183,7 +199,29 @@ public class AppUpdatePlugin extends Plugin {
 
     private void validate(JSONObject manifest) throws Exception {
         UpdatePolicy.validate(manifest.getString("version"), manifest.getLong("versionCode"),
-            manifest.getString("url"), manifest.getString("sha256"), manifest.getLong("size"));
+            manifest.getString("url"), manifest.getString("sha256"), manifest.getLong("size"),
+            BuildConfig.OPENFIC_UPDATE_TEST_BASE_URL);
+    }
+
+    private void enqueueTestDownload(JSONObject manifest) throws Exception {
+        String version = manifest.getString("version");
+        clearDownload();
+        File target = apkFile();
+        if (!target.getParentFile().isDirectory() && !target.getParentFile().mkdirs()) {
+            throw new Exception("Cannot create the update download directory.");
+        }
+        if (target.exists() && !target.delete()) throw new Exception("Cannot remove the previous update package.");
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(manifest.getString("url")))
+            .setTitle("OpenFic " + version)
+            .setDescription("Downloading app update. Return to OpenFic to install.")
+            .setMimeType("application/vnd.android.package-archive")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+            .setDestinationInExternalFilesDir(getContext(), null, "updates/update.apk")
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(false);
+        long id = downloads.enqueue(request);
+        preferences.edit().putString("manifest", manifest.toString()).putLong("downloadId", id).remove("error").commit();
+        verifiedId = -1;
     }
 
     @SuppressWarnings("deprecation")
@@ -249,7 +287,7 @@ public class AppUpdatePlugin extends Plugin {
             connection.setRequestProperty("User-Agent", "OpenFic-Android");
             int code = connection.getResponseCode();
             if (code == 404) return null;
-            if (code != 200 || !"https".equals(connection.getURL().getProtocol())) throw new Exception("更新服务器返回 " + code + "。");
+            if (code != 200 || !isAllowedUpdateResponse(address, connection.getURL())) throw new Exception("更新服务器返回 " + code + "。");
             try (InputStream input = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int count;
@@ -260,5 +298,14 @@ public class AppUpdatePlugin extends Plugin {
                 return new JSONObject(output.toString(StandardCharsets.UTF_8.name()));
             }
         } finally { connection.disconnect(); }
+    }
+
+    private boolean isAllowedUpdateResponse(String address, URL responseUrl) {
+        if ("https".equals(responseUrl.getProtocol())) return true;
+        String testBaseUrl = BuildConfig.OPENFIC_UPDATE_TEST_BASE_URL;
+        return !testBaseUrl.isEmpty()
+            && "http".equals(responseUrl.getProtocol())
+            && address.startsWith(testBaseUrl + "/")
+            && responseUrl.toExternalForm().startsWith(testBaseUrl + "/");
     }
 }

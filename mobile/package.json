@@ -9,6 +9,8 @@
     "build": "pnpm --dir ../frontend build && pnpm build:shell && node scripts/copy-frontend.mjs",
     "build:shell": "vite build",
     "dev": "vite --host 127.0.0.1",
+    "dev:android": "node scripts/dev-android.mjs",
+    "update:test": "node scripts/update-test-server.mjs",
     "format:check": "node ../frontend/node_modules/oxfmt/bin/oxfmt --config ../frontend/.oxfmtrc.json src scripts tests package.json --check",
     "lint": "node ../frontend/node_modules/oxlint/bin/oxlint --config ../frontend/.oxlintrc.json src scripts tests",
     "sync": "pnpm build && cap sync android",

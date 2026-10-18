@@ -41,6 +41,17 @@ Android APP 启动后检查 `syrizelink/OpenFic` 的最新正式 GitHub Release�
 
 浏览器 UI 预览：`pnpm dev`。浏览器预览不能打开 Android 原生实例页面。
 
+### Android 实时开发预览
+
+从 `mobile` 目录运行 `pnpm dev:android`。它启动 mobile 自己的 Vite 开发服务器，并通过 Capacitor CLI 将 Android debug app 临时指向该服务器，支持 mobile 壳层界面的 HMR。此命令会构建并安装 debug APK；开发服务器运行期间，修改 `mobile/src` 会实时更新，不需要重新构建 APK。退出时会恢复生成的 Capacitor 配置。
+
+```sh
+cd mobile
+pnpm dev:android
+```
+
+Android 模拟器或 USB 设备需要通过 ADB 连接；脚本会自动转发 Vite 端口。实时预览只替换 mobile 壳层；远程实例页面仍按原有方式加载。
+
 ## 实现
 
 - `src/`：连接列表、健康检查、浅色/深色主题，直接导入前端现有样式。
@@ -56,3 +67,17 @@ Android APP 启动后检查 `syrizelink/OpenFic` 的最新正式 GitHub Release�
 `pnpm test` 覆盖 URL 校验、损坏记录恢复、版本递增与 Release 更新清单；Android 单元测试覆盖原生 URL、更新来源、版本与安装包完整性校验。构建时可执行 `cd android && ./gradlew testDebugUnitTest lintDebug`。下载恢复、未知来源授权、签名不匹配及覆盖安装仍需在真机上验证。
 
 当前交付 Android 壳层；Android 7.0+（API 24）可安装。Capacitor 本身支持 iOS，但本实现的同源 WebView 适配是 Android 原生代码，iOS 需要另外实现 WKWebView 的对应能力，并使用 macOS/Xcode 构建。
+
+## Android 更新测试服务
+
+从 `mobile/` 目录运行 `pnpm update:test`。脚本会构建一个独立的 debug 签名测试 App：先安装当前版本作为基线，再启动本机更新服务并提供更高 patch 版本的 APK。测试版本只通过 Gradle 参数生成，不会修改 `package.json` 的正式版本，也不会覆盖普通 debug 实时预览 App。
+
+模拟器默认访问 `http://10.0.2.2:8765`。App 启动后会自动检测并下载更新；下载校验通过后，在 App 中点“安装更新”，按 Android 系统提示确认。首次安装可能需要允许该测试 App 安装未知应用。服务器终端需保持运行，按 Ctrl+C 停止。
+
+真机测试时，把本机 Wi-Fi IPv4 地址传给 App，并指定设备序列号，例如：
+
+```sh
+pnpm update:test -- --base-url http://192.168.1.20:8765 --device <adb-device-id>
+```
+
+电脑和手机需处于可互通的网络中，Windows 防火墙需允许该端口访问。

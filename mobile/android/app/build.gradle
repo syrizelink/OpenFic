@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 def mobilePackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
-def version = mobilePackage.version.toString()
+def version = (project.findProperty('openficUpdateTestVersion') ?: mobilePackage.version).toString()
 if (!(version ==~ /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/)) {
     throw new GradleException('Android requires a stable major.minor.patch version')
 }
@@ -16,12 +16,14 @@ def hasReleaseSigning = signingVariables.every { System.getenv(it) }
 android {
     namespace "com.openfic.mobile"
     compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion "35.0.0"
     defaultConfig {
         applicationId "com.openfic.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode androidVersionCode.intValue()
         versionName version
+        buildConfigField 'String', 'OPENFIC_UPDATE_TEST_BASE_URL', '\"\"'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -40,11 +42,27 @@ android {
         }
     }
     buildTypes {
+        debug {
+            applicationIdSuffix ".dev"
+        }
+        updateTest {
+            initWith debug
+            matchingFallbacks = ['debug']
+            applicationIdSuffix ".dev.updatetest"
+            debuggable true
+            signingConfig signingConfigs.debug
+            def baseUrl = (project.findProperty('openficUpdateTestBaseUrl') ?: '').toString()
+            def escapedBaseUrl = baseUrl.replace('\\', '\\\\').replace('\"', '\\\"')
+            buildConfigField 'String', 'OPENFIC_UPDATE_TEST_BASE_URL', '\"' + escapedBaseUrl + '\"'
+        }
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    buildFeatures {
+        buildConfig true
     }
 }
 

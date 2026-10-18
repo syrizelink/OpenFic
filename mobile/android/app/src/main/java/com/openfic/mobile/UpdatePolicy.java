@@ -26,8 +26,13 @@ final class UpdatePolicy {
     }
 
     static void validate(String version, long code, String url, String hash, long size) {
+        validate(version, code, url, hash, size, "");
+    }
+
+    static void validate(String version, long code, String url, String hash, long size, String testBaseUrl) {
         String expected = "https://github.com/syrizelink/OpenFic/releases/download/v" + version + "/OpenFic-" + version + "-android.apk";
-        if (versionCode(version) != code || !expected.equals(url) || !hash.matches("[a-f0-9]{64}") || size <= 0) {
+        String expectedTest = testBaseUrl.isEmpty() ? "" : testBaseUrl + "/OpenFic-" + version + "-android-updatetest.apk";
+        if (versionCode(version) != code || !(expected.equals(url) || expectedTest.equals(url)) || !hash.matches("[a-f0-9]{64}") || size <= 0) {
             throw new IllegalArgumentException("更新信息无效，请稍后重试。");
         }
     }
