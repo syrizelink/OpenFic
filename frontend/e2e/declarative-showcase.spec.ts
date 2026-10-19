@@ -41,6 +41,12 @@ async function install(page: Page) {
 test("native catalogue, project data, Radix events, responsive props and scoped portals", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "CSSScopeRule", { value: undefined, configurable: true });
+    CSSStyleSheet.prototype.replaceSync = () => {
+      throw new Error("CSSOM replacement unavailable");
+    };
+  });
   await install(page);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -169,7 +175,8 @@ test("native catalogue, project data, Radix events, responsive props and scoped 
     await projectTooltipTrigger.hover();
     await expect(page.getByRole("tooltip", { name: "Project tooltip content" })).toBeVisible();
     await page.mouse.move(0, 0, { steps: 5 });
-    // A malicious global-looking selector is constrained by @scope; fonts/imports never load.
+    expect(await view.locator(":scope > style").textContent()).not.toContain("@scope");
+    // PostCSS constrains global-looking selectors; fonts/imports never load.
     const bodyColor = await page.locator("body").evaluate((el) => getComputedStyle(el).color);
     await page.evaluate(() => {
       const sentinel = document.createElement("button");

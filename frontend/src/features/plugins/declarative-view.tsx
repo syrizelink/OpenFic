@@ -287,6 +287,7 @@ export function DeclarativeView({
                   pluginId: plugin.id,
                   portal,
                   animations: styles.animations,
+                  animationVariables: styles.animationVariables,
                 })}
               </section>
             ))}

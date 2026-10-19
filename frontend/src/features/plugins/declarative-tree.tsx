@@ -28,6 +28,7 @@ export interface TreeContext {
   pluginId: string;
   portal: HTMLElement;
   animations: Map<string, string>;
+  animationVariables: Set<string>;
 }
 function str(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
@@ -172,7 +173,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
     if (legacyProps.has(key) || key.startsWith("on") || key === "style") continue;
     if (key in definition.props || /^(?:aria|data)-/.test(key)) props[key] = value;
   }
-  props.style = inlineStyle(p, context.animations);
+  props.style = inlineStyle(p, context.animations, context.animationVariables);
   if (p.hotkey) props["data-hotkey"] = p.hotkey;
   if (p.autoFocus) props["data-plugin-autofocus"] = "true";
   if (p.label && p["aria-label"] == null) props["aria-label"] = p.label;

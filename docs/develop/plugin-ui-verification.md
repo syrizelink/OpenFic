@@ -1,5 +1,7 @@
 # 原生插件 UI、CSS 与 SDK 增强验证
 
+本文记录 `73bf598` 的历史验证；CSSOM / `@scope` 实现已由后续 [PostCSS 改造](./plugin-css-postcss-verification.md) 替换，当前用法见 [声明式 UI 文档](./declarative-plugin-ui.md)。
+
 验证日期：2026-10-19，分支 `feat/extension-host`，基于移除 Mods 后的 `5dafe68`。本轮保留 Mod 拒绝逻辑，没有恢复兼容运行时。
 
 ## 交付内容

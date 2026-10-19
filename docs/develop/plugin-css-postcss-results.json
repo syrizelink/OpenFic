@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-19",
+  "branch": "feat/extension-host",
+  "base_commit": "73bf598",
+  "implementation": {
+    "parser": "postcss@8.5.30",
+    "nesting": "postcss-nesting@14.0.3",
+    "selector_parser": "postcss-selector-parser@7.1.6",
+    "value_parser": "postcss-value-parser@4.2.0",
+    "native_scope_required": false,
+    "cssom_replace_required": false,
+    "native_nesting_required": false,
+    "selector_guard": ":where(instance root, instance root *)"
+  },
+  "regression": {
+    "passed": 15,
+    "failed": 0,
+    "compiler_cases": 6,
+    "browser_cases": 9,
+    "cases": [
+      {
+        "name": "original navigation, settings plugin category and mobile shell still render",
+        "file": "app-shell-regression.spec.ts",
+        "seconds": 14.318
+      },
+      {
+        "name": "compiles nesting without browser CSSOM or native scope",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.045
+      },
+      {
+        "name": "namespaces keyframes, animation lists, fallback variables and inline styles",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.022
+      },
+      {
+        "name": "escaped and quoted animation identifiers are parsed without rewriting timing keywords",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.005
+      },
+      {
+        "name": "drops global registrations and unsafe declarations without dropping valid rules",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.028
+      },
+      {
+        "name": "validates URL forms and inline styles using the same resource policy",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.013
+      },
+      {
+        "name": "rejects malformed styles, invalid scopes and excessive input and rule depth",
+        "file": "declarative-css.spec.ts",
+        "seconds": 0.599
+      },
+      {
+        "name": "browser renders roots, nesting, form fields, pseudos and portals while containing hostile selectors",
+        "file": "declarative-css.spec.ts",
+        "seconds": 1.335
+      },
+      {
+        "name": "one plugin mixes native Radix controls and legacy iframe, with safe rendering and persisted actions",
+        "file": "declarative-plugins.spec.ts",
+        "seconds": 13.03
+      },
+      {
+        "name": "native catalogue, project data, Radix events, responsive props and scoped portals",
+        "file": "declarative-showcase.spec.ts",
+        "seconds": 26.624
+      },
+      {
+        "name": "project selectors keep their mobile sheets and portal focus",
+        "file": "declarative-showcase.spec.ts",
+        "seconds": 5.95
+      },
+      {
+        "name": "SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt injection and editor",
+        "file": "plugin-sdk.spec.ts",
+        "seconds": 30.313
+      },
+      {
+        "name": "management rejects raw and converted Mods and keeps native installation available",
+        "file": "plugin-sdk.spec.ts",
+        "seconds": 4.916
+      },
+      {
+        "name": "React plugin uses the typed SDK package, inline styles, persistence and capability checks",
+        "file": "plugin-sdk.spec.ts",
+        "seconds": 15.333
+      },
+      {
+        "name": "install a unified package, render statistics, configure, disable and uninstall",
+        "file": "plugins.spec.ts",
+        "seconds": 16.811
+      }
+    ]
+  },
+  "plugin_backend": {
+    "passed": 69,
+    "seconds": 10.07
+  },
+  "checks": {
+    "frontend_type_aware": "passed",
+    "typescript_build_and_sdk_consumer": "passed",
+    "frontend_lint": "passed",
+    "changed_file_format": "passed",
+    "catalogue_and_sdk_freshness": "passed",
+    "production_build": "passed",
+    "frozen_lockfile_offline": "passed"
+  },
+  "wheel": {
+    "wheel": "openfic-0.12.1-py3-none-any.whl",
+    "frontend_files_match_final_build": 740,
+    "catalogue_matches_source": true,
+    "sdk_matches_public_types": true,
+    "catalogue_sha256": "ca280024450a5644c70ee528c38013cb5acc55a9024df0ff09ea949dafb462e1"
+  },
+  "limitations": [
+    "Chromium desktop/mobile viewport tested; CSSScopeRule disabled and replaceSync forced to throw in native showcase. Real older Safari/Firefox/system WebViews and a native Tauri window were not launched.",
+    "CSS values and media/supports/container conditions still require browser support; selector constraints use mature :where().",
+    "Drive and LLM use repository protocol test doubles.",
+    "Full backend suite was not rerun for this frontend-only change; prior 2330 passed and 19 skipped results belong to the preceding UI enhancement."
+  ],
+  "raw_evidence": "/workspace/openfic-verification/postcss"
+}

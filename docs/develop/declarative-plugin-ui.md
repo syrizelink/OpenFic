@@ -103,11 +103,15 @@ return {
 }
 ```
 
-宿主先用浏览器 CSSOM 解析，再将规则置于每个视图独立的 CSS `@scope`。Dialog、Select、Popover、Tooltip 和项目组件的弹层挂载至同一作用域的 Portal 容器，保持项目弹层的原有交互。`@keyframes` 自动重命名；不同视图不会共享动画名称。`body/button/*` 等选择器仍受当前视图边界限制。`:scope` 同时匹配视图根及对应 Portal 根。弹层不在触发器包装容器的 DOM 子树内；需要共享的 CSS 变量请定义在 `:scope`。
+宿主使用 PostCSS 解析 CSS，并用 `postcss-nesting` 将嵌套样式展开为普通规则，再通过选择器 AST 将每条规则的匹配目标约束到当前视图根及其后代。输出不包含 CSS `@scope`，也不依赖 `CSSStyleSheet.replaceSync` 或浏览器原生 CSS nesting。约束使用已广泛支持的 `:where()`（Chrome/Edge 88、Firefox 78、Safari 14 起支持），保留原选择器的优先级。插件仍以 `UIDocument.css` 传入字符串，不需要改写插件或自行引入这些库。
 
-CSS 解析限制为 32 层、2048 条规则，超出部分忽略并提示，避免损坏宿主渲染。
+`html`、`body`、`:root`、`:scope` 映射到插件根；常见的 `html > body` 根链合并为同一个根。选择器列表、函数伪类、兄弟组合符和伪元素也受到目标范围约束。Dialog、Select、Popover、Tooltip 和项目组件的弹层挂载至具有相同实例标识的 Portal 容器，保持项目弹层的原有交互。弹层不在触发器包装容器的 DOM 子树内；需要共享的 CSS 变量请定义在 `:scope`。
 
-忽略 `@import`、`@font-face`、`@property` 等全局注册规则；过滤脚本 URL、expression 及旧式可执行属性。CSS 资源 URL 支持 HTTP/HTTPS 和部分 raster base64 图片。宿主会提示被忽略的规则。浏览器必须支持 CSS `@scope`，不支持时忽略自定义样式并提示，组件仍可交互。此边界限制选择器影响范围，不限制插件在自身节点使用 fixed 定位或大尺寸，也不是后端安全沙箱。
+支持 `@media`、`@supports`、`@container` 和 `@keyframes`；具体条件及 CSS 属性仍取决于浏览器本身的支持。动画名称按视图实例重命名，同步处理样式表、内联样式及动画引用的 CSS 变量链；普通颜色变量不会因与动画同名而被重写。动画名称如果与 `linear` 等简写关键字重名，请使用 `animation-name` 或带引号的动画名称。
+
+单个样式表最多 64 KiB、32 层嵌套、8192 个 AST 节点；展开后最多 2048 条规则、512 KiB。超出部分忽略并提示；语法损坏的样式表整段忽略，不会回退到未经处理的 CSS。处理结果按当前视图的 CSS 缓存，交互事件不会反复编译相同样式。
+
+忽略 `@import`、`@font-face`、`@property`、输入中的 `@scope` 等未支持规则；过滤脚本 URL、expression 及旧式可执行属性。CSS 资源 URL 支持 HTTP/HTTPS 和部分 raster base64 图片。PostCSS 不下载资源、不加载插件提供的处理器，组件由宿主原生渲染。此边界限制选择器影响范围，宿主主题仍可影响插件；它不限制插件在自身节点使用 fixed 定位或大尺寸，也不是后端安全沙箱。
 
 可安装示例：`examples/plugins/declarative-showcase`，展示项目组件、响应式 Grid、Tabs、Dialog、DropdownMenu、Popover、Tooltip、数组事件和样式。使用现有 `examples/plugins/build_package.py` 打包安装。
 
