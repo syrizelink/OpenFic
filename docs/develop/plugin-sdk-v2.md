@@ -165,6 +165,8 @@ QuickJS 上限 96 MiB，单段同步执行约 1 秒，单次异步 Mod 事件 25
 
 ## 示例与验证
 
+整轮改造对原有功能的回归、发现的问题和修复见 [原有功能回归验证](./plugin-regression-verification.md)。插件工具默认由 Build 显式加入，Plan 和子 Agent 不再无条件获得插件工具；可通过 Agent 定义的 `metadata.plugin_tools` 指定完整插件工具名，空列表表示关闭。
+
 三个插件位于 `examples/plugins/`，安装包位于 `examples/plugins/dist/`。使用说明见 [示例插件](./plugin-examples.md)，测试范围及复现见 [验证记录](./plugin-sdk-verification.md)。新增集成测试位于 `backend/tests/plugins/`；浏览器测试 `frontend/e2e/plugin-sdk.spec.ts` 覆盖三个示例、原格式 TSX Mod，以及使用独立类型包的 React 插件。旧项目统计仍由 `frontend/e2e/plugins.spec.ts` 回归。
 
 Google Drive 与模型在自动化测试中使用协议仿真，业务后端、数据库、宿主、RPC、iframe 和 Agent 执行链都是真实实现。测试不会访问真实 Google 账户，也没有运行原生桌面安装程序。

@@ -1,0 +1,17 @@
+{
+  "id": "regression-probe",
+  "name": "Regression observer",
+  "version": "1.0.0",
+  "api_version": 1,
+  "backend": "backend/main.py",
+  "capabilities": ["ui", "editor.read", "editor.write", "agent.hooks"],
+  "views": [
+    {
+      "id": "editor",
+      "title": "Regression probe",
+      "entry": "frontend/index.html",
+      "slot": "editor.toolbar",
+      "height": 80
+    }
+  ]
+}

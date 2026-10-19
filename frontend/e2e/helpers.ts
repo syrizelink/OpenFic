@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
-export const EMPTY_PROJECT_ID = "EDzAi3teTeKimQH_VXoxB";
-export const LARGE_PROJECT_ID = "sEhu5CzLC-GfoDjsM01yg";
+export const EMPTY_PROJECT_ID = process.env.OPENFIC_E2E_EMPTY_PROJECT_ID ?? "EDzAi3teTeKimQH_VXoxB";
+export const LARGE_PROJECT_ID = process.env.OPENFIC_E2E_LARGE_PROJECT_ID ?? "sEhu5CzLC-GfoDjsM01yg";
 
 export const EMPTY_PROJECT_URL = `/projects/${EMPTY_PROJECT_ID}`;
 export const LARGE_PROJECT_URL = `/projects/${LARGE_PROJECT_ID}`;

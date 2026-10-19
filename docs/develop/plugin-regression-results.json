@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-19",
+  "status": "completed_with_documented_existing_issue",
+  "evidence_directory": "/workspace/openfic-verification/2026-10-19",
+  "reviewed_change_range": "9dad03b..e6217b0",
+  "reviewed_files": 113,
+  "reviewed_existing_files": 30,
+  "regression_fix_commit": "ce7383e",
+  "fixed_regression_groups": 6,
+  "backend": {
+    "tests": 2342,
+    "passed": 2323,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 19,
+    "duration_seconds": 424.507,
+    "junit": "backend-final.xml",
+    "passed_by_area": {
+      "agent_runtime": 980,
+      "api": 695,
+      "audit": 6,
+      "background": 69,
+      "core": 16,
+      "macro": 46,
+      "memory": 48,
+      "models": 128,
+      "plugins": 62,
+      "providers": 25,
+      "retrieval": 34,
+      "socket": 29,
+      "storage": 135,
+      "test_cli": 31,
+      "test_dockerfile": 1,
+      "test_encryption_key": 4,
+      "test_main": 9,
+      "test_telemetry": 5
+    },
+    "coverage": {
+      "line_percent": 79.05,
+      "branch_percent": 59.73,
+      "combined_percent": 75.0
+    },
+    "coverage_by_integration_file": {
+      "app/agent_runtime/context/processors/to_langchain.py": {
+        "line_percent": 100.0,
+        "branch_percent": 100.0,
+        "combined_percent": 100.0
+      },
+      "app/agent_runtime/graph/orchestrator/graph.py": {
+        "line_percent": 86.92,
+        "branch_percent": 55.56,
+        "combined_percent": 80.12
+      },
+      "app/agent_runtime/graph/react_agent.py": {
+        "line_percent": 88.1,
+        "branch_percent": 77.07,
+        "combined_percent": 84.69
+      },
+      "app/agent_runtime/runner/subagent_runner.py": {
+        "line_percent": 83.06,
+        "branch_percent": 63.44,
+        "combined_percent": 78.46
+      },
+      "app/agent_runtime/tools/base.py": {
+        "line_percent": 90.26,
+        "branch_percent": 70.31,
+        "combined_percent": 85.33
+      },
+      "app/agent_runtime/tools/registry.py": {
+        "line_percent": 100.0,
+        "branch_percent": 100.0,
+        "combined_percent": 100.0
+      },
+      "app/agent_runtime/tools/errors.py": {
+        "line_percent": 91.43,
+        "branch_percent": 78.12,
+        "combined_percent": 88.32
+      },
+      "app/api/routers/agent_runtime.py": {
+        "line_percent": 56.0,
+        "branch_percent": 31.44,
+        "combined_percent": 50.14
+      },
+      "app/main.py": {
+        "line_percent": 55.77,
+        "branch_percent": 24.49,
+        "combined_percent": 50.27
+      },
+      "app/plugins/runtime.py": {
+        "line_percent": 82.11,
+        "branch_percent": 68.09,
+        "combined_percent": 77.46
+      }
+    },
+    "coverage_includes_browser_service": false
+  },
+  "postgresql": {
+    "tests": 134,
+    "passed": 134,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 26.326,
+    "junit": "postgres.xml",
+    "image": "pgvector/pgvector:pg17",
+    "skipped_cases_reexecuted_and_passed": 18,
+    "remaining_skipped": [
+      {
+        "module": "tests.test_cli",
+        "name": "test_windows_proactor_supports_subprocess_and_zmq"
+      }
+    ]
+  },
+  "desktop": {
+    "archive_passed": 5,
+    "data_manager_passed": 7,
+    "failed": 0,
+    "typecheck": "passed",
+    "lint": "passed",
+    "setup_build": "passed"
+  },
+  "checks": {
+    "backend_ruff_all": "passed",
+    "backend_ty_app": "passed",
+    "frontend_format": "passed",
+    "frontend_lint_and_typecheck": "passed",
+    "frontend_app_and_node_types": "passed",
+    "e2e_types": "passed",
+    "frontend_production_build": "passed",
+    "git_diff_check": "passed"
+  },
+  "packaging": {
+    "wheel": {
+      "changed_backend_files_matched": 29,
+      "frontend_files_matched": 740,
+      "wheel": "openfic-0.12.1-py3-none-any.whl",
+      "sha256": "e42ad27286e3c05ba99affed9e1f039469179dfdee279df64ebe743258a55092",
+      "reused_prebuilt_frontend": true
+    },
+    "sdk_and_examples": {
+      "declarations_match": true,
+      "npm_archive_matches_source": true,
+      "examples": [
+        {
+          "file": "examples/plugins/dist/google-drive-sync-1.0.0.zip",
+          "matched_files": 7
+        },
+        {
+          "file": "examples/plugins/dist/handoff-workflow-1.0.0.zip",
+          "matched_files": 5
+        },
+        {
+          "file": "examples/plugins/dist/project-statistics-1.0.0.zip",
+          "matched_files": 5
+        },
+        {
+          "file": "examples/plugins/dist/prompt-elements-1.0.0.zip",
+          "matched_files": 9
+        }
+      ]
+    }
+  },
+  "structured_tool_integration": {
+    "read_chapter_calls": 15,
+    "is_running": false,
+    "compaction_status": 200,
+    "summary_created": true
+  },
+  "known_existing_issues": [
+    {
+      "behavior": "Cancelling manual compaction restores state but the cancelled compaction HTTP request returns 500 (No response returned).",
+      "baseline_commit": "9dad03b",
+      "baseline_comparison_date": "2026-10-18",
+      "fixed_in_this_round": false
+    }
+  ],
+  "excluded": [
+    "real Google OAuth/Drive account",
+    "paid model providers",
+    "Windows Proactor",
+    "native macOS/Windows desktop installers",
+    "real tunnel services"
+  ],
+  "interrupted_runs": [
+    "backend-contended.log",
+    "browser-contended.log"
+  ],
+  "browser": {
+    "status": "passed_after_fixture_correction",
+    "latest_distinct_passed": 19,
+    "latest_distinct_failed": 0,
+    "core_scenarios_passed": 12,
+    "plugin_scenarios_passed": 6,
+    "shell_scenarios_passed": 1,
+    "runs": [
+      {
+        "junit": "browser-core-before-queue-fix.xml",
+        "tests": 12,
+        "passed": 11,
+        "failed": 1,
+        "skipped": 0
+      },
+      {
+        "junit": "browser-queue.xml",
+        "tests": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "junit": "browser-shell.xml",
+        "tests": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "junit": "browser-plugins.xml",
+        "tests": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "aggregation": "Use latest result for each (classname, name); retain all earlier results.",
+    "fixtures": "Local model and Google Drive protocol simulators; real application, tools, database, socket, UI and plugin install."
+  }
+}
