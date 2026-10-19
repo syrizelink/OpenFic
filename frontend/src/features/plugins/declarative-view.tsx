@@ -460,15 +460,6 @@ export function DeclarativeView({
           >
             {view.title}
           </Heading>
-          {plugin.compatibility?.warnings?.map((warning) => (
-            <Text
-              key={warning}
-              size="1"
-              color="gray"
-            >
-              {warning}
-            </Text>
-          ))}
           <Flex
             gap="2"
             wrap="wrap"

@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-19",
+  "status": "completed",
+  "baseline": "9c19fca",
+  "scope": "Remove Claude Mods support; retain native SDK, declarative UI, hooks, tools, graphs, editor interfaces and examples.",
+  "backend": {
+    "tests": 2333,
+    "passed": 2314,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 19,
+    "duration_seconds": 313.402,
+    "junit": "backend.xml"
+  },
+  "native_plugins": {
+    "tests": 53,
+    "passed": 53,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 6.985,
+    "junit": "plugins.xml"
+  },
+  "checks": {
+    "backend_ruff": "passed",
+    "backend_ty": "passed",
+    "frontend_format": "passed",
+    "frontend_typecheck": "passed",
+    "e2e_types_and_lint": "passed",
+    "frontend_production_build": "passed",
+    "uv_lock_check": "passed",
+    "quickjs_uninstalled": true
+  },
+  "wheel": {
+    "removed_runtime_absent": true,
+    "quickjs_dependency_absent": true,
+    "plugin_source_files_matched": 14,
+    "frontend_index_matched": true
+  },
+  "evidence_directory": "/workspace/openfic-verification/mod-removal",
+  "boundaries": [
+    "Local model and Google Drive protocol fixtures; no paid models or real Google accounts.",
+    "PostgreSQL-specific and Windows Proactor cases remain conditionally skipped in this run.",
+    "Native desktop installer not exercised."
+  ],
+  "legacy_packages": {
+    "original_and_wrapped_mod_packages": "rejected",
+    "converted_mod_packages": "rejected",
+    "startup_execution": "skipped",
+    "existing_data": "preserved",
+    "older_native_exports": "supported"
+  },
+  "browser": {
+    "latest_distinct_passed": 6,
+    "latest_distinct_failed": 0,
+    "runs": [
+      {
+        "junit": "browser-before-shell-fix.xml",
+        "passed": 5,
+        "failed": 1
+      },
+      {
+        "junit": "browser-shell.xml",
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "fixture_correction": "Navigation test now creates/cleans its own project and awaits character/dashboard queries before navigating away. Earlier failed trace retained."
+  },
+  "unexpected_server_500_count": 0
+}

@@ -142,15 +142,6 @@ export function PluginManager({ onOpenView }: { onOpenView?: () => void } = {}) 
           <p className="plugin-muted">
             {t("plugins.capabilities")}: {plugin.capabilities.join(", ") || t("plugins.none")}
           </p>
-          {plugin.format === "claude-mod" && (
-            <details className="plugin-compatibility">
-              <summary>Claude Mods compatibility</summary>
-              <p>{plugin.compatibility?.supported?.join(", ")}</p>
-              {plugin.compatibility?.warnings?.map((warning, index) => (
-                <p key={index}>{warning}</p>
-              ))}
-            </details>
-          )}
           {!!plugin.tools?.length && (
             <p className="plugin-muted">Agent tools: {plugin.tools.join(", ")}</p>
           )}

@@ -239,21 +239,6 @@ class PluginHost:
                     )
                     if manifest.id != directory.name:
                         raise ValueError("Plugin directory identity mismatch")
-                    if manifest.format == "claude-mod":
-                        from app.plugins.mods import MOD_ADAPTER_VERSION, convert_mod
-
-                        if (
-                            manifest.compatibility.get("adapterVersion")
-                            != MOD_ADAPTER_VERSION
-                        ):
-                            convert_mod(directory)
-                            manifest = Manifest.model_validate_json(
-                                (directory / "plugin.json").read_bytes()
-                            )
-                            if manifest.id != directory.name:
-                                raise ValueError(
-                                    "Plugin directory identity mismatch after Mod migration"
-                                )
                     saved = state.get(manifest.id, {})
                     settings_values = saved.get("settings", {})
                     for setting in manifest.settings:
@@ -360,10 +345,6 @@ class PluginHost:
                     raise ValueError("Backend must export register(host)")
                 async with asyncio.timeout(15):
                     await _await_result(register(registration))
-            if manifest.format == "claude-mod":
-                from app.plugins.mods import activate_mod
-
-                await activate_mod(self, plugin, registration)
             requirements = [
                 (registration.tools, "agent.tools"),
                 (registration.hooks, "agent.hooks"),
@@ -485,9 +466,7 @@ class PluginHost:
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(archive.read(info))
                 if not (target / "plugin.json").exists():
-                    from app.plugins.mods import convert_mod
-
-                    convert_mod(target)
+                    raise PluginError("Package must contain plugin.json at the archive root")
                 manifest = Manifest.model_validate_json(
                     (target / "plugin.json").read_bytes()
                 )

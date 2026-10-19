@@ -1,4 +1,4 @@
-"""Public SDK contracts through business APIs and original Claude Mod packages."""
+"""Public native plugin SDK contracts through business APIs."""
 
 import io
 import json
@@ -205,77 +205,6 @@ def register(host):
     assert not plugin_tools({})
 
 
-def mod_bundle(source):
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w") as archive:
-        archive.writestr(
-            ".claude-plugin/plugin.json",
-            json.dumps(
-                {
-                    "name": "demo-mod",
-                    "version": "1.0.0",
-                    "userConfig": {"suffix": {"type": "string", "default": "!"}},
-                }
-            ),
-        )
-        archive.writestr(
-            "hooks/hooks.json", json.dumps({"modules": ["./register.tsx"]})
-        )
-        archive.writestr("hooks/register.tsx", source)
-    return output.getvalue()
-
-
-async def test_claude_mod_typescript_jsx_commands_ui_and_true_next(plugin_api, session):
-    host, _, _ = plugin_api
-    source = """
-import type { On } from 'claude-code';
-let count: number = 0;
-export function register(on: On, options: {suffix:string}) {
-  on('session.start', async ($,e,next) => { await $.command.register({name:'hello',description:'Hello'}); return next(e); });
-  on('command.run',{command:'hello'}, async ($,e,next) => {count++; await $.store.set('count',count);return {text:'Hello'+options.suffix};});
-  on('prompt.submit', async ($,e,next) => next({...e,text:e.text+options.suffix}));
-  on('tool.call', async ($,e,next) => {const result=await next(e);return {result:result.result+' post'};});
-  on('ui.render',{component:'Pane'},async ($,e,next) => {const {Box,Text,Button}=$.ui.resolve(e);return <Box><Text>Count: {count}</Text><Button label="Increment" onPress={()=>{count++}} /></Box>;});
-  on('unsupported.event',async ($,e,next)=>next(e));
-}
-"""
-    assert (await host.install(mod_bundle(source)))["format"] == "claude-mod"
-    await host.set_enabled("demo-mod", True)
-    assert (
-        "Unsupported event: unsupported.event"
-        in host.get("demo-mod").manifest.compatibility["warnings"]
-    )
-    assert (await host.call("demo-mod", "mod.command", {"command": "hello"}, session))[
-        "text"
-    ] == "Hello!"
-    assert await host.context("demo-mod", session).storage.get("count") == 1
-    assert (await dispatch("prompt.submit", {"text": "User"}, session, host=host))[
-        "text"
-    ] == "User!"
-
-    async def terminal(event):
-        return {"result": "actual"}
-
-    assert await dispatch(
-        "tool.call",
-        {"tool": "read_chapter", "input": {}},
-        session,
-        host=host,
-        terminal=terminal,
-    ) == {"result": "actual post"}
-    inspected = await host.call("demo-mod", "mod.inspect", {}, session)
-    tree = next(t["tree"] for t in inspected["trees"] if t["component"] == "Pane")
-    assert tree["type"] == "Box"
-    action = tree["children"][1]["props"]["onPress"]
-    await host.call("demo-mod", "mod.action", {"id": action}, session)
-    inspected = await host.call("demo-mod", "mod.inspect", {}, session)
-    assert "2" in json.dumps(inspected["trees"])
-    await host.set_enabled("demo-mod", False)
-    assert (await dispatch("prompt.submit", {"text": "User"}, session, host=host))[
-        "text"
-    ] == "User"
-
-
 async def test_hook_order_reentry_and_read_only_editor_observer(plugin_api, session):
     host, _, _ = plugin_api
     observer = """
@@ -325,27 +254,6 @@ def register(host): host.register_hook('editor.change',edit)
     await host.set_enabled("sdk-test", True)
     with pytest.raises(PermissionError, match="editor.write"):
         await dispatch("editor.change", {"content": "original"}, session, host=host)
-
-
-async def test_mod_cpu_limit_and_unsupported_node_import(plugin_api, session):
-    host, _, _ = plugin_api
-    await host.install(
-        mod_bundle(
-            "export function register(on) {on('command.run',async()=>{while(true){}})}"
-        )
-    )
-    await host.set_enabled("demo-mod", True)
-    with pytest.raises(PluginError, match="interrupted"):
-        await host.call("demo-mod", "mod.command", {"command": "loop"}, session)
-    await host.uninstall("demo-mod")
-    await host.install(
-        mod_bundle(
-            "import fs from 'node:fs'; export function register(on){fs.readFileSync('/etc/passwd')}"
-        )
-    )
-    with pytest.raises(PluginError, match="Unsupported module"):
-        await host.set_enabled("demo-mod", True)
-    assert host.describe(host.get("demo-mod"))["status"] == "error"
 
 
 async def test_public_agent_tool_call_retains_runtime_approval_and_provenance(

@@ -59,8 +59,6 @@ def register(host):
 
 前端只把协议字段映射到固定组件，不展开任意属性，不注入 HTML/CSS，也不执行插件浏览器代码。链接在新窗口打开并禁止访问 opener。原生 Python 插件仍是可信后端代码，此 UI 协议不改变其后端执行权限。
 
-## Claude Mods
+## 原生插件
 
-兼容适配器在导入时直接生成 `renderer: "declarative"` 视图，将 `ui.render` 的组件树交给原生渲染器。`ui.open/close` 映射到同一对话区域内的 Pane；Token Weather 和 Replay Theater 不使用 iframe，也不跳转独立页面。Mods 的 JS 继续在后端 QuickJS 中执行，回调 ID 经认证接口返回该运行时。
-
-适配器版本升级为 3；已有版本 1/2 的 Mod 在后端重启时自动迁移，保留官方源码、启用状态及持久化数据。需要更新前后端宿主并重启/刷新。已有普通 HTML/React/Vue 插件继续使用 iframe。官方源码的插槽识别策略保持原样，明确的渲染方式写入转换后的清单；不尝试猜测任意原生插件的 UI 类型。
+声明式协议是原生插件 SDK 的独立能力：Python 插件通过 `render`/`action` 命令提供组件树及交互处理，主应用使用 Radix 组件渲染。HTML、React、Vue 等预构建应用使用 iframe SDK。宿主已移除第三方 Mod 模块执行和格式转换。

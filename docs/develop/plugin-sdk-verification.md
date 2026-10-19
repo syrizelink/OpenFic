@@ -1,8 +1,8 @@
-# SDK 2.0 验证记录
+# SDK 2.0 历史验证记录
 
 2026-10-19 完成整轮改造对原有功能的回归检查，发现并修复六类问题；全量、PostgreSQL、编辑器和浏览器验证见 [回归验证报告](./plugin-regression-verification.md)。
 
-2026-10-18 追加了官方仓库全部三个 Mod 的原包安装和浏览器验证，并修复实际兼容缺口。逐项结果、限制和复现见 [官方 Mods 报告](./claude-mods-compatibility.md)。下表保留 2026-10-17 SDK 交付时的历史记录。
+本页保留 2026-10-17 SDK 交付时的历史结果，其中的 Claude Mods 支持现已移除。当前功能与验证以 [SDK 2.0](./plugin-sdk-v2.md) 和 [移除验证记录](./plugin-native-verification.md) 为准。
 
 验证日期：2026-10-17。测试使用隔离数据目录，不连接用户数据库。安装包见 `examples/plugins/dist/`，源码与操作说明见 [示例插件](./plugin-examples.md)，接口与限制见 [SDK 2.0](./plugin-sdk-v2.md)。
 

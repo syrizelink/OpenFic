@@ -1,6 +1,6 @@
 # 扩展宿主与插件开发（包 API v1 / SDK 2.0）
 
-新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph 与 Claude Mods 兼容，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。下文保留最小项目统计包示例。
+新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。下文保留最小项目统计包示例。
 
 OpenFic 使用统一 ZIP 插件包。插件安装在当前连接的后端实例的 `OPENFIC_DATA_DIR/plugins/` 中；前端由内嵌的扩展宿主动态加载插件资源，不需要重新构建主应用。桌面版同样使用运行时配置中的后端地址。
 

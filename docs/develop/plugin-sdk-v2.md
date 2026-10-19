@@ -43,15 +43,11 @@ UI 插槽：`sidebar.extensions`、`project.toolbar`、`editor.toolbar`、`edito
 
 `OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持正文读取、设置、追加和保存；不支持的选择区/撤销操作明确报错。
 
-## Claude Mods
+## 插件包格式
 
-可直接安装含 `.claude-plugin/plugin.json` 与 `hooks/hooks.json` 的 ZIP（也接受单层仓库目录包装）。原包保留，并生成宿主 manifest 和独立管理视图。JS/TS/JSX/TSX 模块在 QuickJS 中执行，转换器随宿主分发，不依赖用户安装 Node。
+安装包为包含根目录 `plugin.json` 的原生 OpenFic ZIP。前端框架代码由插件开发者预先构建为 HTML/JS 资源，或通过声明式协议返回宿主组件树。
 
-已实现的映射包含模块加载、`register(on, options)`、匹配器、`next` 中间件、配置默认值、命令和工具注册、提示词事件、基本声明式 UI、控件回调、KV、作用域文件和 HTTP/模型桥。CPU、内存和异步执行有边界。
-
-Claude 的终端、组织策略、原生权限对话框、MCP 子进程、Node 内建模块、外部 Client 渲染器等没有通用等价实现。兼容结果与警告随插件列出；shell hooks 不会自动执行。兼容性不等于完整运行 Claude Code。
-
-参考：[Claude Mods](https://code.claude.com/docs/en/plugins/mods/overview)、[官方类型](https://github.com/anthropics/claude-code/blob/main/mods/types/claude-code.d.ts)、[LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/use-graph-api)。
+Claude Mods 原包兼容支持已移除，包括包转换、JS/TS/JSX 执行和 CLI 事件映射。原包与旧转换包均不再安装或加载。已有 Mod 的磁盘目录和数据不会自动删除；原生插件及其数据继续使用。
 
 ## SDK 分发与调用约定
 
@@ -141,33 +137,11 @@ iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章
 
 `OpenFic.on` 可订阅 `editor.open/change/selection/close`、`data.changed` 和插件事件。没有 `editor.read` 的视图不会收到编辑器正文；服务端的 `editor.change` hook 也要求读取能力，改写还要求 `editor.write`。异步编辑器结果只在原内容和当前实体仍匹配时应用，避免覆盖用户后续输入。
 
-## Claude Mods 兼容边界
-
-已对官方 playground 的全部三个 Mod 实际安装并做浏览器验证，详细结果见 [官方 Mods 兼容性报告](./claude-mods-compatibility.md)。Token Weather 可用，Replay Theater 可通过章节逻辑文档映射使用；Blast Radius 的 Bash/process 核心功能不兼容，安装成功不代表功能兼容。
-
-| 能力 | 本宿主支持程度 |
-| --- | --- |
-| 原始目录 ZIP、单层包装目录、`hooks.json` modules | 直接导入；保留源文件并生成宿主视图 |
-| JS/MJS/CJS/TS/JSX/TSX、相对模块、JSON、type-only imports | Sucrase + QuickJS；不需要系统 Node |
-| `register(on, options)`、matcher、`.catch`、`next` | 支持常见观察、改写、短路及真实宿主 continuation |
-| command/tool register | 映射到命令 UI 和命名空间 Agent 工具 |
-| prompt/tool/turn/session/agent 事件 | 映射到已接入的宿主事件；不实现 Claude 的所有事件 |
-| `ui.resolve` 与组件树 | 使用宿主 Radix 组件原生渲染和回调，不使用 iframe；Code/Markdown 暂为安全预格式文本 |
-| `store`、基础 `state`、文件、HTTP、模型 | 常用方法映射到插件作用域服务；不是 Claude 项目工作目录 |
-| `clock.now/sleep` | 支持；原生 SDK 的周期任务使用 register_interval |
-| `session.usage()` | 当前任务最近模型输入 token 数与当前模型上下文窗口 |
-| Claude `Write/Edit` 文档事件 | 映射章节/笔记创建与正文编辑；逻辑路径，不开放主机文件系统 |
-| `ui.open/close` | 当前对话区域原位展开/收起 Pane，自动高度，保留消息与输入；支持按钮、快捷键和 Escape |
-| `turn.step` async generator | 可执行预调用控制流，不提供替换 Claude token stream 的等价能力 |
-| shell hooks、process/MCP、组织权限/优先级、Client、音频 | 不自动执行或不支持；相关事件/API 无等价保证 |
-
-QuickJS 上限 96 MiB，单段同步执行约 1 秒，单次异步 Mod 事件 25 秒。此运行时提供资源约束和受控桥，但没有宣称经过独立安全审计。导入仍需可信来源确认。Mod 的原生配置、终端行为、权限提升、文件系统语义不可能完整复制。
-
 ## 示例与验证
 
 整轮改造对原有功能的回归、发现的问题和修复见 [原有功能回归验证](./plugin-regression-verification.md)。插件工具默认由 Build 显式加入，Plan 和子 Agent 不再无条件获得插件工具；可通过 Agent 定义的 `metadata.plugin_tools` 指定完整插件工具名，空列表表示关闭。
 
-三个插件位于 `examples/plugins/`，安装包位于 `examples/plugins/dist/`。使用说明见 [示例插件](./plugin-examples.md)，测试范围及复现见 [验证记录](./plugin-sdk-verification.md)。新增集成测试位于 `backend/tests/plugins/`；浏览器测试 `frontend/e2e/plugin-sdk.spec.ts` 覆盖三个示例、原格式 TSX Mod，以及使用独立类型包的 React 插件。旧项目统计仍由 `frontend/e2e/plugins.spec.ts` 回归。
+三个插件位于 `examples/plugins/`，安装包位于 `examples/plugins/dist/`。使用说明见 [示例插件](./plugin-examples.md)，测试范围及复现见 [原生插件验证记录](./plugin-native-verification.md)。新增集成测试位于 `backend/tests/plugins/`；浏览器测试 `frontend/e2e/plugin-sdk.spec.ts` 覆盖三个示例、旧 Mod 包拒绝，以及使用独立类型包的 React 插件。旧项目统计仍由 `frontend/e2e/plugins.spec.ts` 回归。
 
 Google Drive 与模型在自动化测试中使用协议仿真，业务后端、数据库、宿主、RPC、iframe 和 Agent 执行链都是真实实现。测试不会访问真实 Google 账户，也没有运行原生桌面安装程序。
 

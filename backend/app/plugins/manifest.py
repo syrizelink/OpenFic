@@ -185,8 +185,9 @@ class Manifest(Contract):
     views: list[View] = Field(default_factory=list, max_length=60)
     settings: list[Setting] = Field(default_factory=list, max_length=100)
     network_hosts: list[str] = Field(default_factory=list, max_length=50)
-    format: Literal["openfic", "claude-mod"] = "openfic"
-    compatibility: dict[str, Any] = Field(default_factory=dict)
+    format: Literal["openfic"] = "openfic"
+    # Accept metadata from older native exports, but no longer emit it.
+    compatibility: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     @model_validator(mode="after")
     def validate_entries(self):

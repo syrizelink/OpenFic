@@ -93,7 +93,6 @@ dependencies = [
     "ebooklib>=0.20",
     "extract-msg>=0.56.1",
     "tornado>=6.5.2",
-    "quickjs>=1.19.4",
     "jsonschema>=4.23",
 ]
 

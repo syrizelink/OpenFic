@@ -28,7 +28,7 @@ const phases = [
       "writing-regression",
     ],
   ],
-  ["plugins", ["official-mods", "plugin-sdk", "plugins", "declarative-plugins"]],
+  ["plugins", ["plugin-sdk", "plugins", "declarative-plugins"]],
 ];
 for (const [phase, names] of phases) {
   const phaseEnv = { ...env };

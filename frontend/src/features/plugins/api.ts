@@ -35,8 +35,6 @@ export interface InstalledPlugin {
   views: PluginView[];
   settings: PluginSetting[];
   configuration: Record<string, unknown>;
-  format?: "openfic" | "claude-mod";
-  compatibility?: { warnings?: string[]; supported?: string[]; [key: string]: unknown };
   tools?: string[];
   hooks?: string[];
   graphs?: string[];

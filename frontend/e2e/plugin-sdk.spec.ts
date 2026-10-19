@@ -309,42 +309,44 @@ test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt inje
   }
 });
 
-test("original Claude TSX Mod installs, draws UI and executes controls", async ({ page }) => {
+test("management rejects raw and converted Mods and keeps native installation available", async ({
+  page,
+}) => {
   if (process.env.OPENFIC_E2E_PASSWORD)
     await page.request.post(`${api}/auth/login`, {
       data: { password: process.env.OPENFIC_E2E_PASSWORD },
     });
-  const output = "/tmp/openfic-e2e-claude-mod.zip";
-  execFileSync("python3", [
-    "-c",
-    `import zipfile,json\nwith zipfile.ZipFile('${output}','w') as z:\n z.writestr('.claude-plugin/plugin.json',json.dumps({'name':'claude-counter','version':'1.0.0'}))\n z.writestr('hooks/hooks.json',json.dumps({'modules':['./register.tsx']}))\n z.writestr('hooks/register.tsx',"let count: number=0; export function register(on) { on('session.start',async($,e,next)=>{await $.command.register({name:'hello',description:'Hello'});return next(e)});on('command.run',{command:'hello'},async()=>({text:'Hello from Claude Mod'}));on('ui.render',{component:'Pane'},async($,e,next)=>{const {Box,Text,Button}=$.ui.resolve(e);return <Box><Text>Counter: {count}</Text><Button label='Increment' onPress={()=>{count++}} /></Box>}) }")`,
-  ]);
-  try {
-    await page.goto("/extensions");
-    await page.getByRole("checkbox").check();
+  await page.goto("/extensions");
+  await page.getByRole("checkbox").check();
+  for (const kind of ["raw", "converted"]) {
+    const buffer = execFileSync("python3", [
+      "-c",
+      `import io,json,sys,zipfile
+output=io.BytesIO()
+with zipfile.ZipFile(output,'w') as archive:
+ if sys.argv[1]=='raw':
+  archive.writestr('.claude-plugin/plugin.json',json.dumps({'name':'removed-mod','version':'1.0.0'}))
+  archive.writestr('hooks/hooks.json',json.dumps({'modules':['./register.mjs']}))
+  archive.writestr('hooks/register.mjs','export function register() {}')
+ else:
+  archive.writestr('plugin.json',json.dumps({'id':'removed-mod','name':'Removed Mod','version':'1.0.0','api_version':1,'format':'claude-mod'}))
+sys.stdout.buffer.write(output.getvalue())`,
+      kind,
+    ]);
+    const pending = page.waitForResponse(
+      (response) => response.request().method() === "POST" && response.url() === `${api}/plugins`,
+    );
     await page.locator('input[type="file"]').setInputFiles({
-      name: "claude-counter.zip",
+      name: `${kind}.zip`,
       mimeType: "application/zip",
-      buffer: readFileSync(output),
+      buffer,
     });
-    const card = page.locator('[data-plugin-id="claude-counter"]');
-    await expect(card).toBeVisible();
-    await expect(card.getByText("Claude Mods compatibility", { exact: true })).toBeVisible();
-    await card.getByRole("button", { name: "启用", exact: true }).click();
-    await expect(card.getByText("已启用", { exact: true })).toBeVisible();
-    await page
-      .getByRole("navigation", { name: "扩展", exact: true })
-      .getByRole("link", { name: "claude-counter", exact: true })
-      .click();
-    const frame = page.locator('[data-plugin-view="claude-counter/mod"]');
-    await expect(page.locator("iframe")).toHaveCount(0);
-    await expect(frame).toContainText("Counter: 0");
-    await frame.getByRole("button", { name: "Increment" }).click();
-    await expect(frame).toContainText("Counter: 1");
-    await frame.getByRole("button", { name: "/hello", exact: true }).click();
-    await expect(frame.getByRole("status")).toHaveText("Hello from Claude Mod");
-  } finally {
-    await page.request.delete(`${api}/plugins/claude-counter`);
+    expect((await pending).status()).toBe(400);
+    await expect(page.locator(".plugin-manager").getByRole("alert")).toContainText(
+      kind === "raw" ? "plugin.json" : "format",
+    );
+    await expect(page.getByRole("button", { name: "安装插件包", exact: true })).toBeEnabled();
+    await expect(page.locator('[data-plugin-id="removed-mod"]')).toHaveCount(0);
   }
 });
 

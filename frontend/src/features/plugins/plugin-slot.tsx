@@ -35,8 +35,7 @@ export function PluginSlot({
         const id = `${plugin.id}/${view.id}`;
         const open = inline || selected === id;
         const native = view.renderer === "declarative";
-        const compact =
-          (native || plugin.format === "claude-mod") && slot === "assistant.above-prompt";
+        const compact = native && slot === "assistant.above-prompt";
         const height = heights[id] ?? (compact ? 0 : (view.height ?? 320));
         return (
           <div

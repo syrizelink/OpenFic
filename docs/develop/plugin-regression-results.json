@@ -225,5 +225,7 @@
     ],
     "aggregation": "Use latest result for each (classname, name); retain all earlier results.",
     "fixtures": "Local model and Google Drive protocol simulators; real application, tools, database, socket, UI and plugin install."
-  }
+  },
+  "historical": true,
+  "superseded_by": "plugin-native-verification.md"
 }
