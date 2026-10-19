@@ -17,11 +17,13 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 
+import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
+
 import "react-photo-view/dist/react-photo-view.css";
 
-import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
+import { SpeechInput } from "@/components/speech-input";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
 import { fetchAgentComposerItems } from "@/lib/api-client";
@@ -905,6 +907,11 @@ export function AgentInput({
             gap="2"
             className="ai-sidebar-input-toolbar-actions"
           >
+            <SpeechInput
+              key={projectId}
+              disabled={isAddMenuDisabled}
+              onInsert={(text) => handleComposerChange(value ? `${value}\n${text}` : text)}
+            />
             {isIndexStatusHidden ? null : <AgentIndexStatusIndicator projectId={projectId} />}
 
             <Tooltip

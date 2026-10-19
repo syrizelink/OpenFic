@@ -11,6 +11,7 @@
     "lint": "oxlint .",
     "preview": "vp preview",
     "test:e2e": "playwright test",
+    "test:e2e:asr": "playwright test --config playwright.asr.config.ts",
     "type-check": "oxlint . --type-aware --type-check"
   },
   "dependencies": {

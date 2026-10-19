@@ -24,6 +24,7 @@ from sqlmodel import SQLModel
 
 from app.api.exceptions import register_exception_handlers
 from app.api.routers import (
+    audio,
     agent_rules,
     agent_definitions,
     agent_runtime,
@@ -106,6 +107,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(world_info.router, prefix="/api/v1")
     test_app.include_router(world_info_entries.router, prefix="/api/v1")
     test_app.include_router(settings.router, prefix="/api/v1")
+    test_app.include_router(audio.router, prefix="/api/v1")
     test_app.include_router(import_router.router, prefix="/api/v1")
     test_app.include_router(model_providers.router, prefix="/api/v1")
     test_app.include_router(openai_codex.router, prefix="/api/v1")

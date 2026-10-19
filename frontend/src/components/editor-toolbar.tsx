@@ -49,6 +49,7 @@ import {
   isParagraphIndented,
 } from "./editor-toolbar-actions";
 import { LabeledSelect, type SelectOption } from "./select";
+import { SpeechInput } from "./speech-input";
 import { Spinner } from "./spinner";
 
 import "./editor-toolbar.css";
@@ -682,6 +683,22 @@ export function EditorToolbar({
               justify="start"
             >
               {toolbarPrefix}
+              <SpeechInput
+                disabled={!editor || !editor.isEditable || isAgentLocked}
+                onInsert={(text) => {
+                  if (!editor || !editor.isEditable || isAgentLocked) return;
+                  editor
+                    .chain()
+                    .focus()
+                    .insertContent(
+                      text.split("\n").map((line) => ({
+                        type: "paragraph",
+                        content: line ? [{ type: "text", text: line }] : [],
+                      })),
+                    )
+                    .run();
+                }}
+              />
 
               {extraActions?.map((action) => (
                 <ToolbarButton

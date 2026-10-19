@@ -1,4 +1,5 @@
 import {
+  Mic,
   Brain,
   Bell,
   Bot,
@@ -19,6 +20,7 @@ import {
 import type { ReactNode } from "react";
 
 export type SettingsCategory =
+  | "audio"
   | "general"
   | "personalization"
   | "editor"
@@ -44,6 +46,7 @@ interface SettingsCategoryItem {
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
+  { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
   {
     id: "general",
     icon: <SettingsIcon size={16} />,

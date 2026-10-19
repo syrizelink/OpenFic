@@ -47,6 +47,7 @@ import {
   type ModelSettingsTab,
 } from "../lib/settings-route";
 import type { Settings, SettingsUpdateRequest, ThemeMode } from "../lib/settings.types";
+import { AudioSettings } from "./audio-settings";
 import { TunnelsSettings } from "./tunnels-settings";
 
 const MotionBox = motion.create(Box);
@@ -78,6 +79,7 @@ interface SettingsContentProps {
 }
 
 const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
+  audio: "speech.title",
   general: "settings.general",
   personalization: "settings.personalization",
   editor: "settings.editor",
@@ -276,6 +278,7 @@ export function SettingsContent({
   const isSplitPanelCategory =
     activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
   const shouldUseFormPagePadding =
+    activeCategory === "audio" ||
     activeCategory === "general" ||
     activeCategory === "personalization" ||
     activeCategory === "editor" ||
@@ -526,6 +529,7 @@ export function SettingsContent({
                 isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
+            {activeCategory === "audio" ? <AudioSettings /> : null}
             {activeCategory === "advanced" ? <AdvancedSettings /> : null}
           </>
         ) : null}
