@@ -41,14 +41,18 @@ class ToolRegistry:
                 hook(instance)
             tools.append(instance)
         from app.plugins.runtime import plugin_tools
-        extensions = plugin_tools(state)
+
+        extensions = plugin_tools(state, names=names)
         for instance in extensions:
             instance.pre_hooks = list(pre_hooks or [])
             instance.post_hooks = list(post_hooks or [])
+            for hook in build_hooks or []:
+                hook(instance)
             tools.append(instance)
         return tools
 
     @classmethod
     def list_names(cls) -> list[str]:
         from app.plugins.runtime import plugin_tools
+
         return [*cls._tools.keys(), *(tool.name for tool in plugin_tools({}))]

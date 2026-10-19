@@ -114,7 +114,10 @@ export async function frontendCall(
     return null;
   }
   if (method === "ui.context")
-    return { editor: activeEditor?.read() ?? null, pathname: location.pathname };
+    return {
+      editor: capabilities.includes("editor.read") ? (activeEditor?.read() ?? null) : null,
+      pathname: location.pathname,
+    };
   if (method === "ui.tools") return (await apiClient.get("/agent/tools")).data;
   throw new Error(`Unsupported frontend method: ${method}`);
 }

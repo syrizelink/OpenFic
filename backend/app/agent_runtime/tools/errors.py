@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
@@ -93,6 +94,12 @@ class ToolResult(str):
     ) -> ToolResult:
         result = str.__new__(cls, value)
         result.payload = payload
+        return result
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> ToolResult:
+        result = type(self)(str(self), {})
+        memo[id(self)] = result
+        result.payload = deepcopy(self.payload, memo)
         return result
 
 

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { apiClient } from "@/lib/api-client";
+import { apiClient, fetchChapter, fetchNote } from "@/lib/api-client";
 
 import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
 import {
@@ -54,10 +54,40 @@ export function PluginRuntime() {
   }, [editorHooks]);
   useEffect(() => {
     const listener = (event: Event) => {
-      if ((event as CustomEvent).detail.event === "data.changed")
+      if ((event as CustomEvent).detail.event === "data.changed") {
         void queryClient.invalidateQueries({
-          predicate: (q) => !["plugins", "plugin-view-url"].includes(String(q.queryKey[0])),
+          predicate: (q) =>
+            !["plugins", "plugin-view-url", "writing-editor"].includes(String(q.queryKey[0])),
         });
+        // Re-running the working-copy loader changes its draft timestamp/key,
+        // remounting Tiptap after the user's own autosave. Refresh only entity
+        // data, so the existing remote-change guards preserve drafts and undo.
+        for (const query of queryClient
+          .getQueryCache()
+          .findAll({ queryKey: ["writing-editor"], type: "active" })) {
+          const [, kind, id] = query.queryKey;
+          if (typeof id !== "string" || !["chapter", "note"].includes(String(kind))) continue;
+          const request = kind === "chapter" ? fetchChapter(id) : fetchNote(id);
+          void request
+            .then((entity) => {
+              queryClient.setQueryData(
+                query.queryKey,
+                (previous: { entity: { updatedAt: string } } | undefined) => {
+                  if (
+                    !previous ||
+                    new Date(entity.updatedAt).getTime() <=
+                      new Date(previous.entity.updatedAt).getTime()
+                  )
+                    return previous;
+                  return { ...previous, entity };
+                },
+              );
+            })
+            .catch(() => {
+              /* Deleted entities are handled by their normal tree refresh. */
+            });
+        }
+      }
     };
     window.addEventListener("openfic:plugin-event", listener);
     return () => window.removeEventListener("openfic:plugin-event", listener);

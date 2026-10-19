@@ -194,7 +194,13 @@ async def dispatch(
 
 async def model_messages(messages, session=None, *, runtime=None, host=None):
     """Runs on the final prompt, including transient and injected user messages."""
-    from langchain_core.messages import convert_to_messages
+    from langchain_core.messages import (
+        AIMessage,
+        HumanMessage,
+        SystemMessage,
+        ToolMessage,
+        convert_to_messages,
+    )
     from app.plugins.host import active_host
 
     current = host or active_host()
@@ -222,6 +228,13 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
             **({"tool_call_id": m.tool_call_id} if hasattr(m, "tool_call_id") else {}),
             **({"tool_calls": m.tool_calls} if getattr(m, "tool_calls", None) else {}),
             **(
+                {
+                    key: getattr(m, key)
+                    for key in ("artifact", "status", "invalid_tool_calls")
+                    if hasattr(m, key)
+                }
+            ),
+            **(
                 {"usage_metadata": m.usage_metadata}
                 if getattr(m, "usage_metadata", None)
                 else {}
@@ -245,6 +258,12 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
         for i, m in enumerate(base["messages"])
         if m["role"] == "system"
     ]
+    section_sources = {
+        section["id"]: message
+        for section, message in zip(
+            sections, (m for m in base["messages"] if m["role"] == "system")
+        )
+    }
     composed = await dispatch(
         "prompt.compose",
         {**base, "sections": sections},
@@ -261,7 +280,12 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
             host=host,
             runtime=runtime,
         )
-        sections.append({"role": "system", "content": result.get("text")})
+        sections.append(
+            {
+                **section_sources.get(section["id"], {"role": "system"}),
+                "content": result.get("text"),
+            }
+        )
     final = []
     pending_sections = list(sections)
     system_indexes = [
@@ -292,9 +316,22 @@ async def model_messages(messages, session=None, *, runtime=None, host=None):
     )
     final = [message for message in final if message.get("content") is not None]
     bounded_json(final, 8 * 1024 * 1024)
-    return convert_to_messages(
-        [{k: v for k, v in message.items() if k != "metadata"} for message in final]
-    )
+    constructors = {
+        "user": HumanMessage,
+        "assistant": AIMessage,
+        "system": SystemMessage,
+        "tool": ToolMessage,
+    }
+    restored = []
+    for message in final:
+        fields = {k: v for k, v in message.items() if k not in {"metadata", "role"}}
+        constructor = constructors.get(message["role"])
+        restored.append(
+            constructor(**fields)
+            if constructor
+            else convert_to_messages([{**fields, "role": message["role"]}])[0]
+        )
+    return restored
 
 
 def plugin_tools(state: dict, names=None):
@@ -321,6 +358,21 @@ def plugin_tools(state: dict, names=None):
         if names is None
         or f"plugin_{plugin.manifest.id.replace('-', '_')}_{name}" in names
     ]
+
+
+def plugin_tool_names_for_agent(agent_key: str, metadata=None) -> list[str]:
+    """Build opts into extensions; other agents retain their original tool scope.
+
+    Agent metadata may explicitly select plugin_tools (a list of full tool names).
+    An empty list disables plugin tools, including for Build.
+    """
+    selection = (metadata or {}).get("plugin_tools")
+    available = plugin_tools({})
+    if selection is None:
+        return [tool.name for tool in available] if agent_key == "build" else []
+    if not isinstance(selection, (list, tuple)):
+        return []
+    return [tool.name for tool in available if tool.name in selection]
 
 
 async def selected_graph(state, config, model):

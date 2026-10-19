@@ -57,18 +57,26 @@ async def _primary_tool_names(
     referenced_skill_ids: tuple[str, ...] = (),
     allow_runtime_skill_references: bool = False,
 ) -> list[str]:
+    from app.plugins.runtime import plugin_tool_names_for_agent
+
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
     if db_session is None:
         names = list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
-        return [*names, *SKILL_TOOL_NAMES] if allow_runtime_skill_references else names
+        if allow_runtime_skill_references:
+            names.extend(SKILL_TOOL_NAMES)
+        return [*names, *plugin_tool_names_for_agent(agent_key)]
     definition = await load_agent_definition(db_session, agent_key)
-    return list(get_tool_names_for_categories(definition.enabled_tool_categories)) + list(
-        await skill_tool_names_for_definition(
-            definition,
-            db_session,
-            referenced_skill_ids=referenced_skill_ids,
-            allow_runtime_skill_references=allow_runtime_skill_references,
+    return (
+        plugin_tool_names_for_agent(agent_key, getattr(definition, "metadata", None))
+        + list(get_tool_names_for_categories(definition.enabled_tool_categories))
+        + list(
+            await skill_tool_names_for_definition(
+                definition,
+                db_session,
+                referenced_skill_ids=referenced_skill_ids,
+                allow_runtime_skill_references=allow_runtime_skill_references,
+            )
         )
     )
 
