@@ -106,7 +106,7 @@ async def test_explicit_ui_capability_and_legacy_default():
     [
         {"type": "script", "children": "alert(1)"},
         {"type": "Text", "props": {"dangerouslySetInnerHTML": "bad"}},
-        {"type": "Box", "props": {"style": {"position": "fixed"}}},
+        {"type": "Box", "props": {"style": {"position": {"invalid": True}}}},
         {"type": "Button", "props": {"onPress": {"code": "alert(1)"}}},
         {"type": "Select", "props": {"options": "invalid"}},
     ],
@@ -160,3 +160,141 @@ async def test_unregistered_render_command_is_reported(plugin_api):
     host.get("declarative-test").manifest.views[0].render = "missing.render"
     with pytest.raises(PluginError, match="unregistered command"):
         await host.set_enabled("declarative-test", True)
+
+
+async def test_registry_priority_namespaces_and_live_catalogue(plugin_api):
+    from app.plugins.declarative import CATALOGUE, resolve_component
+
+    assert len(CATALOGUE["radix"]) >= 120
+    assert resolve_component("Spinner")[:2] == ("project", "Spinner")
+    assert resolve_component("Radix.Spinner")[:2] == ("radix", "Spinner")
+    assert resolve_component("Select")[:2] == ("project", "LabeledSelect")
+    assert resolve_component("ModelSelector")[:2] == ("project", "ModelIdSelect")
+    host, api, _ = plugin_api
+    response = await api.get("/api/v1/plugins/catalogue")
+    assert response.status_code == 200
+    assert response.json()["ui"] == CATALOGUE
+    await host.install(bundle())
+    await host.set_enabled("declarative-test", True)
+    response = await api.post(
+        "/api/v1/plugins/declarative-test/rpc",
+        json={"method": "sdk.catalogue", "params": {}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["ui"] == CATALOGUE
+
+
+async def test_responsive_props_css_style_and_array_events(plugin_api):
+    document = {
+        "css": ".panel { color: rebeccapurple }",
+        "tree": {
+            "type": "Grid",
+            "props": {
+                "columns": {"initial": "1", "md": "2"},
+                "gap": "3",
+                "style": {"--panel-color": "#123", "border-radius": 12},
+                "aria-label": "Grid",
+                "data-testid": "grid",
+            },
+            "children": [
+                {
+                    "type": "Radix.Button",
+                    "props": {
+                        "size": {"initial": "1", "md": "3"},
+                        "variant": "outline",
+                        "color": "violet",
+                        "highContrast": True,
+                    },
+                },
+                {
+                    "type": "Slider",
+                    "props": {
+                        "value": [10, 20],
+                        "min": 0,
+                        "max": 200,
+                        "onValueCommit": "range",
+                    },
+                },
+                {
+                    "type": "TextArea",
+                    "props": {"rows": 4, "resize": "vertical", "onChange": "text"},
+                },
+            ],
+        },
+    }
+    result = validate_document(document, capabilities=[])
+    assert result["css"] == document["css"]
+    assert result["trees"][0]["tree"]["props"] == document["tree"]["props"]
+    host, api, _ = plugin_api
+    await host.install(bundle())
+    await host.set_enabled("declarative-test", True)
+    seen = []
+    host.get("declarative-test").registration.commands["ui.action"] = (
+        lambda ctx, params: seen.append(params["value"])
+    )
+    response = await api.post(
+        "/api/v1/plugins/declarative-test/views/native/action",
+        json={"id": "range", "value": [10, 20]},
+    )
+    assert response.status_code == 200, response.text
+    assert seen == [[10, 20]]
+
+
+@pytest.mark.parametrize(
+    "name,capability",
+    [
+        ("ModelSelector", "models.read"),
+        ("ProjectSelector", "projects.read"),
+        ("ProjectGridSelector", "projects.read"),
+    ],
+)
+async def test_data_components_require_capability(name, capability):
+    document = {"tree": {"type": name}}
+    with pytest.raises(ValueError, match=capability):
+        validate_document(document, capabilities=["ui"])
+    assert validate_document(document, capabilities=["ui", capability])
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        {"css": "x" * 65537},
+        {"css": {"body": "red"}},
+        {"tree": {"type": "Button", "props": {"size": {"tablet": "2"}}}},
+        {"tree": {"type": "Button", "props": {"size": "9"}}},
+        {"tree": {"type": "Slider", "props": {"value": [True]}}},
+        {"tree": {"type": "CheckboxGroup.Root", "props": {"value": [123]}}},
+        {"tree": {"type": "Text", "props": {"style": {"behavior": "url(x)"}}}},
+        {"tree": {"type": "Text", "props": {"aria-label": {"nested": True}}}},
+        {"tree": {"type": "Dialog.Content"}},
+        {"tree": {"type": "Button", "props": {"asChild": True}, "children": "text"}},
+    ],
+)
+async def test_reject_invalid_expanded_protocol(document):
+    with pytest.raises(ValueError):
+        validate_document(document)
+
+
+async def test_compound_components_and_as_child():
+    document = {
+        "tree": {
+            "type": "Dialog.Root",
+            "children": [
+                {
+                    "type": "Dialog.Trigger",
+                    "props": {"asChild": True},
+                    "children": {"type": "Button", "children": "Open"},
+                },
+                {
+                    "type": "Dialog.Content",
+                    "children": {"type": "Dialog.Title", "children": "Title"},
+                },
+            ],
+        }
+    }
+    assert validate_document(document)
+    assert (
+        Path(__file__).resolve().parents[3] / "packages/plugin-sdk/index.d.ts"
+    ).read_bytes() == (
+        Path(__file__).resolve().parents[2] / "app/plugins/sdk.d.ts"
+    ).read_bytes()

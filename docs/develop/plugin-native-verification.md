@@ -1,5 +1,7 @@
 # 原生插件与 Claude Mods 移除验证
 
+> 本文记录移除 Mods 时的验证。后续声明式 UI 扩展见 [组件、CSS 与 SDK 增强验证](./plugin-ui-verification.md)。
+
 验证日期：2026-10-19。此记录对应移除 Claude Mods 兼容支持后的代码；此前的 SDK 和回归报告保留为历史记录。
 
 ## 改动范围

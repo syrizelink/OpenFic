@@ -12,3 +12,5 @@ The same API is available as `window.OpenFic` without installing a package. See 
 
 
 For native host UI, declare `renderer: "declarative"` with backend `render`/`action` commands. Exported `PluginView`, `UINode`, `UIProps`, `UIDocument`, `UIRenderRequest`, and `UIEventRequest` describe this data-only protocol; no browser SDK script is needed for these views. See `docs/develop/declarative-plugin-ui.md`. HTML/React/Vue applications continue to use the iframe SDK above.
+
+Native UI includes 122 Radix Themes nodes and 10 project components (including model/project selectors). Unqualified names prefer project components; use `Radix.*` or `Project.*` explicitly. `UIDocument.css` supports scoped custom styles, including portals. Query `sdk.api.catalogue().ui` for per-component props and capabilities. See the installable `examples/plugins/declarative-showcase` and the native UI guide for restrictions. Types are generated with `node frontend/scripts/generate-plugin-ui-catalog.mjs`; `--check` detects stale catalogue/types.

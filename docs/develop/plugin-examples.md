@@ -91,3 +91,7 @@ OPENFIC_E2E_PASSWORD=test-password \
 ```
 
 测试通过真实管理 UI 安装插件，并清理同名测试插件和临时项目。模型密钥均为测试值，Drive/模型由隔离服务仿真；有意不调用真实外部账户。
+
+## 声明式原生 UI
+
+`examples/plugins/declarative-showcase` 展示项目模型/项目选择器、单位输入、数字步进、搜索选择器，以及显式 Radix 组件、响应式布局、Dialog/菜单/Tooltip 弹层和自定义 CSS。侧栏页面和状态栏视图使用相互独立的样式及动画作用域。它只包含 Python 和清单，使用同一打包脚本安装，无须构建插件前端。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。

@@ -1,0 +1,7653 @@
+{
+  "version": 2,
+  "common": {
+    "id": {
+      "type": "string"
+    },
+    "className": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "tabIndex": {
+      "type": "number"
+    },
+    "dir": {
+      "type": "enum",
+      "values": [
+        "ltr",
+        "rtl"
+      ]
+    },
+    "lang": {
+      "type": "string"
+    },
+    "hidden": {
+      "type": "boolean"
+    },
+    "style": {
+      "type": "style"
+    },
+    "text": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "children": {
+      "type": "node"
+    },
+    "onPress": {
+      "type": "event"
+    },
+    "onClick": {
+      "type": "event"
+    },
+    "onFocus": {
+      "type": "event"
+    },
+    "onBlur": {
+      "type": "event"
+    },
+    "hotkey": {
+      "type": "string"
+    },
+    "autoFocus": {
+      "type": "boolean"
+    }
+  },
+  "radixCommon": {
+    "p": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "px": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "py": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pt": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pr": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pb": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pl": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "width": {
+      "type": "string",
+      "responsive": true
+    },
+    "minWidth": {
+      "type": "string",
+      "responsive": true
+    },
+    "maxWidth": {
+      "type": "string",
+      "responsive": true
+    },
+    "height": {
+      "type": "string",
+      "responsive": true
+    },
+    "minHeight": {
+      "type": "string",
+      "responsive": true
+    },
+    "maxHeight": {
+      "type": "string",
+      "responsive": true
+    },
+    "position": {
+      "type": "enum",
+      "values": [
+        "static",
+        "relative",
+        "absolute",
+        "fixed",
+        "sticky"
+      ],
+      "responsive": true
+    },
+    "inset": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "top": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "right": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "bottom": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "left": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "overflow": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "overflowX": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "overflowY": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "flexBasis": {
+      "type": "string",
+      "responsive": true
+    },
+    "flexShrink": {
+      "type": "string",
+      "values": [
+        "0",
+        "1"
+      ],
+      "responsive": true
+    },
+    "flexGrow": {
+      "type": "string",
+      "values": [
+        "0",
+        "1"
+      ],
+      "responsive": true
+    },
+    "gridArea": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumn": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumnStart": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumnEnd": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRow": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRowStart": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRowEnd": {
+      "type": "string",
+      "responsive": true
+    },
+    "alignSelf": {
+      "type": "enum",
+      "values": [
+        "start",
+        "center",
+        "end",
+        "baseline",
+        "stretch"
+      ],
+      "responsive": true
+    },
+    "justifySelf": {
+      "type": "enum",
+      "values": [
+        "start",
+        "center",
+        "end",
+        "baseline",
+        "stretch"
+      ],
+      "responsive": true
+    },
+    "m": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mx": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "my": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mt": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mr": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mb": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "ml": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "bold": {
+      "type": "boolean"
+    },
+    "italic": {
+      "type": "boolean"
+    },
+    "dimColor": {
+      "type": "boolean"
+    },
+    "inverse": {
+      "type": "boolean"
+    },
+    "plain": {
+      "type": "boolean"
+    },
+    "flexDirection": {
+      "type": "enum",
+      "values": [
+        "row",
+        "column"
+      ]
+    },
+    "justifyContent": {
+      "type": "string"
+    },
+    "alignItems": {
+      "type": "string"
+    },
+    "marginTop": {
+      "type": "number"
+    },
+    "paddingX": {
+      "type": "number"
+    },
+    "paddingY": {
+      "type": "number"
+    },
+    "padding": {
+      "type": "number"
+    },
+    "borderStyle": {
+      "type": "string"
+    },
+    "borderColor": {
+      "type": "string"
+    },
+    "gap": {
+      "type": "spacing"
+    },
+    "wrap": {
+      "type": "string"
+    },
+    "asChild": {
+      "type": "boolean"
+    }
+  },
+  "radix": {
+    "AccessibleIcon": {
+      "props": {}
+    },
+    "AlertDialog.Action": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Cancel": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Content": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AlertDialog.Description": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Title": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AspectRatio": {
+      "props": {
+        "ratio": {
+          "type": "number"
+        }
+      }
+    },
+    "Avatar": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "fallback": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        }
+      }
+    },
+    "Badge": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft",
+            "surface",
+            "outline"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        }
+      }
+    },
+    "Blockquote": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Box": {
+      "props": {
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline",
+            "inline-block",
+            "block",
+            "contents"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Button": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "solid",
+            "soft",
+            "surface",
+            "outline",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "Callout.Icon": {
+      "props": {}
+    },
+    "Callout.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "soft",
+            "surface",
+            "outline"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Callout.Text": {
+      "props": {}
+    },
+    "Card": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic",
+            "ghost"
+          ]
+        }
+      }
+    },
+    "Checkbox": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CheckboxCards.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "CheckboxCards.Root": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "strings"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CheckboxGroup.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "CheckboxGroup.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "strings"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Code": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft",
+            "outline",
+            "ghost"
+          ]
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Container": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "initial"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "ContextMenu.CheckboxItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContextMenu.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Item": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "ContextMenu.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.RadioGroup": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.RadioItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Sub": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.SubContent": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContextMenu.SubTrigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DataList.Item": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "DataList.Label": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DataList.Root": {
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "DataList.Value": {
+      "props": {}
+    },
+    "Dialog.Close": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Content": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Dialog.Description": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Title": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.CheckboxItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Item": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "DropdownMenu.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.RadioGroup": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.RadioItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Sub": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.SubContent": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.SubTrigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.TriggerIcon": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Em": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Flex": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline-flex",
+            "flex"
+          ],
+          "responsive": true
+        },
+        "direction": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column",
+            "row-reverse",
+            "column-reverse"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ],
+          "responsive": true
+        },
+        "gapX": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "gapY": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Grid": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline-grid",
+            "grid"
+          ],
+          "responsive": true
+        },
+        "areas": {
+          "type": "string",
+          "responsive": true
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "rows": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "flow": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column",
+            "dense",
+            "row-dense",
+            "column-dense"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ],
+          "responsive": true
+        },
+        "alignContent": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "between",
+            "around",
+            "evenly",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justifyItems": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "gapX": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "gapY": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Heading": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HoverCard.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HoverCard.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        }
+      }
+    },
+    "HoverCard.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "IconButton": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "solid",
+            "soft",
+            "surface",
+            "outline",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "Inset": {
+      "props": {
+        "p": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "px": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "py": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pt": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pr": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pb": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pl": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "all",
+            "x",
+            "y",
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ],
+          "responsive": true
+        },
+        "clip": {
+          "type": "enum",
+          "values": [
+            "border-box",
+            "padding-box"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Kbd": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "soft"
+          ]
+        }
+      }
+    },
+    "Link": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "underline": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "always",
+            "hover",
+            "none"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Popover.Anchor": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Close": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Popover.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Progress": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "duration": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "Quote": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Radio": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "RadioCards.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "RadioCards.Root": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "RadioGroup.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "RadioGroup.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ScrollArea": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "scrollbars": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal",
+            "both"
+          ]
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "always",
+            "scroll",
+            "hover"
+          ]
+        },
+        "scrollHideDelay": {
+          "type": "number"
+        }
+      }
+    },
+    "Section": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "initial"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "SegmentedControl.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "SegmentedControl.Root": {
+      "props": {
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Select.Content": {
+      "props": {
+        "position": {
+          "type": "enum",
+          "values": [
+            "item-aligned",
+            "popper"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "collisionPadding": {
+          "type": "number"
+        }
+      }
+    },
+    "Select.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "Select.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Select.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Trigger": {
+      "props": {
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Separator": {
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "decorative": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Skeleton": {
+      "props": {
+        "loading": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Slider": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "numbers"
+        },
+        "defaultValue": {
+          "type": "numbers"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minStepsBetweenThumbs": {
+          "type": "number"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "inverted": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onValueCommit": {
+          "type": "event"
+        }
+      }
+    },
+    "Spinner": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "loading": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Strong": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Switch": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TabNav.Link": {
+      "props": {
+        "active": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        }
+      }
+    },
+    "TabNav.Root": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Table.Body": {
+      "props": {}
+    },
+    "Table.Cell": {
+      "props": {
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.ColumnHeaderCell": {
+      "props": {}
+    },
+    "Table.Header": {
+      "props": {}
+    },
+    "Table.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "ghost"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "fixed"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.Row": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.RowHeaderCell": {
+      "props": {}
+    },
+    "Tabs.Content": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.List": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Text": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "span",
+            "div",
+            "label",
+            "p"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TextArea": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "resize": {
+          "type": "enum",
+          "values": [
+            "none",
+            "vertical",
+            "horizontal",
+            "both"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        }
+      }
+    },
+    "TextField.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        }
+      }
+    },
+    "TextField.Slot": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        }
+      }
+    },
+    "Theme": {
+      "props": {
+        "hasBackground": {
+          "type": "boolean"
+        },
+        "appearance": {
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "inherit"
+          ]
+        },
+        "accentColor": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky"
+          ]
+        },
+        "grayColor": {
+          "type": "string"
+        },
+        "panelBackground": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "translucent"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "scaling": {
+          "type": "enum",
+          "values": [
+            "90%",
+            "95%",
+            "100%",
+            "105%",
+            "110%"
+          ]
+        }
+      }
+    },
+    "Tooltip": {
+      "props": {
+        "content": {
+          "type": "string"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "delayDuration": {
+          "type": "number"
+        }
+      }
+    },
+    "VisuallyHidden": {
+      "props": {}
+    }
+  },
+  "project": {
+    "Spinner": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            12,
+            18,
+            24,
+            32
+          ]
+        }
+      }
+    },
+    "CircularProgress": {
+      "props": {
+        "value": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "size": {
+          "type": "number"
+        },
+        "strokeWidth": {
+          "type": "number"
+        },
+        "ariaLabel": {
+          "type": "string"
+        }
+      }
+    },
+    "UnitTextField": {
+      "props": {
+        "p": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "px": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "py": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pt": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pr": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pb": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pl": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "width": {
+          "type": "string",
+          "responsive": true
+        },
+        "minWidth": {
+          "type": "string",
+          "responsive": true
+        },
+        "maxWidth": {
+          "type": "string",
+          "responsive": true
+        },
+        "height": {
+          "type": "string",
+          "responsive": true
+        },
+        "minHeight": {
+          "type": "string",
+          "responsive": true
+        },
+        "maxHeight": {
+          "type": "string",
+          "responsive": true
+        },
+        "position": {
+          "type": "enum",
+          "values": [
+            "static",
+            "relative",
+            "absolute",
+            "fixed",
+            "sticky"
+          ],
+          "responsive": true
+        },
+        "inset": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "top": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "right": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "bottom": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "left": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "overflow": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "overflowX": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "overflowY": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "flexBasis": {
+          "type": "string",
+          "responsive": true
+        },
+        "flexShrink": {
+          "type": "string",
+          "values": [
+            "0",
+            "1"
+          ],
+          "responsive": true
+        },
+        "flexGrow": {
+          "type": "string",
+          "values": [
+            "0",
+            "1"
+          ],
+          "responsive": true
+        },
+        "gridArea": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumn": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumnStart": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumnEnd": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRow": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRowStart": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRowEnd": {
+          "type": "string",
+          "responsive": true
+        },
+        "alignSelf": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justifySelf": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "m": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mx": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "my": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mt": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mr": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mb": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "ml": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "dimColor": {
+          "type": "boolean"
+        },
+        "inverse": {
+          "type": "boolean"
+        },
+        "plain": {
+          "type": "boolean"
+        },
+        "flexDirection": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column"
+          ]
+        },
+        "justifyContent": {
+          "type": "string"
+        },
+        "alignItems": {
+          "type": "string"
+        },
+        "marginTop": {
+          "type": "number"
+        },
+        "paddingX": {
+          "type": "number"
+        },
+        "paddingY": {
+          "type": "number"
+        },
+        "padding": {
+          "type": "number"
+        },
+        "borderStyle": {
+          "type": "string"
+        },
+        "borderColor": {
+          "type": "string"
+        },
+        "gap": {
+          "type": "spacing"
+        },
+        "wrap": {
+          "type": "string"
+        },
+        "asChild": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "unitSide": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        },
+        "leftUnit": {
+          "type": "string"
+        },
+        "rightUnit": {
+          "type": "string"
+        }
+      }
+    },
+    "StepperNumberInput": {
+      "props": {
+        "value": {
+          "type": "json"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "increaseAriaLabel": {
+          "type": "string"
+        },
+        "decreaseAriaLabel": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onCommit": {
+          "type": "event"
+        }
+      }
+    },
+    "LabeledSelect": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "options": {
+          "type": "options"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "default",
+            "icon"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "gap": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "labelSize": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "labelWeight": {
+          "type": "enum",
+          "values": [
+            "regular",
+            "medium",
+            "bold"
+          ]
+        },
+        "labelColor": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "triggerLabelVisible": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        }
+      }
+    },
+    "SearchableSelect": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "options": {
+          "type": "options"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "default",
+            "icon"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "gap": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "labelSize": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "labelWeight": {
+          "type": "enum",
+          "values": [
+            "regular",
+            "medium",
+            "bold"
+          ]
+        },
+        "labelColor": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "triggerLabelVisible": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "searchPlaceholder": {
+          "type": "string"
+        },
+        "emptyMessage": {
+          "type": "string"
+        },
+        "contentHeight": {
+          "type": "number"
+        }
+      }
+    },
+    "ModelIdSelect": {
+      "capabilities": [
+        "models.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "taskType": {
+          "type": "enum",
+          "values": [
+            "llm",
+            "embedding",
+            "rerank"
+          ]
+        },
+        "editable": {
+          "type": "boolean"
+        },
+        "allowCustomValue": {
+          "type": "boolean"
+        },
+        "compact": {
+          "type": "boolean"
+        },
+        "compactTrigger": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "emptyOptionLabel": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ProjectSelectField": {
+      "capabilities": [
+        "projects.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "showNoneOption": {
+          "type": "boolean"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "ProjectGridSelector": {
+      "capabilities": [
+        "projects.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "showNoneOption": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "InfoTooltip": {
+      "props": {
+        "content": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "aliases": {
+    "Input": "Radix.TextField.Root",
+    "Markdown": "Radix.Code",
+    "Select": "Project.LabeledSelect",
+    "Tooltip": "Project.InfoTooltip",
+    "ModelSelector": "Project.ModelIdSelect",
+    "ProjectSelector": "Project.ProjectSelectField"
+  }
+}

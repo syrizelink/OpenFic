@@ -10,7 +10,14 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
+from pydantic import (
+    JsonValue,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    ValidationInfo,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.plugins.host import PluginError, PluginHost
@@ -145,6 +152,7 @@ async def list_plugins(manager: Host):
 
 @router.get("/catalogue")
 async def sdk_catalogue():
+    from app.plugins.declarative import CATALOGUE
     from app.plugins.gateway import BusinessAPI
     from app.plugins.runtime import EVENTS
 
@@ -153,6 +161,7 @@ async def sdk_catalogue():
         "capabilities": sorted(CAPABILITIES),
         "slots": UI_SLOTS,
         "events": sorted(EVENTS),
+        "ui": CATALOGUE,
         **BusinessAPI.catalogue(),
     }
 
@@ -281,7 +290,7 @@ class ViewRequest(BaseModel):
     event: Literal[
         "press", "input", "submit", "select", "change", "command", "close"
     ] = "press"
-    value: str | bool | int | float | None = None
+    value: JsonValue = None
 
     @field_validator("context", "value")
     @classmethod
@@ -325,7 +334,7 @@ async def declarative_view(
     if operation == "action":
         return {"result": result}
     try:
-        return validate_document(result)
+        return validate_document(result, capabilities=plugin.manifest.capabilities)
     except (ValueError, KeyError, TypeError) as error:
         raise PluginError(f"Invalid declarative UI: {error}", 422) from error
 

@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-19",
+  "branch": "feat/extension-host",
+  "base_commit": "5dafe68",
+  "ui_catalogue": {
+    "radix_themes_nodes": 122,
+    "project_components": 10,
+    "default_priority": "project",
+    "version": 2
+  },
+  "backend": {
+    "passed": 2330,
+    "skipped": 19,
+    "seconds": 348.44
+  },
+  "plugin_tests": {
+    "passed": 69
+  },
+  "browser": {
+    "passed": 8,
+    "failed": 0,
+    "environment": "production build, Chromium, desktop and mobile viewport",
+    "cases": [
+      {
+        "name": "original navigation, settings plugin category and mobile shell still render",
+        "seconds": 39.682
+      },
+      {
+        "name": "one plugin mixes native Radix controls and legacy iframe, with safe rendering and persisted actions",
+        "seconds": 18.247
+      },
+      {
+        "name": "native catalogue, project data, Radix events, responsive props and scoped portals",
+        "seconds": 53.438
+      },
+      {
+        "name": "project selectors keep their mobile sheets and portal focus",
+        "seconds": 11.667
+      },
+      {
+        "name": "SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt injection and editor",
+        "seconds": 39.287
+      },
+      {
+        "name": "management rejects raw and converted Mods and keeps native installation available",
+        "seconds": 6.35
+      },
+      {
+        "name": "React plugin uses the typed SDK package, inline styles, persistence and capability checks",
+        "seconds": 15.986
+      },
+      {
+        "name": "install a unified package, render statistics, configure, disable and uninstall",
+        "seconds": 15.13
+      }
+    ]
+  },
+  "checks": {
+    "frontend_type_aware": "passed",
+    "typescript_build_and_sdk_consumer": "passed",
+    "frontend_lint": "passed",
+    "changed_file_format": "passed",
+    "python_ruff": "passed",
+    "catalogue_and_sdk_freshness": "passed",
+    "production_frontend_build": "passed"
+  },
+  "wheel": {
+    "wheel": "openfic-0.12.1-py3-none-any.whl",
+    "catalogue_sha256": "ca280024450a5644c70ee528c38013cb5acc55a9024df0ff09ea949dafb462e1",
+    "catalogue_matches_source": true,
+    "sdk_matches_public_types": true,
+    "frontend_files_match_final_build": 740
+  },
+  "limitations": [
+    "19 backend tests skipped by database/platform conditions; conditional environments were not rerun in this round.",
+    "Only Chromium desktop and mobile viewport were exercised; no native Tauri window was launched.",
+    "Drive and LLM provider protocols use repository test doubles.",
+    "Custom CSS requires browser/WebView CSS @scope support; unsupported engines retain component interactions and show a style warning."
+  ],
+  "raw_evidence": "/workspace/openfic-verification/ui-enhancement"
+}

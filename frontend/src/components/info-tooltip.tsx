@@ -12,6 +12,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { usePortalContainer } from "@/components/portal-container";
+
 const TOUCH_MEDIA_QUERY = "(hover: none), (pointer: coarse)";
 const INFO_TOOLTIP_OPENED_EVENT = "info-tooltip:opened";
 
@@ -39,6 +41,7 @@ function useTouchDevice(): boolean {
 }
 
 export function InfoTooltip({ content, children, className }: InfoTooltipProps) {
+  const portalContainer = usePortalContainer();
   const isTouchDevice = useTouchDevice();
   const tooltipId = useId();
   const [open, setOpen] = useState(false);
@@ -72,6 +75,7 @@ export function InfoTooltip({ content, children, className }: InfoTooltipProps) 
   if (!isTouchDevice) {
     return (
       <Tooltip
+        container={portalContainer}
         content={content}
         className={className}
       >
@@ -111,6 +115,7 @@ export function InfoTooltip({ content, children, className }: InfoTooltipProps) 
 
   return (
     <Tooltip
+      container={portalContainer}
       content={content}
       className={className}
       open={isTouchDevice ? open : undefined}

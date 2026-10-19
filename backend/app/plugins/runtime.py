@@ -39,6 +39,7 @@ async def sdk_call(context, method: str, params: dict):
     if method == "api.request":
         return await context.api.request(**params)
     if method == "catalogue":
+        from app.plugins.declarative import CATALOGUE
         from app.plugins.gateway import BusinessAPI
         from app.plugins.manifest import CAPABILITIES, UI_SLOTS, SDK_VERSION
 
@@ -47,6 +48,7 @@ async def sdk_call(context, method: str, params: dict):
             "capabilities": sorted(CAPABILITIES),
             "slots": UI_SLOTS,
             "events": sorted(EVENTS),
+            "ui": CATALOGUE,
             **BusinessAPI.catalogue(),
         }
     if method == "data.projects":

@@ -22,6 +22,7 @@ import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } fr
 import type { CSSProperties, FocusEventHandler, ReactNode, ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
+import { usePortalContainer } from "@/components/portal-container";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 
 import { MobileSelectSheet } from "./mobile-select-sheet";
@@ -331,6 +332,7 @@ export function LabeledSelect({
   variant = "default",
   triggerAriaLabel,
 }: LabeledSelectProps) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const [isOpen, setIsOpen] = useExclusiveSelect();
@@ -436,6 +438,7 @@ export function LabeledSelect({
         </Flex>
       </Select.Trigger>
       <Select.Content
+        container={portalContainer}
         ref={handleContentRef}
         position={contentPosition}
         className={contentClassName}
@@ -623,6 +626,7 @@ export function SimpleSelect({
   LabeledSelectProps,
   "label" | "labelSize" | "labelWeight" | "labelColor" | "layout" | "gap"
 >) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const [isOpen, setIsOpen] = useExclusiveSelect();
@@ -684,6 +688,7 @@ export function SimpleSelect({
         </Flex>
       </Select.Trigger>
       <Select.Content
+        container={portalContainer}
         position={contentPosition}
         className={contentClassName}
         onCloseAutoFocus={(event) => {
@@ -819,6 +824,7 @@ export function SearchableSelect({
   emptyMessage,
   contentHeight = 260,
 }: SearchableSelectProps) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const actionCloseRef = useRef(false);
@@ -993,6 +999,7 @@ export function SearchableSelect({
     >
       <Popover.Trigger>{trigger}</Popover.Trigger>
       <Popover.Content
+        container={portalContainer}
         align="start"
         data-slot="searchable-select-content"
         className="searchable-select-content"

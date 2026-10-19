@@ -1,0 +1,31 @@
+{
+  "id": "declarative-showcase",
+  "name": "Native UI showcase",
+  "version": "1.0.0",
+  "api_version": 1,
+  "backend": "backend/main.py",
+  "capabilities": [
+    "ui",
+    "storage",
+    "models.read",
+    "projects.read"
+  ],
+  "views": [
+    {
+      "id": "showcase",
+      "title": "Native UI showcase",
+      "slot": "sidebar.extensions",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    {
+      "id": "status",
+      "title": "Native UI status",
+      "slot": "statusbar",
+      "renderer": "declarative",
+      "render": "ui.status",
+      "action": "ui.action"
+    }
+  ]
+}

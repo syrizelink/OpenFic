@@ -1,14 +1,14 @@
+import { Box, TextField, Popover, Text } from "@radix-ui/themes";
 /**
  * Project Select Field Component
  *
  * 项目选择字段，使用展开面板显示项目网格选择器。
  */
-
-import { Box, TextField, Popover, Text } from "@radix-ui/themes";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { usePortalContainer } from "@/components/portal-container";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import type { Project } from "@/lib/project.types";
 
@@ -43,6 +43,7 @@ export function ProjectSelectField({
   placeholder,
   label,
 }: ProjectSelectFieldProps) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
@@ -106,6 +107,7 @@ export function ProjectSelectField({
     >
       <Popover.Trigger>{trigger}</Popover.Trigger>
       <Popover.Content
+        container={portalContainer}
         className="project-select-field__content"
         align="start"
         side="bottom"

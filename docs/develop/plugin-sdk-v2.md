@@ -127,7 +127,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `settings.plugins` | 设置内插件区域的附加视图 |
 | `dashboard` | 仪表盘中的常驻区域 |
 
-入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 使用项目 Radix 组件原生渲染组件树，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
+入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
 
 iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章节、插槽、语言和主题上下文；缺少当前编辑器时编辑器 API 明确报错。页面运行在无同源权限的 iframe，CSP 阻止直接联网；允许内联样式以支持框架组件。网络访问走后端 SDK。
 

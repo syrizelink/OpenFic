@@ -9,9 +9,11 @@
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",
     "lint": "oxlint .",
+    "plugin-ui:check": "node scripts/generate-plugin-ui-catalog.mjs --check",
+    "plugin-ui:generate": "node scripts/generate-plugin-ui-catalog.mjs",
     "preview": "vp preview",
     "test:e2e": "playwright test",
-    "type-check": "oxlint . --type-aware --type-check"
+    "type-check": "npm run plugin-ui:check && oxlint . --type-aware --type-check"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
