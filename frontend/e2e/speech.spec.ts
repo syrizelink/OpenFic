@@ -196,8 +196,21 @@ test("settings persist each provider and never return API keys", async ({ page, 
   await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("button", { name: "语音转写", exact: true }).click();
   const provider = page.getByRole("combobox", { name: "ASR 提供商" });
+  const providerLabels: Record<string, string> = {
+    sensevoice: "本地 SenseVoice Small",
+    whisper: "本地 Whisper",
+    groq: "Groq",
+    mistral: "Mistral",
+    deepgram: "Deepgram",
+    azure: "Azure Speech",
+    openai: "OpenAI / OpenAI compatible",
+  };
   for (const name of ["sensevoice", "whisper", "groq", "mistral", "deepgram", "azure", "openai"]) {
-    await provider.selectOption(name);
+    await provider.click();
+    const option = page.getByRole("option", { name: providerLabels[name], exact: true });
+    await expect(option.locator(`[data-asr-provider="${name}"] svg`)).toBeVisible();
+    await option.click();
+    await expect(provider.locator(`[data-asr-provider="${name}"] svg`)).toBeVisible();
     if (!["sensevoice", "whisper"].includes(name)) {
       await page.getByRole("textbox", { name: "ASR API Key" }).fill("e2e-secret");
     }
@@ -215,6 +228,62 @@ test("settings persist each provider and never return API keys", async ({ page, 
   const config = await request.get("/api/v1/audio/config");
   expect((await config.json()).providers.azure.has_api_key).toBe(true);
   expect((await config.json()).providers.openai.base_url).toBe("http://127.0.0.1:18888/v1");
+});
+
+test("ASR settings use compact rows, save the toggle immediately and disclose optional paths", async ({
+  page,
+  request,
+}, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "语音转写", exact: true }).click();
+  const toggle = page.getByRole("switch", { name: "启用语音识别" });
+  const saved = page.waitForResponse(
+    (response) => response.url().endsWith("/audio/config") && response.request().method() === "PUT",
+  );
+  await toggle.click();
+  expect((await (await saved).json()).enabled).toBe(false);
+  const provider = page.getByRole("combobox", { name: "ASR 提供商" });
+  await provider.click();
+  await page.getByRole("option", { name: "本地 SenseVoice Small", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "SenseVoice 模型绝对路径（可选）" })).toBeHidden();
+  await expect(provider.locator('[data-asr-provider="sensevoice"] svg')).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .screenshot({ path: testInfo.outputPath("asr-settings-local.png") });
+  await page.getByText("自定义模型路径", { exact: true }).click();
+  const modelPath = page.getByRole("textbox", { name: "SenseVoice 模型绝对路径（可选）" });
+  await expect(modelPath).toBeVisible();
+  await modelPath.fill("/opt/asr/model.int8.onnx");
+  const persisted = page.waitForResponse(
+    (response) => response.url().endsWith("/audio/config") && response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  expect((await (await persisted).json()).providers.sensevoice.model_path).toBe(
+    "/opt/asr/model.int8.onnx",
+  );
+  expect((await (await request.get("/api/v1/audio/config")).json()).enabled).toBe(false);
+  await provider.click();
+  await page.getByRole("option", { name: "Groq", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "ASR API Key" })).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .screenshot({ path: testInfo.outputPath("asr-settings-cloud.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "语音转写", exact: true }).click();
+  const mobileProvider = page.getByRole("button", { name: "ASR 提供商", exact: true });
+  await mobileProvider.click();
+  const groq = page.getByRole("button", { name: "Groq", exact: true });
+  await expect(groq.locator('[data-asr-provider="groq"] svg')).toBeVisible();
+  await groq.click();
+  await expect(page.getByRole("textbox", { name: "ASR API Key" })).toBeVisible();
+  expect(
+    await page
+      .locator(".audio-settings")
+      .evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+  ).toBe(true);
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("asr-settings-mobile.png") });
 });
 
 test("microphone permission failure and empty transcripts are recoverable", async ({

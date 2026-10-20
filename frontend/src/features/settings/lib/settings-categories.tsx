@@ -46,7 +46,6 @@ interface SettingsCategoryItem {
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
-  { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
   {
     id: "general",
     icon: <SettingsIcon size={16} />,
@@ -102,6 +101,7 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     icon: <Globe size={16} />,
     labelKey: "settings.webSearch",
   },
+  { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
   {
     id: "rules",
     icon: <FileText size={16} />,

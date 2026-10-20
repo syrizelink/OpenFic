@@ -2620,6 +2620,23 @@
     "clearKey": "删除已保存密钥（保存后生效）",
     "waveform": "实时语音波形",
     "send": "转写并发送",
-    "retryHint": "录音已保留，停止可转成文字，发送可重试提交。"
+    "retryHint": "录音已保留，停止可转成文字，发送可重试提交。",
+    "enabledHint": "在 Agent 输入框使用录音转写。",
+    "providerHint": "选择本地识别模型或云端服务。",
+    "baseUrlHint": "留空使用提供商的默认 API 地址。",
+    "modelHint": "留空使用提供商的默认语音识别模型。",
+    "localModel": "本地模型",
+    "modelDownloadHint": "SenseVoice Small · INT8 · 约 241 MB，下载后可离线使用。",
+    "ready": "已就绪",
+    "notReady": "未准备",
+    "statusUnavailable": "状态不可用",
+    "prepareModel": "准备模型",
+    "customPaths": "自定义模型路径",
+    "optional": "可选",
+    "modelPathHint": "可指定本地 INT8 或 FP32 ONNX 模型。",
+    "pathHint": "留空使用自动下载的缓存文件。",
+    "languageAutoHint": "auto 自动识别，也可填写服务支持的语言代码。",
+    "keyWillClear": "保存后删除已保存的密钥。",
+    "keepKey": "保留已保存的密钥"
   }
 }

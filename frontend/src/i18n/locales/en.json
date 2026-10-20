@@ -2620,6 +2620,23 @@
     "clearKey": "Remove saved key (takes effect on save)",
     "waveform": "Live microphone waveform",
     "send": "Transcribe and send",
-    "retryHint": "Recording kept. Stop to insert text, or send to retry submission."
+    "retryHint": "Recording kept. Stop to insert text, or send to retry submission.",
+    "enabledHint": "Use speech recognition in the Agent input.",
+    "providerHint": "Choose a local model or cloud speech service.",
+    "baseUrlHint": "Leave empty to use the provider’s default API URL.",
+    "modelHint": "Leave empty to use the provider’s default speech model.",
+    "localModel": "Local model",
+    "modelDownloadHint": "SenseVoice Small · INT8 · about 241 MB. Works offline after download.",
+    "ready": "Ready",
+    "notReady": "Not prepared",
+    "statusUnavailable": "Status unavailable",
+    "prepareModel": "Prepare model",
+    "customPaths": "Custom model paths",
+    "optional": "Optional",
+    "modelPathHint": "Use your own local INT8 or FP32 ONNX model.",
+    "pathHint": "Leave empty to use the downloaded model cache.",
+    "languageAutoHint": "Use auto detection or a language code supported by the service.",
+    "keyWillClear": "The saved key will be removed when you save.",
+    "keepKey": "Keep the saved key"
   }
 }
