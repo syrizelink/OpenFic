@@ -5,6 +5,7 @@ import {
   Brain,
   CloudUpload,
   ExternalLink,
+  Mic,
   Plus,
   Play,
   ShieldCheck,
@@ -31,6 +32,7 @@ import type { AgentComposerItems } from "@/lib/command.types";
 import { REASONING_EFFORT_OPTIONS } from "@/lib/reasoning-effort";
 
 import { useAgentInputHistory } from "../../hooks/use-agent-input-history";
+import { useVoiceInput } from "../../hooks/use-voice-input";
 import {
   getAgentFiles,
   hasLeftAgentDropZone,
@@ -56,6 +58,7 @@ import {
   getNextToolbarCompressionLevel,
   MAX_TOOLBAR_COMPRESSION_LEVEL,
 } from "./agent-toolbar-compression";
+import { AgentVoiceInput } from "./agent-voice-input";
 import { AgentPendingMessageCard } from "./pending-message-card";
 
 interface AgentInputProps {
@@ -73,7 +76,8 @@ interface AgentInputProps {
   modelsError: boolean;
   onChange: (value: string) => void;
   onAttachmentsChange: (attachments: PendingAgentAttachment[]) => void;
-  onSend: () => void;
+  onSend: (message?: string) => void;
+  voiceScope?: string;
   onAbort: () => void;
   canContinue?: boolean;
   isContinuing?: boolean;
@@ -135,6 +139,7 @@ export function AgentInput({
   readOnly = false,
   readOnlyMessage,
   onUploadAttachments,
+  voiceScope = projectId,
 }: AgentInputProps) {
   const { t } = useTranslation();
   const bodyMode = getAgentInputBodyMode(agentStatus, Boolean(specialPanels), forceSpecialPanels);
@@ -293,9 +298,22 @@ export function AgentInput({
     onSend();
   }, [isStopping, onSend, recordInputHistory, value]);
 
+  const voice = useVoiceInput({
+    scope: voiceScope,
+    disabled: isAddMenuDisabled || isStopping,
+    onResult: (text, action) => {
+      const message = value ? `${value}\n${text}` : text;
+      if (action === "stop") handleComposerChange(message);
+      else {
+        recordInputHistory(message);
+        onSend(message);
+      }
+    },
+  });
+
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
-    if (!container) return;
+    if (!container || voice.active) return;
 
     const syncHeight = () => {
       const nextHeight = Math.round(container.getBoundingClientRect().height);
@@ -315,7 +333,7 @@ export function AgentInput({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [voice.active]);
 
   const updateToolbarCompressionLevel = useCallback((nextLevel: number) => {
     const normalizedLevel = Math.max(0, Math.min(nextLevel, MAX_TOOLBAR_COMPRESSION_LEVEL));
@@ -327,7 +345,7 @@ export function AgentInput({
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
-    if (!toolbar) return;
+    if (!toolbar || voice.active) return;
 
     const syncOverflow = (allowExpand: boolean) => {
       if (toolbarCompressionResetFrameRef.current !== null) return;
@@ -375,16 +393,25 @@ export function AgentInput({
       };
     }
 
-    const resizeObserver = new ResizeObserver(() => syncOverflow(true));
+    let resizeFrame: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      // Compression changes layout; defer it outside the observer delivery cycle.
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        syncOverflow(true);
+      });
+    });
     resizeObserver.observe(toolbar);
     return () => {
       resizeObserver.disconnect();
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (toolbarCompressionResetFrameRef.current !== null) {
         cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
         toolbarCompressionResetFrameRef.current = null;
       }
     };
-  }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel]);
+  }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel, voice.active]);
 
   useEffect(() => {
     if (bodyMode === "composer" && !readOnly && !isComposerLocked) return;
@@ -505,7 +532,22 @@ export function AgentInput({
   };
 
   return (
-    <Box className="ai-sidebar-input-area">
+    <Box
+      className="ai-sidebar-input-area"
+      data-voice-active={voice.active || undefined}
+    >
+      {voice.active ? (
+        <AgentVoiceInput
+          voice={voice}
+          canSend={
+            Boolean(modelId) &&
+            !isModelsLoading &&
+            !modelsError &&
+            !isProcessingAttachments &&
+            !isComposerLocked
+          }
+        />
+      ) : null}
       <input
         ref={imageFileInputRef}
         className="agent-composer-file-input"
@@ -705,7 +747,9 @@ export function AgentInput({
                                 <button
                                   type="button"
                                   className="agent-image-attachment-remove"
-                                  aria-label={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                  aria-label={t("writing.aiSidebar.removeAttachment", {
+                                    fileName,
+                                  })}
                                   onClick={() => handleRemoveAttachment(attachment.id)}
                                 >
                                   <X size={12} />
@@ -719,7 +763,9 @@ export function AgentInput({
                                 }
                                 sizeBytes={sizeBytes}
                                 isProcessing={isProcessing}
-                                removeLabel={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                removeLabel={t("writing.aiSidebar.removeAttachment", {
+                                  fileName,
+                                })}
                                 extractingLabel={t("writing.aiSidebar.extractingAttachment")}
                                 onRemove={() => handleRemoveAttachment(attachment.id)}
                               />
@@ -909,9 +955,26 @@ export function AgentInput({
           >
             <SpeechInput
               key={projectId}
+              uploadOnly
               disabled={isAddMenuDisabled}
               onInsert={(text) => handleComposerChange(value ? `${value}\n${text}` : text)}
             />
+            <IconButton
+              type="button"
+              size="1"
+              variant="ghost"
+              color="gray"
+              disabled={isAddMenuDisabled}
+              aria-label={t("speech.title")}
+              title={t("speech.title")}
+              onClick={() => {
+                setIsAddMenuOpen(false);
+                mentionSuggestions?.onClose();
+                void voice.start();
+              }}
+            >
+              <Mic size={16} />
+            </IconButton>
             {isIndexStatusHidden ? null : <AgentIndexStatusIndicator projectId={projectId} />}
 
             <Tooltip

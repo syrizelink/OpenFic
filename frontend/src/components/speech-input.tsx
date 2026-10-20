@@ -1,7 +1,7 @@
 import { Button, Dialog, Flex, IconButton, Text, TextArea } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Mic } from "lucide-react";
+import { FileAudio, Mic } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
@@ -16,9 +16,11 @@ import { toSpeechWave } from "@/lib/speech-audio";
 export function SpeechInput({
   onInsert,
   disabled = false,
+  uploadOnly = false,
 }: {
   onInsert: (text: string) => void;
   disabled?: boolean;
+  uploadOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -157,10 +159,10 @@ export function SpeechInput({
           variant="ghost"
           color="gray"
           disabled={disabled}
-          aria-label={t("speech.title")}
-          title={t("speech.title")}
+          aria-label={t(uploadOnly ? "speech.upload" : "speech.title")}
+          title={t(uploadOnly ? "speech.upload" : "speech.title")}
         >
-          <Mic size={16} />
+          {uploadOnly ? <FileAudio size={16} /> : <Mic size={16} />}
         </IconButton>
       </Dialog.Trigger>
       <Dialog.Content
@@ -196,12 +198,14 @@ export function SpeechInput({
             align="center"
             wrap="wrap"
           >
-            <Button
-              disabled={!ready || (busy && state !== "recording")}
-              onClick={() => (state === "recording" ? recorder.current?.stop() : void record())}
-            >
-              {t(state === "recording" ? "speech.stop" : "speech.record")}
-            </Button>
+            {!uploadOnly ? (
+              <Button
+                disabled={!ready || (busy && state !== "recording")}
+                onClick={() => (state === "recording" ? recorder.current?.stop() : void record())}
+              >
+                {t(state === "recording" ? "speech.stop" : "speech.record")}
+              </Button>
+            ) : null}
             <label>
               <Text size="2">{t("speech.upload")}</Text>
               <input

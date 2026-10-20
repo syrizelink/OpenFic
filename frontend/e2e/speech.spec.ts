@@ -41,9 +41,141 @@ async function openSpeech(page: Page) {
   await page.goto(`/projects/${projectId}`);
   const area = page.locator(".ai-sidebar-input-area");
   await expect(area).toBeVisible();
-  await area.getByRole("button", { name: "语音转写", exact: true }).click();
+  await area.getByRole("button", { name: "选择音频文件", exact: true }).click();
   return page.getByRole("dialog", { name: "语音转写", exact: true });
 }
+
+async function selectChatModel(request: APIRequestContext, page: Page) {
+  const provider = await request.post("/api/v1/model-providers", {
+    multipart: {
+      name: "Voice E2E",
+      provider_type: "openai",
+      url: "http://127.0.0.1:18888/v1",
+      api_key: "e2e-secret",
+    },
+  });
+  expect(provider.status()).toBe(201);
+  const model = await request.post("/api/v1/models", {
+    data: {
+      name: `Voice test model ${projectId}`,
+      model_id: `voice-test-${projectId}`,
+      provider_id: (await provider.json()).id,
+    },
+  });
+  expect(model.status()).toBe(201);
+  await page.addInitScript(
+    (id) => localStorage.setItem("openfic.agent.selectedModelId", id),
+    (await model.json()).id,
+  );
+}
+
+async function startInline(page: Page) {
+  await page
+    .locator(".ai-sidebar-input-area")
+    .getByRole("button", { name: "语音转写", exact: true })
+    .click();
+  const voice = page.locator(".agent-voice-input");
+  await expect(voice.getByRole("img", { name: "实时语音波形" })).toBeVisible();
+  await page.waitForTimeout(1000);
+  return voice;
+}
+
+for (const draft of ["", "已有草稿"]) {
+  test(`inline send ${draft ? "with draft" : "without draft"} bypasses the composer and submits once`, async ({
+    page,
+    request,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await selectChatModel(request, page);
+    const messages: string[] = [];
+    await page.route("**/api/v1/agent/sessions/*/message", (route) => {
+      messages.push(route.request().postDataJSON().message);
+      return route.fulfill({
+        json: {
+          success: true,
+          session_id: route.request().url().split("/").at(-2),
+          message: "sent",
+        },
+      });
+    });
+    await page.goto(`/projects/${projectId}`);
+    const composer = page.locator(".ai-sidebar-input-body[data-mode='composer'] .tiptap");
+    await expect(composer).toBeVisible();
+    await composer.fill(draft);
+    await composer.evaluate((node) => {
+      const snapshots: string[] = [];
+      (window as unknown as { speechDrafts: string[] }).speechDrafts = snapshots;
+      new MutationObserver(() => snapshots.push(node.textContent ?? "")).observe(node, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    });
+    const voice = await startInline(page);
+    await voice.getByRole("button", { name: "转写并发送" }).click();
+    await expect
+      .poll(() => messages)
+      .toEqual([draft ? `${draft}\n语音转写测试。` : "语音转写测试。"]);
+    await expect(voice).toHaveCount(0);
+    await expect(composer).toBeEmpty();
+    const drafts = await page.evaluate(
+      () => (window as unknown as { speechDrafts: string[] }).speechDrafts,
+    );
+    expect(drafts.every((value) => !value.includes("语音转写测试。"))).toBe(true);
+    expect(errors).toEqual([]);
+  });
+}
+
+test("failed voice send retains the recording and can retry as text without sending", async ({
+  page,
+  request,
+}) => {
+  await selectChatModel(request, page);
+  await request.post("http://127.0.0.1:18888/control", { data: { status: 500 } });
+  let sends = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().includes("/agent/sessions")) sends++;
+  });
+  await page.goto(`/projects/${projectId}`);
+  const composer = page.locator(".ai-sidebar-input-body[data-mode='composer'] .tiptap");
+  await expect(composer).toBeVisible();
+  await composer.fill("保留草稿");
+  const voice = await startInline(page);
+  await voice.getByRole("button", { name: "转写并发送" }).click();
+  await expect(voice.getByRole("alert")).toContainText("HTTP 500");
+  expect(sends).toBe(0);
+  await expect(composer).toHaveText("保留草稿");
+  await request.post("http://127.0.0.1:18888/control", { data: { text: "重试的文字" } });
+  await voice.getByRole("button", { name: "停止并识别" }).click();
+  await expect(composer).toBeVisible();
+  await expect(composer).toContainText("重试的文字");
+  expect(sends).toBe(0);
+});
+
+test("inline recording and pending transcription can be cancelled without changing the draft", async ({
+  page,
+  request,
+}) => {
+  await page.goto(`/projects/${projectId}`);
+  const composer = page.locator(".ai-sidebar-input-body[data-mode='composer'] .tiptap");
+  await expect(composer).toBeVisible();
+  await composer.fill("原草稿");
+  let voice = await startInline(page);
+  await page.keyboard.press("Escape");
+  await expect(voice).toHaveCount(0);
+  await expect(composer).toHaveText("原草稿");
+  expect((await (await request.get("http://127.0.0.1:18888/control")).json()).calls).toBe(0);
+  await request.post("http://127.0.0.1:18888/control", { data: { delay: 10000, text: "旧结果" } });
+  voice = await startInline(page);
+  await voice.getByRole("button", { name: "停止并识别" }).click();
+  await expect
+    .poll(async () => (await (await request.get("http://127.0.0.1:18888/control")).json()).calls)
+    .toBe(1);
+  await voice.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(composer).toBeVisible();
+  await expect(composer).toHaveText("原草稿");
+});
 
 test.beforeEach(async ({ request, page }) => {
   await request.put("/api/v1/settings", { data: { language: "zh-CN", telemetry_enabled: false } });
@@ -93,9 +225,19 @@ test("microphone permission failure and empty transcripts are recoverable", asyn
     navigator.mediaDevices.getUserMedia = () =>
       Promise.reject(new DOMException("Permission denied", "NotAllowedError"));
   });
+  await page.goto(`/projects/${projectId}`);
+  await page
+    .locator(".ai-sidebar-input-area")
+    .getByRole("button", { name: "语音转写", exact: true })
+    .click();
+  await expect(page.locator(".agent-voice-input").getByRole("alert")).toContainText(
+    "无法使用麦克风",
+  );
+  await page
+    .locator(".agent-voice-input")
+    .getByRole("button", { name: "取消", exact: true })
+    .click();
   const dialog = await openSpeech(page);
-  await dialog.getByRole("button", { name: "开始录音" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("无法使用麦克风");
   await request.post("http://127.0.0.1:18888/control", { data: { text: "" } });
   await dialog.getByLabel("选择音频文件").setInputFiles(wave());
   await expect(dialog.getByRole("alert")).toContainText("未识别到语音");
@@ -123,15 +265,39 @@ test("upload is normalized, transcribed through Python and inserted into the com
   );
 });
 
-test("browser microphone recording stops and transcribes", async ({ page }) => {
-  const dialog = await openSpeech(page);
-  await dialog.getByRole("button", { name: "开始录音" }).click();
-  await expect(dialog.getByText("正在录音，最长 5 分钟…")).toBeVisible();
-  await page.waitForTimeout(1500);
-  await dialog.getByRole("button", { name: "停止并识别" }).click();
-  await expect(dialog.getByRole("textbox", { name: "转写结果" })).toHaveValue("语音转写测试。");
-  await dialog.getByRole("button", { name: "取消", exact: true }).click();
-  await expect(page.locator(".ai-sidebar-input-body[data-mode='composer']")).toBeEmpty();
+test("inline microphone waveform narrows the composer and stop inserts without sending", async ({
+  page,
+  request,
+}, testInfo) => {
+  await page.goto(`/projects/${projectId}`);
+  const area = page.locator(".ai-sidebar-input-area");
+  const composer = page.locator(".ai-sidebar-input-body[data-mode='composer']");
+  await expect(composer).toBeVisible();
+  await composer.locator(".tiptap").fill("已有草稿");
+  const normal = await area.boundingBox();
+  let sends = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().includes("/agent/sessions")) sends++;
+  });
+  await area.getByRole("button", { name: "语音转写", exact: true }).click();
+  const voice = page.locator(".agent-voice-input");
+  const canvas = voice.getByRole("img", { name: "实时语音波形" });
+  await expect(canvas).toBeVisible();
+  await expect(composer).toBeHidden();
+  expect((await area.boundingBox())!.width).toBeLessThan(normal!.width);
+  await expect(voice.getByRole("button")).toHaveCount(2);
+  const first = await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL());
+  await expect
+    .poll(() => canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL()))
+    .not.toBe(first);
+  await page.waitForTimeout(1000);
+  await area.screenshot({ path: testInfo.outputPath("voice-recording.png") });
+  await voice.getByRole("button", { name: "停止并识别" }).click();
+  await expect(composer).toBeVisible();
+  await expect(composer).toContainText("已有草稿");
+  await expect(composer).toContainText("语音转写测试。");
+  expect(sends).toBe(0);
+  expect((await (await request.get("http://127.0.0.1:18888/control")).json()).calls).toBe(1);
 });
 
 test("upstream error can be retried without losing the audio", async ({ page, request }) => {
@@ -160,7 +326,7 @@ test("closing an active transcription cancels it and prevents stale results", as
   await request.post("http://127.0.0.1:18888/control", { data: { text: "新结果" } });
   await page
     .locator(".ai-sidebar-input-area")
-    .getByRole("button", { name: "语音转写", exact: true })
+    .getByRole("button", { name: "选择音频文件", exact: true })
     .click();
   await expect(dialog.getByRole("textbox", { name: "转写结果" })).toBeEmpty();
   await dialog.getByLabel("选择音频文件").setInputFiles(wave());
@@ -171,13 +337,13 @@ test("disabled ASR and malformed uploads display useful feedback", async ({ page
   await configure(request, { enabled: false });
   const dialog = await openSpeech(page);
   await expect(dialog.getByText("请先在设置 → 语音转写中启用并配置 ASR。")).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "开始录音" })).toBeDisabled();
+  await expect(dialog.getByLabel("选择音频文件")).toBeDisabled();
   await dialog.getByRole("button", { name: "取消", exact: true }).click();
   await configure(request);
   await page.reload();
   await page
     .locator(".ai-sidebar-input-area")
-    .getByRole("button", { name: "语音转写", exact: true })
+    .getByRole("button", { name: "选择音频文件", exact: true })
     .click();
   await dialog
     .getByLabel("选择音频文件")

@@ -139,48 +139,51 @@ export function useAgentSidebar({
     onSessionCreated,
   });
 
-  const handleSend = useCallback(async () => {
-    if (isStopping) return;
-    if (agentStatus === "waiting_answer" || agentStatus === "waiting_approval") {
-      toast.error(
-        agentStatus === "waiting_answer"
-          ? i18n.t("writing.aiSidebar.cannotSendWaitingAnswer")
-          : i18n.t("writing.aiSidebar.cannotSendWaitingApproval"),
-      );
-      return;
-    }
-    if (pendingMessage) {
-      toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
-      return;
-    }
-    if (!inputValue.trim() && attachments.length === 0) return;
-    if (!modelId) {
-      toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
-      return;
-    }
+  const handleSend = useCallback(
+    async (messageOverride?: string) => {
+      if (isStopping) return;
+      if (agentStatus === "waiting_answer" || agentStatus === "waiting_approval") {
+        toast.error(
+          agentStatus === "waiting_answer"
+            ? i18n.t("writing.aiSidebar.cannotSendWaitingAnswer")
+            : i18n.t("writing.aiSidebar.cannotSendWaitingApproval"),
+        );
+        return;
+      }
+      if (pendingMessage) {
+        toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
+        return;
+      }
+      const messageToSend = messageOverride ?? inputValue;
+      if (!messageToSend.trim() && attachments.length === 0) return;
+      if (!modelId) {
+        toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
+        return;
+      }
 
-    const messageToSend = inputValue;
-    const attachmentsToSend = attachments;
+      const attachmentsToSend = attachments;
 
-    const sendPromise = agentSessionId
-      ? sendAgentMessage(messageToSend, attachmentsToSend)
-      : startAgentSession(messageToSend, attachmentsToSend);
-    onClearInput();
-    onClearAttachments();
-    await sendPromise;
-  }, [
-    isStopping,
-    inputValue,
-    agentStatus,
-    modelId,
-    onClearInput,
-    agentSessionId,
-    sendAgentMessage,
-    startAgentSession,
-    pendingMessage,
-    attachments,
-    onClearAttachments,
-  ]);
+      const sendPromise = agentSessionId
+        ? sendAgentMessage(messageToSend, attachmentsToSend)
+        : startAgentSession(messageToSend, attachmentsToSend);
+      onClearInput();
+      onClearAttachments();
+      await sendPromise;
+    },
+    [
+      isStopping,
+      inputValue,
+      agentStatus,
+      modelId,
+      onClearInput,
+      agentSessionId,
+      sendAgentMessage,
+      startAgentSession,
+      pendingMessage,
+      attachments,
+      onClearAttachments,
+    ],
+  );
 
   const handleCancelPendingMessage = useCallback(async (): Promise<void> => {
     const restored = await cancelPendingMessage();

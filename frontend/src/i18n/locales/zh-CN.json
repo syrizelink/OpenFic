@@ -2617,6 +2617,9 @@
       "deepgram": "Deepgram",
       "azure": "Azure Speech"
     },
-    "clearKey": "删除已保存密钥（保存后生效）"
+    "clearKey": "删除已保存密钥（保存后生效）",
+    "waveform": "实时语音波形",
+    "send": "转写并发送",
+    "retryHint": "录音已保留，停止可转成文字，发送可重试提交。"
   }
 }

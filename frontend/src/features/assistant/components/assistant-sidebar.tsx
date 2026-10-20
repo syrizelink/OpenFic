@@ -1204,27 +1204,34 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       return hasIncompleteMidSummaries || hasIncompleteFarSummaries;
     }, [latestChapterOrder, summaryPanelData?.maintenance]);
 
-    const performSend = useCallback(() => {
-      const hasCurrentTask = Boolean(agentSidebar.sessionId);
+    const performSend = useCallback(
+      (messageOverride?: string) => {
+        const hasCurrentTask = Boolean(agentSidebar.sessionId);
+        const message = messageOverride ?? inputValue;
 
-      if (!hasCurrentTask && inputValue.trim()) {
-        const title = inputValue.trim();
-        setCurrentTaskTitle(title.length > 50 ? `${title.slice(0, 50)}...` : title);
-      }
+        if (!hasCurrentTask && message.trim()) {
+          const title = message.trim();
+          setCurrentTaskTitle(title.length > 50 ? `${title.slice(0, 50)}...` : title);
+        }
 
-      agentSidebar.onSend();
-    }, [inputValue, agentSidebar]);
+        void agentSidebar.onSend(messageOverride);
+      },
+      [inputValue, agentSidebar],
+    );
 
-    const handleSend = useCallback(() => {
-      if (!inputValue.trim() && pendingAttachments.length === 0) return;
-      if (!hasIncompleteContextSummaries) {
-        performSend();
-        return;
-      }
+    const handleSend = useCallback(
+      (messageOverride?: string) => {
+        if (!(messageOverride ?? inputValue).trim() && pendingAttachments.length === 0) return;
+        if (!hasIncompleteContextSummaries) {
+          performSend(messageOverride);
+          return;
+        }
 
-      pendingSendActionRef.current = performSend;
-      setSummaryWarningOpen(true);
-    }, [hasIncompleteContextSummaries, inputValue, pendingAttachments.length, performSend]);
+        pendingSendActionRef.current = () => performSend(messageOverride);
+        setSummaryWarningOpen(true);
+      },
+      [hasIncompleteContextSummaries, inputValue, pendingAttachments.length, performSend],
+    );
 
     const handleConfirmSummaryWarning = useCallback(() => {
       setSummaryWarningOpen(false);
@@ -1794,6 +1801,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             </div>
 
             <AgentInput
+              voiceScope={`${projectId}:${currentTaskId ?? "new"}:${agentSidebar.sessionId ?? "new"}`}
               specialPanels={
                 isViewingSubagent ? (
                   <AgentSpecialPanels

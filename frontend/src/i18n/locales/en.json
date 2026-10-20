@@ -2617,6 +2617,9 @@
       "deepgram": "Deepgram",
       "azure": "Azure Speech"
     },
-    "clearKey": "Remove saved key (takes effect on save)"
+    "clearKey": "Remove saved key (takes effect on save)",
+    "waveform": "Live microphone waveform",
+    "send": "Transcribe and send",
+    "retryHint": "Recording kept. Stop to insert text, or send to retry submission."
   }
 }
