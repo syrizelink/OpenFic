@@ -353,7 +353,10 @@ test("disabled ASR and malformed uploads display useful feedback", async ({ page
   expect((await control.json()).calls).toBe(0);
 });
 
-test("chapter toolbar inserts plain text and persists it", async ({ page, request }) => {
+test("chapter toolbar has no transcription entry while Agent voice input remains available", async ({
+  page,
+  request,
+}) => {
   const volume = await request.post(`/api/v1/projects/${projectId}/volumes`, {
     data: { title: "测试卷" },
   });
@@ -364,19 +367,14 @@ test("chapter toolbar inserts plain text and persists it", async ({ page, reques
   await page.goto(`/projects/${projectId}`);
   await page.getByText("语音测试章节", { exact: true }).first().click();
   const toolbar = page.locator(".editor-toolbar");
-  await toolbar.getByRole("button", { name: "语音转写", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "语音转写", exact: true });
-  await dialog.getByLabel("选择音频文件").setInputFiles(wave());
-  await expect(dialog.getByRole("textbox", { name: "转写结果" })).toHaveValue("语音转写测试。");
-  await dialog.getByRole("textbox", { name: "转写结果" }).fill("<b>语音正文</b>");
-  await dialog.getByRole("button", { name: "插入文字" }).click();
-  await expect
-    .poll(async () => (await (await request.get(`/api/v1/chapters/${chapterId}`)).json()).content)
-    .toContain("<b>语音正文</b>");
-  await expect(page.locator(".editor-toolbar").locator("..").locator(".tiptap")).toContainText(
-    "<b>语音正文</b>",
-  );
-  await expect(page.locator(".editor-toolbar").locator("..").locator(".tiptap b")).toHaveCount(0);
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "语音转写", exact: true })).toHaveCount(0);
+  await expect(toolbar.getByRole("button", { name: "选择音频文件", exact: true })).toHaveCount(0);
+  await expect(
+    page.locator(".ai-sidebar-input-area").getByRole("button", { name: "语音转写", exact: true }),
+  ).toBeVisible();
+  const saved = await request.get(`/api/v1/chapters/${chapterId}`);
+  expect((await saved.json()).content).toBe("原有正文");
 });
 
 test("real SenseVoice model transcribes a speech recording through the UI", async ({
