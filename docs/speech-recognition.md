@@ -29,16 +29,6 @@ uv sync --extra asr
 
 可以分别配置模型、词表、VAD 的绝对路径以离线运行，支持自备 FP32 模型。自定义文件由部署者维护；管理缓存中的文件会校验哈希。支持 `auto`、`zh`、`en`、`yue`、`ja`、`ko`。独立 Python 子进程按需加载模型，以 Silero VAD 切分语音并恢复首段起始处的少量音频；结束、错误、超时或取消后回收进程。每条录音重新加载模型，以限制常驻内存。
 
-### Whisper
-
-使用 faster-whisper 的 CPU INT8 推理。填写预先下载的 CTranslate2 模型目录，或 Hugging Face 缓存内已有的 faster-whisper 模型名称。运行时指定 `local_files_only=True`，不会自动下载模型。可在部署环境提前准备，例如：
-
-```sh
-uv run --extra asr python -c "from faster_whisper.utils import download_model; download_model('small', output_dir='/absolute/path/to/faster-whisper-small')"
-```
-
-在设置中将模型目录填为该绝对路径即可。SenseVoice 的自动准备按钮不用于 Whisper。
-
 ## 云端提供商
 
 各提供商配置分别保存，切换不会删除其他提供商的密钥。API Key 使用项目现有 Fernet 加密服务保存，不在配置响应中返回。未修改密钥输入框时保留原值；修改后清空并保存会删除密钥。

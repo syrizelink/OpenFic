@@ -45,7 +45,7 @@ async def configure(client, provider="openai", **kwargs):
 async def test_config_defaults_and_encryption(client, session):
     initial = (await client.get("/api/v1/audio/config")).json()
     assert initial["enabled"] is False
-    assert len(initial["providers"]) == 7
+    assert len(initial["providers"]) == 6
     saved = await configure(client)
     assert saved["providers"]["openai"]["has_api_key"]
     row = await setting_repo.get_by_key(session, SETTING_KEY)
@@ -63,6 +63,7 @@ async def test_config_defaults_and_encryption(client, session):
     "body",
     [
         {"provider": "unknown"},
+        {"provider": "whisper"},
         {"language": "not a language"},
         {"config": {"base_url": "file:///etc/passwd"}},
         {"config": {"base_url": "https://key:secret@example.com"}},
@@ -292,6 +293,7 @@ async def test_local_preflight_and_no_implicit_download(client, monkeypatch, tmp
 
 async def test_worker_killed_and_reaped_on_cancel(monkeypatch):
     started = asyncio.Event()
+    monkeypatch.setattr("app.asr.models.resolve_paths", lambda _: {})
 
     class Process:
         returncode = None
@@ -313,7 +315,7 @@ async def test_worker_killed_and_reaped_on_cancel(monkeypatch):
     monkeypatch.setattr(
         asyncio, "create_subprocess_exec", AsyncMock(return_value=process)
     )
-    work = asyncio.create_task(local_transcribe(ASRConfig(provider="whisper"), wav()))
+    work = asyncio.create_task(local_transcribe(ASRConfig(), wav()))
     await started.wait()
     work.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -372,6 +374,8 @@ async def test_deadline_cancels_work_and_releases_capacity(monkeypatch):
 async def test_native_failure_and_protocol_errors_are_sanitized(
     monkeypatch, output, code
 ):
+    monkeypatch.setattr("app.asr.models.resolve_paths", lambda _: {})
+
     class Process:
         returncode = code
 
@@ -385,7 +389,7 @@ async def test_native_failure_and_protocol_errors_are_sanitized(
         asyncio, "create_subprocess_exec", AsyncMock(return_value=Process())
     )
     with pytest.raises(HTTPException) as error:
-        await local_transcribe(ASRConfig(provider="whisper"), wav())
+        await local_transcribe(ASRConfig(), wav())
     assert error.value.status_code == 503
 
 

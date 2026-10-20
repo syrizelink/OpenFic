@@ -16,7 +16,7 @@ TRANSCRIPTION_TIMEOUT = 180
 
 async def local_transcribe(config: ASRConfig, audio: bytes) -> str:
     selected = config.providers.get(config.provider, ProviderConfig())
-    if config.provider == "sensevoice" and config.language not in {
+    if config.language not in {
         "auto",
         "zh",
         "en",
@@ -27,17 +27,8 @@ async def local_transcribe(config: ASRConfig, audio: bytes) -> str:
         raise HTTPException(400, "SenseVoice supports auto, zh, en, ja, ko and yue")
     from app.asr.models import resolve_paths
 
-    paths = (
-        await asyncio.to_thread(resolve_paths, selected)
-        if config.provider == "sensevoice"
-        else {}
-    )
-    payload = {
-        "provider": config.provider,
-        "language": config.language,
-        "model": selected.model or "small",
-        **paths,
-    }
+    paths = await asyncio.to_thread(resolve_paths, selected)
+    payload = {"language": config.language, **paths}
     try:
         process = await asyncio.create_subprocess_exec(
             sys.executable,
@@ -154,7 +145,7 @@ async def transcribe(
     async def run():
         return await (
             local_transcribe(config, audio)
-            if config.provider in {"sensevoice", "whisper"}
+            if config.provider == "sensevoice"
             else cloud_transcribe(config, audio)
         )
 

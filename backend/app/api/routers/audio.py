@@ -62,7 +62,6 @@ async def local_status(session: AsyncSession = Depends(get_session)):
     config = await load_config(session)
     return {
         "sensevoice_installed": importlib.util.find_spec("sherpa_onnx") is not None,
-        "whisper_installed": importlib.util.find_spec("faster_whisper") is not None,
         "sensevoice_ready": await asyncio.to_thread(
             ready, config.providers.get("sensevoice", ProviderConfig())
         ),
@@ -75,7 +74,7 @@ async def prepare_model(request: Request, session: AsyncSession = Depends(get_se
     if config.provider != "sensevoice":
         raise HTTPException(
             400,
-            "Automatic preparation is available for SenseVoice; use a pre-downloaded Whisper model path",
+            "Automatic preparation is available only for SenseVoice",
         )
     if getattr(request.app.state, "asr_preparing", False):
         raise HTTPException(409, "Model preparation is already running")

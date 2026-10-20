@@ -2588,8 +2588,6 @@
     "prepared": "Model prepared",
     "prepareFailed": "Preparation failed. Check network, storage and model paths, then retry. Verified files are reused.",
     "saving": "Saving…",
-    "whisperPath": "Whisper local model directory or cached name",
-    "whisperHint": "Use a pre-downloaded faster-whisper / CTranslate2 model directory or cached model name. Recognition never downloads models.",
     "inputHint": "Record or upload audio (up to 5 minutes and 30 MB), then review and edit the transcript before inserting.",
     "enableFirst": "Enable and configure ASR in Settings → Speech to text first.",
     "record": "Start recording",
@@ -2610,7 +2608,6 @@
     "loadFailed": "Could not load speech settings. Please retry.",
     "providers": {
       "sensevoice": "Local SenseVoice Small",
-      "whisper": "Local Whisper",
       "openai": "OpenAI / OpenAI compatible",
       "groq": "Groq",
       "mistral": "Mistral",

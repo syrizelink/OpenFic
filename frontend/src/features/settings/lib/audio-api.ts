@@ -2,7 +2,6 @@ import { apiClient } from "@/lib/api-client";
 
 export const ASR_PROVIDERS = [
   "sensevoice",
-  "whisper",
   "openai",
   "groq",
   "mistral",

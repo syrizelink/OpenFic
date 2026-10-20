@@ -9,4 +9,4 @@ Vendored from [thesvg](https://github.com/glincker/thesvg) at commit `8d07be9f43
 - `deepgram.svg`: `public/icons/deepgram/default.svg`
 - `azure.svg`: `public/icons/microsoft-azure/default.svg`
 
-SenseVoice uses the Alibaba Cloud provider mark; local Whisper uses the OpenAI provider mark. No model-specific logo is implied. SVGs are served locally so the settings page works offline.
+SenseVoice uses the Alibaba Cloud provider mark. No model-specific logo is implied. SVGs are served locally so the settings page works offline.

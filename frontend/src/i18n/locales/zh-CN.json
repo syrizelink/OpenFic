@@ -2588,8 +2588,6 @@
     "prepared": "模型准备完成",
     "prepareFailed": "模型准备失败，请检查网络、存储和模型路径后重试。已校验文件可复用。",
     "saving": "正在保存…",
-    "whisperPath": "Whisper 本地模型目录或缓存名称",
-    "whisperHint": "使用预先下载的 faster-whisper / CTranslate2 模型目录或缓存模型名称；识别时不会下载模型。",
     "inputHint": "录音或上传音频（最长 5 分钟、最大 30 MB），识别后可编辑文字并确认插入。",
     "enableFirst": "请先在设置 → 语音转写中启用并配置 ASR。",
     "record": "开始录音",
@@ -2610,7 +2608,6 @@
     "loadFailed": "无法加载语音设置，请重试。",
     "providers": {
       "sensevoice": "本地 SenseVoice Small",
-      "whisper": "本地 Whisper",
       "openai": "OpenAI / OpenAI compatible",
       "groq": "Groq",
       "mistral": "Mistral",

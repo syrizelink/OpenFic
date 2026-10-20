@@ -198,20 +198,19 @@ test("settings persist each provider and never return API keys", async ({ page, 
   const provider = page.getByRole("combobox", { name: "ASR 提供商" });
   const providerLabels: Record<string, string> = {
     sensevoice: "本地 SenseVoice Small",
-    whisper: "本地 Whisper",
     groq: "Groq",
     mistral: "Mistral",
     deepgram: "Deepgram",
     azure: "Azure Speech",
     openai: "OpenAI / OpenAI compatible",
   };
-  for (const name of ["sensevoice", "whisper", "groq", "mistral", "deepgram", "azure", "openai"]) {
+  for (const name of ["sensevoice", "groq", "mistral", "deepgram", "azure", "openai"]) {
     await provider.click();
     const option = page.getByRole("option", { name: providerLabels[name], exact: true });
     await expect(option.locator(`[data-asr-provider="${name}"] svg`)).toBeVisible();
     await option.click();
     await expect(provider.locator(`[data-asr-provider="${name}"] svg`)).toBeVisible();
-    if (!["sensevoice", "whisper"].includes(name)) {
+    if (name !== "sensevoice") {
       await page.getByRole("textbox", { name: "ASR API Key" }).fill("e2e-secret");
     }
     const saved = page.waitForResponse(

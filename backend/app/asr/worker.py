@@ -70,23 +70,7 @@ def main():
     audio = sys.stdin.buffer.read()
     # Third-party progress messages must not corrupt the output protocol.
     with contextlib.redirect_stdout(sys.stderr):
-        if config["provider"] == "sensevoice":
-            text = sensevoice(config, audio)
-        else:
-            from faster_whisper import WhisperModel
-
-            model = WhisperModel(
-                config["model"],
-                device="cpu",
-                compute_type="int8",
-                local_files_only=True,
-            )
-            segments, _ = model.transcribe(
-                io.BytesIO(audio),
-                language=None if config["language"] == "auto" else config["language"],
-                vad_filter=True,
-            )
-            text = " ".join(segment.text.strip() for segment in segments)
+        text = sensevoice(config, audio)
     print(json.dumps({"text": text}, ensure_ascii=False))
 
 

@@ -12,9 +12,7 @@ from app.settings import settings
 from app.storage.repos import setting_repo
 
 SETTING_KEY = "asr_config"
-Provider = Literal[
-    "sensevoice", "whisper", "openai", "groq", "mistral", "deepgram", "azure"
-]
+Provider = Literal["sensevoice", "openai", "groq", "mistral", "deepgram", "azure"]
 DEFAULTS = {
     "openai": ("https://api.openai.com/v1", "whisper-1"),
     "groq": ("https://api.groq.com/openai/v1", "whisper-large-v3-turbo"),

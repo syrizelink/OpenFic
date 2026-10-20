@@ -100,7 +100,6 @@ asr = [
     "sherpa-onnx==1.13.8",
     # The sdist metadata omits the split native runtime required by the wheels.
     "sherpa-onnx-core==1.13.8",
-    "faster-whisper>=1.2.0",
 ]
 postgresql = [
     "langgraph-checkpoint-postgres>=3.1.2",

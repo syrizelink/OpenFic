@@ -62,7 +62,6 @@ export function AudioSettings() {
   const query = useQuery({ queryKey: ["asr-settings"], queryFn: fetchASRSettings });
   const status = useQuery<{
     sensevoice_installed: boolean;
-    whisper_installed: boolean;
     sensevoice_ready: boolean;
   }>({
     queryKey: ["asr-status"],
@@ -95,7 +94,7 @@ export function AudioSettings() {
     );
   const config = value.providers[value.provider];
   const clearingKey = Boolean(config.has_api_key) && keys[value.provider] === "";
-  const local = value.provider === "sensevoice" || value.provider === "whisper";
+  const local = value.provider === "sensevoice";
   const disabled = busy || toggling;
   const setField = (field: keyof ASRProviderConfig, text: string) =>
     setDraft({
@@ -289,7 +288,7 @@ export function AudioSettings() {
               {t("speech.cloudNotice")}
             </Text>
           </>
-        ) : value.provider === "sensevoice" ? (
+        ) : (
           <>
             <AudioSettingRow
               label={t("speech.localModel")}
@@ -380,23 +379,6 @@ export function AudioSettings() {
                 )}
               </Flex>
             </details>
-          </>
-        ) : (
-          <>
-            {field(
-              "model",
-              t("speech.whisperPath"),
-              t("speech.whisperHint"),
-              "/path/to/faster-whisper-small",
-            )}
-            {status.data && !status.data.whisper_installed ? (
-              <Text
-                size="1"
-                color="orange"
-              >
-                {t("speech.installExtra")}
-              </Text>
-            ) : null}
           </>
         )}
         <Box>
