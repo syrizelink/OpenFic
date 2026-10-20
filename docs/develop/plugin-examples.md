@@ -10,6 +10,7 @@
 | `examples/plugins/dist/google-drive-sync-1.2.0.zip` | Google Drive 章节双向同步、冲突解决、编辑器入口、Agent 手动同步工具 |
 | `examples/plugins/dist/handoff-workflow-1.1.0.zip` | 规划/写作/审稿交接、自定义项目 Graph、结果保存为笔记 |
 | `examples/plugins/dist/prompt-elements-1.2.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
+| `examples/plugins/dist/deepseek-whale-1.0.0.zip` | 原生悬浮挂件、DeepSeek 余额观测、分币种账本与 Agent 用量气泡；[移植范围及安装](../../examples/plugins/deepseek-whale/README.md) |
 
 这些插件只使用公共 SDK、Python 标准库及后端已有的 LangGraph/LangChain/regex 依赖；没有直接操作应用 ORM 或导入内部业务模块。
 

@@ -8236,6 +8236,59 @@
     }
   },
   "project": {
+    "Image": {
+      "props": {
+        "asset": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "fit": {
+          "type": "enum",
+          "values": [
+            "contain",
+            "cover",
+            "fill"
+          ]
+        },
+        "loading": {
+          "type": "enum",
+          "values": [
+            "lazy",
+            "eager"
+          ]
+        }
+      },
+      "capabilities": [
+        "ui"
+      ]
+    },
+    "FloatingPanel": {
+      "props": {
+        "position": {
+          "type": "json"
+        },
+        "width": {
+          "type": "number"
+        },
+        "dragLabel": {
+          "type": "string"
+        },
+        "onPositionChange": {
+          "type": "event"
+        }
+      },
+      "capabilities": [
+        "ui.overlay"
+      ]
+    },
     "Icon": {
       "props": {
         "name": {

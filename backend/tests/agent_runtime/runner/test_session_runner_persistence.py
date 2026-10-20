@@ -761,11 +761,24 @@ async def test_emit_persisted_task_usage_events_preserves_compaction_usage_kind(
     provider_type, compaction_provider, cost,
 ):
     captured_events: list[tuple[str, dict]] = []
+    observed: list[dict] = []
+
+    async def observe_committed(name, payload):
+        from app.storage.models.task import Task
+
+        assert name == "usage.recorded"
+        async with isolated_db() as session:
+            task = await session.get(Task, "task_x")
+            assert task is not None and task.cost == pytest.approx(cost)
+        observed.append(payload)
+
+    monkeypatch.setattr("app.plugins.runtime.observe", observe_committed)
 
     runner = SessionRunner(
         session_id="s_compaction_usage",
         task_id="task_x",
         model_config={
+            "model_id": "main-model-is-not-the-compaction-model",
             "provider_type": provider_type,
             "max_context_tokens": 8000,
             "output_price": 1000.0,
@@ -796,6 +809,13 @@ async def test_emit_persisted_task_usage_events_preserves_compaction_usage_kind(
             },
         }
     )
+
+    assert len(observed) == 1
+    assert observed[0]["model_id"] is None
+    assert observed[0]["usage_kind"] == "compaction"
+    assert observed[0]["currency"] == "USD"
+    assert observed[0]["cost"] == pytest.approx(cost)
+    assert observed[0]["event_id"]
 
     assert [payload for name, payload in captured_events if name == "agent:usage"] == [
         {

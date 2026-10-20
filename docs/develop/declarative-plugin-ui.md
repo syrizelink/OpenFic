@@ -31,7 +31,7 @@ def register(host):
     host.register_command("weather.action", action)
 ```
 
-点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端处理状态后，宿主重新获取组件树。主动刷新可通过 `context.host.emit("ui.invalidate", {}, context.plugin_id)` 发出通知，由已有宿主事件轮询接收。
+点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端处理状态后，宿主重新获取组件树。主动刷新可通过 `context.invalidate_ui()`（要求 `ui`，或 `await context.call("ui.invalidate", {})`）发出通知，由已有宿主事件轮询接收。`context.emit()` 用于插件命名空间内的自定义事件，不会发送宿主保留的 UI 通知。
 
 公开 TypeScript 类型 `PluginView/UINode/UIProps/UIDocument/UIRenderRequest/UIEventRequest` 随 `@openfic/plugin-sdk` 提供。可安装的混合视图示例在 `frontend/e2e/fixtures/plugin-declarative`。
 
@@ -88,14 +88,33 @@ Python 插件可使用 `await context.call("workflow.select", {"projectId": proj
 
 支持 `size`（8–96，默认 18）、`color`、`strokeWidth`（0.5–4，默认 2）、`absoluteStrokeWidth` 和公共样式/DOM 属性。无标签时图标为装饰元素；需要独立表达含义时传 `aria-label` 或 `label`。原始 SVG、任意导入路径和可执行组件仍不可传入。iframe 插件可在自己的构建包内使用 Lucide。
 
+## 全局浮层与包内图片
+
+`app.overlay` 插槽在应用 Shell 中持续挂载，路由切换后保留，不参与编辑器或其他页面的布局。它只接受声明式视图，清单须同时声明 `ui` 和 `ui.overlay`。宿主浮层的空白区域不接收指针事件；内容使用 `FloatingPanel` 提供交互边界，层级低于应用对话框。停用/卸载后随插件目录刷新移除。
+
+```python
+return {"tree": {"type": "FloatingPanel", "props": {
+    "width": 220, "position": {"x": 24, "y": 120},
+    "dragLabel": "移动挂件", "onPositionChange": "position"
+}, "children": {"type": "Image", "props": {
+    "asset": "assets/mascot.png", "alt": "挂件", "width": 180, "fit": "contain"
+}}}}
+```
+
+`FloatingPanel` 在浏览器本地更新拖动位置，松开后通过 action 的 `value={x,y}`、`event="change"` 提交一次；方向键每次移动 10px 并提交。指针取消恢复原位置。尺寸/视口变化会限制位置在屏幕内；宽度限制为 96–640px，内容超高时内部滚动。`position: null` 使用右下角默认位置。位置的长期保存由插件自己完成，宿主不创建业务专用存储。
+
+`Image.asset` 是相对于本插件 `frontend/` 的路径，例如文件 `frontend/assets/mascot.png` 传 `assets/mascot.png`。它通过认证的 SDK `assets.read` 获取 `{name,mime,base64}`；Python 使用 `await context.assets.read(name)`，iframe 使用 `await OpenFic.assets.read(name)`。要求 `ui` 能力，禁止越界路径和链接到其他目录的文件，单文件最大 `3 MiB - 4096 bytes`。包资源只读，插件可写文本文件仍使用 `files`。UI 只渲染 PNG/JPEG/WebP/GIF/AVIF，拒绝 SVG 等格式，不接受任意 URL 或 HTML；图片不会加入宿主安装包。支持 `alt/width/height/fit/loading` 和公共样式属性。
+
 ## 组件名称和优先级
 
 不带前缀的名称先查找项目组件，再查找 Radix Themes 组件。`Spinner` 使用项目 Spinner，`Select` 使用项目 `LabeledSelect`，`Tooltip` 使用项目 `InfoTooltip`。需要明确选择时使用 `Project.Spinner`、`Radix.Spinner`、`Radix.Tooltip` 或 `Radix.Select.Root`。复合组件保留 Radix 的名称与父子结构，例如 `Dialog.Root → Dialog.Trigger / Dialog.Content → Dialog.Title`。
 
-目录覆盖 **122 个 Radix Themes 组件及子组件入口、11 个项目组件**。这不是任意 npm 组件加载器，也不开放 Radix 内部 hook、Slot、Portal、ThemePanel 或所有 Radix Primitives 包；Portal 由宿主管理。
+目录覆盖 **122 个 Radix Themes 组件及子组件入口、13 个项目组件**。这不是任意 npm 组件加载器，也不开放 Radix 内部 hook、Slot、Portal、ThemePanel 或所有 Radix Primitives 包；Portal 由宿主管理。
 
 | 项目组件 | 用途与权限 |
 | --- | --- |
+| `Image` | 显示本插件 `frontend/` 内的 raster 图片；需 `ui`，不执行 SVG |
+| `FloatingPanel` | 可拖动的原生浮层，需 `ui.overlay`；支持鼠标、触摸和方向键 |
 | `Icon`（别名 `LucideIcon`） | 按名称显示宿主 Lucide 图标，不需额外能力 |
 | `Spinner`、`CircularProgress` | 项目加载和进度显示 |
 | `UnitTextField`、`StepperNumberInput` | 带单位输入、步进数字输入 |
@@ -131,11 +150,14 @@ node frontend/scripts/generate-plugin-ui-catalog.mjs --check
 | `onValueChange/onValueCommit`（Slider） | 数字数组；commit 在交互完成时发送 |
 | `onOpenChange` | boolean |
 | `onFocus/onBlur` | null |
+| `onPositionChange`（FloatingPanel） | `{x, y}`；仅拖动结束或方向键操作时发送 |
 | `onCommit`（StepperNumberInput） | 提交后的数字；onChange 为编辑字符串 |
+
+Slider 的 `label/aria-label/aria-labelledby` 同时命名实际可聚焦的滑块；多个滑块的文字标签附加序号。
 
 所有回调都填写后端 action ID。不能传 React 函数、ref、DOM 节点或事件代码。`asChild` 要求恰好一个组件子节点，宿主会保留 Radix 的 ref、焦点和事件透传。Dialog 等复合组件需遵循 Radix 的结构及无障碍要求，如 Title 和 Description。错误组件树由局部错误边界显示，不应导致主应用崩溃。
 
-旧版 `Box` 保留 Flex 的默认纵向布局和数值间距（每单位 4px，gap 限制为 0–8）；新插件建议使用 `Flex/Grid` 及 Radix 字符串间距（如 `gap="3"`）。`Input` 是 `TextField.Root` 别名，保留编辑草稿；`Code/Markdown` 保留预格式文本，不解析 Markdown。`Svg/Image/Client` 仅显示不支持提示。声明式视图按内容自然布局，对话输入框上方最高为 420px 或窗口高度的 45%，超出部分内部滚动。
+旧版 `Box` 保留 Flex 的默认纵向布局和数值间距（每单位 4px，gap 限制为 0–8）；新插件建议使用 `Flex/Grid` 及 Radix 字符串间距（如 `gap="3"`）。`Input` 是 `TextField.Root` 别名，保留编辑草稿；`Code/Markdown` 保留预格式文本，不解析 Markdown。`Svg/Client` 仅显示不支持提示；`Image` 使用下述包资源接口。声明式视图按内容自然布局，对话输入框上方最高为 420px 或窗口高度的 45%，超出部分内部滚动。
 
 ## 自定义 CSS
 

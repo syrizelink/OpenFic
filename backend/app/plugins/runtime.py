@@ -8,6 +8,8 @@ from app.plugins.services import bounded_json
 
 EVENTS = frozenset(
     {
+        "usage.recorded",
+        "turn.settled",
         "session.start",
         "session.end",
         "turn.start",
@@ -36,6 +38,10 @@ _executing_plugins: ContextVar[tuple[tuple[str, object], ...]] = ContextVar(
 
 
 async def sdk_call(context, method: str, params: dict):
+    if method == "ui.invalidate":
+        return context.invalidate_ui()
+    if method == "assets.read":
+        return await context.assets.read(**params)
     if method == "api.request":
         return await context.api.request(**params)
     if method == "catalogue":
@@ -87,7 +93,10 @@ async def sdk_call(context, method: str, params: dict):
         return context.host.events(params.get("after", 0))
     if method == "hooks.preview":
         context.require("agent.hooks")
-        if params["event"] not in EVENTS:
+        if params["event"] not in EVENTS or params["event"] in {
+            "usage.recorded",
+            "turn.settled",
+        }:
             raise ValueError("Unknown event")
         return await dispatch(
             params["event"],
@@ -126,6 +135,33 @@ async def sdk_call(context, method: str, params: dict):
         context.log(params["message"], params.get("level", "info"))
         return None
     raise ValueError(f"Unsupported SDK method: {method}")
+
+
+async def observe(event: str, payload: dict, *, runtime=None, host=None):
+    """Post-commit notifications: isolated failures; return values never affect billing/runs."""
+    from app.plugins.host import active_host
+    from app.storage.database import create_session
+
+    current = host or active_host()
+    if current is None:
+        return
+    for plugin in list(current.plugins.values()):
+        if not plugin.enabled or plugin.registration is None:
+            continue
+        for _, handler in plugin.registration.hooks.get(event, []):
+            try:
+                async with await create_session() as session:
+                    context = current.context(plugin.manifest.id, session, runtime)
+
+                    async def next_handler(value=None):
+                        return copy.deepcopy(payload)
+
+                    async with asyncio.timeout(3):
+                        await handler(context, copy.deepcopy(payload), next_handler)
+            except Exception:
+                current._log(
+                    plugin.manifest.id, "observer", event + ": observer failed", "error"
+                )
 
 
 async def dispatch(

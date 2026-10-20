@@ -341,6 +341,22 @@ for (const family of roots) {
 }
 const options = { type: "options" };
 const project = {
+  Image: {
+    props: {
+      ...dom,
+      asset: string,
+      alt: string,
+      width: number,
+      height: number,
+      fit: enumOf("contain", "cover", "fill"),
+      loading: enumOf("lazy", "eager"),
+    },
+    capabilities: ["ui"],
+  },
+  FloatingPanel: {
+    props: { ...dom, position: json, width: number, dragLabel: string, onPositionChange: event },
+    capabilities: ["ui.overlay"],
+  },
   Icon: {
     props: {
       ...dom,

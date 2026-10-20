@@ -18,6 +18,32 @@ def bounded_json(value, maximum=4 * 1024 * 1024):
     return json.loads(encoded)
 
 
+class PluginAssets:
+    """Read immutable frontend resources from this plugin's own package."""
+
+    def __init__(self, host, plugin):
+        self.host, self.plugin = host, plugin
+
+    async def read(self, name: str):
+        import mimetypes
+
+        if "ui" not in self.plugin.manifest.capabilities:
+            raise PermissionError("Plugin has not declared ui")
+        base = (self.host.root / self.plugin.manifest.id / "frontend").resolve()
+        path = (base / safe_path(name)).resolve()
+        if not path.is_relative_to(base) or not path.is_file():
+            raise ValueError(
+                "Asset must be a file inside this plugin's frontend directory"
+            )
+        if path.stat().st_size > 3 * 1024 * 1024 - 4096:
+            raise ValueError("Asset exceeds bridge transfer limit")
+        return {
+            "name": name,
+            "mime": mimetypes.guess_type(name)[0] or "application/octet-stream",
+            "base64": base64.b64encode(path.read_bytes()).decode(),
+        }
+
+
 class PluginStorage:
     def __init__(self, host, plugin, *, secret=False):
         self.host, self.plugin, self.secret = host, plugin, secret

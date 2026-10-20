@@ -593,6 +593,7 @@ class PluginHost:
                 raise PluginError(str(error)) from error
             self._persist()
             self._log(plugin_id, "configure", "Configuration updated")
+            self.emit("ui.invalidate", {}, plugin_id)
             return self.describe(plugin)
 
     async def uninstall(self, plugin_id: str):

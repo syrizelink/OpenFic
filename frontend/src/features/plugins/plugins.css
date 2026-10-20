@@ -238,3 +238,31 @@
   height: 100%;
   min-height: 0;
 }
+
+.plugin-overlays {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+}
+.plugin-overlays > .plugin-view,
+.plugin-overlays .plugin-declarative {
+  height: 0;
+  padding: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.plugin-floating-panel-handle {
+  display: flex;
+  margin-inline: auto;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--gray-11);
+  background: var(--gray-a3);
+  cursor: grab;
+  touch-action: none;
+}
+.plugin-floating-panel-handle:active {
+  cursor: grabbing;
+}

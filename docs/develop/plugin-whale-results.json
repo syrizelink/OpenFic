@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-20",
+  "branch": "feat/extension-host",
+  "baseCommit": "cc15585",
+  "approach": "Native public SDK port; no DSH compatibility layer or plugin ID special cases in host",
+  "upstream": {
+    "repository": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget",
+    "version": "0.4.2",
+    "commit": "5247dd6813d6e4430728f39ccc63d43cda046022",
+    "upstreamJavaScriptBundled": false,
+    "artworkUnmodified": true,
+    "artworkOutsideMIT": true
+  },
+  "sdk": {
+    "slotsAdded": [
+      "app.overlay"
+    ],
+    "capabilitiesAdded": [
+      "ui.overlay"
+    ],
+    "componentsAdded": [
+      "Image",
+      "FloatingPanel"
+    ],
+    "observersAdded": [
+      "usage.recorded",
+      "turn.settled"
+    ],
+    "publicMethodsAdded": [
+      "assets.read",
+      "context.invalidate_ui",
+      "context.call(ui.invalidate)"
+    ],
+    "radixNodes": 122,
+    "projectComponents": 13,
+    "newFrontendDependencies": [],
+    "independentProbe": "frontend/e2e/fixtures/plugin-overlay-probe"
+  },
+  "verification": {
+    "backend": {
+      "command": "pytest tests/plugins tests/agent_runtime -q",
+      "log": "/workspace/openfic-verification/whale-port/backend-verified.log",
+      "passed": 1066,
+      "skipped": 8,
+      "followup": {
+        "command": "pytest tests/agent_runtime/runner/test_subagent_runner.py -q",
+        "log": "/workspace/openfic-verification/whale-port/backend-subagent-final.log",
+        "passed": 22,
+        "reason": "Completed child-observer project_id and usage_kind metadata after the full run; all 22 subagent tests passed."
+      }
+    },
+    "frontend": {
+      "passed": 30,
+      "browserCases": 19,
+      "logicCases": 11,
+      "runs": [
+        {
+          "scope": "native whale",
+          "log": "/workspace/openfic-verification/whale-port/browser-whale-final.log",
+          "results": "/workspace/openfic-verification/whale-port/browser-whale-final.json",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "durationMs": 79578.842
+        },
+        {
+          "scope": "existing plugins/components",
+          "log": "/workspace/openfic-verification/whale-port/browser-regression-final.log",
+          "results": "/workspace/openfic-verification/whale-port/browser-regression-final.json",
+          "passed": 25,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "durationMs": 219150.484
+        },
+        {
+          "scope": "existing chapter/note editor",
+          "log": "/workspace/openfic-verification/whale-port/browser-writing-final.log",
+          "results": "/workspace/openfic-verification/whale-port/browser-writing-final.json",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "durationMs": 116577.355
+        }
+      ]
+    },
+    "static": {
+      "typeCheck": true,
+      "tscBuild": true,
+      "whaleSpecTypes": true,
+      "oxlint": true,
+      "oxfmtChangedFrontend": true,
+      "ruffChangedPython": true,
+      "productionBuild": true
+    },
+    "deliverables": {
+      "package": {
+        "baseline": {
+          "files": 745,
+          "raw": 37396506,
+          "jsGzip6": 4333528
+        },
+        "current": {
+          "files": 745,
+          "raw": 37401400,
+          "jsGzip6": 4335174
+        },
+        "delta": {
+          "files": 0,
+          "raw": 4894,
+          "jsGzip6": 1646
+        },
+        "zipBytes": 268191,
+        "artworkSHA256": "dcc456613dbb1102a4b7ef636a8b622371e33b763489d6249c434fb54248ba5c",
+        "packageFiles": 6,
+        "zipSHA256": "d96238307134f01e3d5bc951eacaef425cd84aacfcd4d632b07ff1b424c31156",
+        "sourceIdentical": true,
+        "sdkTypesIdentical": true
+      },
+      "wheel": {
+        "file": "/workspace/openfic-verification/whale-port/wheels/openfic-0.12.1-py3-none-any.whl",
+        "bytes": 30806797,
+        "sha256": "8a00703a4a700353ad8534962423380482b5d5cdf700677563810c7ef9b7974f",
+        "frontendFiles": 745,
+        "checkedBackendFiles": 10,
+        "pluginArtworkEmbedded": false,
+        "contentIdentical": true
+      },
+      "frontendPassed": 30
+    }
+  },
+  "screenshot": {
+    "file": "/workspace/openfic-verification/whale-port/chapter-editor-with-whale.png",
+    "afterFinalTests": true,
+    "simulatedExternalBalance": true,
+    "sha256": "549d922778f8e6368829ee8750329b902b60e1e2a94ce1d54078f804486125e3",
+    "details": {
+      "path": "/workspace/openfic-verification/whale-port/chapter-editor-with-whale.png",
+      "projectId": "OcJ1uTkoTraSR4INZ4Nyw",
+      "chapterId": "ytNvaXasn3gWfZRKr9BMZ",
+      "editorBoundsUnchanged": true,
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "simulatedBalance": "CNY 98.20",
+      "pageErrors": []
+    }
+  },
+  "limitations": [
+    "External DeepSeek/Google/LLM responses are protocol simulations; no real account authorization or paid model calls.",
+    "No physical mobile device or native desktop shell installer was run.",
+    "Port covers core widget, balance observation and persisted Agent usage; upstream feature parity is not claimed.",
+    "Usage observers are best effort without historical replay."
+  ]
+}

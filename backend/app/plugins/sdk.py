@@ -90,6 +90,12 @@ class PluginContext:
     _private_runtime: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
+    def assets(self):
+        from app.plugins.services import PluginAssets
+
+        return PluginAssets(self.host, self.plugin)
+
+    @property
     def plugin(self):
         return self.host.get(self.plugin_id)
 
@@ -174,6 +180,11 @@ class PluginContext:
     def emit(self, event: str, data: dict):
         self.require("events")
         return self.host.emit(f"plugin.{self.plugin_id}.{event}", data, self.plugin_id)
+
+    def invalidate_ui(self):
+        """Notify native views without escaping the plugin event namespace manually."""
+        self.require("ui")
+        return self.host.emit("ui.invalidate", {}, self.plugin_id)
 
     def log(self, message: str, level="info"):
         self.host._log(self.plugin_id, "plugin", str(message)[:4000], level)

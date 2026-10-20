@@ -4,6 +4,7 @@ import inspect
 import asyncio
 import time
 from datetime import UTC, datetime
+from uuid import uuid4
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -953,6 +954,18 @@ class SubagentRunner:
             finally:
                 await _close_session(session)
 
+            from app.plugins.runtime import observe
+
+            await observe("usage.recorded", {
+                **delta_payload, "event_id": uuid4().hex,
+                "session_id": row.child_thread_id,
+                "parent_session_id": row.parent_session_id,
+                "project_id": self.project_id,
+                "revision_id": row.parent_revision_id,
+                "is_subagent": True, "model_id": payload.get("model_id"),
+                "usage_kind": payload.get("usage_kind", "model"),
+                "currency": "USD", "created_at": datetime.now(UTC).isoformat(),
+            })
             await emit(
                 "agent:task_usage_delta",
                 delta_payload,

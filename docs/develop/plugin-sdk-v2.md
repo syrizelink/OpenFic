@@ -10,7 +10,7 @@
 | 提示词链、规则、技能及引用、Agent 定义、记忆 | 对应业务 API 与 schema |
 | 会话、任务、修订、摘要、索引、后台作业、导入导出 | 对应业务 API；会话启动、发送、取消、恢复等沿用内置执行器 |
 | 模型、提供商、应用设置、仪表盘、审计、隧道 | 对应业务 API，分别要求明确的读/写能力 |
-| 插件数据 | 独立 JSON KV、加密密钥存储、插件目录内文本文件 |
+| 插件数据 | 独立 JSON KV、加密密钥存储、插件目录内文本文件、`assets.read` 包内只读资源 |
 | 网络与模型 | 显式网络域名、受限 HTTP 客户端；已配置模型的调用接口 |
 | Agent 扩展 | 注册动态工具、事件中间件、编译后的 LangGraph/Runnable 提供者 |
 | UI | 多位置声明式原生组件或 iframe 视图、导航、通知、下载、剪贴板、编辑器操作和事件 |
@@ -112,10 +112,19 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 
 `context.models.create(model_id)` / `complete(messages, model_id)` 复用已配置模型；要求 `agent.models`。`context.agent.start/send/cancel` 提供常用会话控制，要求 `agent.invoke` 以及相应 `sessions.read/write`；恢复、审批、分叉、回滚、附件等完整操作由业务目录提供。
 
+### 已提交用量与回合完成通知
+
+`register_hook("usage.recorded", handler)` 在内置主 Agent 或子 Agent 的费用已提交数据库后通知；`register_hook("turn.settled", handler)` 在成功回合完成持久化后通知。两者要求 `agent.hooks`。handler 签名沿用中间件，但**返回值不修改费用或执行结果**，`hooks.preview` 不能伪造这些通知。每个观察者获得独立载荷副本和数据库 session，上限 3 秒；异常仅写插件日志，不将已成功的费用提交改成失败。此机制按运行流程尽力送达，不提供持久化消息队列或停用期间的历史回放；同步阻塞 Python 代码仍不受异步超时强制隔离。
+
+`usage.recorded` 包含唯一 `event_id`、`session_id/task_id/project_id/revision_id`、`cost`、`token_input/token_output/token_cache`、`currency: "USD"`、可用时的 `model_id`、`usage_kind` 和 `created_at`。cache 属于 input 子集，不应重复加到总 token。费用采用宿主模型配置的美元价格，不代表模型服务商实际账单；`model_id` 在压缩计费及某些子 Agent 通知中可能为空。子 Agent 同时带 `parent_session_id/is_subagent`，revision 指向父回合；父事件不重复包含子 Agent 的费用。
+
+`turn.settled` 包含 `session_id/task_id/project_id/revision_id/status/created_at`，目前 `status` 仅为 `completed`。失败/取消不发送该成功通知。按 session + revision 聚合，可以避免把中断回合的费用计入下一次成功回合；每日统计仍应保留已经产生的费用。`turn.complete` 是较早的可改写执行钩子，不能用作数据库费用已结算的信号。
+
 ## UI 插槽与操作细节
 
 | 插槽 | 位置与呈现 |
 | --- | --- |
+| `app.overlay` | 应用全局原生浮层；不占布局，需 `ui.overlay`，只支持声明式视图 |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `project.toolbar` | 项目列表与项目写作侧栏的入口 |
 | `editor.toolbar` | 章节和笔记编辑器现有工具栏内的图标按钮，默认打开浮层 |

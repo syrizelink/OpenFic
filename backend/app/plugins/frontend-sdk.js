@@ -60,6 +60,7 @@
     projects: resource("projects"), chapters: resource("chapters"), volumes: resource("volumes"),
     notes: resource("notes"), characters: resource("characters"),
     storage: store("storage"), secrets: { set: store("secrets").set, delete: store("secrets").delete, keys: store("secrets").keys },
+    assets: { read: name => remote("assets.read", { name }) },
     files: { read: name => remote("files.read", { name }), write: (name, text) => remote("files.write", { name, text }), list: (name = "") => remote("files.list", { name }), delete: name => remote("files.delete", { name }) },
     http: { request: (method, url, options = {}) => remote("http.request", { method, url, ...options }) },
     models: { complete: (messages, model_id, options = {}) => remote("models.complete", { messages, model_id, ...options }) },

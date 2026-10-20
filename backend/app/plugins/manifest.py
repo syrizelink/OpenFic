@@ -9,6 +9,7 @@ API_VERSION = 1
 SDK_VERSION = "2.0.0"
 UI_SLOTS = (
     "sidebar.extensions",
+    "app.overlay",
     "project.toolbar",
     "editor.toolbar",
     "editor.context",
@@ -56,6 +57,7 @@ CAPABILITIES = frozenset(
         "network",
         "events",
         "ui",
+        "ui.overlay",
         "editor.read",
         "editor.write",
         "agent.tools",
@@ -218,6 +220,16 @@ class Manifest(Contract):
             and "ui" not in self.capabilities
         ):
             raise ValueError("Declarative views require ui capability")
+        if (
+            any(view.slot == "app.overlay" for view in self.views)
+            and "ui.overlay" not in self.capabilities
+        ):
+            raise ValueError("Application overlays require ui.overlay capability")
+        if any(
+            view.slot == "app.overlay" and view.renderer != "declarative"
+            for view in self.views
+        ):
+            raise ValueError("Application overlays currently require declarative UI")
         for values in (
             [view.id for view in self.views],
             [s.key for s in self.settings],

@@ -4,6 +4,7 @@ import {
   createElement,
   isValidElement,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ComponentType,
@@ -104,14 +105,29 @@ function SliderControl({
   props: UIProps;
   action: UIAction;
 }) {
+  const root = useRef<HTMLSpanElement>(null);
   const external = JSON.stringify(p.value ?? p.defaultValue ?? [0]);
   const [draft, setDraft] = useState<number[]>(JSON.parse(external));
   useEffect(() => {
     setDraft(JSON.parse(external));
   }, [external]);
+  // Themes forwards ARIA props to its root, while the focusable sliders are thumbs.
+  // Name each thumb as well so SDK labels work for keyboard and screen reader users.
+  const label = str(forwarded["aria-label"]);
+  const labelledBy = str(forwarded["aria-labelledby"]);
+  useLayoutEffect(() => {
+    root.current?.querySelectorAll('[role="slider"]').forEach((thumb, index) => {
+      if (label)
+        thumb.setAttribute("aria-label", draft.length > 1 ? `${label} ${index + 1}` : label);
+      else thumb.removeAttribute("aria-label");
+      if (labelledBy) thumb.setAttribute("aria-labelledby", labelledBy);
+      else thumb.removeAttribute("aria-labelledby");
+    });
+  }, [label, labelledBy, draft.length]);
   return (
     <Radix.Slider
       {...forwarded}
+      ref={root}
       value={draft}
       onValueChange={(value) => {
         setDraft(value);
@@ -275,7 +291,11 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
       );
     }
     const change = (value: UIValue, kind = "change") =>
-      context.action(str(p.onValueChange || p.onChange || p.onSelect || p.onInput), value, kind);
+      context.action(
+        str(p.onPositionChange || p.onValueChange || p.onChange || p.onSelect || p.onInput),
+        value,
+        kind,
+      );
     if (name === "StepperNumberInput") {
       props.onChange = (value: string) => context.action(str(p.onChange), value, "input");
       props.onCommit = (value: number) => context.action(str(p.onCommit), value, "change");
@@ -313,7 +333,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
         {projectChildren}
       </ProjectComponent>
     );
-    if (["Spinner", "CircularProgress"].includes(name)) return element;
+    if (["Spinner", "CircularProgress", "Image", "FloatingPanel"].includes(name)) return element;
     const wrapper = Object.fromEntries(
       Object.entries(props).filter(
         ([key]) =>

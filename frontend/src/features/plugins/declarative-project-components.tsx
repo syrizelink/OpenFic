@@ -15,6 +15,8 @@ import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 import type { Project } from "@/lib/project.types";
 
 import { pluginError } from "./api";
+import { DeclarativeFloatingPanel } from "./declarative-floating-panel";
+import { DeclarativeImage } from "./declarative-image";
 import type { UIProps, UIValue } from "./declarative-schema";
 
 interface ProjectProps {
@@ -130,6 +132,29 @@ const components: Record<string, ComponentType<Record<string, unknown>>> = {
 } as unknown as Record<string, ComponentType<Record<string, unknown>>>;
 export function ProjectComponent(input: ProjectProps) {
   const { name, props: p, forwarded, children, change } = input;
+  if (name === "Image")
+    return (
+      <DeclarativeImage
+        {...input.forwarded}
+        pluginId={input.pluginId}
+        asset={str(p.asset)}
+        alt={str(p.alt)}
+        width={typeof p.width === "number" ? p.width : undefined}
+        height={typeof p.height === "number" ? p.height : undefined}
+      />
+    );
+  if (name === "FloatingPanel")
+    return (
+      <DeclarativeFloatingPanel
+        forwarded={input.forwarded}
+        position={p.position}
+        width={typeof p.width === "number" ? p.width : undefined}
+        dragLabel={str(p.dragLabel, "Move panel")}
+        onPositionChange={(value) => input.change(value)}
+      >
+        {input.children}
+      </DeclarativeFloatingPanel>
+    );
   if (name === "ModelIdSelect") return <ModelControl {...input} />;
   if (name === "ProjectSelectField" || name === "ProjectGridSelector")
     return <ProjectControl {...input} />;

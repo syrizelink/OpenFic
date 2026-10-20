@@ -1,0 +1,20 @@
+{
+  "id": "deepseek-whale",
+  "name": "DeepSeek 小鲸鱼",
+  "version": "1.0.0",
+  "api_version": 1,
+  "description": "原生声明式悬浮挂件：DeepSeek 余额、观测记账、预算提醒、Agent 用量与气泡。",
+  "author": "OpenFic port; original concept and artwork: MeteorNOX",
+  "backend": "backend/main.py",
+  "capabilities": ["ui", "ui.overlay", "storage", "secrets", "network", "timers", "events", "agent.hooks"],
+  "network_hosts": ["api.deepseek.com"],
+  "views": [
+    {"id": "widget", "title": "DeepSeek 小鲸鱼挂件", "slot": "app.overlay", "renderer": "declarative", "render": "ui.render", "action": "ui.action"},
+    {"id": "settings", "title": "DeepSeek 小鲸鱼", "slot": "sidebar.extensions", "renderer": "declarative", "render": "ui.render", "action": "ui.action"}
+  ],
+  "settings": [
+    {"key": "apiKey", "label": "DeepSeek API Key（仅发送到 api.deepseek.com）", "type": "string", "default": "", "secret": true},
+    {"key": "budget", "label": "每日余额观测消费预算（账户币种；0 关闭）", "type": "number", "default": 0, "minimum": 0},
+    {"key": "lowBalance", "label": "低余额提醒阈值（账户币种）", "type": "number", "default": 5, "minimum": 0}
+  ]
+}

@@ -1,5 +1,5 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "project.toolbar" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "project.toolbar" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
 export type PluginView = { id: string; title: string; slot?: UIAction; height?: number; icon?: UIIconName; presentation?: "popover" | "dialog" } & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
@@ -73,6 +73,7 @@ export type UIComponent =
   "DropdownMenu.TriggerIcon" |
   "Em" |
   "Flex" |
+  "FloatingPanel" |
   "Grid" |
   "Heading" |
   "HoverCard.Content" |
@@ -80,6 +81,7 @@ export type UIComponent =
   "HoverCard.Trigger" |
   "Icon" |
   "IconButton" |
+  "Image" |
   "InfoTooltip" |
   "Input" |
   "Inset" |
@@ -97,7 +99,9 @@ export type UIComponent =
   "Popover.Trigger" |
   "Progress" |
   "Project.CircularProgress" |
+  "Project.FloatingPanel" |
   "Project.Icon" |
+  "Project.Image" |
   "Project.InfoTooltip" |
   "Project.LabeledSelect" |
   "Project.ModelIdSelect" |
@@ -312,6 +316,7 @@ export interface UIProps {
   "ariaLabel"?: string;
   "as"?: "div" | "span" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "span" | "div" | "label" | "p";
   "asChild"?: boolean;
+  "asset"?: string;
   "autoCapitalize"?: string;
   "autoComplete"?: string;
   "autoFocus"?: boolean;
@@ -345,12 +350,14 @@ export interface UIProps {
   "disabled"?: boolean;
   "display"?: UIResponsive<"none" | "inline" | "inline-block" | "block" | "contents"> | UIResponsive<"none" | "initial"> | UIResponsive<"none" | "inline-flex" | "flex"> | UIResponsive<"none" | "inline-grid" | "grid">;
   "download"?: string;
+  "dragLabel"?: string;
   "duration"?: string;
   "editable"?: boolean;
   "emptyMessage"?: string;
   "emptyOptionLabel"?: string;
   "enterKeyHint"?: "enter" | "done" | "go" | "next" | "previous" | "search" | "send";
   "fallback"?: string;
+  "fit"?: "contain" | "cover" | "fill";
   "flexBasis"?: UIResponsive<string>;
   "flexDirection"?: "row" | "column";
   "flexGrow"?: UIResponsive<string>;
@@ -368,7 +375,7 @@ export interface UIProps {
   "gridRowEnd"?: UIResponsive<string>;
   "gridRowStart"?: UIResponsive<string>;
   "hasBackground"?: boolean;
-  "height"?: UIResponsive<string>;
+  "height"?: UIResponsive<string> | number;
   "hidden"?: boolean;
   "hideTriggerChevron"?: boolean;
   "hideWhenDetached"?: boolean;
@@ -395,7 +402,7 @@ export interface UIProps {
   "layout"?: UIResponsive<"auto" | "fixed"> | "vertical" | "horizontal";
   "left"?: UIResponsive<string>;
   "leftUnit"?: string;
-  "loading"?: boolean;
+  "loading"?: boolean | "lazy" | "eager";
   "loop"?: boolean;
   "m"?: UIResponsive<string>;
   "marginTop"?: number;
@@ -424,6 +431,7 @@ export interface UIProps {
   "onFocus"?: string;
   "onInput"?: string;
   "onOpenChange"?: string;
+  "onPositionChange"?: string;
   "onPress"?: string;
   "onSelect"?: string;
   "onSubmit"?: string;
@@ -446,7 +454,7 @@ export interface UIProps {
   "pl"?: UIResponsive<string> | UIResponsive<"current" | "0">;
   "placeholder"?: string;
   "plain"?: boolean;
-  "position"?: UIResponsive<"static" | "relative" | "absolute" | "fixed" | "sticky"> | "item-aligned" | "popper";
+  "position"?: UIResponsive<"static" | "relative" | "absolute" | "fixed" | "sticky"> | "item-aligned" | "popper" | Json;
   "pr"?: UIResponsive<string> | UIResponsive<"current" | "0">;
   "pt"?: UIResponsive<string> | UIResponsive<"current" | "0">;
   "px"?: UIResponsive<string> | UIResponsive<"current" | "0">;
@@ -554,6 +562,7 @@ export interface OpenFicSDK {
   resource<T = Record<string, Json>>(name: string): Resource<T>;
   projects: Resource; chapters: Resource; volumes: Resource; notes: Resource; characters: Resource;
   storage: Store; secrets: Pick<Store, "set" | "delete" | "keys">;
+  assets: { read(name: string): Promise<{ name: string; mime: string; base64: string }> };
   files: { read(name: string): Promise<string>; write(name: string, text: string): Promise<void>; delete(name: string): Promise<void>; list(name?: string): Promise<string[]> };
   http: { request(method: string, url: string, options?: { headers?: Record<string,string>; json?: Json; body?: string; form?: Record<string,string> }): Promise<HTTPResponse> };
   models: { complete(messages: ChatMessage[], modelId?: string, options?: { temperature?: number; max_tokens?: number; top_p?: number }): Promise<ChatMessage> };
