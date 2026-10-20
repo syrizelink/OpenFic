@@ -19,17 +19,19 @@ function AudioSettingRow({
   label,
   description,
   children,
+  compact = false,
 }: {
   label: string;
   description: string;
   children: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <Flex
       align="center"
       justify="between"
       gap="4"
-      className="audio-settings-row"
+      className={`audio-settings-row${compact ? " audio-settings-row--compact" : ""}`}
     >
       <Flex
         direction="column"
@@ -174,6 +176,7 @@ export function AudioSettings() {
         <AudioSettingRow
           label={t("speech.enable")}
           description={t("speech.enabledHint")}
+          compact
         >
           <Switch
             checked={value.enabled}
@@ -185,6 +188,7 @@ export function AudioSettings() {
         <AudioSettingRow
           label={t("speech.provider")}
           description={t("speech.providerHint")}
+          compact
         >
           <LabeledSelect
             value={value.provider}

@@ -12,8 +12,18 @@
 
 .audio-settings-control > .rt-TextFieldRoot,
 .audio-settings-control > .rt-Flex,
-.audio-settings-provider-select {
+.audio-settings-control > .audio-settings-provider-select {
   width: 100%;
+  min-width: 0;
+}
+
+.audio-settings-control > .audio-settings-provider-select {
+  max-width: 100%;
+}
+
+.audio-settings-provider-select .rt-SelectTriggerInner,
+.audio-settings-provider-select .rt-SelectTriggerInner > .rt-Flex {
+  min-width: 0;
 }
 
 .audio-settings-provider-icon {
@@ -66,15 +76,20 @@
     flex-basis: 100%;
   }
 
-  .audio-settings-row:first-child {
+  .audio-settings-row--compact {
     flex-wrap: nowrap;
   }
 
-  .audio-settings-row:first-child .audio-settings-label {
+  .audio-settings-row--compact .audio-settings-label {
     flex: 1;
   }
 
-  .audio-settings-row:first-child .audio-settings-control {
-    flex: 0 0 auto;
+  .audio-settings-row--compact .audio-settings-control {
+    flex: 0 1 auto;
+    max-width: 62%;
+  }
+
+  .audio-settings-row--compact .audio-settings-control:has(.audio-settings-provider-select) {
+    flex-basis: 62%;
   }
 }

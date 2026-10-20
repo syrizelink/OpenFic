@@ -283,7 +283,32 @@ test("ASR settings use compact rows, save the toggle immediately and disclose op
       .evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
   ).toBe(true);
   await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+  const expectProviderInline = async () => {
+    const aligned = await mobileProvider.evaluate((trigger) => {
+      const label = trigger.closest(".audio-settings-row")?.querySelector(".audio-settings-label");
+      if (!label) return false;
+      const labelRect = label.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      return (
+        Math.abs(labelRect.top + labelRect.height / 2 - triggerRect.top - triggerRect.height / 2) <
+          2 && triggerRect.left >= labelRect.right
+      );
+    });
+    expect(aligned).toBe(true);
+  };
+  await expectProviderInline();
   await page.screenshot({ path: testInfo.outputPath("asr-settings-mobile.png") });
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const name of ["本地 SenseVoice Small", "OpenAI / OpenAI compatible"]) {
+    await mobileProvider.click();
+    await page.getByRole("button", { name, exact: true }).click();
+    await expectProviderInline();
+    expect(
+      await page
+        .locator(".audio-settings")
+        .evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+    ).toBe(true);
+  }
 });
 
 test("microphone permission failure and empty transcripts are recoverable", async ({
