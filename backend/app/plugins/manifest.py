@@ -100,11 +100,23 @@ class View(Contract):
     action: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
     slot: str = "sidebar.extensions"
     height: int = Field(default=320, ge=80, le=1600)
+    icon: str | None = None
+    presentation: Literal["popover", "dialog"] | None = None
 
     @model_validator(mode="after")
     def known_slot(self):
         if self.slot not in UI_SLOTS:
             raise ValueError(f"Unknown UI slot: {self.slot}")
+        if self.icon is not None:
+            from .declarative import normalize_icon
+
+            self.icon = normalize_icon(self.icon)
+        if self.presentation is not None and self.slot not in {
+            "editor.toolbar",
+            "editor.context",
+            "editor.panel",
+        }:
+            raise ValueError("presentation is only supported in editor slots")
         if self.renderer == "iframe":
             if not self.entry or self.render or self.action:
                 raise ValueError(

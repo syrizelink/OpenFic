@@ -96,14 +96,17 @@ test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt inje
     await page.goto("/extensions");
     await page.getByRole("checkbox").check();
     for (const id of examples) {
+      const { version } = JSON.parse(
+        readFileSync(`${root}examples/plugins/${id}/plugin.json`, "utf8"),
+      );
       execFileSync("python3", [
         `${root}examples/plugins/build_package.py`,
         `${root}examples/plugins/${id}`,
-        `${root}examples/plugins/dist/${id}-1.1.0.zip`,
+        `${root}examples/plugins/dist/${id}-${version}.zip`,
       ]);
       await page
         .locator('input[type="file"]')
-        .setInputFiles(`${root}examples/plugins/dist/${id}-1.1.0.zip`);
+        .setInputFiles(`${root}examples/plugins/dist/${id}-${version}.zip`);
       const card = page.locator(`[data-plugin-id="${id}"]`);
       await expect(card).toBeVisible();
       await card.getByRole("button", { name: "启用", exact: true }).click();
@@ -276,7 +279,7 @@ test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt inje
     await page.getByText("验证章节", { exact: true }).first().click();
     await expect(page.locator(".tiptap.ProseMirror").first()).toBeVisible();
     await page
-      .locator('[data-plugin-slot="editor.toolbar"]')
+      .locator('.editor-toolbar [data-plugin-slot="editor.toolbar"]')
       .getByRole("button", { name: "提示词与编辑器", exact: true })
       .click();
     const editor = page.locator('[data-plugin-view="prompt-elements/editor"]');
@@ -298,9 +301,11 @@ test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt inje
     await editor.getByRole("button", { name: "撤销", exact: true }).click();
     await expect(editor.locator("#status")).toHaveText("已撤销，请保存");
     await expect(page.locator(".tiptap.ProseMirror").first()).not.toContainText("插件写入并保存。");
+    await page.keyboard.press("Escape");
+    await expect(editor).not.toBeVisible();
     await page.locator(".tiptap.ProseMirror").first().fill("工具栏同步：当前编辑器的新正文。");
     await page
-      .locator('[data-plugin-slot="editor.toolbar"]')
+      .locator('.editor-toolbar [data-plugin-slot="editor.toolbar"]')
       .getByRole("button", { name: "云同步", exact: true })
       .click();
     const toolbar = page.locator('[data-plugin-view="google-drive-sync/toolbar"]');
@@ -319,6 +324,8 @@ test("SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt inje
       path: test.info().outputPath("drive-editor-toolbar.png"),
       animations: "disabled",
     });
+    await page.keyboard.press("Escape");
+    await expect(toolbar).not.toBeVisible();
     const switches = page.locator('[data-plugin-view="prompt-elements/switches"]');
     if (!(await switches.isVisible())) {
       await page.getByRole("button", { name: "Agent", exact: true }).first().click();

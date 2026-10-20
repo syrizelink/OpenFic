@@ -1,0 +1,321 @@
+{
+  "date": "2026-10-20",
+  "branch": "feat/extension-host",
+  "base_commit": "24331c5",
+  "backend": {
+    "command": "pytest tests/plugins -q",
+    "passed": 82,
+    "log": "/workspace/openfic-verification/editor-plugin-toolbar/backend-tests.log"
+  },
+  "production_frontend": {
+    "stats": {
+      "startTime": "2026-10-20T01:44:33.726Z",
+      "duration": 198320.721,
+      "expected": 25,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "tests": [
+      {
+        "file": "app-shell-regression.spec.ts",
+        "name": "original navigation, settings plugin category and mobile shell still render",
+        "status": "passed",
+        "duration_ms": 13754
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "compiles nesting without browser CSSOM or native scope",
+        "status": "passed",
+        "duration_ms": 36
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "namespaces keyframes, animation lists, fallback variables and inline styles",
+        "status": "passed",
+        "duration_ms": 16
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "escaped and quoted animation identifiers are parsed without rewriting timing keywords",
+        "status": "passed",
+        "duration_ms": 3
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "drops global registrations and unsafe declarations without dropping valid rules",
+        "status": "passed",
+        "duration_ms": 10
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "validates URL forms and inline styles using the same resource policy",
+        "status": "passed",
+        "duration_ms": 11
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "rejects malformed styles, invalid scopes and excessive input and rule depth",
+        "status": "passed",
+        "duration_ms": 415
+      },
+      {
+        "file": "declarative-css.spec.ts",
+        "name": "browser renders roots, nesting, form fields, pseudos and portals while containing hostile selectors",
+        "status": "passed",
+        "duration_ms": 881
+      },
+      {
+        "file": "declarative-effects.spec.ts",
+        "name": "effects execute in order and pass results to a bounded continuation",
+        "status": "passed",
+        "duration_ms": 12
+      },
+      {
+        "file": "declarative-effects.spec.ts",
+        "name": "rejects unknown methods and malformed batches before performing any effect",
+        "status": "passed",
+        "duration_ms": 10
+      },
+      {
+        "file": "declarative-effects.spec.ts",
+        "name": "capability denial or leaving a view prevents later effects and callbacks",
+        "status": "passed",
+        "duration_ms": 4
+      },
+      {
+        "file": "declarative-effects.spec.ts",
+        "name": "limits recursive effects and preserves ordinary action responses",
+        "status": "passed",
+        "duration_ms": 3
+      },
+      {
+        "file": "declarative-effects.spec.ts",
+        "name": "discardResult avoids sending unnecessary editor snapshots back to the plugin",
+        "status": "passed",
+        "duration_ms": 2
+      },
+      {
+        "file": "declarative-plugins.spec.ts",
+        "name": "one plugin mixes native Radix controls and legacy iframe, with safe rendering and persisted actions",
+        "status": "passed",
+        "duration_ms": 11763
+      },
+      {
+        "file": "declarative-showcase.spec.ts",
+        "name": "native catalogue, project data, Radix events, responsive props and scoped portals",
+        "status": "passed",
+        "duration_ms": 16797
+      },
+      {
+        "file": "declarative-showcase.spec.ts",
+        "name": "project selectors keep their mobile sheets and portal focus",
+        "status": "passed",
+        "duration_ms": 26091
+      },
+      {
+        "file": "editor-plugin-toolbar.spec.ts",
+        "name": "editor slots stay in the toolbar: native/Lucide, legacy portals, selections, notes and touch",
+        "status": "passed",
+        "duration_ms": 22962
+      },
+      {
+        "file": "native-examples.spec.ts",
+        "name": "project-statistics: native styling, usable controls, desktop and mobile layout",
+        "status": "passed",
+        "duration_ms": 11058
+      },
+      {
+        "file": "native-examples.spec.ts",
+        "name": "google-drive-sync: native styling, usable controls, desktop and mobile layout",
+        "status": "passed",
+        "duration_ms": 10560
+      },
+      {
+        "file": "native-examples.spec.ts",
+        "name": "handoff-workflow: native styling, usable controls, desktop and mobile layout",
+        "status": "passed",
+        "duration_ms": 14549
+      },
+      {
+        "file": "native-examples.spec.ts",
+        "name": "prompt-elements: native styling, usable controls, desktop and mobile layout",
+        "status": "passed",
+        "duration_ms": 11908
+      },
+      {
+        "file": "plugin-sdk.spec.ts",
+        "name": "SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt injection and editor",
+        "status": "passed",
+        "duration_ms": 29503
+      },
+      {
+        "file": "plugin-sdk.spec.ts",
+        "name": "management rejects raw and converted Mods and keeps native installation available",
+        "status": "passed",
+        "duration_ms": 4797
+      },
+      {
+        "file": "plugin-sdk.spec.ts",
+        "name": "React plugin uses the typed SDK package, inline styles, persistence and capability checks",
+        "status": "passed",
+        "duration_ms": 8935
+      },
+      {
+        "file": "plugins.spec.ts",
+        "name": "install a unified package, render statistics, configure, disable and uninstall",
+        "status": "passed",
+        "duration_ms": 9786
+      }
+    ]
+  },
+  "original_editor_regression": {
+    "stats": {
+      "startTime": "2026-10-20T01:47:52.952Z",
+      "duration": 81687.65400000001,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "tests": [
+      {
+        "file": "writing-regression.spec.ts",
+        "name": "original chapter/note editing, saves and capability boundaries with plugin absent",
+        "status": "passed",
+        "duration_ms": 25920
+      },
+      {
+        "file": "writing-regression.spec.ts",
+        "name": "original chapter/note editing, saves and capability boundaries with plugin disabled",
+        "status": "passed",
+        "duration_ms": 26440
+      },
+      {
+        "file": "writing-regression.spec.ts",
+        "name": "original chapter/note editing, saves and capability boundaries with plugin enabled",
+        "status": "passed",
+        "duration_ms": 28010
+      }
+    ]
+  },
+  "static_checks": [
+    "catalogue --check",
+    "oxlint --type-aware --type-check",
+    "tsc -b",
+    "oxlint",
+    "oxfmt --check",
+    "ruff check",
+    "ruff format --check",
+    "git diff --check"
+  ],
+  "build": {
+    "passed": true,
+    "lucide_icons": 1748,
+    "deferred_icon_chunk_precached": true,
+    "sdk_copies_identical": true
+  },
+  "packages": [
+    {
+      "id": "project-statistics",
+      "version": "1.1.0",
+      "file": "examples/plugins/dist/project-statistics-1.1.0.zip",
+      "sha256": "ca992587ec42f35887d29a0ab310ffba7add6b02a0487bec2163ce6db74dcf1e",
+      "zip_matches_source": true
+    },
+    {
+      "id": "google-drive-sync",
+      "version": "1.2.0",
+      "file": "examples/plugins/dist/google-drive-sync-1.2.0.zip",
+      "sha256": "469734f9424d18d83bacf16cd4394b8a9864a7c9aad27eb765993d0c631a2376",
+      "zip_matches_source": true
+    },
+    {
+      "id": "handoff-workflow",
+      "version": "1.1.0",
+      "file": "examples/plugins/dist/handoff-workflow-1.1.0.zip",
+      "sha256": "bffb75b545ea986d5fe9d90046012ae3122f516ad1066bc5727ad46018126596",
+      "zip_matches_source": true
+    },
+    {
+      "id": "prompt-elements",
+      "version": "1.2.0",
+      "file": "examples/plugins/dist/prompt-elements-1.2.0.zip",
+      "sha256": "0b013f2ae1ab7c15a9a27309ab26bb53eeed1fa7eefe58e8880d87eb4c9ad99a",
+      "zip_matches_source": true
+    }
+  ],
+  "wheel": {
+    "wheel": "/workspace/openfic-verification/editor-plugin-toolbar/wheel/openfic-0.12.1-py3-none-any.whl",
+    "sha256": "8440d27e94dbea7ab0680921971d66aa7ad6ba8b8d0e9df9390443b603ae4289",
+    "frontend_files_equal": 745,
+    "backend_plugin_files_equal": [
+      "declarative.py",
+      "manifest.py",
+      "sdk.d.ts",
+      "ui-catalog.json"
+    ]
+  },
+  "screenshots": [
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/editor-plugin-toolbar-edit-2ddc8--selections-notes-and-touch-chromium/toolbar-mobile.png",
+      "sha256": "1eadc0def525f64a4f326b5e438928a64055605662a29a1df83ce3ae6169daa9"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/editor-plugin-toolbar-edit-2ddc8--selections-notes-and-touch-chromium/toolbar-popover.png",
+      "sha256": "2f3306762f9af3e357dad4f9402ffb5a58032fa4aeaac9d5be029e5a9ac78087"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-google-dri-7669c-s-desktop-and-mobile-layout-chromium/google-drive-sync-desktop.png",
+      "sha256": "7bb1b5c05fe95b94a53e7ed51175a0eaaf0e2b5114deb2ce0485649be95c0201"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-google-dri-7669c-s-desktop-and-mobile-layout-chromium/google-drive-sync-mobile.png",
+      "sha256": "93d1ef646297e2460d6497a0d7f44644242d7796f17086465b64d847534d7969"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-handoff-wo-009cd-s-desktop-and-mobile-layout-chromium/handoff-workflow-desktop.png",
+      "sha256": "a13fb725675e5229ade6880c8c9e515fa506b357d991cc7eb0be74abbf588768"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-handoff-wo-009cd-s-desktop-and-mobile-layout-chromium/handoff-workflow-mobile.png",
+      "sha256": "b0de2e039cb5cdb29dd2dcc52e6c736a666ca4b174967e59624ed9aa397f306a"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-project-st-34adb-s-desktop-and-mobile-layout-chromium/project-statistics-desktop.png",
+      "sha256": "f42fd6bee6fa5c88484f8c651300d2208871dc046eda9c00a3fbd603b5969fb4"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-project-st-34adb-s-desktop-and-mobile-layout-chromium/project-statistics-mobile.png",
+      "sha256": "6047d771c4dd9191a229bb2279f9985133adfc3a0b12d77368787991f1db2bdb"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-prompt-ele-d8505-s-desktop-and-mobile-layout-chromium/prompt-elements-desktop.png",
+      "sha256": "8066952346d34fd3fdc1d4e1c9781eb9a731627d54c7cef1dbf5f2a8f38a68f8"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/native-examples-prompt-ele-d8505-s-desktop-and-mobile-layout-chromium/prompt-elements-mobile.png",
+      "sha256": "41492f103314e8cfab83f7c10b7565b88c34e3483e17e945cd48219006294a1b"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/plugin-sdk-SDK-examples-Dr-975bf-prompt-injection-and-editor-chromium/drive-conflict-dialog.png",
+      "sha256": "5ecaaafe9cf72f67e5085ba45e5744f075c3c344de976053038394df508df007"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/plugin-sdk-SDK-examples-Dr-975bf-prompt-injection-and-editor-chromium/drive-editor-toolbar.png",
+      "sha256": "8ce69203a92751fc7175e71641109cb5d7f93ef4bf80740920afd4f087c5a039"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/plugin-sdk-SDK-examples-Dr-975bf-prompt-injection-and-editor-chromium/prompt-above-composer.png",
+      "sha256": "9bb572ebeca95e2be0529d22da0098b9f4f2847d69a56e48fa25bf30841c454b"
+    },
+    {
+      "path": "/workspace/openfic-verification/editor-plugin-toolbar/browser-final-artifacts/plugin-sdk-SDK-examples-Dr-975bf-prompt-injection-and-editor-chromium/prompt-editor-toolbar.png",
+      "sha256": "a8aa49592f706eb1f3e0d333ab1ac1941737beb35d149adbcd9717bcfbf21b63"
+    }
+  ],
+  "limitations": [
+    "Headless Chromium; mobile pointer events and visualViewport keyboard geometry are simulated, not a physical device test.",
+    "Google/LLM routes use the dedicated tests.plugins.e2e_app protocol fixtures, not a live Google account."
+  ]
+}

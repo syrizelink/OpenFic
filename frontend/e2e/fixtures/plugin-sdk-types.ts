@@ -1,5 +1,10 @@
 // Consumer contract: native UI types require neither React nor @radix-ui in a plugin.
-import type { OpenFicSDK, UIDocument, UIEventRequest } from "../../../packages/plugin-sdk";
+import type {
+  OpenFicSDK,
+  UIDocument,
+  UIEventRequest,
+  PluginView,
+} from "../../../packages/plugin-sdk";
 
 export const document = {
   css: ".settings { --gap: 8px; padding: var(--gap); }",
@@ -15,6 +20,7 @@ export const document = {
       { type: "ModelSelector", props: { taskType: "llm", onChange: "model" } },
       { type: "Radix.Spinner", props: { size: "2" } },
       { type: "Spinner", props: { size: 18 } },
+      { type: "Icon", props: { name: "CloudUpload", size: 16, strokeWidth: 1.5 } },
       { type: "Slider", props: { value: [10, 20], onValueCommit: "range" } },
       {
         type: "Dialog.Root",
@@ -31,3 +37,14 @@ export async function discover(sdk: OpenFicSDK) {
 export function eventValue(event: UIEventRequest) {
   return event.value;
 }
+
+export const editorView = {
+  id: "sync",
+  title: "Sync",
+  slot: "editor.toolbar",
+  icon: "CloudUpload",
+  presentation: "popover",
+  renderer: "declarative",
+  render: "ui.render",
+  action: "ui.action",
+} satisfies PluginView;

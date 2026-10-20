@@ -7,6 +7,15 @@ from pathlib import Path
 from typing import Any
 
 CATALOGUE = json.loads(Path(__file__).with_name("ui-catalog.json").read_text())
+ICON_NAMES = {name.replace("-", "").lower(): name for name in CATALOGUE["lucideIcons"]}
+
+
+def normalize_icon(value: str) -> str:
+    if not isinstance(value, str) or value.replace("-", "").lower() not in ICON_NAMES:
+        raise ValueError("Unknown Lucide icon: " + str(value))
+    return ICON_NAMES[value.replace("-", "").lower()]
+
+
 BREAKPOINTS = {"initial", "xs", "sm", "md", "lg", "xl"}
 UNSUPPORTED = {"Svg", "Image", "Client"}
 
@@ -53,6 +62,8 @@ def validate_property(name: str, value: Any, spec: dict) -> Any:
             k: validate_property(name, v, {**spec, "responsive": False})
             for k, v in value.items()
         }
+    if kind == "icon":
+        return normalize_icon(value)
     if kind in {"string", "event"}:
         if not isinstance(value, str):
             raise ValueError(name + " must be a string")
@@ -199,6 +210,8 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
             if spec is None:
                 raise ValueError("Unknown declarative component property: " + key)
             clean[key] = validate_property(key, prop, spec)
+        if source == "project" and name == "Icon" and not clean.get("name"):
+            raise ValueError("Icon requires a Lucide name")
         if name == "Select.Item" and not clean.get("value"):
             raise ValueError("Select.Item requires a nonempty value")
         children = item.get("children", props.get("children", []))

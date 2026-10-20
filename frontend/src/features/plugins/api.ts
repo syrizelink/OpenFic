@@ -2,6 +2,8 @@ import axios from "axios";
 
 import { apiClient } from "@/lib/api-client";
 
+export const EDITOR_PLUGIN_SLOTS = ["editor.toolbar", "editor.context", "editor.panel"];
+
 export interface PluginView {
   id: string;
   title: string;
@@ -11,6 +13,8 @@ export interface PluginView {
   action?: string;
   slot: string;
   height?: number;
+  icon?: string | null;
+  presentation?: "popover" | "dialog" | null;
 }
 export interface PluginSetting {
   key: string;

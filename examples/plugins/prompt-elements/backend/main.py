@@ -454,7 +454,9 @@ async def ui_render(ctx, params):
         return ui_document(
             ui_row(
                 ui_button("读取编辑器", "read", variant="soft"),
-                ui_button("撤销", "undo", variant="soft"),
+                ui_button("撤销", "undo", variant="soft")
+                if params.get("context", {}).get("kind") != "note"
+                else None,
             ),
             ui_node(
                 "TextArea",

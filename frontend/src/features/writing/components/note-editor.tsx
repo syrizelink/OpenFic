@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
 import { toast } from "@/components/toast";
+import { EditorPluginActions } from "@/features/plugins/editor-plugin-actions";
 import { registerPluginEditor } from "@/features/plugins/frontend-host";
 import { fetchNote } from "@/lib/api-client";
 import {
@@ -323,6 +324,11 @@ function NoteEditorContent({
       onLockedAction={showLockedToast}
       placeholder={t("writing.noteContentPlaceholder")}
       lockedBanner={lockedBanner}
+      toolbarActions={
+        <EditorPluginActions
+          context={{ projectId: note.projectId, noteId: note.id, kind: "note" }}
+        />
+      }
       scrollTop={scrollTop}
       onScrollPositionChange={handleScrollPositionChange}
     />

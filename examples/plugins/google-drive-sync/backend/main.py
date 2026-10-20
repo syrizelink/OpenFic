@@ -436,7 +436,12 @@ async def ui_render(ctx, params):
     if params.get("viewId") == "toolbar":
         return ui_document(
             ui_row(
-                ui_button("保存并同步本项目", "toolbar-sync", disabled=not project),
+                ui_node(
+                    "Button",
+                    [ui_node("Icon", name="CloudUpload", size=16), "保存并同步本项目"],
+                    onPress="toolbar-sync",
+                    disabled=not project,
+                ),
                 ui_node(
                     "Badge",
                     "已连接" if connection["connected"] else "尚未连接",

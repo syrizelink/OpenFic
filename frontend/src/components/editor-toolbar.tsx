@@ -71,6 +71,7 @@ export interface EditorToolbarProps {
   onOpenReplace?: () => void;
   extraActions?: EditorToolbarExtraAction[];
   toolbarPrefix?: React.ReactNode;
+  toolbarActions?: React.ReactNode;
   showMarkdownTools?: boolean;
   showChapterTools?: boolean;
 }
@@ -250,6 +251,7 @@ export function EditorToolbar({
   onOpenReplace,
   extraActions,
   toolbarPrefix,
+  toolbarActions,
   showMarkdownTools = false,
   showChapterTools = false,
 }: EditorToolbarProps) {
@@ -442,6 +444,8 @@ export function EditorToolbar({
       if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
 
       const target = event.target;
+      if (target instanceof Node && !toolbarRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-editor-plugin-action]")) return;
       if (target instanceof Element && target.closest(".select-trigger--icon")) return;
 
       event.preventDefault();
@@ -455,7 +459,12 @@ export function EditorToolbar({
       if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
 
       const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".select-trigger--icon")) return;
+      if (
+        !(target instanceof Element) ||
+        !toolbarRef.current?.contains(target) ||
+        !target.closest(".select-trigger--icon")
+      )
+        return;
 
       event.preventDefault();
       editor?.view.dom.focus({ preventScroll: true });
@@ -934,6 +943,7 @@ export function EditorToolbar({
                     disabled={isSaving || !hasChanges}
                     onClick={() => runEditorAction(() => onSave(true))}
                   />
+                  {toolbarActions}
                 </Flex>
               </Flex>
             </Flex>

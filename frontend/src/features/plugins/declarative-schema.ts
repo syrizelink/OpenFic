@@ -27,6 +27,7 @@ export interface ComponentDefinition {
 }
 interface Catalogue {
   version: number;
+  lucideIcons: string[];
   common: Record<string, PropertyDefinition>;
   radixCommon: Record<string, PropertyDefinition>;
   aliases: Record<string, string>;

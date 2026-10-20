@@ -298,3 +298,68 @@ async def test_compound_components_and_as_child():
     ).read_bytes() == (
         Path(__file__).resolve().parents[2] / "app/plugins/sdk.d.ts"
     ).read_bytes()
+
+
+@pytest.mark.parametrize("slot", ["editor.toolbar", "editor.context", "editor.panel"])
+async def test_editor_slot_presentation_and_icon_contract(slot):
+    view = View(
+        id="editor",
+        title="Editor",
+        slot=slot,
+        renderer="declarative",
+        render="ui.render",
+        action="ui.action",
+        icon="cloud-upload",
+        presentation="popover",
+    )
+    assert view.icon == "CloudUpload"
+    assert view.presentation == "popover"
+    assert (
+        View(
+            id="legacy", title="Legacy", slot=slot, entry="frontend/index.html"
+        ).presentation
+        is None
+    )
+    with pytest.raises(ValidationError, match="Unknown Lucide"):
+        View(id="invalid", title="Invalid", entry="frontend/index.html", icon="<svg/>")
+    with pytest.raises(ValidationError, match="editor slots"):
+        View(
+            id="invalid",
+            title="Invalid",
+            entry="frontend/index.html",
+            presentation="dialog",
+        )
+
+
+async def test_lucide_component_catalogue_and_validation():
+    from app.plugins.declarative import CATALOGUE, resolve_component
+
+    assert len(CATALOGUE["lucideIcons"]) > 1700
+    assert "CloudUpload" in CATALOGUE["lucideIcons"]
+    for component in ["Icon", "LucideIcon", "Project.Icon"]:
+        assert resolve_component(component)[:2] == ("project", "Icon")
+        document = validate_document(
+            {
+                "tree": {
+                    "type": component,
+                    "props": {
+                        "name": "cloud-upload",
+                        "size": 20,
+                        "strokeWidth": 1.5,
+                        "absoluteStrokeWidth": True,
+                        "color": "var(--accent-11)",
+                        "aria-label": "Upload",
+                    },
+                }
+            }
+        )
+        assert document["trees"][0]["tree"]["props"]["name"] == "CloudUpload"
+    for props in [
+        {},
+        {"name": "NoSuchIcon"},
+        {"name": 1},
+        {"name": "CloudUpload", "strokeWidth": "2"},
+        {"name": "CloudUpload", "dangerouslySetInnerHTML": "bad"},
+    ]:
+        with pytest.raises(ValueError):
+            validate_document({"tree": {"type": "Icon", "props": props}})

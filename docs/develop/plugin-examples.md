@@ -1,15 +1,15 @@
 # SDK 2.0 示例插件
 
-项目统计、Drive、Handoff 和动态提示词的 **1.1.0** 包均使用声明式 UI，包含原生项目/模型选择器、Radix 控件及 PostCSS 样式；没有 HTML、JS 或 CSS 前端文件，也无需 iframe。已有 1.0.0 安装可在管理页使用「更新安装包」，保留原来的配置和插件数据。宿主需包含 [声明式宿主操作](./declarative-plugin-ui.md#编辑器与浏览器宿主操作) 支持。
+项目统计、Drive、Handoff 和动态提示词的 当前安装包均使用声明式 UI，包含原生项目/模型选择器、Radix 控件及 PostCSS 样式；没有 HTML、JS 或 CSS 前端文件，也无需 iframe。已有安装可在管理页使用「更新安装包」，保留原来的配置和插件数据。宿主需包含 [声明式宿主操作](./declarative-plugin-ui.md#编辑器与浏览器宿主操作) 支持。
 
 在侧栏「插件管理」确认可信来源，上传对应 ZIP，然后启用。插件安装在当前连接的后端，前端无需重新构建。
 
 | 安装包 | 作用 |
 | --- | --- |
 | `examples/plugins/dist/project-statistics-1.1.0.zip` | 项目统计卡片、写作目标、卷字数表格及响应式布局 |
-| `examples/plugins/dist/google-drive-sync-1.1.0.zip` | Google Drive 章节双向同步、冲突解决、编辑器入口、Agent 手动同步工具 |
+| `examples/plugins/dist/google-drive-sync-1.2.0.zip` | Google Drive 章节双向同步、冲突解决、编辑器入口、Agent 手动同步工具 |
 | `examples/plugins/dist/handoff-workflow-1.1.0.zip` | 规划/写作/审稿交接、自定义项目 Graph、结果保存为笔记 |
-| `examples/plugins/dist/prompt-elements-1.1.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
+| `examples/plugins/dist/prompt-elements-1.2.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
 
 这些插件只使用公共 SDK、Python 标准库及后端已有的 LangGraph/LangChain/regex 依赖；没有直接操作应用 ORM 或导入内部业务模块。
 
@@ -19,7 +19,7 @@
 2. 在插件配置填写 Client ID、Client Secret。Secret 加密保存。可选设置一个 Google Drive 文件夹 ID。
 3. 在独立页面点击「连接 Google Drive」，再点击「打开 Google 授权页面」完成授权。请求最小 `drive.file` scope，只访问该应用获准访问的文件。已有令牌也可从页面导入，值不会读回前端。
 4. 选择项目和同步方向，先预览或立即同步。原生 Agent 可调用 `plugin_google_drive_sync_sync_chapters` 上传已保存章节；写工具沿用应用审批。双向下载和冲突解决在插件 UI 执行。
-5. 章节工具栏「云同步」可以先保存当前编辑器，再同步项目。
+5. 章节工具栏的 Lucide 云同步图标打开浮层，点击「保存并同步本项目」先保存当前编辑器，再同步项目。浮层不会占用正文布局。
 
 每章保存成带版本标记、标题和正文的 `.openfic.json` 文件，以项目/章节 ID 关联。相同内容不重复上传，支持分页、令牌刷新和暂时错误重试。两端都改变时不会自动覆盖，页面列出冲突并允许显式选择本地或云端版本；下载也走业务更新 API。远程 ETag 可用时进行条件更新。
 
@@ -52,14 +52,14 @@
 
 默认规则检测最后的用户消息中的战斗词，以及上下文中的梦境。系统元素默认放在系统提示前缀中，保证常见提供商兼容；显式的 `before_last_user/after_last_user` 可以指定更细位置，作者需考虑模型提供商的角色顺序约束。
 
-「预览注入结果」显示命中规则和最终消息；实际 `context.build` 使用同一引擎。规则只改本次模型请求，不覆写数据库历史。正则有时限和长度限制。输入框上方可直接开关元素；章节工具栏还附带读取编辑器、插入保存、撤销的 SDK 操作面板。
+「预览注入结果」显示命中规则和最终消息；实际 `context.build` 使用同一引擎。规则只改本次模型请求，不覆写数据库历史。正则有时限和长度限制。输入框上方可直接开关元素；章节工具栏的 Lucide 图标打开浮层，提供读取编辑器、插入保存、撤销等 SDK 操作。笔记工具栏也提供入口，隐藏不支持的撤销操作。
 
 ## 打包与本地验证
 
 ```bash
-python examples/plugins/build_package.py examples/plugins/google-drive-sync examples/plugins/dist/google-drive-sync-1.1.0.zip
+python examples/plugins/build_package.py examples/plugins/google-drive-sync examples/plugins/dist/google-drive-sync-1.2.0.zip
 python examples/plugins/build_package.py examples/plugins/handoff-workflow examples/plugins/dist/handoff-workflow-1.1.0.zip
-python examples/plugins/build_package.py examples/plugins/prompt-elements examples/plugins/dist/prompt-elements-1.1.0.zip
+python examples/plugins/build_package.py examples/plugins/prompt-elements examples/plugins/dist/prompt-elements-1.2.0.zip
 ```
 
 ```bash

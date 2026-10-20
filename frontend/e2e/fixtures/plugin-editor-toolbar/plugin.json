@@ -1,0 +1,128 @@
+{
+  "id": "editor-toolbar-test",
+  "name": "Editor toolbar contract",
+  "version": "1.0.0",
+  "api_version": 1,
+  "backend": "backend/main.py",
+  "capabilities": [
+    "ui",
+    "storage",
+    "editor.write"
+  ],
+  "views": [
+    {
+      "id": "native",
+      "title": "浮层测试",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "legacy",
+      "title": "旧上下文",
+      "slot": "editor.context",
+      "entry": "frontend/index.html"
+    },
+    {
+      "id": "panel",
+      "title": "旧面板",
+      "slot": "editor.panel",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-0",
+      "title": "额外入口 0",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-1",
+      "title": "额外入口 1",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-2",
+      "title": "额外入口 2",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-3",
+      "title": "额外入口 3",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-4",
+      "title": "额外入口 4",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-5",
+      "title": "额外入口 5",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-6",
+      "title": "额外入口 6",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-7",
+      "title": "额外入口 7",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-8",
+      "title": "额外入口 8",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    },
+    {
+      "id": "extra-9",
+      "title": "额外入口 9",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action",
+      "icon": "CloudUpload"
+    }
+  ]
+}

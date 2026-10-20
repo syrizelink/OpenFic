@@ -13,7 +13,7 @@ import {
 
 import { UnitTextField as ProjectInput } from "@/components/unit-text-field";
 
-import { inlineStyle, safeHref } from "./declarative-css";
+import { inlineStyle, safeHref, safeCSSValue } from "./declarative-css";
 import { ProjectComponent } from "./declarative-project-components";
 import {
   resolveComponent,
@@ -22,6 +22,7 @@ import {
   type UINode,
   type UIValue,
 } from "./declarative-schema";
+import { PluginIcon } from "./plugin-icon";
 
 export interface TreeContext {
   action: UIAction;
@@ -251,6 +252,28 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
       </pre>
     );
   if (source === "project") {
+    if (name === "Icon") {
+      const label = str(p["aria-label"], str(p.label));
+      const forwarded = Object.fromEntries(
+        Object.entries(props).filter(
+          ([key]) => !["key", "name", "size", "strokeWidth", "absoluteStrokeWidth"].includes(key),
+        ),
+      );
+      return (
+        <PluginIcon
+          {...forwarded}
+          key={props.key as string}
+          name={str(p.name, "Puzzle")}
+          size={Math.max(8, Math.min(96, Number(p.size) || 18))}
+          strokeWidth={Math.max(0.5, Math.min(4, Number(p.strokeWidth) || 2))}
+          color={typeof p.color === "string" && safeCSSValue(p.color) ? p.color : undefined}
+          absoluteStrokeWidth={p.absoluteStrokeWidth === true}
+          aria-hidden={label ? undefined : true}
+          aria-label={label || undefined}
+          role={label ? "img" : undefined}
+        />
+      );
+    }
     const change = (value: UIValue, kind = "change") =>
       context.action(str(p.onValueChange || p.onChange || p.onSelect || p.onInput), value, kind);
     if (name === "StepperNumberInput") {

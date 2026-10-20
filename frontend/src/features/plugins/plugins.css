@@ -208,3 +208,33 @@
 .plugin-slot-statusbar .plugin-slot-open {
   width: auto;
 }
+
+.editor-plugin-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  max-width: min(200px, 30vw);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.editor-plugin-actions > button {
+  flex-shrink: 0;
+}
+.editor-plugin-actions::-webkit-scrollbar {
+  display: none;
+}
+.editor-plugin-overlay {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+.editor-plugin-overlay-body {
+  min-width: 0;
+  overflow: auto;
+}
+.editor-plugin-overlay-body .plugin-view {
+  height: 100%;
+  min-height: 0;
+}

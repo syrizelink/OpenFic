@@ -59,14 +59,44 @@ async def action(context, params):
 
 Python 插件可使用 `await context.call("workflow.select", {"projectId": project_id, "provider": "handoff"})` 等公共 SDK 方法，能力检查与前端 SDK 相同。四个 1.1.0 示例需要包含上述宿主操作支持的 OpenFic 版本。
 
+## 编辑器工具栏与图标
+
+`editor.toolbar` 在章节和笔记编辑器原有工具栏内放置紧凑图标按钮；`title` 同时用作 Tooltip 和无障碍名称。内容通过 Portal 显示，不参与编辑器的布局。入口过多时横向滚动，不换行、不增加工具栏高度。编辑器视图只在打开时挂载，关闭时卸载；长期任务应使用后端事件或定时器，界面状态可保存到插件存储。
+
+```json
+{
+  "id": "sync", "title": "云同步", "slot": "editor.toolbar",
+  "icon": "CloudUpload", "presentation": "popover",
+  "renderer": "declarative", "render": "ui.render", "action": "ui.action"
+}
+```
+
+`icon` 可选，省略时使用 `Puzzle`。`presentation` 仅用于编辑器插槽，支持 `popover`（默认）和 `dialog`；iframe 与声明式视图均支持。浮层可通过 Escape、关闭按钮或点击外部关闭；对话框提供焦点约束与关闭按钮。关闭后焦点回到工具栏入口。浮层中的输入不会被工具栏的触摸事件抢走焦点。移动端沿用原工具栏策略，在软键盘出现时显示。
+
+旧 `editor.context` 与 `editor.panel` 包仍能安装，分别转换为工具栏按钮＋浮层、工具栏按钮＋对话框。它们不再在正文上方插入内容，建议新包使用 `editor.toolbar`。`height` 只设置 iframe 浮层内部的高度，iframe 仍可通过 `ui.resize(height)` 调整它；宿主限制内容在视口内滚动，不改变正文布局。`context` 提供 `projectId`、`kind: "chapter" | "note"` 以及对应 `chapterId` / `noteId`；笔记目前不支持撤销/选区 SDK，插件应据此调整操作。
+
+声明式树可使用 `Icon`、`Project.Icon` 或别名 `LucideIcon`：
+
+```json
+{ "type": "Button", "props": { "onPress": "sync" }, "children": [
+  { "type": "Icon", "props": { "name": "CloudUpload", "size": 16, "strokeWidth": 1.5 } },
+  "立即同步"
+] }
+```
+
+图标来自宿主安装的 Lucide React 目录，目前 **1748 个**，通过一个延迟加载的共享模块渲染。`GET /plugins/catalogue` 的 `ui.lucideIcons` 返回可用名称；SDK 导出 `UIIconName` 类型。运行时名称接受 PascalCase 或 kebab-case（如 `cloud-upload`），后端统一为标准名称，未知名称会拒绝安装或渲染。升级 Lucide 后重新运行目录生成器。
+
+支持 `size`（8–96，默认 18）、`color`、`strokeWidth`（0.5–4，默认 2）、`absoluteStrokeWidth` 和公共样式/DOM 属性。无标签时图标为装饰元素；需要独立表达含义时传 `aria-label` 或 `label`。原始 SVG、任意导入路径和可执行组件仍不可传入。iframe 插件可在自己的构建包内使用 Lucide。
+
 ## 组件名称和优先级
 
 不带前缀的名称先查找项目组件，再查找 Radix Themes 组件。`Spinner` 使用项目 Spinner，`Select` 使用项目 `LabeledSelect`，`Tooltip` 使用项目 `InfoTooltip`。需要明确选择时使用 `Project.Spinner`、`Radix.Spinner`、`Radix.Tooltip` 或 `Radix.Select.Root`。复合组件保留 Radix 的名称与父子结构，例如 `Dialog.Root → Dialog.Trigger / Dialog.Content → Dialog.Title`。
 
-目录覆盖 **122 个 Radix Themes 组件及子组件入口、10 个项目组件**。这不是任意 npm 组件加载器，也不开放 Radix 内部 hook、Slot、Portal、ThemePanel 或所有 Radix Primitives 包；Portal 由宿主管理。
+目录覆盖 **122 个 Radix Themes 组件及子组件入口、11 个项目组件**。这不是任意 npm 组件加载器，也不开放 Radix 内部 hook、Slot、Portal、ThemePanel 或所有 Radix Primitives 包；Portal 由宿主管理。
 
 | 项目组件 | 用途与权限 |
 | --- | --- |
+| `Icon`（别名 `LucideIcon`） | 按名称显示宿主 Lucide 图标，不需额外能力 |
 | `Spinner`、`CircularProgress` | 项目加载和进度显示 |
 | `UnitTextField`、`StepperNumberInput` | 带单位输入、步进数字输入 |
 | `LabeledSelect`（别名 `Select`）、`SearchableSelect` | 带标签或可搜索的选项；复用桌面和移动端实现 |

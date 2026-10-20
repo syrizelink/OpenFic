@@ -1,7 +1,7 @@
 {
   "id": "prompt-elements",
   "name": "动态提示词元素",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "api_version": 1,
   "description": "按上下文、用户消息、系统片段和规则动态开关提示词元素，并支持注入、替换、移除和预览。",
   "author": "OpenFic",
@@ -38,7 +38,9 @@
       "slot": "editor.toolbar",
       "renderer": "declarative",
       "render": "ui.render",
-      "action": "ui.action"
+      "action": "ui.action",
+      "icon": "TextCursorInput",
+      "presentation": "popover"
     }
   ],
   "settings": []

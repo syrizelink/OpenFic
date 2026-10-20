@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
+import { EDITOR_PLUGIN_SLOTS, fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
 import { PluginFrame } from "./plugin-page";
 
 export function PluginSlot({
@@ -25,7 +25,8 @@ export function PluginSlot({
     .flatMap((plugin) =>
       plugin.views.filter((view) => view.slot === slot).map((view) => ({ plugin, view })),
     );
-  if (!entries.length) return null;
+  // These slots are mounted only through EditorPluginActions inside the toolbar.
+  if (EDITOR_PLUGIN_SLOTS.includes(slot) || !entries.length) return null;
   return (
     <div
       className={`plugin-slot plugin-slot-${slot.replaceAll(".", "-")}`}

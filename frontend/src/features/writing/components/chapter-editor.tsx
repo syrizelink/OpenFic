@@ -15,12 +15,12 @@ import {
   buildChapterMentionTag,
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { EditorPluginActions } from "@/features/plugins/editor-plugin-actions";
 import {
   registerPluginEditor,
   publishLocalEvent,
   hasEditorEventConsumers,
 } from "@/features/plugins/frontend-host";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
@@ -701,6 +701,11 @@ function ChapterEditorContent({
         onOpenFind={openFind}
         onOpenReplace={openReplace}
         showChapterTools
+        toolbarActions={
+          <EditorPluginActions
+            context={{ projectId: chapter.projectId, chapterId: chapter.id, kind: "chapter" }}
+          />
+        }
       />
 
       <AnimatePresence>
@@ -713,20 +718,6 @@ function ChapterEditorContent({
           />
         )}
       </AnimatePresence>
-
-      <PluginSlot
-        slot="editor.toolbar"
-        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
-      />
-      <PluginSlot
-        slot="editor.context"
-        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
-      />
-      <PluginSlot
-        slot="editor.panel"
-        context={{ projectId: chapter.projectId, chapterId: chapter.id }}
-        inline
-      />
 
       <Box
         ref={containerRef}
