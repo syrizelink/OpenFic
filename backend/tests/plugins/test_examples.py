@@ -116,6 +116,7 @@ async def test_drive_oauth_pkce_replay_and_encrypted_tokens(plugin_api, session)
     assert query["redirect_uri"] == ["http://test/plugin-oauth/callback"]
     state = query["state"][0]
     await finish_oauth(host, state, "test-auth-code", None)
+    assert any(event["event"] == "ui.invalidate" for event in host.events(0)["events"])
     assert (await ctx.secrets.get("oauth.tokens"))["refresh_token"] == "test-refresh"
     with pytest.raises(ValueError, match="already used"):
         await finish_oauth(host, state, "test-auth-code", None)
@@ -214,3 +215,169 @@ async def test_prompt_rules_preview_real_context_and_toggle(plugin_api, session)
     assert result["matched"] == ["replace"]
     assert any(m["content"] == "对话" for m in result["messages"])
     assert any(m["content"] == "Project test" for m in result["messages"])
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["project-statistics", "google-drive-sync", "handoff-workflow", "prompt-elements"],
+)
+async def test_examples_install_with_native_views_and_no_frontend_assets(
+    plugin_api, client, name
+):
+    host, api, _ = plugin_api
+    package = example_package(name)
+    with zipfile.ZipFile(io.BytesIO(package)) as archive:
+        assert not any(path.startswith("frontend/") for path in archive.namelist())
+    await host.install(package)
+    await host.set_enabled(name, True)
+    project = (
+        await client.post("/api/v1/projects", data={"title": "Native example"})
+    ).json()
+    for view in host.get(name).manifest.views:
+        assert view.renderer == "declarative" and not view.entry
+        response = await api.post(
+            f"/api/v1/plugins/{name}/views/{view.id}/render",
+            json={"context": {"projectId": project["id"]}},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["css"] and response.json()["trees"]
+
+
+async def test_native_token_drafts_stay_encrypted_and_are_cleared(plugin_api, session):
+    host, _, _ = plugin_api
+    await host.install(example_package("google-drive-sync"))
+    await host.set_enabled("google-drive-sync", True)
+    params = {"viewId": "sync", "context": {}}
+    secret = "native-secret-access-token"
+    await host.call(
+        "google-drive-sync",
+        "ui.action",
+        {**params, "id": "token-draft", "value": secret},
+        session,
+    )
+    await host.call(
+        "google-drive-sync", "ui.action", {**params, "id": "token"}, session
+    )
+    ctx = host.context("google-drive-sync", session)
+    assert await ctx.secrets.get("ui.token.draft") is None
+    assert (await ctx.secrets.get("oauth.tokens"))["access_token"] == secret
+    document = await host.call("google-drive-sync", "ui.render", params, session)
+    assert secret not in json.dumps(document)
+    for path in (host.root / ".data/google-drive-sync").rglob("*.json"):
+        assert secret not in path.read_text()
+
+
+async def test_native_prompt_invalid_draft_does_not_break_render_or_saved_config(
+    plugin_api, session
+):
+    host, _, _ = plugin_api
+    await host.install(example_package("prompt-elements"))
+    await host.set_enabled("prompt-elements", True)
+    params = {"viewId": "rules", "context": {}}
+    for draft in ["{broken", "null", "42"]:
+        await host.call(
+            "prompt-elements",
+            "ui.action",
+            {**params, "id": "elements", "value": draft},
+            session,
+        )
+        assert await host.call("prompt-elements", "ui.render", params, session)
+        with pytest.raises(host_tests.PluginError):
+            await host.call(
+                "prompt-elements", "ui.action", {**params, "id": "save"}, session
+            )
+    for draft in ['[{"id": 12}]', '[{"id": "x", "title": {}, "enabled": null}]']:
+        await host.call(
+            "prompt-elements",
+            "ui.action",
+            {**params, "id": "elements", "value": draft},
+            session,
+        )
+        assert await host.call("prompt-elements", "ui.render", params, session)
+    saved = await host.call("prompt-elements", "prompt.config", {}, session)
+    assert len(saved["elements"]) == 3
+
+
+async def test_python_sdk_call_keeps_capability_checks(plugin_api, session):
+    host, api, _ = plugin_api
+    await host.install(example_package("project-statistics"))
+    await host.set_enabled("project-statistics", True)
+    ctx = host.context("project-statistics", session)
+    assert isinstance(await ctx.call("data.projects"), list)
+    with pytest.raises(PermissionError, match="agent.graph"):
+        await ctx.call("workflow.select", {"projectId": "missing", "provider": None})
+
+
+async def test_statistics_upgrade_replaces_legacy_ui_and_keeps_settings(plugin_api):
+    host, api, _ = plugin_api
+    await host.install(
+        host_tests.package(capabilities=["projects.read", "project.entities.read"])
+    )
+    await host.configure(
+        "project-statistics", {"targetWords": 800, "showVolumes": False}
+    )
+    await host.set_enabled("project-statistics", True)
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/assets/index.html")
+    ).status_code == 200
+    response = await api.put(
+        "/api/v1/plugins/project-statistics/package",
+        data={"trusted": "true"},
+        files={
+            "file": (
+                "project-statistics-1.1.0.zip",
+                example_package("project-statistics"),
+                "application/zip",
+            )
+        },
+    )
+    assert response.status_code == 200, response.text
+    plugin = host.get("project-statistics")
+    assert plugin.manifest.version == "1.1.0"
+    assert plugin.manifest.views[0].renderer == "declarative"
+    assert plugin.enabled
+    assert (
+        plugin.settings["targetWords"] == 800
+        and plugin.settings["showVolumes"] is False
+    )
+    assert not (host.root / "project-statistics/frontend").exists()
+    assert (
+        await api.post(
+            "/api/v1/plugins/project-statistics/views/overview/render", json={}
+        )
+    ).status_code == 200
+
+
+async def test_native_switches_do_not_mutate_global_or_other_project_defaults(
+    plugin_api, client, session
+):
+    host, _, _ = plugin_api
+    await host.install(example_package("prompt-elements"))
+    await host.set_enabled("prompt-elements", True)
+    first = (await client.post("/api/v1/projects", data={"title": "First"})).json()[
+        "id"
+    ]
+    second = (await client.post("/api/v1/projects", data={"title": "Second"})).json()[
+        "id"
+    ]
+    await host.call(
+        "prompt-elements",
+        "ui.action",
+        {
+            "viewId": "switches",
+            "context": {"projectId": first},
+            "id": "toggle:consistency",
+            "value": False,
+        },
+        session,
+    )
+    for project_id, expected in [(first, False), (second, True), (None, True)]:
+        config = await host.call(
+            "prompt-elements", "prompt.config", {"projectId": project_id}, session
+        )
+        assert (
+            next(item for item in config["elements"] if item["id"] == "consistency")[
+                "enabled"
+            ]
+            is expected
+        )

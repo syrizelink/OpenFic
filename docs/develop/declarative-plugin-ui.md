@@ -35,6 +35,30 @@ def register(host):
 
 公开 TypeScript 类型 `PluginView/UINode/UIProps/UIDocument/UIRenderRequest/UIEventRequest` 随 `@openfic/plugin-sdk` 提供。可安装的混合视图示例在 `frontend/e2e/fixtures/plugin-declarative`。
 
+## 编辑器与浏览器宿主操作
+
+声明式 action 可以返回 `UIActionResult`，通过已有前端 SDK 桥执行宿主操作，不需要 iframe 或插件 JS：
+
+```python
+async def action(context, params):
+    if params["id"] == "insert":
+        return {"effects": [
+            {"method": "editor.insert", "params": {"text": "插入的文字"}, "discardResult": True},
+            {"method": "editor.save"}
+        ], "next": "saved"}
+    if params["id"] == "saved":
+        # params["value"] 为按顺序返回的结果数组；discardResult 项为 null。
+        await context.storage.set("message", "已插入并保存")
+```
+
+支持编辑器 read/insert/replaceSelection/setContent/setSelection/focus/save/undo/redo，以及 `ui.navigate/openExternal/toast/confirm/copy/download/invalidate/context/tools` 和 `assistant.fill`。每项沿用现有 SDK 能力检查和编辑器锁检查，按顺序执行；失败时停止后续操作和回调。`ui.confirm` 返回布尔值，需要插件在 next 回调中判断后再执行后续操作。敏感覆盖操作也可以使用 `AlertDialog` 组件直接确认。
+
+只有用户 action 的响应会执行 effects，render 文档不会执行。每批最多 16 项，连续最多 4 批；未知方法、无效参数对象会在执行整批前被拒绝。离开视图后停止尚未执行的操作与回调。回调仍只能调用该视图绑定的 action，不能指定其他 RPC 命令。
+
+`next` 通过 `event="change"` 回传结果，沿用事件值的大小限制。对无需读取返回值的编辑器写操作设置 `discardResult: True`，避免传回完整章节；`editor.read` 可传 `{"summary": True}`，返回元信息、`contentLength` 和最多 1000 字符的选区文本，不返回正文。
+
+Python 插件可使用 `await context.call("workflow.select", {"projectId": project_id, "provider": "handoff"})` 等公共 SDK 方法，能力检查与前端 SDK 相同。四个 1.1.0 示例需要包含上述宿主操作支持的 OpenFic 版本。
+
 ## 组件名称和优先级
 
 不带前缀的名称先查找项目组件，再查找 Radix Themes 组件。`Spinner` 使用项目 Spinner，`Select` 使用项目 `LabeledSelect`，`Tooltip` 使用项目 `InfoTooltip`。需要明确选择时使用 `Project.Spinner`、`Radix.Spinner`、`Radix.Tooltip` 或 `Radix.Select.Root`。复合组件保留 Radix 的名称与父子结构，例如 `Dialog.Root → Dialog.Trigger / Dialog.Content → Dialog.Title`。

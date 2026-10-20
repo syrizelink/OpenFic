@@ -506,6 +506,15 @@ export interface UIEventRequest extends UIRenderRequest {
   id: string; event: "press" | "input" | "submit" | "select" | "change" | "command" | "close";
   value: Json;
 }
+/** Action response only; effects run sequentially via the capability-checked host bridge.
+ * At most 16 effects/batch and 4 batches; next receives results as its event value. */
+export interface UIActionResult {
+  effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
+    "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
+    "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
+    "ui.invalidate" | "ui.context" | "ui.tools" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+  next?: string;
+}
 export interface Context {
   pluginId: string; projectId: string | null; chapterId?: string; noteId?: string;
   language: string; theme: "light" | "dark"; settings: Record<string, Json>;

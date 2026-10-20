@@ -96,6 +96,12 @@ class PluginContext:
     def require(self, capability: str):
         self.data._require(capability)
 
+    async def call(self, method: str, params: dict | None = None):
+        """Call the same public, capability-checked SDK used by frontend plugins."""
+        from app.plugins.runtime import sdk_call
+
+        return await sdk_call(self, method, params or {})
+
     @property
     def api(self):
         from app.plugins.gateway import BusinessAPI

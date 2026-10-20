@@ -165,7 +165,10 @@ test("native catalogue, project data, Radix events, responsive props and scoped 
     await expect(state).toContainText('"menu": null');
     await view.getByRole("button", { name: "Open popover", exact: true }).click();
     await expect(page.getByText("Popover content", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Close popover", exact: true }).click();
+    const closePopover = page.getByRole("button", { name: "Close popover", exact: true });
+    await closePopover.focus();
+    await closePopover.press("Enter");
+    await expect(page.getByText("Popover content", { exact: true })).not.toBeVisible();
     await view.getByRole("button", { name: "Radix tooltip trigger" }).hover();
     await expect(page.getByRole("tooltip", { name: "Radix tooltip content" })).toBeVisible();
     await page.mouse.move(0, 0, { steps: 5 });

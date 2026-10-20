@@ -25,9 +25,22 @@ def package(version="1.0.0", backend=None, capabilities=None):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
     manifest["version"] = version
+    # Keep iframe ticket/CSP lifecycle coverage independent of the native example UI.
+    manifest["views"] = [
+        {
+            "id": "overview",
+            "title": "项目统计",
+            "entry": "frontend/index.html",
+            "slot": "sidebar.extensions",
+        }
+    ]
     if capabilities is not None:
         manifest["capabilities"] = capabilities
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "frontend/index.html",
+            "<!doctype html><main>Legacy transport fixture</main>",
+        )
         for path in sorted(SOURCE.rglob("*")):
             if not path.is_file() or "__pycache__" in path.parts:
                 continue
@@ -116,7 +129,12 @@ async def test_install_enable_statistics_configuration_restart_export_uninstall(
     enabled = await api.patch(
         "/api/v1/plugins/project-statistics/enabled", json={"enabled": True}
     )
-    assert enabled.json()["commands"] == ["projects.list", "statistics.get"]
+    assert enabled.json()["commands"] == [
+        "projects.list",
+        "statistics.get",
+        "ui.action",
+        "ui.render",
+    ]
     asset = await api.get("/api/v1/plugins/project-statistics/assets/index.html")
     assert asset.status_code == 200
     assert "connect-src 'none'" in asset.headers["content-security-policy"]
@@ -209,7 +227,7 @@ async def test_update_failure_rolls_back_and_disposes_commands(plugin_api, sessi
     )
     assert success.status_code == 200, success.text
     assert success.json()["version"] == "1.1.0"
-    assert len(host.get("project-statistics").registration.commands) == 2
+    assert len(host.get("project-statistics").registration.commands) == 4
     assert (await api.get("/api/v1/plugins/project-statistics/logs")).json()[-1][
         "action"
     ] == "update"

@@ -330,7 +330,325 @@ async def agent_sync(ctx, params):
     return await sync(ctx, {**params, "mode": "push"})
 
 
+def ui_node(kind, children=None, **props):
+    node = {"type": kind, "props": props, "children": children}
+    if kind in {"Input", "TextArea"} and props.get("label"):
+        return {
+            "type": "Flex",
+            "props": {"direction": "column", "gap": "2", "minWidth": "0"},
+            "children": [
+                {
+                    "type": "Text",
+                    "props": {"size": "2", "weight": "medium"},
+                    "children": props["label"],
+                },
+                node,
+            ],
+        }
+    return node
+
+
+UI_CSS = """
+:scope { --example-accent: var(--accent-9); }
+.example-page { width: 100%; max-width: 1100px; margin: 0 auto; min-width: 0; }
+.example-panel { padding: 20px; min-width: 0; }
+.example-title { color: var(--accent-11); }
+.example-actions { flex-wrap: wrap; }
+.example-output { display: block; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+.example-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.example-metric strong { display: block; font-size: 26px; margin-top: 8px; }
+.example-table { overflow-x: auto; }
+.example-conflict { border: 1px solid var(--orange-7); padding: 12px; border-radius: 8px; }
+.example-compact { padding: 8px; }
+@media (max-width: 640px) {
+  .example-panel { padding: 12px; }
+  .example-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .example-actions > button { flex: 1 1 auto; }
+}
+"""
+
+
+def ui_button(title, action, **props):
+    return ui_node("Button", title, onPress=action, **props)
+
+
+def ui_row(*children):
+    return ui_node(
+        "Flex", list(children), gap="3", align="center", className="example-actions"
+    )
+
+
+def ui_panel(*children):
+    return ui_node(
+        "Card",
+        ui_node("Flex", list(children), direction="column", gap="4"),
+        className="example-panel",
+    )
+
+
+def ui_status(state):
+    return ui_node(
+        "Text",
+        state.get("status", ""),
+        id="status",
+        role="status",
+        size="2",
+        color="gray",
+    )
+
+
+def ui_document(*children, compact=False):
+    return {
+        "css": UI_CSS,
+        "tree": ui_node(
+            "Flex",
+            list(children),
+            direction="column",
+            gap="4",
+            **{
+                "className": "example-page" + (" example-compact" if compact else ""),
+            },
+        ),
+    }
+
+
+async def ui_state(ctx, params, global_default=False):
+    context = params.get("context", {})
+    key = (
+        "ui:"
+        + params.get("viewId", "main")
+        + ":"
+        + str(context.get("projectId") or "global")
+    )
+    state = await ctx.storage.get(key, {})
+    if "project" not in state:
+        projects = await ctx.data.list_projects()
+        state["project"] = context.get("projectId") or (
+            "" if global_default or not projects else projects[0]["id"]
+        )
+    return key, state
+
+
+async def ui_render(ctx, params):
+    _, state = await ui_state(ctx, params)
+    project = state["project"]
+    connection = await status(ctx, {"projectId": project})
+    if params.get("viewId") == "toolbar":
+        return ui_document(
+            ui_row(
+                ui_button("保存并同步本项目", "toolbar-sync", disabled=not project),
+                ui_node(
+                    "Badge",
+                    "已连接" if connection["connected"] else "尚未连接",
+                    color="green" if connection["connected"] else "gray",
+                ),
+            ),
+            ui_status(state),
+            compact=True,
+        )
+    report = state.get("report") or (connection.get("lastRun") or {}).get("lastReport")
+    report_nodes = []
+    if report:
+        report_nodes.append(
+            ui_node(
+                "Text",
+                f"上传 {report['uploaded']} · 下载 {report['downloaded']} · 导入 {report['imported']} · 无变化 {report['unchanged']} · 待同步 {report['pending']} · 冲突 {len(report['conflicts'])}",
+                id="report",
+            )
+        )
+        conflicts = []
+        for item in report["conflicts"]:
+            chapter_id = item["chapterId"]
+            conflicts.append(
+                ui_node(
+                    "Flex",
+                    [
+                        ui_node("Text", item["title"] + "：本地与云端均有修改"),
+                        ui_row(
+                            *[
+                                ui_node(
+                                    "AlertDialog.Root",
+                                    [
+                                        ui_node(
+                                            "AlertDialog.Trigger",
+                                            ui_button(label, "", variant="soft"),
+                                        ),
+                                        ui_node(
+                                            "AlertDialog.Content",
+                                            [
+                                                ui_node(
+                                                    "AlertDialog.Title",
+                                                    "确认解决章节冲突",
+                                                ),
+                                                ui_node(
+                                                    "AlertDialog.Description",
+                                                    "确认以所选版本覆盖另一端的这一章？",
+                                                ),
+                                                ui_row(
+                                                    ui_node(
+                                                        "AlertDialog.Cancel",
+                                                        ui_button(
+                                                            "取消", "", variant="soft"
+                                                        ),
+                                                    ),
+                                                    ui_node(
+                                                        "AlertDialog.Action",
+                                                        ui_button(
+                                                            "确认覆盖",
+                                                            "resolve:"
+                                                            + side
+                                                            + ":"
+                                                            + chapter_id,
+                                                            color="orange",
+                                                        ),
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                )
+                                for side, label in [
+                                    ("local", "使用本地版本"),
+                                    ("remote", "使用云端版本"),
+                                ]
+                            ]
+                        ),
+                    ],
+                    direction="column",
+                    gap="3",
+                    className="example-conflict",
+                )
+            )
+        report_nodes.append(
+            ui_node("Flex", conflicts, direction="column", gap="3", id="conflicts")
+        )
+    oauth = state.get("oauth")
+    return ui_document(
+        ui_node("Heading", "Google Drive 章节同步", className="example-title"),
+        ui_node(
+            "Text",
+            "同步已保存的章节。两端同时修改时保留双方内容，待你选择解决冲突。不会传播删除。",
+            color="gray",
+            size="2",
+        ),
+        ui_panel(
+            ui_row(
+                ui_button("连接 Google Drive", "connect"),
+                ui_button("断开连接", "disconnect", variant="soft"),
+                ui_node(
+                    "Badge",
+                    "已连接" if connection["connected"] else "尚未连接",
+                    id="connection",
+                    color="green" if connection["connected"] else "gray",
+                ),
+            ),
+            *(
+                [
+                    ui_node("Link", "打开 Google 授权页面", href=oauth["url"]),
+                    ui_node(
+                        "Text",
+                        "OAuth 控制台需登记的 Redirect URI：" + oauth["redirect_uri"],
+                        size="1",
+                    ),
+                ]
+                if oauth
+                else []
+            ),
+            ui_node("Heading", "使用已有 OAuth access token", size="3"),
+            ui_node(
+                "Input",
+                label="Access token",
+                type="password",
+                value="",
+                onChange="token-draft",
+                autoComplete="off",
+                key=str(state.get("tokenVersion", 0)),
+            ),
+            ui_button("安全保存令牌", "token", variant="soft"),
+        ),
+        ui_panel(
+            ui_node(
+                "ProjectSelector", label="选择项目", value=project, onChange="project"
+            ),
+            ui_node(
+                "Select",
+                label="同步方向",
+                value=state.get("mode", "two-way"),
+                options=[
+                    {"value": "two-way", "label": "双向同步"},
+                    {"value": "push", "label": "仅上传本地变化"},
+                    {"value": "pull", "label": "仅拉取云端变化"},
+                ],
+                onChange="mode",
+            ),
+            ui_row(
+                ui_button("立即同步", "sync", disabled=not project),
+                ui_button("预览变化", "preview", variant="soft", disabled=not project),
+            ),
+            ui_status(state),
+            *report_nodes,
+        ),
+    )
+
+
+async def ui_action(ctx, params):
+    key, state = await ui_state(ctx, params)
+    action = params["id"]
+    if action in {"project", "mode"}:
+        state[action] = params["value"]
+        state.pop("report", None)
+        state["status"] = ""
+    elif action == "connect":
+        state["oauth"] = await connect(ctx, {})
+        state["status"] = "请在授权页面完成连接，然后返回本页。"
+    elif action == "disconnect":
+        await disconnect(ctx, {})
+        await ctx.secrets.delete("ui.token.draft")
+        state.pop("oauth", None)
+        state["status"] = "已断开连接"
+    elif action == "token-draft":
+        await ctx.secrets.set("ui.token.draft", str(params["value"]))
+        return
+    elif action == "token":
+        value = str(await ctx.secrets.get("ui.token.draft", "")).strip()
+        if not value:
+            raise ValueError("请输入令牌")
+        await ctx.secrets.set(
+            "oauth.tokens",
+            {"access_token": value, "obtained_at": time.time(), "expires_in": 3600},
+        )
+        await ctx.secrets.delete("ui.token.draft")
+        state["tokenVersion"] = time.time()
+        state["status"] = "令牌已加密保存"
+    elif action == "toolbar-sync":
+        return {"effects": [{"method": "editor.save"}], "next": "saved-sync"}
+    elif action in {"sync", "preview", "saved-sync"} or action.startswith("resolve:"):
+        resolutions = {}
+        if action.startswith("resolve:"):
+            _, side, chapter_id = action.split(":", 2)
+            if side not in {"local", "remote"}:
+                raise ValueError("Unknown resolution")
+            resolutions[chapter_id] = side
+        report = await sync(
+            ctx,
+            {
+                "projectId": state["project"],
+                "mode": state.get("mode", "two-way"),
+                "dryRun": action == "preview",
+                "resolutions": resolutions,
+            },
+        )
+        state["report"] = report
+        state["status"] = "变化预览完成，未修改内容" if report["dryRun"] else "同步完成"
+    else:
+        raise ValueError("Unknown UI action")
+    await ctx.storage.set(key, state)
+    ctx.host.emit("ui.invalidate", {}, ctx.plugin_id)
+
+
 def register(host):
+    host.register_command("ui.render", ui_render)
+    host.register_command("ui.action", ui_action)
     host.register_command("drive.connect", connect)
     host.register_command("drive.status", status)
     host.register_command("drive.disconnect", disconnect)

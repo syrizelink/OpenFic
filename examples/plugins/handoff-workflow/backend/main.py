@@ -189,7 +189,273 @@ async def last(ctx, params):
     return await ctx.storage.get("lastRun")
 
 
+def ui_node(kind, children=None, **props):
+    node = {"type": kind, "props": props, "children": children}
+    if kind in {"Input", "TextArea"} and props.get("label"):
+        return {
+            "type": "Flex",
+            "props": {"direction": "column", "gap": "2", "minWidth": "0"},
+            "children": [
+                {
+                    "type": "Text",
+                    "props": {"size": "2", "weight": "medium"},
+                    "children": props["label"],
+                },
+                node,
+            ],
+        }
+    return node
+
+
+UI_CSS = """
+:scope { --example-accent: var(--accent-9); }
+.example-page { width: 100%; max-width: 1100px; margin: 0 auto; min-width: 0; }
+.example-panel { padding: 20px; min-width: 0; }
+.example-title { color: var(--accent-11); }
+.example-actions { flex-wrap: wrap; }
+.example-output { display: block; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+.example-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.example-metric strong { display: block; font-size: 26px; margin-top: 8px; }
+.example-table { overflow-x: auto; }
+.example-conflict { border: 1px solid var(--orange-7); padding: 12px; border-radius: 8px; }
+.example-compact { padding: 8px; }
+@media (max-width: 640px) {
+  .example-panel { padding: 12px; }
+  .example-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .example-actions > button { flex: 1 1 auto; }
+}
+"""
+
+
+def ui_button(title, action, **props):
+    return ui_node("Button", title, onPress=action, **props)
+
+
+def ui_row(*children):
+    return ui_node(
+        "Flex", list(children), gap="3", align="center", className="example-actions"
+    )
+
+
+def ui_panel(*children):
+    return ui_node(
+        "Card",
+        ui_node("Flex", list(children), direction="column", gap="4"),
+        className="example-panel",
+    )
+
+
+def ui_status(state):
+    return ui_node(
+        "Text",
+        state.get("status", ""),
+        id="status",
+        role="status",
+        size="2",
+        color="gray",
+    )
+
+
+def ui_document(*children, compact=False):
+    return {
+        "css": UI_CSS,
+        "tree": ui_node(
+            "Flex",
+            list(children),
+            direction="column",
+            gap="4",
+            **{
+                "className": "example-page" + (" example-compact" if compact else ""),
+            },
+        ),
+    }
+
+
+async def ui_state(ctx, params, global_default=False):
+    context = params.get("context", {})
+    key = (
+        "ui:"
+        + params.get("viewId", "main")
+        + ":"
+        + str(context.get("projectId") or "global")
+    )
+    state = await ctx.storage.get(key, {})
+    if "project" not in state:
+        projects = await ctx.data.list_projects()
+        state["project"] = context.get("projectId") or (
+            "" if global_default or not projects else projects[0]["id"]
+        )
+    return key, state
+
+
+async def ui_render(ctx, params):
+    _, state = await ui_state(ctx, params)
+    result = await last(ctx, {})
+    trace = [
+        ui_node(
+            "Text", f"{item['round']}. {item['from']} → {item['to']}：{item['reason']}"
+        )
+        for item in (result or {}).get("handoffs", [])
+    ]
+    return ui_document(
+        ui_node("Heading", "Handoff 写作工作流", className="example-title"),
+        ui_node(
+            "Text",
+            "规划 Agent → 写作 Agent → 审稿 Agent。模型通过 handoff 工具交接控制权；审稿可将反馈交回写作。",
+            color="gray",
+            size="2",
+        ),
+        ui_panel(
+            ui_node(
+                "Grid",
+                [
+                    ui_node(
+                        "ProjectSelector",
+                        label="选择项目",
+                        value=state["project"],
+                        onChange="project",
+                    ),
+                    ui_node(
+                        "ModelSelector",
+                        label="调用模型",
+                        value=state.get("model", ""),
+                        onChange="model",
+                        editable=False,
+                    ),
+                ],
+                columns={"initial": "1", "sm": "2"},
+                gap="4",
+            ),
+            ui_node(
+                "TextArea",
+                label="写作任务",
+                value=state.get(
+                    "prompt", "写一段旅人在山谷遇见旧友的故事，保持人物动机一致。"
+                ),
+                onChange="prompt",
+                rows=4,
+                resize="vertical",
+            ),
+            ui_row(
+                ui_button("运行工作流", "run", disabled=not state.get("model")),
+                ui_button("演示交接（不调用模型）", "demo", variant="soft"),
+            ),
+            ui_status(state),
+        ),
+        ui_panel(
+            ui_node("Heading", "项目默认工作流", size="3"),
+            ui_node(
+                "Text",
+                "只影响选中项目之后发起的 Agent 回合，可随时恢复内置工作流。",
+                size="2",
+            ),
+            ui_row(
+                ui_button(
+                    "为此项目启用 Handoff", "select", disabled=not state["project"]
+                ),
+                ui_button(
+                    "恢复内置工作流",
+                    "reset",
+                    variant="soft",
+                    disabled=not state["project"],
+                ),
+            ),
+        ),
+        ui_panel(
+            ui_node("Heading", "交接记录", size="3"),
+            ui_node(
+                "Flex",
+                trace or [ui_node("Text", "运行后在这里显示交接记录。", color="gray")],
+                direction="column",
+                gap="2",
+                id="trace",
+            ),
+            ui_node("Heading", "最终输出", size="3"),
+            ui_node(
+                "Code",
+                (result or {}).get("text", "尚未运行工作流。"),
+                id="output",
+                className="example-output",
+            ),
+            ui_row(
+                ui_button(
+                    "保存为项目笔记",
+                    "save",
+                    variant="soft",
+                    disabled=not result or not state["project"],
+                ),
+                ui_button("导出结果", "download", variant="soft", disabled=not result),
+            ),
+        ),
+    )
+
+
+async def ui_action(ctx, params):
+    import json
+
+    key, state = await ui_state(ctx, params)
+    action = params["id"]
+    if action in {"project", "model", "prompt"}:
+        state[action] = params["value"]
+    elif action in {"run", "demo"}:
+        await run(
+            ctx,
+            {
+                "projectId": state["project"],
+                "modelId": state.get("model"),
+                "prompt": state.get(
+                    "prompt", "写一段旅人在山谷遇见旧友的故事，保持人物动机一致。"
+                ),
+                "demo": action == "demo",
+            },
+        )
+        state["status"] = (
+            "演示完成（没有调用模型）" if action == "demo" else "工作流完成"
+        )
+    elif action in {"select", "reset"}:
+        await ctx.call(
+            "workflow.select",
+            {
+                "projectId": state["project"],
+                "provider": "handoff" if action == "select" else None,
+            },
+        )
+        state["status"] = (
+            "已为此项目启用 Handoff 工作流"
+            if action == "select"
+            else "已恢复内置工作流"
+        )
+    elif action in {"save", "download"}:
+        result = await last(ctx, {})
+        if not result or not result.get("text"):
+            raise ValueError("请先运行工作流")
+        if action == "download":
+            return {
+                "effects": [
+                    {
+                        "method": "ui.download",
+                        "params": {
+                            "name": "handoff-result.json",
+                            "text": json.dumps(result, ensure_ascii=False, indent=2),
+                            "mime": "application/json",
+                        },
+                    }
+                ]
+            }
+        if result.get("projectId") != state["project"]:
+            raise ValueError("请先为当前项目运行工作流，避免将其他项目的结果写入此项目")
+        await ctx.notes.create(
+            {"title": "Handoff 写作结果", "content": result["text"]}, state["project"]
+        )
+        state["status"] = "已保存为项目笔记"
+    else:
+        raise ValueError("Unknown UI action")
+    await ctx.storage.set(key, state)
+
+
 def register(host):
+    host.register_command("ui.render", ui_render)
+    host.register_command("ui.action", ui_action)
     host.register_graph("handoff", handoff_graph)
     host.register_command("workflow.run", run)
     host.register_command("workflow.last", last)

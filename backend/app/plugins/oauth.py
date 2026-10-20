@@ -130,3 +130,4 @@ async def finish_oauth(host, state: str, code: str | None, error: str | None):
     tokens["obtained_at"] = time.time()
     await context.secrets.set("oauth.tokens", tokens)
     host.emit("oauth.connected", {"pluginId": plugin.manifest.id}, plugin.manifest.id)
+    host.emit("ui.invalidate", {"pluginId": plugin.manifest.id}, plugin.manifest.id)

@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 const backend = process.env.OPENFIC_E2E_BACKEND ?? "http://127.0.0.1:8000";
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const packagePath = `${root}examples/plugins/dist/project-statistics-1.0.0.zip`;
+const packagePath = `${root}examples/plugins/dist/project-statistics-1.1.0.zip`;
 test.use({ video: "off" });
 
 test("install a unified package, render statistics, configure, disable and uninstall", async ({
@@ -51,12 +51,12 @@ test("install a unified package, render statistics, configure, disable and unins
     await expect(card.getByText("已启用", { exact: true })).toBeVisible();
     const region = page.getByRole("navigation", { name: "扩展", exact: true });
     await region.getByRole("link", { name: "项目统计", exact: true }).click();
-    const view = page.frameLocator('iframe[title="项目统计"]');
-    await expect(view.getByRole("heading", { name: "项目统计", exact: true })).toBeVisible();
-    await view.getByLabel("选择项目").selectOption(project.id);
-    await expect(
-      view.locator("#metrics article").filter({ hasText: "总字数" }).locator("strong"),
-    ).toHaveText("400");
+    const view = page.locator('[data-plugin-view="project-statistics/overview"]');
+    await expect(view.locator("iframe")).toHaveCount(0);
+    await expect(view.getByRole("heading", { name: "项目统计", exact: true }).last()).toBeVisible();
+    await view.locator('[data-plugin-component="ProjectSelectField"]').getByRole("textbox").click();
+    await page.getByText("插件统计验证", { exact: true }).last().click();
+    await expect(view.getByTestId("metric-words").locator("strong")).toHaveText("400");
     await expect(view.locator("#volume-body")).toContainText("400");
     await page.getByRole("link", { name: "插件管理", exact: true }).last().click();
     await card.getByText("插件配置", { exact: true }).click();
@@ -64,10 +64,11 @@ test("install a unified package, render statistics, configure, disable and unins
     await card.getByRole("button", { name: "保存配置", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("配置已保存");
     await region.getByRole("link", { name: "项目统计", exact: true }).click();
-    await view.getByLabel("选择项目").selectOption(project.id);
+    await view.locator('[data-plugin-component="ProjectSelectField"]').getByRole("textbox").click();
+    await page.getByText("插件统计验证", { exact: true }).last().click();
     await expect(view.locator("#goal")).toContainText("50%");
     await page.reload();
-    await expect(view.getByRole("heading", { name: "项目统计", exact: true })).toBeVisible();
+    await expect(view.getByRole("heading", { name: "项目统计", exact: true }).last()).toBeVisible();
     await page.getByRole("link", { name: "插件管理", exact: true }).last().click();
     await card.getByRole("button", { name: "停用", exact: true }).click();
     await expect(region.getByRole("link", { name: "项目统计", exact: true })).toHaveCount(0);

@@ -2,7 +2,7 @@ import { Button, Flex, Heading, Text, useThemeContext } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { PortalContainerContext } from "@/components/portal-container";
 import { Spinner } from "@/components/spinner";
@@ -10,8 +10,10 @@ import { apiClient } from "@/lib/api-client";
 
 import { pluginError, type InstalledPlugin, type PluginView } from "./api";
 import { scopeCSS } from "./declarative-css";
+import { runUIEffects } from "./declarative-effects";
 import { type UIDocument, type UIAction } from "./declarative-schema";
 import { DeclarativeErrorBoundary, renderTree } from "./declarative-tree";
+import { frontendCall } from "./frontend-host";
 
 function str(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -32,6 +34,7 @@ export function DeclarativeView({
   const queryClient = useQueryClient();
   const { appearance } = useThemeContext();
   const params = useParams();
+  const navigate = useNavigate();
   const [search] = useSearchParams();
   const projectId = context.projectId ?? params.projectId ?? search.get("projectId");
   const contextKey = JSON.stringify({
@@ -93,17 +96,26 @@ export function DeclarativeView({
     queue.current = queue.current
       .then(async () => {
         if (!current.active) return;
-        const response = await apiClient.post<{ result: unknown }>(
-          `/plugins/${plugin.id}/views/${view.id}/action`,
-          {
-            id,
-            value,
-            event,
-            context: JSON.parse(contextKey),
-          },
+        const send = async (actionId: string, actionValue: unknown, actionEvent: string) =>
+          (
+            await apiClient.post<{ result: unknown }>(
+              `/plugins/${plugin.id}/views/${view.id}/action`,
+              {
+                id: actionId,
+                value: actionValue,
+                event: actionEvent,
+                context: JSON.parse(contextKey),
+              },
+            )
+          ).data.result;
+        const response = await send(id, value, event);
+        const result = await runUIEffects(
+          response,
+          (method, args) => frontendCall(method, args, plugin.capabilities, navigate),
+          (next, values) => send(next, values, "change"),
+          () => current.active,
         );
         if (current.active && event === "command") {
-          const result = response.data.result;
           setMessage(
             result && typeof result === "object" && "text" in result ? str(result.text) : "",
           );

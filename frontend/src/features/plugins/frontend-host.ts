@@ -63,7 +63,18 @@ export async function frontendCall(
   if (!capabilities.includes(required)) throw new Error(`Plugin has not declared ${required}`);
   if (method.startsWith("editor.")) {
     if (!activeEditor) throw new Error("No editor is currently open");
-    if (method === "editor.read") return activeEditor.read();
+    if (method === "editor.read") {
+      const snapshot = activeEditor.read();
+      if (params.summary === true) {
+        const { content, selection, ...metadata } = snapshot;
+        return {
+          ...metadata,
+          contentLength: content.length,
+          selection: { ...selection, text: selection.text.slice(0, 1000) },
+        };
+      }
+      return snapshot;
+    }
     if (activeEditor.read().locked) throw new Error("Editor is locked by an Agent");
     return activeEditor.run(method.slice(7), params);
   }

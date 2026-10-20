@@ -1,0 +1,244 @@
+{
+  "date": "2026-10-20",
+  "branch": "feat/extension-host",
+  "base_commit": "ddbe34b",
+  "packages": [
+    {
+      "id": "project-statistics",
+      "file": "examples/plugins/dist/project-statistics-1.1.0.zip",
+      "version": "1.1.0",
+      "views": 1,
+      "sha256": "ca992587ec42f35887d29a0ab310ffba7add6b02a0487bec2163ce6db74dcf1e",
+      "files_match_source": true
+    },
+    {
+      "id": "google-drive-sync",
+      "file": "examples/plugins/dist/google-drive-sync-1.1.0.zip",
+      "version": "1.1.0",
+      "views": 2,
+      "sha256": "b2a9fa853ee3456865443276bd2d622315426809d95a7a1258d6b5bbe572a04a",
+      "files_match_source": true
+    },
+    {
+      "id": "handoff-workflow",
+      "file": "examples/plugins/dist/handoff-workflow-1.1.0.zip",
+      "version": "1.1.0",
+      "views": 1,
+      "sha256": "bffb75b545ea986d5fe9d90046012ae3122f516ad1066bc5727ad46018126596",
+      "files_match_source": true
+    },
+    {
+      "id": "prompt-elements",
+      "file": "examples/plugins/dist/prompt-elements-1.1.0.zip",
+      "version": "1.1.0",
+      "views": 3,
+      "sha256": "9842c9520417c0bed401ca1c2bff61308ca9a0e1218a081e52af603ceb379399",
+      "files_match_source": true
+    }
+  ],
+  "native_views": 7,
+  "frontend_assets_in_plugins": false,
+  "checks": {
+    "plugin_backend": {
+      "passed": 78,
+      "seconds": 5.31
+    },
+    "regression": {
+      "passed": 24,
+      "failed": 0,
+      "browser_cases": 13,
+      "compiler_and_bridge_cases": 11,
+      "oauth_followup_passed": 1,
+      "cases": [
+        {
+          "name": "original navigation, settings plugin category and mobile shell still render",
+          "file": "app-shell-regression.spec.ts",
+          "seconds": 12.511
+        },
+        {
+          "name": "compiles nesting without browser CSSOM or native scope",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.039
+        },
+        {
+          "name": "namespaces keyframes, animation lists, fallback variables and inline styles",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.014
+        },
+        {
+          "name": "escaped and quoted animation identifiers are parsed without rewriting timing keywords",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.004
+        },
+        {
+          "name": "drops global registrations and unsafe declarations without dropping valid rules",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.012
+        },
+        {
+          "name": "validates URL forms and inline styles using the same resource policy",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.008
+        },
+        {
+          "name": "rejects malformed styles, invalid scopes and excessive input and rule depth",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.433
+        },
+        {
+          "name": "browser renders roots, nesting, form fields, pseudos and portals while containing hostile selectors",
+          "file": "declarative-css.spec.ts",
+          "seconds": 0.809
+        },
+        {
+          "name": "effects execute in order and pass results to a bounded continuation",
+          "file": "declarative-effects.spec.ts",
+          "seconds": 0.02
+        },
+        {
+          "name": "rejects unknown methods and malformed batches before performing any effect",
+          "file": "declarative-effects.spec.ts",
+          "seconds": 0.011
+        },
+        {
+          "name": "capability denial or leaving a view prevents later effects and callbacks",
+          "file": "declarative-effects.spec.ts",
+          "seconds": 0.01
+        },
+        {
+          "name": "limits recursive effects and preserves ordinary action responses",
+          "file": "declarative-effects.spec.ts",
+          "seconds": 0.03
+        },
+        {
+          "name": "discardResult avoids sending unnecessary editor snapshots back to the plugin",
+          "file": "declarative-effects.spec.ts",
+          "seconds": 0.003
+        },
+        {
+          "name": "one plugin mixes native Radix controls and legacy iframe, with safe rendering and persisted actions",
+          "file": "declarative-plugins.spec.ts",
+          "seconds": 10.581
+        },
+        {
+          "name": "native catalogue, project data, Radix events, responsive props and scoped portals",
+          "file": "declarative-showcase.spec.ts",
+          "seconds": 13.684
+        },
+        {
+          "name": "project selectors keep their mobile sheets and portal focus",
+          "file": "declarative-showcase.spec.ts",
+          "seconds": 5.265
+        },
+        {
+          "name": "project-statistics: native styling, usable controls, desktop and mobile layout",
+          "file": "native-examples.spec.ts",
+          "seconds": 10.115
+        },
+        {
+          "name": "google-drive-sync: native styling, usable controls, desktop and mobile layout",
+          "file": "native-examples.spec.ts",
+          "seconds": 10.589
+        },
+        {
+          "name": "handoff-workflow: native styling, usable controls, desktop and mobile layout",
+          "file": "native-examples.spec.ts",
+          "seconds": 11.344
+        },
+        {
+          "name": "prompt-elements: native styling, usable controls, desktop and mobile layout",
+          "file": "native-examples.spec.ts",
+          "seconds": 10.665
+        },
+        {
+          "name": "SDK examples: Drive OAuth/conflicts/Agent tool, handoff graph, prompt injection and editor",
+          "file": "plugin-sdk.spec.ts",
+          "seconds": 40.435
+        },
+        {
+          "name": "management rejects raw and converted Mods and keeps native installation available",
+          "file": "plugin-sdk.spec.ts",
+          "seconds": 4.92
+        },
+        {
+          "name": "React plugin uses the typed SDK package, inline styles, persistence and capability checks",
+          "file": "plugin-sdk.spec.ts",
+          "seconds": 9.032
+        },
+        {
+          "name": "install a unified package, render statistics, configure, disable and uninstall",
+          "file": "plugins.spec.ts",
+          "seconds": 22.708
+        }
+      ]
+    },
+    "type_aware": "passed",
+    "typescript_build_and_sdk_consumer": "passed",
+    "lint": "passed",
+    "format_and_diff": "passed",
+    "catalogue_and_sdk_freshness": "passed",
+    "production_build": "passed"
+  },
+  "wheel": {
+    "file": "openfic-0.12.1-py3-none-any.whl",
+    "frontend_files_match_final_build": 740,
+    "oauth_sdk_catalogue_match_source": true
+  },
+  "screenshots": [
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/drive-conflict-dialog.png",
+      "sha256": "5ecaaafe9cf72f67e5085ba45e5744f075c3c344de976053038394df508df007"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/drive-editor-toolbar.png",
+      "sha256": "e67a95b405bb2fa694c63e24123ca54f58a4826cd7d1a36cc8a31755d1778ace"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/google-drive-sync-desktop.png",
+      "sha256": "7bb1b5c05fe95b94a53e7ed51175a0eaaf0e2b5114deb2ce0485649be95c0201"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/google-drive-sync-mobile.png",
+      "sha256": "93d1ef646297e2460d6497a0d7f44644242d7796f17086465b64d847534d7969"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/handoff-workflow-desktop.png",
+      "sha256": "a13fb725675e5229ade6880c8c9e515fa506b357d991cc7eb0be74abbf588768"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/handoff-workflow-mobile.png",
+      "sha256": "b0de2e039cb5cdb29dd2dcc52e6c736a666ca4b174967e59624ed9aa397f306a"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/project-statistics-desktop.png",
+      "sha256": "8e1328ab98c5fd1e79ce73be9c8c58eb67807fcf7c3e6a5c7aa19d970c991268"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/project-statistics-mobile.png",
+      "sha256": "6047d771c4dd9191a229bb2279f9985133adfc3a0b12d77368787991f1db2bdb"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/prompt-above-composer.png",
+      "sha256": "a1a80c7c261d87bad1659fd5e7c57fc6301e71d762bbdbb1e97282641d8448ee"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/prompt-editor-toolbar.png",
+      "sha256": "aad9de1e759c21c1028d17ce3e4768f14ba9f5d3ce346be82b7e570fcebad49c"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/prompt-elements-desktop.png",
+      "sha256": "8066952346d34fd3fdc1d4e1c9781eb9a731627d54c7cef1dbf5f2a8f38a68f8"
+    },
+    {
+      "file": "/workspace/openfic-verification/declarative-migration/screenshots/prompt-elements-mobile.png",
+      "sha256": "41492f103314e8cfab83f7c10b7565b88c34e3483e17e945cd48219006294a1b"
+    }
+  ],
+  "limitations": [
+    "Chromium desktop and 390px mobile viewport; no native Tauri window, Safari or Firefox were launched.",
+    "OAuth, Google Drive and model services use repository protocol test doubles, not a real Google account or model provider.",
+    "Full backend suite not rerun; plugin suite exercised installation, upgrades, rendering, capability checks and business paths.",
+    "Mobile tests reload at the mobile viewport and perform real actions; desktop-to-mobile shell transition is not covered."
+  ],
+  "raw_evidence": "/workspace/openfic-verification/declarative-migration"
+}

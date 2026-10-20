@@ -1,15 +1,15 @@
 # 扩展宿主与插件开发（包 API v1 / SDK 2.0）
 
-新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。下文保留最小项目统计包示例。
+新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。项目统计 1.1.0 同样使用声明式 UI；下文还保留通用 iframe 包格式说明。
 
 OpenFic 使用统一 ZIP 插件包。插件安装在当前连接的后端实例的 `OPENFIC_DATA_DIR/plugins/` 中；前端由内嵌的扩展宿主动态加载插件资源，不需要重新构建主应用。桌面版同样使用运行时配置中的后端地址。
 
 ## 安装项目统计插件
 
-仓库提供可安装包 `examples/plugins/dist/project-statistics-1.0.0.zip` 和完整源码。重新打包：
+仓库提供可安装包 `examples/plugins/dist/project-statistics-1.1.0.zip` 和完整源码。重新打包：
 
 ```bash
-python examples/plugins/build_package.py examples/plugins/project-statistics examples/plugins/dist/project-statistics-1.0.0.zip
+python examples/plugins/build_package.py examples/plugins/project-statistics examples/plugins/dist/project-statistics-1.1.0.zip
 ```
 
 1. 打开侧栏独立「扩展」区域的「插件管理」，或设置中的「插件管理」。
@@ -24,7 +24,7 @@ python examples/plugins/build_package.py examples/plugins/project-statistics exa
 
 ## 包格式
 
-ZIP 根目录必须直接包含 `plugin.json`，而非多套一层项目目录。前端文件必须已经构建；后端入口是 Python 文件。当前不自动执行 pip/npm 安装。
+ZIP 根目录必须直接包含 `plugin.json`，而非多套一层项目目录。声明式 UI 只需要清单和 Python 后端，详见 [声明式 UI 协议](./declarative-plugin-ui.md)；以下结构适用于 iframe 插件，其前端文件必须已经构建。后端入口是 Python 文件。当前不自动执行 pip/npm 安装。
 
 ```text
 plugin.json

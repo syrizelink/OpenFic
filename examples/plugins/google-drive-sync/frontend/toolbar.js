@@ -1,1 +1,0 @@
-OpenFic.ready.then(c=>{document.getElementById('sync').onclick=async()=>{const status=document.getElementById('status');try{await OpenFic.editor.save();const r=await OpenFic.call('drive.sync',{projectId:c.projectId,mode:'two-way'});status.textContent=`同步完成：上传 ${r.uploaded}，下载 ${r.downloaded}，冲突 ${r.conflicts.length}`;}catch(e){status.textContent=e.message;}};});

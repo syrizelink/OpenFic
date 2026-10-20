@@ -1,7 +1,7 @@
 {
   "id": "handoff-workflow",
   "name": "Handoff 写作工作流",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "api_version": 1,
   "description": "规划、写作、审稿三个 Agent 通过 LangGraph Command 交接控制权；可替换指定项目的内置工作流。",
   "author": "OpenFic",
@@ -21,8 +21,10 @@
     {
       "id": "workflow",
       "title": "Handoff 写作工作流",
-      "entry": "frontend/index.html",
-      "slot": "sidebar.extensions"
+      "slot": "sidebar.extensions",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
     }
   ],
   "settings": [
