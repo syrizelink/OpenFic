@@ -3,17 +3,15 @@
 import asyncio
 import importlib.util
 import inspect
-import io
+import os
 import json
 import re
 import secrets
 import shutil
-import stat
 import sys
 import tempfile
 import time
 import uuid
-import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,8 +22,6 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.plugins.manifest import (
-    MAX_EXPANDED_BYTES,
-    MAX_PACKAGE_BYTES,
     Manifest,
     safe_path,
 )
@@ -155,6 +151,10 @@ class PluginHost:
         self.http_transport = None
         self.application = None
         self.oauth_flows: dict[str, dict] = {}
+        from app.plugins.diagnostics import Diagnostics
+
+        self.diagnostics = Diagnostics(os.getenv("OPENFIC_PLUGIN_DEVTOOLS") == "1")
+        self.development = None
 
     def _log(self, plugin_id: str, action: str, message: str, level: str = "info"):
         entry = {
@@ -291,6 +291,9 @@ class PluginHost:
     def describe(self, plugin: Installed) -> dict[str, Any]:
         return {
             **plugin.manifest.model_dump(),
+            "development_revision": self.development.revision
+            if self.development and self.development.plugin_id == plugin.manifest.id
+            else 0,
             "enabled": plugin.enabled,
             "status": "error"
             if plugin.error
@@ -436,50 +439,12 @@ class PluginHost:
         plugin.registration = None
 
     def _extract(self, content: bytes, target: Path) -> Manifest:
-        if not content or len(content) > MAX_PACKAGE_BYTES:
-            raise PluginError("Package must be between 1 byte and 20 MiB")
+        from app.plugins.packages import extract_package, PackageValidationError
+
         try:
-            with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                files = [info for info in archive.infolist() if not info.is_dir()]
-                if (
-                    len(archive.infolist()) > 512
-                    or sum(info.file_size for info in files) > MAX_EXPANDED_BYTES
-                ):
-                    raise PluginError("Package exceeds extraction limits")
-                seen: set[str] = set()
-                for info in archive.infolist():
-                    name = safe_path(
-                        info.filename.rstrip("/") if info.is_dir() else info.filename
-                    )
-                    if (
-                        name.casefold() in seen
-                        or stat.S_ISLNK(info.external_attr >> 16)
-                        or info.flag_bits & 1
-                    ):
-                        raise PluginError(
-                            "Duplicate, encrypted or symbolic-link archive entry"
-                        )
-                    seen.add(name.casefold())
-                    if info.is_dir():
-                        continue
-                    destination = target / name
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    destination.write_bytes(archive.read(info))
-                if not (target / "plugin.json").exists():
-                    raise PluginError("Package must contain plugin.json at the archive root")
-                manifest = Manifest.model_validate_json(
-                    (target / "plugin.json").read_bytes()
-                )
-                entries = [view.entry for view in manifest.views if view.entry]
-                if manifest.backend:
-                    entries.append(manifest.backend)
-                if any(not (target / entry).is_file() for entry in entries):
-                    raise PluginError("Manifest references a missing entry file")
-                return manifest
-        except PluginError:
-            raise
-        except (ValueError, OSError, zipfile.BadZipFile, RuntimeError) as error:
-            raise PluginError(f"Invalid plugin package: {error}") from error
+            return extract_package(content, target)
+        except PackageValidationError as error:
+            raise PluginError(str(error)) from error
 
     async def install(
         self, content: bytes, update_id: str | None = None
@@ -495,8 +460,13 @@ class PluginHost:
                     )
                 if old is not None and update_id is None:
                     raise PluginError("Plugin already installed; use Update", 409)
-                if old and tuple(map(int, manifest.version.split("."))) <= tuple(
-                    map(int, old.manifest.version.split("."))
+                if (
+                    old
+                    and not (
+                        self.development and self.development.plugin_id == manifest.id
+                    )
+                    and tuple(map(int, manifest.version.split(".")))
+                    <= tuple(map(int, old.manifest.version.split(".")))
                 ):
                     raise PluginError(
                         "Update version must be newer than installed version", 409
@@ -631,7 +601,13 @@ class PluginHost:
                         result = await sdk_call(context, method[4:], params)
                     else:
                         assert handler is not None
-                        result = await _await_result(handler(context, params))
+                        result = await self.diagnostics.run(
+                            plugin,
+                            "command",
+                            method,
+                            params,
+                            lambda: _await_result(handler(context, params)),
+                        )
                 encoded = json.dumps(result, allow_nan=False)
                 if len(encoded.encode()) > 4 * 1024 * 1024:
                     raise ValueError("Plugin response exceeds 4 MiB")

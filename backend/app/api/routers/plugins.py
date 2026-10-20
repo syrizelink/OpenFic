@@ -150,6 +150,85 @@ async def list_plugins(manager: Host):
     }
 
 
+@router.get("/development")
+async def development_status(manager: Host):
+    return (
+        manager.development.describe()
+        if manager.development
+        else {"enabled": False, "inspector": manager.diagnostics.enabled}
+    )
+
+
+@router.post("/development/reload")
+async def reload_development(manager: Host):
+    if not manager.development:
+        raise PluginError("Plugin development is not enabled", 404)
+    return await manager.development.reload()
+
+
+@router.get("/{plugin_id}/inspector")
+async def inspector(plugin_id: str, manager: Host):
+    manager.get(plugin_id)
+    if not manager.diagnostics.enabled:
+        raise PluginError("Plugin Inspector is not enabled", 404)
+    return manager.diagnostics.snapshot(plugin_id)
+
+
+class FrontendDiagnostic(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    pluginId: str
+    viewId: str | None = None
+    kind: Literal["render", "action", "effect", "iframe"]
+    method: str = Field(max_length=128)
+    status: Literal["ok", "error"]
+    durationMs: float = Field(default=0, ge=0, le=3600000)
+    request: JsonValue = None
+    result: JsonValue = None
+    error: JsonValue = None
+
+    @field_validator("request", "result", "error")
+    @classmethod
+    def bounded_payload(cls, value):
+        if len(json.dumps(value, allow_nan=False).encode()) > 64000:
+            raise ValueError("Diagnostic payload exceeds 64 KiB")
+        return value
+
+
+@router.post("/{plugin_id}/inspector/report", status_code=204)
+async def report_frontend_diagnostic(
+    plugin_id: str, data: FrontendDiagnostic, manager: Host
+):
+    plugin = manager.get(plugin_id)
+    if not manager.diagnostics.enabled:
+        raise PluginError("Plugin Inspector is not enabled", 404)
+    if (
+        data.pluginId != plugin_id
+        or data.viewId
+        and data.viewId not in {view.id for view in plugin.manifest.views}
+    ):
+        raise PluginError("Invalid diagnostic plugin/view identity", 422)
+    manager.diagnostics.add(
+        plugin,
+        "frontend." + data.kind,
+        data.method,
+        data.request,
+        data.result,
+        data.error if data.status == "error" else None,
+        data.durationMs / 1000,
+        view_id=data.viewId,
+    )
+    return Response(status_code=204)
+
+
+@router.delete("/{plugin_id}/inspector")
+async def clear_inspector(plugin_id: str, manager: Host):
+    manager.get(plugin_id)
+    if not manager.diagnostics.enabled:
+        raise PluginError("Plugin Inspector is not enabled", 404)
+    manager.diagnostics.clear(plugin_id)
+    return {"ok": True}
+
+
 @router.get("/catalogue")
 async def sdk_catalogue():
     from app.plugins.declarative import CATALOGUE

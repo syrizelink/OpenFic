@@ -64,6 +64,9 @@ def handle_serve(args: argparse.Namespace) -> None:
     if auth_password is not None:
         os.environ["OPENFIC_AUTH_PASSWORD"] = auth_password
 
+    if getattr(args, "plugin_devtools", False):
+        os.environ["OPENFIC_PLUGIN_DEVTOOLS"] = "1"
+
     import uvicorn
     from app.main import app as asgi_app, fastapi_app
 
@@ -388,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--host", default=_DEFAULT_HOST, help=f"绑定地址（默认 {_DEFAULT_HOST}）")
     serve_parser.add_argument("--port", type=int, default=_DEFAULT_PORT, help=f"绑定端口（默认 {_DEFAULT_PORT}）")
     serve_parser.add_argument("--auth-password", default=None, help="启用应用密码保护")
+    serve_parser.add_argument("--plugin-devtools", action="store_true", help="显式开启插件 Inspector（仅内存记录，含脱敏请求信息）")
     serve_parser.set_defaults(handler=handle_serve)
 
     version_parser = subparsers.add_parser("version", help="显示版本号")
@@ -434,6 +438,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     migrate_parser.set_defaults(handler=handle_db_migrate)
 
+    plugin_parser = subparsers.add_parser("plugin", help="插件检查、打包与独立开发服务")
+    plugin_commands = plugin_parser.add_subparsers(dest="plugin_command", required=True)
+    def plugin_handler(args):
+        from app.plugin_cli import handle_plugin
+        return handle_plugin(args)
+    for name in ("check", "pack"):
+        command = plugin_commands.add_parser(name)
+        command.add_argument("source", help="插件源码目录（check 也支持 ZIP）")
+        command.add_argument("--ui", action="append", default=[], help="额外声明式 UI JSON fixture")
+        command.add_argument("--run-checks", action="store_true", help="执行项目 lint/type-check 脚本和 Ruff；不会自动安装依赖")
+        command.add_argument("--strict", action="store_true", help="将诊断警告和未执行的检查视为失败")
+        command.add_argument("--json", action="store_true", help="输出机器可读诊断")
+        if name == "pack":
+            command.add_argument("--output", required=True, help="输出 ZIP 路径")
+        command.set_defaults(handler=plugin_handler)
+    development = plugin_commands.add_parser("dev")
+    development.add_argument("source", help="监听的插件源码目录")
+    development.add_argument("--port", type=int, default=8011)
+    development.add_argument("--data-dir", help="独立开发数据目录，必须为空或已标记为此插件的开发目录")
+    development.add_argument("--frontend-url", help="另行运行的前端地址；默认使用后端内嵌前端")
+    development.add_argument("--frontend-script", help="同时运行 frontend/package.json 中的构建监听脚本")
+    development.set_defaults(handler=plugin_handler)
     return parser
 
 

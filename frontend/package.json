@@ -9,8 +9,8 @@
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",
     "lint": "oxlint .",
-    "plugin-ui:check": "node scripts/generate-plugin-ui-catalog.mjs --check",
-    "plugin-ui:generate": "node scripts/generate-plugin-ui-catalog.mjs",
+    "plugin-ui:check": "node scripts/generate-plugin-ui-catalog.mjs --check && node scripts/generate-plugin-css.mjs --check",
+    "plugin-ui:generate": "node scripts/generate-plugin-ui-catalog.mjs && node scripts/generate-plugin-css.mjs",
     "preview": "vp preview",
     "test:e2e": "playwright test",
     "test:plugin-css": "playwright test e2e/declarative-css.spec.ts",
@@ -118,7 +118,8 @@
     "uuid": "^13.0.2",
     "words-count": "^2.0.2",
     "zod": "^3.25.76",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.13",
+    "@openfic/plugin-devtools": "file:../packages/plugin-devtools"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

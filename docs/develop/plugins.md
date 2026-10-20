@@ -22,6 +22,8 @@ python examples/plugins/build_package.py examples/plugins/project-statistics exa
 
 管理支持 ZIP 安装、版本更新、启用、停用、配置、最近 200 条生命周期/错误日志、安装包导出和确认卸载。停用后服务端命令与资源访问立即失效，其他前端在刷新插件列表后移除入口。配置和启用状态在重启后保留。卸载删除插件代码和配置，生命周期日志单独保留以便排查。
 
+开发和调试入口见 [插件 Devtools](./plugin-devtools.md)：离线检查、严格打包、独立开发服务与 Inspector。
+
 ## 包格式
 
 ZIP 根目录必须直接包含 `plugin.json`，而非多套一层项目目录。声明式 UI 只需要清单和 Python 后端，详见 [声明式 UI 协议](./declarative-plugin-ui.md)；以下结构适用于 iframe 插件，其前端文件必须已经构建。后端入口是 Python 文件。当前不自动执行 pip/npm 安装。

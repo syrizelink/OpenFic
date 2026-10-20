@@ -9,6 +9,7 @@ import httpx
 from cryptography.fernet import Fernet
 
 from app.plugins.manifest import safe_path
+from app.plugins.diagnostics import traced
 
 
 def bounded_json(value, maximum=4 * 1024 * 1024):
@@ -24,6 +25,7 @@ class PluginAssets:
     def __init__(self, host, plugin):
         self.host, self.plugin = host, plugin
 
+    @traced("assets.read")
     async def read(self, name: str):
         import mimetypes
 
@@ -68,6 +70,7 @@ class PluginStorage:
         path = self._path()
         return json.loads(path.read_text()) if path.exists() else {}
 
+    @traced("storage.get")
     async def get(self, key: str, default=None):
         value = self._load().get(key)
         if value is None:
@@ -76,6 +79,7 @@ class PluginStorage:
             json.loads(self._cipher().decrypt(value.encode())) if self.secret else value
         )
 
+    @traced("storage.set")
     async def set(self, key: str, value):
         if not isinstance(key, str) or not key or len(key) > 250:
             raise ValueError("Invalid storage key")
@@ -90,6 +94,7 @@ class PluginStorage:
         self.host._write_json(self._path(), values)
         return value
 
+    @traced("storage.delete")
     async def delete(self, key: str):
         values = self._load()
         found = key in values
@@ -97,6 +102,7 @@ class PluginStorage:
         self.host._write_json(self._path(), values)
         return found
 
+    @traced("storage.keys")
     async def keys(self, prefix=""):
         return sorted(key for key in self._load() if key.startswith(prefix))
 
@@ -114,12 +120,14 @@ class PluginFiles:
             raise ValueError("File is outside plugin data directory")
         return target
 
+    @traced("files.read")
     async def read(self, name: str):
         path = self.path(name)
         if path.stat().st_size > 4 * 1024 * 1024:
             raise ValueError("File exceeds 4 MiB")
         return path.read_text(encoding="utf-8")
 
+    @traced("files.write")
     async def write(self, name: str, text: str):
         if len(text.encode()) > 4 * 1024 * 1024:
             raise ValueError("File exceeds 4 MiB")
@@ -137,18 +145,21 @@ class PluginFiles:
         temporary.write_text(text, encoding="utf-8")
         temporary.replace(path)
 
+    @traced("files.delete")
     async def delete(self, name: str):
         self.path(name).unlink(missing_ok=True)
 
+    @traced("files.list")
     async def list(self, name=""):
         path = self.path(name) if name else self.path(".listing").parent
         return sorted(p.name for p in path.iterdir()) if path.exists() else []
 
 
 class PluginHTTP:
-    def __init__(self, plugin, transport=None):
-        self.plugin, self.transport = plugin, transport
+    def __init__(self, plugin, transport=None, host=None):
+        self.plugin, self.transport, self.host = plugin, transport, host
 
+    @traced("http.request")
     async def request(
         self, method: str, url: str, *, headers=None, json=None, body=None, form=None
     ):
@@ -197,6 +208,7 @@ class PluginModels:
     def __init__(self, context):
         self.context = context
 
+    @traced("models.create")
     async def create(self, model_id=None, **options):
         self.context.require("agent.models")
         from app.api.routers.agent_runtime import _resolve_model_config
@@ -217,6 +229,7 @@ class PluginModels:
             ModelConfig(**{**to_client_model_config(config), **safe_options})
         )
 
+    @traced("models.complete")
     async def complete(self, messages: list[dict], model_id=None, **options):
         from langchain_core.messages import convert_to_messages
 
@@ -228,6 +241,7 @@ class PluginModels:
             "tool_calls": getattr(response, "tool_calls", []),
         }
 
+    @traced("models.invoke")
     async def invoke(self, model, messages):
         self.context.require("agent.models")
         from app.agent_runtime.graph.react_agent import _invoke_model

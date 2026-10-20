@@ -3,15 +3,24 @@ import { useEffect } from "react";
 
 import { apiClient, fetchChapter, fetchNote } from "@/lib/api-client";
 
-import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
+import { fetchPlugins, fetchPluginDevelopment, PLUGINS_QUERY_KEY } from "./api";
 import {
   publishLocalEvent,
   applyEditorChange,
   setEditorEventsEnabled,
   type EditorSnapshot,
 } from "./frontend-host";
+import { enablePluginDiagnostics } from "./plugin-diagnostics";
 
 export function PluginRuntime() {
+  const { data: development } = useQuery({
+    queryKey: ["plugin-development"],
+    queryFn: fetchPluginDevelopment,
+    staleTime: 30000,
+  });
+  useEffect(() => {
+    enablePluginDiagnostics(Boolean(development?.inspector));
+  }, [development?.inspector]);
   const queryClient = useQueryClient();
   const { data: plugins = [] } = useQuery({
     queryKey: PLUGINS_QUERY_KEY,

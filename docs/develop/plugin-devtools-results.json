@@ -1,0 +1,165 @@
+{
+  "date": "2026-10-20",
+  "baseCommit": "e569673947cef33e1eca9998ed92f2fa2b165126",
+  "backend": {
+    "relatedRegression": {
+      "passed": 1103,
+      "skipped": 9,
+      "seconds": 164.82
+    },
+    "finalDevtools": {
+      "passed": 6,
+      "seconds": 5.16
+    },
+    "ruff": "passed"
+  },
+  "frontend": {
+    "generatedCatalogAndCSS": "passed",
+    "typeAwareLint": "passed",
+    "typescriptBuild": "passed",
+    "productionBuild": "passed",
+    "changedFilesFormat": "passed",
+    "frozenOfflineInstall": "passed"
+  },
+  "playwright": {
+    "runs": {
+      "devtools": {
+        "passed": 2,
+        "durationMs": 94143.42499999999
+      },
+      "regression": {
+        "passed": 27,
+        "durationMs": 389319.733
+      },
+      "writing": {
+        "passed": 3,
+        "durationMs": 120959.819
+      }
+    },
+    "uniquePassed": 32,
+    "browserCases": 21,
+    "logicCases": 11,
+    "finalUIRecheck": {
+      "passed": 1,
+      "durationMs": 63666.14,
+      "assertion": "Inspector component values match rendered count before screenshot"
+    }
+  },
+  "examples": {
+    "staticChecked": 7,
+    "invalidToolConfigReported": true,
+    "strictDemoCheck": {
+      "pluginId": "devtools-demo",
+      "diagnostics": [],
+      "checks": [
+        {
+          "name": "css",
+          "status": "passed"
+        },
+        {
+          "name": "ruff",
+          "status": "passed"
+        },
+        {
+          "name": "frontend:lint",
+          "status": "passed"
+        },
+        {
+          "name": "frontend:type-check",
+          "status": "passed"
+        }
+      ],
+      "coverage": {
+        "staticNodes": 8,
+        "dynamicValues": 1,
+        "documents": 1,
+        "actionIdsChecked": 5,
+        "actionIdsUnverified": 0
+      },
+      "ok": true
+    },
+    "demoPackage": {
+      "files": 10,
+      "zipBytes": 7712,
+      "sha256": "8311a41f8732540b785cf9c88edf3ed3c4568bd042eddebb637273cb835fefa8",
+      "sourceIdentical": true,
+      "dependenciesAndDevDataExcluded": true
+    }
+  },
+  "bundles": {
+    "baseline": {
+      "files": 745,
+      "raw": 37401400,
+      "jsGzip6": 4335174
+    },
+    "current": {
+      "files": 748,
+      "raw": 37417857,
+      "jsGzip6": 4341786
+    },
+    "delta": {
+      "files": 3,
+      "raw": 16457,
+      "jsGzip6": 6612
+    },
+    "sdkTypesIdentical": true
+  },
+  "wheel": {
+    "wheel": "openfic-0.12.1-py3-none-any.whl",
+    "bytes": 30836962,
+    "files": 1401,
+    "newModulesPresent": true,
+    "backendFilesIdentical": true,
+    "frontendFilesIdentical": true,
+    "devtoolsChunks": [
+      "frontend/assets/plugin-devtools-05ydcmG7.js",
+      "frontend/assets/plugin-devtools-B4Ual0Pr.css"
+    ]
+  },
+  "npmDevtools": {
+    "id": "@openfic/plugin-devtools@0.1.0",
+    "name": "@openfic/plugin-devtools",
+    "version": "0.1.0",
+    "size": 5804,
+    "unpackedSize": 18319,
+    "shasum": "2cf53f49fde9db504cdb8aa6c71ab3a8b5f1bd56",
+    "integrity": "sha512-Dz7TMFJq2hhNqCZGblF9LyxOHSOzK3C6JgdAkBLjzzfG6b+oeJJybuDkwQjcn/0Ne10dz9M8iWYjaSvBqsNEEA==",
+    "filename": "openfic-plugin-devtools-0.1.0.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 1349,
+        "mode": 384
+      },
+      {
+        "path": "cli.mjs",
+        "size": 1060,
+        "mode": 493
+      },
+      {
+        "path": "css.d.mts",
+        "size": 440,
+        "mode": 384
+      },
+      {
+        "path": "css.mjs",
+        "size": 14924,
+        "mode": 384
+      },
+      {
+        "path": "package.json",
+        "size": 546,
+        "mode": 384
+      }
+    ],
+    "entryCount": 5,
+    "bundled": []
+  },
+  "limits": [
+    "Linux/Chromium only; no physical desktop installers or PostgreSQL integration run",
+    "External Google Drive/DeepSeek/model providers use test protocol simulators",
+    "Static checks cannot evaluate dynamic plugin Python/UI behavior",
+    "Trusted Python execution model unchanged; development data isolation is not a sandbox",
+    "Diagnostics are opt-in, bounded and potentially lossy; not audit logs; unknown business secrets may remain"
+  ]
+}

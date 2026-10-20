@@ -663,6 +663,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     await init_db()
     await app.state.plugin_host.start()
+    plugin_development = None
+    if getenv("OPENFIC_PLUGIN_DEV_SOURCE"):
+        from app.plugins.development import DevelopmentSession
+        plugin_development = DevelopmentSession(app.state.plugin_host, Path(getenv("OPENFIC_PLUGIN_DEV_SOURCE")))
+        await plugin_development.start()
     await _load_telemetry_enabled()
     cleared_tasks = await _reset_task_running_state()
     if cleared_tasks:
@@ -711,6 +716,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if cleared_tasks:
             logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
         await stop_background_runtime()
+        if plugin_development:
+            await plugin_development.close()
         await app.state.plugin_host.close()
         await stop_audit_queue()
         await app.state.catalog_icon_proxy_service.aclose()

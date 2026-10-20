@@ -32,6 +32,7 @@ export interface InstalledPlugin {
   version: string;
   description: string;
   author: string;
+  development_revision?: number;
   enabled: boolean;
   status: "enabled" | "disabled" | "error";
   error: string | null;
@@ -71,4 +72,18 @@ export async function downloadPlugin(plugin: InstalledPlugin): Promise<void> {
   anchor.download = `${plugin.id}-${plugin.version}.zip`;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export interface PluginDevelopmentStatus {
+  enabled: boolean;
+  inspector: boolean;
+  pluginId?: string;
+  source?: string;
+  revision?: number;
+  status?: string;
+  checks?: { name: string; status: string; reason?: string }[];
+  diagnostics?: { code: string; severity: string; file: string; line?: number; message: string }[];
+}
+export async function fetchPluginDevelopment(): Promise<PluginDevelopmentStatus> {
+  return (await apiClient.get<PluginDevelopmentStatus>("/plugins/development")).data;
 }

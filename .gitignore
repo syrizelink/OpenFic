@@ -28,7 +28,10 @@ docs/superpowers
 dist-electron
 frontend_dist
 dist-electron-new
-desktop/node_modules
+node_modules/
 desktop/dist
 desktop/dist-electron
 desktop/out
+
+# Isolated plugin development instances
+.openfic-dev/

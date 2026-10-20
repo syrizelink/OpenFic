@@ -14,6 +14,7 @@ import { runUIEffects } from "./declarative-effects";
 import { type UIDocument, type UIAction } from "./declarative-schema";
 import { DeclarativeErrorBoundary, renderTree } from "./declarative-tree";
 import { frontendCall } from "./frontend-host";
+import { diagnosticCall, addPluginDiagnostic } from "./plugin-diagnostics";
 
 function str(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -71,7 +72,15 @@ export function DeclarativeView({
     error: renderError,
     refetch,
   } = useQuery({
-    queryKey: ["plugin-declarative", plugin.id, plugin.version, view.id, contextKey, columns],
+    queryKey: [
+      "plugin-declarative",
+      plugin.id,
+      plugin.version,
+      plugin.development_revision,
+      view.id,
+      contextKey,
+      columns,
+    ],
     queryFn: async ({ signal }) =>
       (
         await apiClient.post<UIDocument>(
@@ -83,6 +92,27 @@ export function DeclarativeView({
     refetchOnWindowFocus: false,
   });
   const styles = useMemo(() => scopeCSS(data?.css ?? "", scope), [data?.css, scope]);
+  useEffect(() => {
+    if (data)
+      addPluginDiagnostic({
+        pluginId: plugin.id,
+        viewId: view.id,
+        kind: "render",
+        method: "ui.render",
+        status: "ok",
+        request: JSON.parse(contextKey),
+        result: { document: data, compiledCSS: styles.css, warnings: styles.warnings },
+      });
+    if (renderError)
+      addPluginDiagnostic({
+        pluginId: plugin.id,
+        viewId: view.id,
+        kind: "render",
+        method: "ui.render",
+        status: "error",
+        error: pluginError(renderError),
+      });
+  }, [data, styles, renderError, plugin.id, view.id, contextKey]);
   const actions = useRef<UIAction>(() => {});
   const run: UIAction = (id, value = null, event = "press") => {
     if (!id) return;
@@ -108,10 +138,25 @@ export function DeclarativeView({
               },
             )
           ).data.result;
-        const response = await send(id, value, event);
+        const response = await diagnosticCall(
+          plugin.id,
+          "action",
+          id,
+          { value, event },
+          () => send(id, value, event),
+          view.id,
+        );
         const result = await runUIEffects(
           response,
-          (method, args) => frontendCall(method, args, plugin.capabilities, navigate),
+          (method, args) =>
+            diagnosticCall(
+              plugin.id,
+              "effect",
+              method,
+              args,
+              () => frontendCall(method, args, plugin.capabilities, navigate),
+              view.id,
+            ),
           (next, values) => send(next, values, "change"),
           () => current.active,
         );

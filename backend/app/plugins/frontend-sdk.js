@@ -1,6 +1,10 @@
 /* OpenFic SDK 2.0: framework-independent, isolated iframe transport. */
 (() => {
   let channel, context, nextId = 0, resolveReady;
+  let debugListenersAdded = false;
+  const reportError = (error, details = {}) => {
+    if (context?.devtools && channel) parent.postMessage({ protocol: "openfic.plugin.v1", channel, type: "diagnostic", details, error: String(error).slice(0, 4000) }, "*");
+  };
   const pending = new Map(), subscribers = new Map();
   const ready = new Promise(resolve => { resolveReady = resolve; });
   function on(event, listener) {
@@ -14,6 +18,11 @@
     if (m.type === "init") {
       if (channel && m.channel !== channel) return;
       channel = m.channel; context = m.context;
+      if (context?.devtools && !debugListenersAdded) {
+        debugListenersAdded = true;
+        addEventListener("error", event => reportError(event.message === "Script error." ? "Script error. Browser hid cross-origin details; use crossorigin=anonymous or module scripts." : event.message, { file: String(event.filename ?? "").replace(/\/plugin-assets\/[^/]+\//, "/plugin-assets/[ticket]/"), line: event.lineno, column: event.colno }));
+        addEventListener("unhandledrejection", event => reportError(event.reason?.message ?? event.reason));
+      }
       document.documentElement.dataset.theme = context.theme;
       document.documentElement.lang = context.language;
       resolveReady(context);

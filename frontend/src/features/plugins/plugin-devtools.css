@@ -1,0 +1,112 @@
+.plugin-devtools {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow: auto;
+  height: 100%;
+}
+.plugin-devtools-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plugin-devtools-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(320px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.plugin-devtools-stage {
+  overflow: auto;
+  max-width: 100%;
+  padding: 8px;
+  background: var(--gray-a2);
+  border: 1px solid var(--gray-a5);
+  border-radius: 10px;
+}
+.plugin-devtools-preview {
+  display: block;
+  border: 1px solid var(--gray-a5);
+  background: var(--color-background);
+  resize: both;
+  max-width: none;
+}
+.plugin-devtools-inspector {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plugin-devtools-json {
+  padding: 12px;
+  margin: 8px 0;
+  overflow: auto;
+  max-height: 360px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  background: var(--gray-a3);
+  border-radius: 8px;
+}
+.plugin-devtools-tree {
+  margin: 8px 0 8px 12px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent-7);
+}
+.plugin-devtools-tree summary {
+  cursor: pointer;
+  font-family: monospace;
+}
+.plugin-devtools-tree-text {
+  padding: 4px 20px;
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--gray-11);
+}
+.plugin-devtools-traces {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.plugin-devtools-traces button {
+  text-align: left;
+  font-size: 12px;
+  border: 0;
+  padding: 8px;
+  background: var(--gray-a2);
+  color: var(--gray-12);
+  cursor: pointer;
+}
+.plugin-devtools-traces button[aria-pressed="true"] {
+  background: var(--accent-a4);
+}
+.plugin-devtools-traces button[data-status="error"] {
+  color: var(--red-11);
+}
+.plugin-devtools-context textarea {
+  min-height: 100px;
+  font-family: monospace;
+  margin: 8px 0;
+}
+.plugin-development-canvas {
+  padding: 16px;
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+.plugin-development-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 8px;
+}
+@media (max-width: 1000px) {
+  .plugin-devtools-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

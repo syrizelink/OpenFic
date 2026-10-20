@@ -1,4 +1,4 @@
-import { Button, Flex } from "@radix-ui/themes";
+import { Button, Flex, useThemeContext } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,11 @@ import {
 } from "./api";
 import { DeclarativeView } from "./declarative-view";
 import { frontendCall } from "./frontend-host";
+import {
+  diagnosticCall,
+  addPluginDiagnostic,
+  pluginDiagnosticsEnabled,
+} from "./plugin-diagnostics";
 import { PluginManager } from "./plugin-manager";
 
 import "./plugins.css";
@@ -70,6 +75,7 @@ export function PluginFrame({
   if (view.renderer === "declarative")
     return (
       <DeclarativeView
+        key={plugin.development_revision ?? 0}
         plugin={plugin}
         view={view}
         context={context}
@@ -78,6 +84,7 @@ export function PluginFrame({
     );
   return (
     <IframeView
+      key={plugin.development_revision ?? 0}
       plugin={plugin}
       view={view}
       context={context}
@@ -113,17 +120,15 @@ function IframeView({
   }, [onHeightChange]);
   const [channel] = useState(() => crypto.randomUUID());
   const [ready, setReady] = useState(false);
+  const initialized = useRef(false);
   const [fault, setFault] = useState(false);
   const language = i18n.language;
   const projectId = context.projectId ?? routeParams.projectId ?? search.get("projectId");
   const extraContext = JSON.stringify(context);
   const capabilityKey = plugin.capabilities.join(",");
   const configuration = JSON.stringify(plugin.configuration);
-  const theme =
-    document.documentElement.classList.contains("dark") ||
-    document.querySelector(".radix-themes")?.classList.contains("dark")
-      ? "dark"
-      : "light";
+  const { appearance } = useThemeContext();
+  const theme = context.theme === "dark" || appearance === "dark" ? "dark" : "light";
   useEffect(() => {
     let disposed = false;
     let inFlight = 0;
@@ -155,28 +160,44 @@ function IframeView({
       reply({ type: "event", ...detail });
     };
     window.addEventListener("openfic:plugin-event", localEvent);
+    const initialize = () => {
+      reply({
+        type: "init",
+        context: {
+          pluginId: plugin.id,
+          projectId,
+          language,
+          theme,
+          devtools: pluginDiagnosticsEnabled(),
+          settings: JSON.parse(configuration),
+          ...JSON.parse(extraContext),
+          sdkVersion: "2.0.0",
+          capabilities: capabilityKey.split(","),
+          slot: view.slot,
+        },
+      });
+      setReady(true);
+      setFault(false);
+      window.clearTimeout(timer);
+    };
+    if (initialized.current) initialize();
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== "null") return;
       const message = event.data;
       if (!message || message.protocol !== "openfic.plugin.v1") return;
       if (message.type === "ready") {
-        reply({
-          type: "init",
-          context: {
-            pluginId: plugin.id,
-            projectId,
-            language,
-            theme,
-            settings: JSON.parse(configuration),
-            ...JSON.parse(extraContext),
-            sdkVersion: "2.0.0",
-            capabilities: capabilityKey.split(","),
-            slot: view.slot,
-          },
+        initialized.current = true;
+        initialize();
+      } else if (message.type === "diagnostic" && message.channel === channel) {
+        addPluginDiagnostic({
+          pluginId: plugin.id,
+          viewId: view.id,
+          kind: "iframe",
+          method: "runtime.error",
+          request: message.details,
+          status: "error",
+          error: String(message.error).slice(0, 4000),
         });
-        setReady(true);
-        setFault(false);
-        window.clearTimeout(timer);
       } else if (
         message.type === "call" &&
         message.channel === channel &&
@@ -227,7 +248,14 @@ function IframeView({
                     params: message.params,
                   })
                   .then(({ data }) => data.result);
-        void operation
+        void diagnosticCall(
+          plugin.id,
+          "iframe",
+          message.method,
+          message.params,
+          () => operation,
+          view.id,
+        )
           .then((result) => {
             if (!disposed) reply({ type: "result", id: message.id, result });
           })
@@ -256,13 +284,21 @@ function IframeView({
     theme,
     extraContext,
     view.slot,
+    view.id,
     navigate,
     queryClient,
     capabilityKey,
     embedded,
   ]);
   const { data: viewUrl, error: viewError } = useQuery({
-    queryKey: ["plugin-view-url", plugin.id, plugin.version, view.id, configuration],
+    queryKey: [
+      "plugin-view-url",
+      plugin.id,
+      plugin.version,
+      plugin.development_revision,
+      view.id,
+      configuration,
+    ],
     queryFn: async () => {
       const { data } = await apiClient.post<{ url: string }>(
         `/plugins/${plugin.id}/views/${view.id}`,

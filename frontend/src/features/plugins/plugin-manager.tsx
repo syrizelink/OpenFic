@@ -9,6 +9,7 @@ import { apiClient } from "@/lib/api-client";
 import {
   downloadPlugin,
   fetchPlugins,
+  fetchPluginDevelopment,
   installPlugin,
   pluginError,
   PLUGINS_QUERY_KEY,
@@ -20,6 +21,11 @@ import "./plugins.css";
 export function PluginManager({ onOpenView }: { onOpenView?: () => void } = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { data: development } = useQuery({
+    queryKey: ["plugin-development"],
+    queryFn: fetchPluginDevelopment,
+    staleTime: 30000,
+  });
   const {
     data: plugins = [],
     isLoading,
@@ -58,6 +64,19 @@ export function PluginManager({ onOpenView }: { onOpenView?: () => void } = {}) 
       aria-label={t("plugins.management")}
     >
       <h2>{t("plugins.management")}</h2>
+      {development?.inspector && (
+        <Button
+          asChild
+          variant="soft"
+        >
+          <Link
+            to="/extensions/devtools"
+            onClick={onOpenView}
+          >
+            插件开发工具
+          </Link>
+        </Button>
+      )}
       <p className="plugin-muted">{t("plugins.description")}</p>
       <div className="plugin-install-panel">
         <Text

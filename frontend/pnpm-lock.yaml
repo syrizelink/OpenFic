@@ -77,6 +77,9 @@ importers:
       '@number-flow/react':
         specifier: ^0.6.0
         version: 0.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@openfic/plugin-devtools':
+        specifier: file:../packages/plugin-devtools
+        version: file:../packages/plugin-devtools
       '@radix-ui/colors':
         specifier: ^3.0.0
         version: 3.0.0
@@ -675,6 +678,10 @@ packages:
     peerDependencies:
       react: ^18 || ^19
       react-dom: ^18 || ^19
+
+  '@openfic/plugin-devtools@file:../packages/plugin-devtools':
+    resolution: {directory: ../packages/plugin-devtools, type: directory}
+    hasBin: true
 
   '@oxc-project/runtime@0.138.0':
     resolution: {integrity: sha512-yHhoXsN8tYxgdJCdD91PbySNjEEaBX/tH2OQRDXJpsQv5b184oC4/qVbU7qlblvfil/JP15Lh2HW7+HN5DS90Q==}
@@ -5067,6 +5074,13 @@ snapshots:
       number-flow: 0.6.0
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
+
+  '@openfic/plugin-devtools@file:../packages/plugin-devtools':
+    dependencies:
+      postcss: 8.5.30
+      postcss-nesting: 14.0.3(postcss@8.5.30)
+      postcss-selector-parser: 7.1.6
+      postcss-value-parser: 4.2.0
 
   '@oxc-project/runtime@0.138.0': {}
 

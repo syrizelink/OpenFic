@@ -116,6 +116,7 @@ class PluginContext:
             self.data._session,
             self.plugin.manifest.capabilities,
             lambda event, data: self.host.emit(event, data, self.plugin_id),
+            trace_context=self,
         )
 
     def resource(self, name: str):
@@ -157,7 +158,7 @@ class PluginContext:
     def http(self):
         from app.plugins.services import PluginHTTP
 
-        return PluginHTTP(self.plugin, getattr(self.host, "http_transport", None))
+        return PluginHTTP(self.plugin, getattr(self.host, "http_transport", None), host=self.host)
 
     @property
     def models(self):

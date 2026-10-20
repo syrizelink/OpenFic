@@ -4,6 +4,8 @@ import type {
   UIDocument,
   UIEventRequest,
   PluginView,
+  UINode,
+  UIPropsFor,
 } from "../../../packages/plugin-sdk";
 
 export const document = {
@@ -48,3 +50,20 @@ export const editorView = {
   render: "ui.render",
   action: "ui.action",
 } satisfies PluginView;
+
+// Component-specific props must stay correlated with type, including aliases.
+const strictButton: UINode = {
+  type: "Button",
+  props: { size: "2", onPress: "save" },
+  children: "Save",
+};
+// @ts-expect-error Image.asset is not a Button property.
+const badButton: UINode = { type: "Button", props: { asset: "assets/a.png" } };
+// @ts-expect-error Event handlers are IDs, not executable functions.
+const badHandler: UINode = { type: "Button", props: { onPress: () => {} } };
+const imageProps: UIPropsFor<"Project.Image"> = {
+  asset: "assets/a.png",
+  alt: "Asset",
+  fit: "cover",
+};
+void [strictButton, badButton, badHandler, imageProps];

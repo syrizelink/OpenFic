@@ -173,6 +173,17 @@ function getInitializationErrorMessage(error: unknown): string {
   });
 }
 
+const PluginDevtoolsPage = lazy(() =>
+  import("./features/plugins/plugin-devtools").then((module) => ({
+    default: module.PluginDevtoolsPage,
+  })),
+);
+const PluginDevelopmentCanvas = lazy(() =>
+  import("./features/plugins/plugin-devtools").then((module) => ({
+    default: module.PluginDevelopmentCanvas,
+  })),
+);
+
 const DashboardPage = lazy(() =>
   import("./features/dashboard/pages/dashboard-page").then((module) => ({
     default: module.DashboardPage,
@@ -199,6 +210,14 @@ function AppContent({
   return (
     <BrowserRouter>
       <Routes>
+        <Route
+          path="/plugin-development-preview"
+          element={
+            <Suspense fallback={null}>
+              <PluginDevelopmentCanvas />
+            </Suspense>
+          }
+        />
         <Route
           element={
             <AppLayout
@@ -227,6 +246,14 @@ function AppContent({
           <Route
             path="/extensions"
             element={<ExtensionsPage />}
+          />
+          <Route
+            path="/extensions/devtools"
+            element={
+              <Suspense fallback={null}>
+                <PluginDevtoolsPage />
+              </Suspense>
+            }
           />
           <Route
             path="/extensions/:pluginId/:viewId"
