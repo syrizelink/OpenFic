@@ -9,9 +9,23 @@ export const ASR_PROVIDERS = [
   "azure",
 ] as const;
 export type ASRProvider = (typeof ASR_PROVIDERS)[number];
+export type ModelDownloadSource = "auto" | "huggingface" | "hf-mirror";
+export interface ASRPreparationProgress {
+  status: "idle" | "selecting_source" | "downloading" | "verifying" | "ready" | "failed";
+  downloaded_bytes: number;
+  total_bytes: number;
+  file_name: string;
+  source: string;
+}
+export function isPreparationActive(progress?: ASRPreparationProgress): boolean {
+  return Boolean(
+    progress && ["selecting_source", "downloading", "verifying"].includes(progress.status),
+  );
+}
 export interface ASRProviderConfig {
   base_url: string;
   model: string;
+  download_source: ModelDownloadSource;
   model_path: string;
   tokens_path: string;
   vad_path: string;
@@ -33,6 +47,7 @@ export const ASR_DEFAULTS: Partial<Record<ASRProvider, [string, string]>> = {
 export const EMPTY_ASR_CONFIG: ASRProviderConfig = {
   base_url: "",
   model: "",
+  download_source: "auto",
   model_path: "",
   tokens_path: "",
   vad_path: "",

@@ -2499,6 +2499,8 @@ dependencies = [
     { name = "python-socketio" },
     { name = "pyyaml" },
     { name = "pyzmq" },
+    { name = "sherpa-onnx" },
+    { name = "sherpa-onnx-core" },
     { name = "sqlalchemy" },
     { name = "sqlmodel" },
     { name = "starlette-compress" },
@@ -2514,10 +2516,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-asr = [
-    { name = "sherpa-onnx" },
-    { name = "sherpa-onnx-core" },
-]
 postgresql = [
     { name = "langgraph-checkpoint-postgres" },
     { name = "psycopg", extra = ["binary"] },
@@ -2594,8 +2592,8 @@ requires-dist = [
     { name = "python-socketio", extras = ["asgi"], specifier = ">=5.11.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "pyzmq", specifier = ">=27.1.0" },
-    { name = "sherpa-onnx", marker = "extra == 'asr'", specifier = "==1.13.8" },
-    { name = "sherpa-onnx-core", marker = "extra == 'asr'", specifier = "==1.13.8" },
+    { name = "sherpa-onnx", specifier = "==1.13.8" },
+    { name = "sherpa-onnx-core", specifier = "==1.13.8" },
     { name = "sqlalchemy", specifier = ">=2.0.45" },
     { name = "sqlmodel", specifier = ">=0.0.27" },
     { name = "starlette-compress", specifier = ">=1.6.1" },
@@ -2609,7 +2607,7 @@ requires-dist = [
     { name = "xlrd", specifier = ">=2.0.2" },
     { name = "zai-sdk", specifier = ">=0.2.3" },
 ]
-provides-extras = ["asr", "postgresql"]
+provides-extras = ["postgresql"]
 
 [package.metadata.requires-dev]
 dev = [

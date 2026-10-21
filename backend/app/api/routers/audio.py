@@ -1,7 +1,6 @@
 """ASR configuration, explicit model preparation and transcription endpoints."""
 
 import asyncio
-import importlib.util
 from time import monotonic
 from uuid import UUID
 
@@ -17,7 +16,7 @@ from app.asr.config import (
     public_config,
     SETTING_KEY,
 )
-from app.asr.models import prepare, ready
+from app.asr.models import PreparationProgress, prepare, ready
 from app.asr.service import transcribe
 from app.core.encryption import EncryptionService
 from app.settings import settings
@@ -61,11 +60,15 @@ async def update_config(body: ASRUpdate, session: AsyncSession = Depends(get_ses
 async def local_status(session: AsyncSession = Depends(get_session)):
     config = await load_config(session)
     return {
-        "sensevoice_installed": importlib.util.find_spec("sherpa_onnx") is not None,
         "sensevoice_ready": await asyncio.to_thread(
             ready, config.providers.get("sensevoice", ProviderConfig())
         ),
     }
+
+
+@router.get("/prepare/status", response_model=PreparationProgress)
+async def preparation_status(request: Request):
+    return getattr(request.app.state, "asr_preparation", PreparationProgress())
 
 
 @router.post("/prepare")
@@ -79,9 +82,14 @@ async def prepare_model(request: Request, session: AsyncSession = Depends(get_se
     if getattr(request.app.state, "asr_preparing", False):
         raise HTTPException(409, "Model preparation is already running")
     request.app.state.asr_preparing = True
+    request.app.state.asr_preparation = PreparationProgress(status="verifying")
+
+    def report(progress: PreparationProgress):
+        request.app.state.asr_preparation = progress
+
     try:
         async with asyncio.timeout(600):
-            await prepare(config.providers.get("sensevoice", ProviderConfig()))
+            await prepare(config.providers.get("sensevoice", ProviderConfig()), report)
         return {"ready": True}
     except (TimeoutError, httpx.TimeoutException) as exc:
         raise HTTPException(
@@ -93,6 +101,11 @@ async def prepare_model(request: Request, session: AsyncSession = Depends(get_se
         ) from exc
     finally:
         request.app.state.asr_preparing = False
+        progress = request.app.state.asr_preparation
+        if progress.status != "ready":
+            request.app.state.asr_preparation = progress.model_copy(
+                update={"status": "failed"}
+            )
 
 
 @router.post("/transcriptions")

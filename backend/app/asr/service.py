@@ -46,7 +46,7 @@ async def local_transcribe(config: ASRConfig, audio: bytes) -> str:
         if process.returncode:
             raise HTTPException(
                 503,
-                "Local ASR failed. Install the ASR extra and prepare the model; check model paths.",
+                "Local ASR failed. Check the model files and backend runtime.",
             )
         try:
             result = json.loads(output)

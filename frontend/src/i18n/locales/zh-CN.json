@@ -2581,7 +2581,6 @@
     "vadPath": "Silero VAD 绝对路径（可选）",
     "modelReady": "SenseVoice 模型文件已就绪",
     "modelMissing": "SenseVoice 模型尚未准备",
-    "installExtra": "后端需安装语音依赖：uv sync --extra asr",
     "sensevoiceHint": "路径留空使用缓存。准备模型会下载约 241 MB 的 INT8 SenseVoice Small、词表和 VAD 并校验完整性。支持离线路径。",
     "prepare": "保存并准备 SenseVoice 模型",
     "preparing": "正在下载并校验模型，最多 10 分钟…",
@@ -2634,6 +2633,22 @@
     "pathHint": "留空使用自动下载的缓存文件。",
     "languageAutoHint": "auto 自动识别，也可填写服务支持的语言代码。",
     "keyWillClear": "保存后删除已保存的密钥。",
-    "keepKey": "保留已保存的密钥"
+    "keepKey": "保留已保存的密钥",
+    "downloadSource": "模型下载源",
+    "downloadSourceHint": "自动优先使用响应更快的源，下载失败时切换备用源。",
+    "downloadProgress": "模型下载进度",
+    "downloadSources": {
+      "auto": "自动选择",
+      "huggingface": "Hugging Face",
+      "hf-mirror": "hf-mirror"
+    },
+    "downloadPhases": {
+      "idle": "尚未开始",
+      "selecting_source": "正在选择下载源…",
+      "downloading": "正在下载模型…",
+      "verifying": "正在校验模型…",
+      "ready": "模型准备完成",
+      "failed": "下载失败，可重试"
+    }
   }
 }

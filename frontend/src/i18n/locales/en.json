@@ -2581,7 +2581,6 @@
     "vadPath": "Absolute Silero VAD path (optional)",
     "modelReady": "SenseVoice model files are ready",
     "modelMissing": "SenseVoice model is not prepared",
-    "installExtra": "Install backend speech dependencies: uv sync --extra asr",
     "sensevoiceHint": "Leave paths empty for the managed cache. Prepare downloads and verifies about 241 MB of INT8 SenseVoice Small, tokens and VAD. Offline paths are supported.",
     "prepare": "Save and prepare SenseVoice model",
     "preparing": "Downloading and verifying models, up to 10 minutes…",
@@ -2634,6 +2633,22 @@
     "pathHint": "Leave empty to use the downloaded model cache.",
     "languageAutoHint": "Use auto detection or a language code supported by the service.",
     "keyWillClear": "The saved key will be removed when you save.",
-    "keepKey": "Keep the saved key"
+    "keepKey": "Keep the saved key",
+    "downloadSource": "Model download source",
+    "downloadSourceHint": "Auto prefers the first responding source and falls back if a download fails.",
+    "downloadProgress": "Model download progress",
+    "downloadSources": {
+      "auto": "Automatic",
+      "huggingface": "Hugging Face",
+      "hf-mirror": "hf-mirror"
+    },
+    "downloadPhases": {
+      "idle": "Not started",
+      "selecting_source": "Selecting a download source…",
+      "downloading": "Downloading model…",
+      "verifying": "Verifying model…",
+      "ready": "Model ready",
+      "failed": "Download failed; retry available"
+    }
   }
 }

@@ -26,6 +26,7 @@ class ProviderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     base_url: str = Field(default="", max_length=2048)
     model: str = Field(default="", max_length=256)
+    download_source: Literal["auto", "huggingface", "hf-mirror"] = "auto"
     model_path: str = Field(default="", max_length=4096)
     tokens_path: str = Field(default="", max_length=4096)
     vad_path: str = Field(default="", max_length=4096)

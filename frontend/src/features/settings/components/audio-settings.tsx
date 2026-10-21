@@ -1,4 +1,14 @@
-import { Badge, Box, Button, Flex, IconButton, Switch, Text, TextField } from "@radix-ui/themes";
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  IconButton,
+  Progress,
+  Switch,
+  Text,
+  TextField,
+} from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Download, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
@@ -10,8 +20,20 @@ import { LabeledSelect } from "@/components/select";
 import { apiClient } from "@/lib/api-client";
 
 import { ASRProviderIcon } from "../lib/asr-provider-icons";
-import { ASR_DEFAULTS, ASR_PROVIDERS, fetchASRSettings, saveASRSettings } from "../lib/audio-api";
-import type { ASRProvider, ASRProviderConfig, ASRSettings } from "../lib/audio-api";
+import {
+  ASR_DEFAULTS,
+  ASR_PROVIDERS,
+  fetchASRSettings,
+  isPreparationActive,
+  saveASRSettings,
+} from "../lib/audio-api";
+import type {
+  ASRPreparationProgress,
+  ASRProvider,
+  ASRProviderConfig,
+  ASRSettings,
+  ModelDownloadSource,
+} from "../lib/audio-api";
 
 import "./audio-settings.css";
 
@@ -59,19 +81,23 @@ function AudioSettingRow({
 export function AudioSettings() {
   const { t } = useTranslation();
   const client = useQueryClient();
+  const [preparing, setPreparing] = useState(false);
   const query = useQuery({ queryKey: ["asr-settings"], queryFn: fetchASRSettings });
   const status = useQuery<{
-    sensevoice_installed: boolean;
     sensevoice_ready: boolean;
   }>({
     queryKey: ["asr-status"],
     queryFn: async () => (await apiClient.get("/audio/local-status")).data,
   });
+  const download = useQuery<ASRPreparationProgress>({
+    queryKey: ["asr-preparation"],
+    queryFn: async () => (await apiClient.get("/audio/prepare/status")).data,
+    refetchInterval: (query) => (preparing || isPreparationActive(query.state.data) ? 500 : false),
+  });
   const [draft, setDraft] = useState<ASRSettings | null>(null);
   const [keys, setKeys] = useState<Partial<Record<ASRProvider, string>>>({});
   const [busy, setBusy] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [preparing, setPreparing] = useState(false);
   const value = draft ?? query.data;
   if (!value)
     return (
@@ -95,7 +121,18 @@ export function AudioSettings() {
   const config = value.providers[value.provider];
   const clearingKey = Boolean(config.has_api_key) && keys[value.provider] === "";
   const local = value.provider === "sensevoice";
-  const disabled = busy || toggling;
+  const preparationActive = preparing || isPreparationActive(download.data);
+  const disabled = busy || toggling || preparationActive;
+  const progress = download.data;
+  const percent =
+    progress?.status === "ready"
+      ? 100
+      : Math.min(
+          99,
+          Math.floor(
+            (100 * (progress?.downloaded_bytes ?? 0)) / Math.max(1, progress?.total_bytes ?? 0),
+          ),
+        );
   const setField = (field: keyof ASRProviderConfig, text: string) =>
     setDraft({
       ...value,
@@ -134,6 +171,13 @@ export function AudioSettings() {
       });
       if (prepare) {
         setPreparing(true);
+        client.setQueryData(["asr-preparation"], {
+          status: "verifying",
+          downloaded_bytes: 0,
+          total_bytes: 0,
+          file_name: "",
+          source: "",
+        });
         await apiClient.post("/audio/prepare", undefined, { timeout: 610000 });
       }
       await client.invalidateQueries({ queryKey: ["asr-status"] });
@@ -141,6 +185,7 @@ export function AudioSettings() {
     } catch {
       toast.error(t(prepare ? "speech.prepareFailed" : "settings.saveFailed"));
     } finally {
+      if (prepare) await client.invalidateQueries({ queryKey: ["asr-preparation"] });
       setBusy(false);
       setPreparing(false);
     }
@@ -291,6 +336,34 @@ export function AudioSettings() {
         ) : (
           <>
             <AudioSettingRow
+              label={t("speech.downloadSource")}
+              description={t("speech.downloadSourceHint")}
+              compact
+            >
+              <LabeledSelect
+                value={config.download_source}
+                triggerAriaLabel={t("speech.downloadSource")}
+                triggerClassName="audio-settings-provider-select"
+                options={(["auto", "huggingface", "hf-mirror"] as const).map((source) => ({
+                  value: source,
+                  label: t(`speech.downloadSources.${source}`),
+                }))}
+                disabled={disabled}
+                onChange={(source) =>
+                  setDraft({
+                    ...value,
+                    providers: {
+                      ...value.providers,
+                      [value.provider]: {
+                        ...config,
+                        download_source: source as ModelDownloadSource,
+                      },
+                    },
+                  })
+                }
+              />
+            </AudioSettingRow>
+            <AudioSettingRow
               label={t("speech.localModel")}
               description={t("speech.modelDownloadHint")}
             >
@@ -322,18 +395,53 @@ export function AudioSettings() {
                   disabled={disabled}
                   onClick={() => void save(true)}
                 >
-                  {preparing ? <Spinner size={18} /> : <Download size={14} />}
+                  {preparationActive ? <Spinner size={18} /> : <Download size={14} />}
                   {t("speech.prepareModel")}
                 </Button>
               </Flex>
             </AudioSettingRow>
-            {status.data && !status.data.sensevoice_installed ? (
-              <Text
-                size="1"
-                color="orange"
+            {preparationActive || progress?.status === "failed" || progress?.status === "ready" ? (
+              <Flex
+                direction="column"
+                gap="2"
+                className="audio-settings-download"
               >
-                {t("speech.installExtra")}
-              </Text>
+                <Flex
+                  justify="between"
+                  gap="3"
+                >
+                  <Text
+                    size="1"
+                    color={progress?.status === "failed" ? "red" : "gray"}
+                    role="status"
+                  >
+                    {t(`speech.downloadPhases.${progress?.status ?? "verifying"}`)}
+                  </Text>
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
+                    {percent}%
+                  </Text>
+                </Flex>
+                <Progress
+                  value={percent}
+                  aria-label={t("speech.downloadProgress")}
+                />
+                <Text
+                  size="1"
+                  color="gray"
+                  style={{ overflowWrap: "anywhere" }}
+                >
+                  {[
+                    progress?.file_name,
+                    progress?.source,
+                    `${((progress?.downloaded_bytes ?? 0) / 1_000_000).toFixed(1)} / ${((progress?.total_bytes ?? 0) / 1_000_000).toFixed(1)} MB`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              </Flex>
             ) : null}
             <details
               className="audio-settings-advanced"
@@ -390,15 +498,6 @@ export function AudioSettings() {
             {t("common.save")}
           </Button>
         </Box>
-        {preparing ? (
-          <Text
-            size="1"
-            color="gray"
-            role="status"
-          >
-            {t("speech.preparing")}
-          </Text>
-        ) : null}
       </Flex>
     </Box>
   );

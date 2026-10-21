@@ -15,17 +15,21 @@
 
 ## 本地模型
 
-在 backend 目录安装可选依赖：
+在 backend 目录安装后端依赖：
 
 ```sh
-uv sync --extra asr
+uv sync
 ```
 
-只使用云端服务时无需安装此 extra。原生运行库的可用平台取决于 sherpa-onnx 和 CTranslate2 提供的 Python wheel。
+ASR 原生运行库是后端默认依赖，无需额外安装。SenseVoice 模型文件仍按需下载，不随后端安装或启动自动下载。
 
 ### SenseVoice Small
 
-默认使用 CPU 和 INT8 ONNX 模型。点击「保存并准备 SenseVoice 模型」显式下载固定版本的模型、词表和 Silero VAD（约 241 MB）；资源保存在 `OPENFIC_DATA_DIR/asr/sensevoice`。下载先写临时文件，通过大小和 SHA-256 检查后原子替换，重试会复用已校验的文件。普通转写、启动应用、切换提供商不会触发下载。
+默认使用 CPU 和 INT8 ONNX 模型。点击「准备模型」显式下载固定版本的模型、词表和 Silero VAD（约 241 MB）；资源保存在 `OPENFIC_DATA_DIR/asr/sensevoice`。下载先写临时文件，通过大小和 SHA-256 检查后原子替换，重试会复用已校验的文件。普通转写、启动应用、切换提供商不会触发下载。
+
+下载源可选择「自动选择」「Hugging Face」或「hf-mirror」。自动模式并发发送有时限的 HEAD 探测，优先使用最先成功响应的源；下载或完整性校验失败后切换备用源。探测全部失败时仍按 Hugging Face、hf-mirror 的顺序尝试下载，以兼容不支持 HEAD 的源。指定单个源时只使用该源。所有源使用相同固定版本路径、文件大小和 SHA-256。
+
+设置页显示当前文件、下载源、已下载 / 总大小和进度条，校验完成后显示 100%。重新打开设置页可继续查看正在进行的准备进度；失败后可重试并复用已经校验的文件。
 
 可以分别配置模型、词表、VAD 的绝对路径以离线运行，支持自备 FP32 模型。自定义文件由部署者维护；管理缓存中的文件会校验哈希。支持 `auto`、`zh`、`en`、`yue`、`ja`、`ko`。独立 Python 子进程按需加载模型，以 Silero VAD 切分语音并恢复首段起始处的少量音频；结束、错误、超时或取消后回收进程。每条录音重新加载模型，以限制常驻内存。
 
@@ -49,18 +53,19 @@ API 基础地址可覆盖默认值。OpenAI 兼容的本地服务可以不设置
 
 - `GET /api/v1/audio/config`：读取设置，密钥只返回 `has_api_key`。
 - `PUT /api/v1/audio/config`：保存当前提供商配置；`api_key` 省略或 null 保留，空字符串删除。
-- `GET /api/v1/audio/local-status`：运行库安装状态和 SenseVoice 资源校验状态。
+- `GET /api/v1/audio/local-status`：SenseVoice 资源校验状态。
 - `POST /api/v1/audio/prepare`：显式准备 SenseVoice 资源，最多 600 秒。
+- `GET /api/v1/audio/prepare/status`：读取准备状态、当前文件、下载源及已下载 / 总字节数。
 - `POST /api/v1/audio/transcriptions`：multipart `file` 为规范 WAV，可选 `request_id` 为 UUID，返回 `text`、`provider`、`audio_seconds`。
 - `DELETE /api/v1/audio/transcriptions/{request_id}`：幂等取消，等待任务释放资源。
 
-以上接口沿用应用现有认证中间件。取消和并发状态由后端进程管理，多 worker 部署需将同一客户端的识别与取消请求路由到同一 worker。
+以上接口沿用应用现有认证中间件。取消和并发状态由后端进程管理，多 worker 部署需将同一客户端的识别与取消请求，以及模型准备与进度请求路由到同一 worker。
 
 ## 测试
 
 ```sh
 cd backend
-uv run --extra asr pytest tests/api/test_audio.py tests/api/test_asr_models.py -q
+uv run pytest tests/api/test_audio.py tests/api/test_asr_models.py -q
 cd ../frontend
 pnpm type-check
 pnpm build
@@ -68,7 +73,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e:asr
 ```
 
-独立 ASR E2E 配置会启动隔离数据目录的真实 FastAPI 后端、前端和本地 HTTP ASR 测试服务。覆盖配置持久化、提供商切换、内联录音与实时波形、停止回填、直接发送、保留草稿、44.1 kHz 上传转换、转写编辑插入、编辑器无转写入口、错误重试、取消与禁用状态。直接发送测试通过真实会话创建与消息提交流程验证，最终消息接口使用测试响应，避免运行云端 LLM。云端协议由后端测试和本地 HTTP 服务验证，不需要真实云端密钥或产生计费。
+独立 ASR E2E 配置会启动隔离数据目录的真实 FastAPI 后端、前端和本地 HTTP ASR 测试服务。覆盖配置持久化、提供商切换、内联录音与实时波形、停止回填、直接发送、保留草稿、44.1 kHz 上传转换、转写编辑插入、编辑器无转写入口、错误重试、取消与禁用状态。直接发送测试通过真实会话创建与消息提交流程验证，最终消息接口使用测试响应，避免运行云端 LLM。模型下载进度 UI 测试使用受控的准备状态响应，覆盖实际字节百分比、校验前不显示完成、移动端和失败重试；Python 测试验证流式下载、探测、切源、完整性校验及进度接口。云端协议由后端测试和本地 HTTP 服务验证，不需要真实云端密钥或产生计费。
 
 真实 SenseVoice E2E 可另外运行：先准备模型，再从 [固定版本测试音频](https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/test_wavs/en.wav) 下载英文样本，然后：
 

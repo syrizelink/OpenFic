@@ -501,3 +501,111 @@ test("real SenseVoice model transcribes a speech recording through the UI", asyn
     /50 pieces of gold/i,
   );
 });
+
+// UI contract coverage uses controlled transfer snapshots; Python tests exercise
+// source probing, streaming, checksum validation, fallback and progress endpoints.
+test("model preparation persists its source and shows live byte progress on desktop and mobile", async ({
+  page,
+  request,
+}, testInfo) => {
+  await configure(request, { provider: "sensevoice", config: {} });
+  let progress = { status: "idle", downloaded_bytes: 0, total_bytes: 0, file_name: "", source: "" };
+  let release!: () => void;
+  const transfer = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/audio/prepare/status", (route) => route.fulfill({ json: progress }));
+  await page.route("**/audio/local-status", (route) =>
+    route.fulfill({
+      json: { sensevoice_ready: progress.status === "ready" },
+    }),
+  );
+  await page.route("**/audio/prepare", async (route) => {
+    progress = {
+      status: "downloading",
+      downloaded_bytes: 60_000_000,
+      total_bytes: 240_000_000,
+      file_name: "model.int8.onnx",
+      source: "hf-mirror.com",
+    };
+    await transfer;
+    await route.fulfill({ json: { ready: true } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "语音转写", exact: true }).click();
+  const source = page.getByRole("combobox", { name: "模型下载源", exact: true });
+  await expect(source).toContainText("自动选择");
+  await source.click();
+  await page.getByRole("option", { name: "hf-mirror", exact: true }).click();
+  await page.getByRole("button", { name: "准备模型", exact: true }).click();
+  try {
+    const bar = page.getByRole("progressbar", { name: "模型下载进度" });
+    await expect(bar).toHaveAttribute("aria-valuenow", "25");
+    await expect(
+      page.getByText("model.int8.onnx · hf-mirror.com · 60.0 / 240.0 MB", { exact: true }),
+    ).toBeVisible();
+    expect(
+      (await (await request.get("/api/v1/audio/config")).json()).providers.sensevoice
+        .download_source,
+    ).toBe("hf-mirror");
+    await expect(source).toBeDisabled();
+    await page
+      .getByRole("dialog")
+      .screenshot({ path: testInfo.outputPath("asr-download-desktop.png") });
+    progress = { ...progress, downloaded_bytes: 168_000_000 };
+    await expect(bar).toHaveAttribute("aria-valuenow", "70");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "语音转写", exact: true }).click();
+    await expect(bar).toHaveAttribute("aria-valuenow", "70");
+    await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("asr-download-mobile.png") });
+    expect(
+      await page
+        .locator(".audio-settings")
+        .evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+    ).toBe(true);
+    progress = { ...progress, status: "verifying", downloaded_bytes: 240_000_000 };
+    await expect(bar).toHaveAttribute("aria-valuenow", "99");
+    await expect(page.getByText("正在校验模型…", { exact: true })).toBeVisible();
+    progress = { ...progress, status: "ready", file_name: "", source: "" };
+    release();
+    await expect(bar).toHaveAttribute("aria-valuenow", "100");
+    await expect(page.getByRole("button", { name: "准备模型", exact: true })).toBeEnabled();
+  } finally {
+    release();
+  }
+});
+
+test("failed model preparation keeps progress and allows retry", async ({ page, request }) => {
+  await configure(request, { provider: "sensevoice", config: {} });
+  let failed = false;
+  await page.route("**/audio/prepare/status", (route) =>
+    route.fulfill({
+      json: {
+        status: failed ? "failed" : "idle",
+        downloaded_bytes: failed ? 24_000_000 : 0,
+        total_bytes: failed ? 240_000_000 : 0,
+        file_name: "model.int8.onnx",
+        source: "huggingface.co",
+      },
+    }),
+  );
+  await page.route("**/audio/prepare", async (route) => {
+    failed = true;
+    await route.fulfill({ status: 502, json: { detail: "Download failed" } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "语音转写", exact: true }).click();
+  const prepare = page.getByRole("button", { name: "准备模型", exact: true });
+  await prepare.click();
+  await expect(page.getByText("下载失败，可重试", { exact: true })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "模型下载进度" })).toHaveAttribute(
+    "aria-valuenow",
+    "10",
+  );
+  await expect(prepare).toBeEnabled();
+  await prepare.click();
+  await expect(prepare).toBeEnabled();
+});

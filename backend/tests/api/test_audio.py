@@ -64,6 +64,7 @@ async def test_config_defaults_and_encryption(client, session):
     [
         {"provider": "unknown"},
         {"provider": "whisper"},
+        {"config": {"download_source": "untrusted"}},
         {"language": "not a language"},
         {"config": {"base_url": "file:///etc/passwd"}},
         {"config": {"base_url": "https://key:secret@example.com"}},
@@ -395,3 +396,77 @@ async def test_native_failure_and_protocol_errors_are_sanitized(
 
 def test_wave_duration():
     assert validate_audio(wav(seconds=1)) == 1
+
+
+async def test_preparation_reports_live_status_and_rejects_parallel_work(
+    client, monkeypatch
+):
+    from app.asr.models import PreparationProgress
+
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def preparing(config, report):
+        assert config.download_source == "hf-mirror"
+        report(
+            PreparationProgress(
+                status="downloading",
+                downloaded_bytes=25,
+                total_bytes=100,
+                file_name="model.int8.onnx",
+                source="hf-mirror.com",
+            )
+        )
+        started.set()
+        await finish.wait()
+        report(
+            PreparationProgress(status="ready", downloaded_bytes=100, total_bytes=100)
+        )
+
+    monkeypatch.setattr("app.api.routers.audio.prepare", preparing)
+    await configure(client, "sensevoice", config={"download_source": "hf-mirror"})
+    assert (await client.get("/api/v1/audio/prepare/status")).json()["status"] == "idle"
+    work = asyncio.create_task(client.post("/api/v1/audio/prepare"))
+    try:
+        await asyncio.wait_for(started.wait(), 2)
+        status = (await client.get("/api/v1/audio/prepare/status")).json()
+        assert status["downloaded_bytes"] == 25 and status["total_bytes"] == 100
+        assert status["source"] == "hf-mirror.com"
+        assert (await client.post("/api/v1/audio/prepare")).status_code == 409
+    finally:
+        finish.set()
+        result = await work
+    assert result.status_code == 200
+    assert (await client.get("/api/v1/audio/prepare/status")).json()[
+        "status"
+    ] == "ready"
+
+
+async def test_preparation_failure_preserves_progress_and_can_retry(
+    client, monkeypatch
+):
+    from app.asr.models import PreparationProgress
+
+    calls = 0
+
+    async def preparing(config, report):
+        nonlocal calls
+        calls += 1
+        report(
+            PreparationProgress(
+                status="downloading", downloaded_bytes=10, total_bytes=100
+            )
+        )
+        if calls == 1:
+            raise httpx.ConnectError("unreachable")
+        report(
+            PreparationProgress(status="ready", downloaded_bytes=100, total_bytes=100)
+        )
+
+    monkeypatch.setattr("app.api.routers.audio.prepare", preparing)
+    assert (await client.post("/api/v1/audio/prepare")).status_code == 502
+    status = (await client.get("/api/v1/audio/prepare/status")).json()
+    assert status["status"] == "failed" and status["downloaded_bytes"] == 10
+    assert (await client.post("/api/v1/audio/prepare")).status_code == 200
+    assert (await client.get("/api/v1/audio/prepare/status")).json()[
+        "status"
+    ] == "ready"
