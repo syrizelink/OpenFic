@@ -133,6 +133,58 @@ async def test_invoke_model_normalizes_recoverable_invalid_tool_calls_to_ai_mess
 
 
 @pytest.mark.asyncio
+async def test_invoke_model_does_not_concatenate_repeated_tool_names() -> None:
+    class StreamingModel:
+        async def astream(self, _messages):
+            yield AIMessageChunk(
+                content="",
+                tool_call_chunks=[
+                    {
+                        "index": 0,
+                        "id": "call-list-characters",
+                        "name": "list_characters",
+                        "args": "",
+                    }
+                ],
+            )
+            yield AIMessageChunk(
+                content="",
+                tool_call_chunks=[
+                    {
+                        "index": 0,
+                        "id": None,
+                        "name": "list_characters",
+                        "args": '{"query":"Open',
+                    }
+                ],
+            )
+            yield AIMessageChunk(
+                content="",
+                tool_call_chunks=[
+                    {
+                        "index": 0,
+                        "id": None,
+                        "name": "list_characters",
+                        "args": 'Fic"}',
+                    }
+                ],
+            )
+
+    response = await _invoke_model(
+        StreamingModel(), [HumanMessage(content="List characters")]
+    )
+
+    assert response.tool_calls == [
+        {
+            "name": "list_characters",
+            "args": {"query": "OpenFic"},
+            "id": "call-list-characters",
+            "type": "tool_call",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_invoke_model_extracts_anthropic_text_content_blocks() -> None:
     class StreamingModel:
         async def astream(self, _messages):

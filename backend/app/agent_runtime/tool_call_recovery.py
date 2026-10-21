@@ -133,6 +133,39 @@ def recover_message_tool_calls(
     return merged
 
 
+def merge_tool_call_chunks(
+    chunks: dict[int, dict[str, Any]],
+    raw_chunks: Any,
+) -> None:
+    """Merge streamed tool-call fragments without concatenating identifiers.
+
+    Tool-call arguments are streamed as fragments and must be appended. The
+    name and id identify the call, so providers that repeat them in each
+    snapshot must be handled with last-value-wins semantics.
+    """
+    if not isinstance(raw_chunks, list):
+        return
+
+    for raw_chunk in raw_chunks:
+        if not isinstance(raw_chunk, Mapping):
+            continue
+        index = raw_chunk.get("index")
+        if not isinstance(index, int):
+            continue
+
+        current = chunks.setdefault(
+            index,
+            {"id": None, "name": None, "args_text": ""},
+        )
+        if raw_chunk.get("id"):
+            current["id"] = raw_chunk["id"]
+        if raw_chunk.get("name"):
+            current["name"] = raw_chunk["name"]
+        args = raw_chunk.get("args")
+        if isinstance(args, str) and args:
+            current["args_text"] += args
+
+
 def reconcile_tool_call_chunks(
     chunks: Mapping[int, Mapping[str, Any]],
     *,
