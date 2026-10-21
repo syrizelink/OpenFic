@@ -176,7 +176,7 @@ export function AgentInput({
     isStopping || (shouldAbort ? false : shouldContinue ? disabled || isContinuing : !canSend);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
-  const wasVoiceActive = useRef(false);
+  const focusAfterVoiceResult = useRef(false);
   const [pendingClearanceHeight, setPendingClearanceHeight] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(
     null,
@@ -304,8 +304,10 @@ export function AgentInput({
     disabled: isAddMenuDisabled || isStopping,
     onResult: (text, action) => {
       const message = value ? `${value}\n${text}` : text;
-      if (action === "stop") handleComposerChange(message);
-      else {
+      if (action === "stop") {
+        focusAfterVoiceResult.current = true;
+        handleComposerChange(message);
+      } else {
         recordInputHistory(message);
         onSend(message);
       }
@@ -313,10 +315,10 @@ export function AgentInput({
   });
 
   useEffect(() => {
-    if (wasVoiceActive.current && !voice.active) {
+    if (focusAfterVoiceResult.current && !voice.active) {
+      focusAfterVoiceResult.current = false;
       inputContainerRef.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus();
     }
-    wasVoiceActive.current = voice.active;
   }, [voice.active]);
 
   useLayoutEffect(() => {

@@ -10,8 +10,9 @@
   transition: opacity 100ms ease-out 140ms;
 }
 
-.ai-sidebar-input-container[data-voice-active="true"] {
+.ai-sidebar-input-area .ai-sidebar-input-container[data-voice-active="true"] {
   overflow: visible;
+  border-color: var(--gray-a6);
 }
 
 .ai-sidebar-input-container[data-voice-active="true"] .agent-composer-text-content {

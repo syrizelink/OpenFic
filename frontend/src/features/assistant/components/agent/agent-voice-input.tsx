@@ -9,6 +9,8 @@ import type { VoiceInputController } from "../../hooks/use-voice-input";
 
 import "./agent-voice-input.css";
 
+const WAVEFORM_STEP_MS = 120;
+
 function VoiceWaveform({ analyser }: { analyser: AnalyserNode | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -17,12 +19,12 @@ function VoiceWaveform({ analyser }: { analyser: AnalyserNode | null }) {
     const ctx = element.getContext("2d");
     if (!ctx) return;
     const samples = new Float32Array(analyser?.fftSize ?? 1024);
-    const levels = new Array<number>(48).fill(0);
+    const levels = new Array<number>(49).fill(0);
     let frame = 0;
     let previous = 0;
     function draw(time: number) {
       if (!element || !ctx) return;
-      if (time - previous >= 45) {
+      if (time - previous >= WAVEFORM_STEP_MS) {
         previous = time;
         let energy = 0;
         if (analyser) {
@@ -33,28 +35,35 @@ function VoiceWaveform({ analyser }: { analyser: AnalyserNode | null }) {
         }
         levels.push(Math.min(1, energy * 5));
         levels.shift();
-        const width = element.clientWidth;
-        const height = element.clientHeight;
-        const ratio = window.devicePixelRatio || 1;
-        if (
-          element.width !== Math.round(width * ratio) ||
-          element.height !== Math.round(height * ratio)
-        ) {
-          element.width = Math.round(width * ratio);
-          element.height = Math.round(height * ratio);
-        }
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = getComputedStyle(element).color;
-        const step = width / levels.length;
-        levels.forEach((level, index) => {
-          const bar = 4 + level * (height - 8);
-          ctx.globalAlpha = 0.3 + (index / levels.length) * 0.7;
-          ctx.beginPath();
-          ctx.roundRect(index * step, (height - bar) / 2, Math.min(4, step * 0.55), bar, 2);
-          ctx.fill();
-        });
       }
+      const width = element.clientWidth;
+      const height = element.clientHeight;
+      const ratio = window.devicePixelRatio || 1;
+      if (
+        element.width !== Math.round(width * ratio) ||
+        element.height !== Math.round(height * ratio)
+      ) {
+        element.width = Math.round(width * ratio);
+        element.height = Math.round(height * ratio);
+      }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = getComputedStyle(element).color;
+      const step = width / (levels.length - 1);
+      const offset = Math.min(1, (time - previous) / WAVEFORM_STEP_MS);
+      levels.forEach((level, index) => {
+        const bar = 4 + level * (height - 8);
+        ctx.globalAlpha = 0.3 + (index / levels.length) * 0.7;
+        ctx.beginPath();
+        ctx.roundRect(
+          (index - offset) * step,
+          (height - bar) / 2,
+          Math.min(4, step * 0.55),
+          bar,
+          2,
+        );
+        ctx.fill();
+      });
       frame = requestAnimationFrame(draw);
     }
     frame = requestAnimationFrame(draw);
@@ -80,22 +89,21 @@ export function AgentVoiceInput({
 }) {
   const { t } = useTranslation();
   const actionable = voice.state === "recording" || voice.retryable;
-  const root = useRef<HTMLDivElement>(null);
+  const cancel = voice.cancel;
   useEffect(() => {
-    root.current?.focus();
-  }, []);
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        event.preventDefault();
+        cancel();
+      }
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [cancel]);
   return (
     <div
-      ref={root}
       className="agent-voice-input"
       data-state={voice.state}
-      tabIndex={-1}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          voice.cancel();
-        }
-      }}
     >
       <div className="agent-voice-row">
         <IconButton
@@ -149,7 +157,6 @@ export function AgentVoiceInput({
           type="button"
           className="agent-voice-button agent-voice-send ai-sidebar-send-button"
           variant="solid"
-          color="gray"
           size="1"
           disabled={!actionable || !canSend}
           aria-label={t("speech.send")}

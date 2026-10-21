@@ -76,6 +76,11 @@ for (const draft of ["", "已有草稿"]) {
     const composer = page.locator(".ai-sidebar-input-body[data-mode='composer'] .tiptap");
     await expect(composer).toBeVisible();
     await composer.fill(draft);
+    const normalSend = page.locator(".ai-sidebar-send-button");
+    if (draft) await expect(normalSend).toBeEnabled();
+    const normalSendBackground = await normalSend.evaluate(
+      (node) => getComputedStyle(node).backgroundColor,
+    );
     await composer.evaluate((node) => {
       const snapshots: string[] = [];
       (window as unknown as { speechDrafts: string[] }).speechDrafts = snapshots;
@@ -86,6 +91,13 @@ for (const draft of ["", "已有草稿"]) {
       });
     });
     const voice = await startInline(page);
+    const voiceSend = voice.getByRole("button", { name: "转写并发送" });
+    await expect(voiceSend).toBeEnabled();
+    if (draft) {
+      expect(await voiceSend.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(
+        normalSendBackground,
+      );
+    }
     await voice.getByRole("button", { name: "转写并发送" }).click();
     await expect
       .poll(() => messages)
@@ -298,7 +310,7 @@ test("microphone permission failure is recoverable through cancel", async ({ pag
   await voice.getByRole("button", { name: "取消", exact: true }).click();
   await expect(composer).toBeVisible();
   await expect(composer).toHaveText("权限失败前的草稿");
-  await expect(composer).toBeFocused();
+  await expect(composer).not.toBeFocused();
 });
 
 test("empty transcripts retain the recording and can retry without losing the draft", async ({
@@ -327,6 +339,9 @@ test("inline microphone reuses the composer styling, moves down and stops withou
   const area = page.locator(".ai-sidebar-input-area");
   const composer = page.locator(".ai-sidebar-input-body[data-mode='composer']");
   await expect(composer).toBeVisible();
+  const unfocusedBorder = await page
+    .locator(".ai-sidebar-input-container")
+    .evaluate((node) => getComputedStyle(node).borderColor);
   await composer.locator(".tiptap").fill("已有草稿");
   const container = page.locator(".ai-sidebar-input-container");
   const normal = (await container.boundingBox())!;
@@ -341,6 +356,11 @@ test("inline microphone reuses the composer styling, moves down and stops withou
   const voice = page.locator(".agent-voice-input");
   const canvas = voice.getByRole("img", { name: "实时语音波形" });
   await expect(canvas).toBeVisible();
+  await expect(voice).not.toBeFocused();
+  await voice.getByRole("button", { name: "取消", exact: true }).focus();
+  await expect
+    .poll(() => container.evaluate((node) => getComputedStyle(node).borderColor))
+    .toBe(unfocusedBorder);
   await expect(composer).toBeHidden();
   await expect.poll(async () => Math.round((await container.boundingBox())!.height)).toBe(44);
   const recording = (await container.boundingBox())!;
@@ -601,7 +621,7 @@ for (const [width, reducedMotion] of [
     await expect(voice).toHaveCount(0);
     await expect(area.locator(".ai-sidebar-input-toolbar")).toBeVisible();
     await expect(composer).toHaveText("手机草稿");
-    await expect(composer).toBeFocused();
+    await expect(composer).not.toBeFocused();
     await expect
       .poll(async () => Math.round((await container.boundingBox())!.height))
       .toBe(Math.round(normal.height));
