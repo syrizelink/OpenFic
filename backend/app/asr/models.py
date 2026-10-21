@@ -38,12 +38,10 @@ class PreparationProgress(BaseModel):
     source: str = ""
 
 
-async def order_model_sources(
-    client: httpx.AsyncClient, url: str, source: str
-) -> list[str]:
+async def order_model_sources(client: httpx.AsyncClient, url: str) -> list[str]:
     """Race bounded HEAD probes, retain alternatives and tolerate HEAD refusals."""
     parsed = urlsplit(url)
-    names = list(SOURCES) if source == "auto" else [source]
+    names = list(SOURCES)
     urls = [
         urlunsplit(("https", SOURCES[name], parsed.path, parsed.query, ""))
         for name in names
@@ -154,9 +152,7 @@ async def prepare(
                 continue
             path.parent.mkdir(parents=True, exist_ok=True)
             report(status="selecting_source")
-            urls = await order_model_sources(
-                client, asset["url"], config.download_source
-            )
+            urls = await order_model_sources(client, asset["url"])
             for index, url in enumerate(urls):
                 partial = path.with_suffix(f".{uuid4().hex}.part")
                 report(

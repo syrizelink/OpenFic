@@ -1,14 +1,4 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  IconButton,
-  Progress,
-  Switch,
-  Text,
-  TextField,
-} from "@radix-ui/themes";
+import { Badge, Box, Button, Flex, IconButton, Progress, Text, TextField } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Download, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
@@ -32,7 +22,6 @@ import type {
   ASRProvider,
   ASRProviderConfig,
   ASRSettings,
-  ModelDownloadSource,
 } from "../lib/audio-api";
 
 import "./audio-settings.css";
@@ -41,19 +30,17 @@ function AudioSettingRow({
   label,
   description,
   children,
-  compact = false,
 }: {
   label: string;
   description: string;
   children: ReactNode;
-  compact?: boolean;
 }) {
   return (
     <Flex
       align="center"
       justify="between"
       gap="4"
-      className={`audio-settings-row${compact ? " audio-settings-row--compact" : ""}`}
+      className="audio-settings-row"
     >
       <Flex
         direction="column"
@@ -82,31 +69,44 @@ export function AudioSettings() {
   const { t } = useTranslation();
   const client = useQueryClient();
   const [preparing, setPreparing] = useState(false);
-  const query = useQuery({ queryKey: ["asr-settings"], queryFn: fetchASRSettings });
+  const query = useQuery({
+    queryKey: ["asr-settings"],
+    queryFn: fetchASRSettings,
+    refetchOnMount: "always",
+    staleTime: 0,
+  });
   const status = useQuery<{
     sensevoice_ready: boolean;
   }>({
     queryKey: ["asr-status"],
+    refetchOnMount: "always",
+    staleTime: 0,
     queryFn: async () => (await apiClient.get("/audio/local-status")).data,
   });
   const download = useQuery<ASRPreparationProgress>({
     queryKey: ["asr-preparation"],
+    refetchOnMount: "always",
+    staleTime: 0,
     queryFn: async () => (await apiClient.get("/audio/prepare/status")).data,
     refetchInterval: (query) => (preparing || isPreparationActive(query.state.data) ? 500 : false),
   });
   const [draft, setDraft] = useState<ASRSettings | null>(null);
   const [keys, setKeys] = useState<Partial<Record<ASRProvider, string>>>({});
   const [busy, setBusy] = useState(false);
-  const [toggling, setToggling] = useState(false);
   const value = draft ?? query.data;
-  if (!value)
+  const loading = [query, status, download].some(
+    (result) => result.isLoading || (result.isFetching && !result.isFetchedAfterMount),
+  );
+  if (loading || !value || status.isError)
     return (
       <Flex
         align="center"
         justify="center"
         style={{ height: "100%" }}
+        className="audio-settings-loading"
+        aria-label={t("common.loading")}
       >
-        {query.isError ? (
+        {query.isError || status.isError ? (
           <Text
             role="alert"
             color="gray"
@@ -122,7 +122,8 @@ export function AudioSettings() {
   const clearingKey = Boolean(config.has_api_key) && keys[value.provider] === "";
   const local = value.provider === "sensevoice";
   const preparationActive = preparing || isPreparationActive(download.data);
-  const disabled = busy || toggling || preparationActive;
+  const disabled = busy || preparationActive;
+  const modelReady = Boolean(status.data?.sensevoice_ready);
   const progress = download.data;
   const percent =
     progress?.status === "ready"
@@ -138,24 +139,6 @@ export function AudioSettings() {
       ...value,
       providers: { ...value.providers, [value.provider]: { ...config, [field]: text } },
     });
-
-  async function toggle(enabled: boolean) {
-    if (!query.data) return;
-    const previousDraft = draft;
-    setToggling(true);
-    setDraft({ ...(draft ?? query.data), enabled });
-    try {
-      const saved = await saveASRSettings({ ...query.data, enabled });
-      client.setQueryData(["asr-settings"], saved);
-      setDraft(previousDraft ? { ...previousDraft, enabled } : null);
-      toast.success(t("settings.saved"));
-    } catch {
-      setDraft(previousDraft);
-      toast.error(t("settings.saveFailed"));
-    } finally {
-      setToggling(false);
-    }
-  }
 
   async function save(prepare = false) {
     if (!value) return;
@@ -215,24 +198,11 @@ export function AudioSettings() {
     <Box className="audio-settings">
       <Flex
         direction="column"
-        gap="5"
+        gap="4"
       >
-        <AudioSettingRow
-          label={t("speech.enable")}
-          description={t("speech.enabledHint")}
-          compact
-        >
-          <Switch
-            checked={value.enabled}
-            onCheckedChange={(enabled) => void toggle(enabled)}
-            disabled={disabled}
-            aria-label={t("speech.enable")}
-          />
-        </AudioSettingRow>
         <AudioSettingRow
           label={t("speech.provider")}
           description={t("speech.providerHint")}
-          compact
         >
           <LabeledSelect
             value={value.provider}
@@ -336,34 +306,6 @@ export function AudioSettings() {
         ) : (
           <>
             <AudioSettingRow
-              label={t("speech.downloadSource")}
-              description={t("speech.downloadSourceHint")}
-              compact
-            >
-              <LabeledSelect
-                value={config.download_source}
-                triggerAriaLabel={t("speech.downloadSource")}
-                triggerClassName="audio-settings-provider-select"
-                options={(["auto", "huggingface", "hf-mirror"] as const).map((source) => ({
-                  value: source,
-                  label: t(`speech.downloadSources.${source}`),
-                }))}
-                disabled={disabled}
-                onChange={(source) =>
-                  setDraft({
-                    ...value,
-                    providers: {
-                      ...value.providers,
-                      [value.provider]: {
-                        ...config,
-                        download_source: source as ModelDownloadSource,
-                      },
-                    },
-                  })
-                }
-              />
-            </AudioSettingRow>
-            <AudioSettingRow
               label={t("speech.localModel")}
               description={t("speech.modelDownloadHint")}
             >
@@ -373,34 +315,29 @@ export function AudioSettings() {
                 gap="3"
                 wrap="wrap"
               >
-                <Badge
-                  size="1"
-                  variant="soft"
-                  color={status.data?.sensevoice_ready ? "green" : "gray"}
-                  role="status"
-                >
-                  {t(
-                    status.isPending
-                      ? "common.loading"
-                      : status.isError
-                        ? "speech.statusUnavailable"
-                        : status.data?.sensevoice_ready
-                          ? "speech.ready"
-                          : "speech.notReady",
-                  )}
-                </Badge>
-                <Button
-                  size="2"
-                  variant="soft"
-                  disabled={disabled}
-                  onClick={() => void save(true)}
-                >
-                  {preparationActive ? <Spinner size={18} /> : <Download size={14} />}
-                  {t("speech.prepareModel")}
-                </Button>
+                {modelReady ? (
+                  <Badge
+                    size="1"
+                    variant="soft"
+                    color="green"
+                    role="status"
+                  >
+                    <Text weight="bold">{t("speech.ready")}</Text>
+                  </Badge>
+                ) : (
+                  <Button
+                    size="2"
+                    variant="soft"
+                    disabled={disabled}
+                    onClick={() => void save(true)}
+                  >
+                    {preparationActive ? <Spinner size={18} /> : <Download size={14} />}
+                    {t("speech.prepareModel")}
+                  </Button>
+                )}
               </Flex>
             </AudioSettingRow>
-            {preparationActive || progress?.status === "failed" || progress?.status === "ready" ? (
+            {!modelReady && (preparationActive || progress?.status === "failed") ? (
               <Flex
                 direction="column"
                 gap="2"

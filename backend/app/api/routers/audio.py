@@ -45,11 +45,7 @@ async def update_config(body: ASRUpdate, session: AsyncSession = Depends(get_ses
             if body.api_key
             else ""
         )
-    config.enabled, config.provider, config.language = (
-        body.enabled,
-        body.provider,
-        body.language,
-    )
+    config.provider, config.language = body.provider, body.language
     config.providers[body.provider] = selected
     await setting_repo.upsert(session, SETTING_KEY, config.model_dump_json())
     await session.commit()
@@ -116,9 +112,6 @@ async def transcription(
     session: AsyncSession = Depends(get_session),
 ):
     config = await load_config(session)
-    if not config.enabled:
-        await file.close()
-        raise HTTPException(409, "Enable speech recognition in settings first")
     try:
         audio = await file.read(MAX_BYTES + 1)
     finally:

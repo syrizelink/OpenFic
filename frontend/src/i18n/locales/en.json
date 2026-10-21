@@ -2566,7 +2566,6 @@
   "speech": {
     "title": "Speech to text",
     "description": "Choose a local model or cloud provider to transcribe recordings in the Agent input.",
-    "enable": "Enable speech recognition",
     "provider": "ASR provider",
     "language": "Recognition language",
     "languageHint": "auto detects language; SenseVoice supports zh, en, yue, ja and ko.",
@@ -2588,7 +2587,6 @@
     "prepareFailed": "Preparation failed. Check network, storage and model paths, then retry. Verified files are reused.",
     "saving": "Saving…",
     "inputHint": "Record or upload audio (up to 5 minutes and 30 MB), then review and edit the transcript before inserting.",
-    "enableFirst": "Enable and configure ASR in Settings → Speech to text first.",
     "record": "Start recording",
     "stop": "Stop and transcribe",
     "upload": "Choose audio file",
@@ -2606,7 +2604,7 @@
     "audioTooLarge": "Audio files must be no larger than 30 MB.",
     "loadFailed": "Could not load speech settings. Please retry.",
     "providers": {
-      "sensevoice": "Local SenseVoice Small",
+      "sensevoice": "Sense Voice (Local)",
       "openai": "OpenAI / OpenAI compatible",
       "groq": "Groq",
       "mistral": "Mistral",
@@ -2617,12 +2615,11 @@
     "waveform": "Live microphone waveform",
     "send": "Transcribe and send",
     "retryHint": "Recording kept. Stop to insert text, or send to retry submission.",
-    "enabledHint": "Use speech recognition in the Agent input.",
     "providerHint": "Choose a local model or cloud speech service.",
     "baseUrlHint": "Leave empty to use the provider’s default API URL.",
     "modelHint": "Leave empty to use the provider’s default speech model.",
     "localModel": "Local model",
-    "modelDownloadHint": "SenseVoice Small · INT8 · about 241 MB. Works offline after download.",
+    "modelDownloadHint": "SenseVoice Small · INT8",
     "ready": "Ready",
     "notReady": "Not prepared",
     "statusUnavailable": "Status unavailable",
@@ -2634,14 +2631,7 @@
     "languageAutoHint": "Use auto detection or a language code supported by the service.",
     "keyWillClear": "The saved key will be removed when you save.",
     "keepKey": "Keep the saved key",
-    "downloadSource": "Model download source",
-    "downloadSourceHint": "Auto prefers the first responding source and falls back if a download fails.",
     "downloadProgress": "Model download progress",
-    "downloadSources": {
-      "auto": "Automatic",
-      "huggingface": "Hugging Face",
-      "hf-mirror": "hf-mirror"
-    },
     "downloadPhases": {
       "idle": "Not started",
       "selecting_source": "Selecting a download source…",

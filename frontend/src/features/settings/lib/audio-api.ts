@@ -9,7 +9,6 @@ export const ASR_PROVIDERS = [
   "azure",
 ] as const;
 export type ASRProvider = (typeof ASR_PROVIDERS)[number];
-export type ModelDownloadSource = "auto" | "huggingface" | "hf-mirror";
 export interface ASRPreparationProgress {
   status: "idle" | "selecting_source" | "downloading" | "verifying" | "ready" | "failed";
   downloaded_bytes: number;
@@ -25,14 +24,12 @@ export function isPreparationActive(progress?: ASRPreparationProgress): boolean 
 export interface ASRProviderConfig {
   base_url: string;
   model: string;
-  download_source: ModelDownloadSource;
   model_path: string;
   tokens_path: string;
   vad_path: string;
   has_api_key?: boolean;
 }
 export interface ASRSettings {
-  enabled: boolean;
   provider: ASRProvider;
   language: string;
   providers: Record<ASRProvider, ASRProviderConfig>;
@@ -47,7 +44,6 @@ export const ASR_DEFAULTS: Partial<Record<ASRProvider, [string, string]>> = {
 export const EMPTY_ASR_CONFIG: ASRProviderConfig = {
   base_url: "",
   model: "",
-  download_source: "auto",
   model_path: "",
   tokens_path: "",
   vad_path: "",
@@ -63,7 +59,6 @@ export async function saveASRSettings(
   delete config.has_api_key;
   return (
     await apiClient.put("/audio/config", {
-      enabled: settings.enabled,
       provider: settings.provider,
       language: settings.language,
       config,

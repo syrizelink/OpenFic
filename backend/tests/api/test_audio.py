@@ -32,7 +32,6 @@ async def configure(client, provider="openai", **kwargs):
     response = await client.put(
         "/api/v1/audio/config",
         json={
-            "enabled": True,
             "provider": provider,
             "api_key": "test-secret",
             **kwargs,
@@ -44,7 +43,7 @@ async def configure(client, provider="openai", **kwargs):
 
 async def test_config_defaults_and_encryption(client, session):
     initial = (await client.get("/api/v1/audio/config")).json()
-    assert initial["enabled"] is False
+    assert "enabled" not in initial
     assert len(initial["providers"]) == 6
     saved = await configure(client)
     assert saved["providers"]["openai"]["has_api_key"]
@@ -73,19 +72,14 @@ async def test_config_defaults_and_encryption(client, session):
 )
 async def test_invalid_configuration(client, body):
     response = await client.put(
-        "/api/v1/audio/config", json={"enabled": True, "provider": "openai", **body}
+        "/api/v1/audio/config", json={"provider": "openai", **body}
     )
     assert response.status_code == 422
 
 
-async def test_disabled_and_invalid_audio_never_dispatch(client, monkeypatch):
+async def test_invalid_audio_never_dispatch(client, monkeypatch):
     dispatch = AsyncMock()
     monkeypatch.setattr("app.api.routers.audio.transcribe", dispatch)
-    assert (
-        await client.post(
-            "/api/v1/audio/transcriptions", files={"file": ("test.wav", wav())}
-        )
-    ).status_code == 409
     await configure(client)
     for data in [
         b"",
@@ -406,7 +400,6 @@ async def test_preparation_reports_live_status_and_rejects_parallel_work(
     started, finish = asyncio.Event(), asyncio.Event()
 
     async def preparing(config, report):
-        assert config.download_source == "hf-mirror"
         report(
             PreparationProgress(
                 status="downloading",
@@ -423,7 +416,7 @@ async def test_preparation_reports_live_status_and_rejects_parallel_work(
         )
 
     monkeypatch.setattr("app.api.routers.audio.prepare", preparing)
-    await configure(client, "sensevoice", config={"download_source": "hf-mirror"})
+    await configure(client, "sensevoice")
     assert (await client.get("/api/v1/audio/prepare/status")).json()["status"] == "idle"
     work = asyncio.create_task(client.post("/api/v1/audio/prepare"))
     try:

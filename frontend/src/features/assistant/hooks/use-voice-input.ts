@@ -1,14 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  cancelTranscription,
-  fetchASRSettings,
-  transcribeAudio,
-} from "@/features/settings/lib/audio-api";
+import { cancelTranscription, transcribeAudio } from "@/features/settings/lib/audio-api";
 import { toSpeechWave } from "@/lib/speech-audio";
 
 type VoiceState = "idle" | "permission" | "recording" | "transcribing" | "error";
@@ -25,7 +20,6 @@ export function useVoiceInput({
   onResult: (text: string, action: VoiceAction) => void;
 }) {
   const { t } = useTranslation();
-  const client = useQueryClient();
   const [state, setState] = useState<VoiceState>("idle");
   const [error, setError] = useState("");
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -125,16 +119,7 @@ export function useVoiceInput({
       const ctx = new AudioContext();
       context.current = ctx;
       await ctx.resume();
-      const settings = await client
-        .fetchQuery({
-          queryKey: ["asr-settings"],
-          queryFn: fetchASRSettings,
-        })
-        .catch(() => {
-          throw new Error("loadFailed");
-        });
       if (token !== generation.current) return;
-      if (!settings.enabled) throw new Error("enableFirst");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (token !== generation.current) {
         stream.getTracks().forEach((track) => track.stop());
@@ -176,8 +161,7 @@ export function useVoiceInput({
       setState("error");
       setError(
         t(
-          reason instanceof Error &&
-            ["unsupported", "enableFirst", "loadFailed"].includes(reason.message)
+          reason instanceof Error && reason.message === "unsupported"
             ? `speech.${reason.message}`
             : "speech.microphoneFailed",
         ),

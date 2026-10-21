@@ -30,6 +30,7 @@ def assets(monkeypatch, tmp_path):
     }
     monkeypatch.setattr(models, "MODEL_DIR", tmp_path)
     monkeypatch.setattr(models, "ASSETS", manifest)
+    monkeypatch.setattr(models, "SOURCES", {"huggingface": "huggingface.co"})
     return tmp_path, manifest, data
 
 
@@ -41,13 +42,13 @@ async def test_explicit_preparation_reuses_only_verified_files(assets):
             for asset in manifest.values()
         ]
         assert not models.ready(ProviderConfig())
-        await models.prepare(ProviderConfig(download_source="huggingface"))
+        await models.prepare(ProviderConfig())
         assert models.ready(ProviderConfig())
-        await models.prepare(ProviderConfig(download_source="huggingface"))
+        await models.prepare(ProviderConfig())
         assert all(route.call_count == 1 for route in routes)
         (root / "model.onnx").write_bytes(b"corrupt")
         assert not models.ready(ProviderConfig())
-        await models.prepare(ProviderConfig(download_source="huggingface"))
+        await models.prepare(ProviderConfig())
         assert routes[0].call_count == 2
         assert models.ready(ProviderConfig())
 
@@ -60,7 +61,7 @@ async def test_corrupt_downloads_never_publish(assets, content):
             return_value=httpx.Response(200, content=content)
         )
         with pytest.raises(HTTPException) as error:
-            await models.prepare(ProviderConfig(download_source="huggingface"))
+            await models.prepare(ProviderConfig())
     assert error.value.status_code == 502
     assert list(root.iterdir()) == []
 
@@ -90,7 +91,7 @@ async def test_cancelled_download_removes_partial_file(assets):
             return_value=httpx.Response(200, stream=CancelledStream())
         )
         with pytest.raises(asyncio.CancelledError):
-            await models.prepare(ProviderConfig(download_source="huggingface"))
+            await models.prepare(ProviderConfig())
     assert list(root.iterdir()) == []
 
 
@@ -115,7 +116,7 @@ async def test_auto_source_prefers_first_response_and_cancels_other_probe():
         mock.head(url).mock(side_effect=slow)
         mock.head(mirror).mock(side_effect=fast)
         async with httpx.AsyncClient() as client:
-            assert await models.order_model_sources(client, url, "auto") == [
+            assert await models.order_model_sources(client, url) == [
                 mirror,
                 url,
             ]
@@ -134,7 +135,7 @@ async def test_failed_or_timed_out_probes_preserve_order(monkeypatch):
         mock.head(url).mock(return_value=httpx.Response(405))
         mock.head(mirror).mock(side_effect=stalled)
         async with httpx.AsyncClient() as client:
-            assert await models.order_model_sources(client, url, "auto") == [
+            assert await models.order_model_sources(client, url) == [
                 url,
                 mirror,
             ]
@@ -143,9 +144,10 @@ async def test_failed_or_timed_out_probes_preserve_order(monkeypatch):
 @pytest.mark.parametrize(
     "source,host", [("huggingface", "huggingface.co"), ("hf-mirror", "hf-mirror.com")]
 )
-async def test_explicit_source_skips_probes_and_reports_verified_progress(
-    assets, source, host
+async def test_origin_download_reports_verified_progress(
+    assets, source, host, monkeypatch
 ):
+    monkeypatch.setattr(models, "SOURCES", {source: host})
     _, manifest, data = assets
     events = []
     with respx.mock as mock:
@@ -155,7 +157,7 @@ async def test_explicit_source_skips_probes_and_reports_verified_progress(
             )
             for asset in manifest.values()
         ]
-        await models.prepare(ProviderConfig(download_source=source), events.append)
+        await models.prepare(ProviderConfig(), events.append)
     assert all(route.called for route in routes)
     assert events[-1].status == "ready"
     assert events[-1].downloaded_bytes == events[-1].total_bytes == 3 * len(data)
@@ -167,7 +169,14 @@ async def test_explicit_source_skips_probes_and_reports_verified_progress(
 
 
 @pytest.mark.parametrize("failure", ["http", "integrity", "network"])
-async def test_auto_download_falls_back_and_keeps_verified_cache(assets, failure):
+async def test_auto_download_falls_back_and_keeps_verified_cache(
+    assets, failure, monkeypatch
+):
+    monkeypatch.setattr(
+        models,
+        "SOURCES",
+        {"huggingface": "huggingface.co", "hf-mirror": "hf-mirror.com"},
+    )
     root, manifest, data = assets
     events = []
     with respx.mock as mock:
@@ -213,7 +222,7 @@ async def test_progress_counts_cached_files_and_excludes_custom_files(assets):
             return_value=httpx.Response(200, content=data)
         )
         await models.prepare(
-            ProviderConfig(download_source="huggingface", tokens_path=str(custom)),
+            ProviderConfig(tokens_path=str(custom)),
             events.append,
         )
     assert events[-1].total_bytes == 2 * len(data)
@@ -241,9 +250,7 @@ async def test_streaming_reports_intermediate_bytes_before_completion(
 
     with respx.mock as mock:
         mock.get(asset["url"]).mock(return_value=httpx.Response(200, stream=Chunks()))
-        await models.prepare(
-            ProviderConfig(download_source="huggingface"), events.append
-        )
+        await models.prepare(ProviderConfig(), events.append)
     assert [
         event.downloaded_bytes for event in events if event.status == "downloading"
     ] == [0, 65536, 131072, 196608]

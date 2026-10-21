@@ -307,6 +307,11 @@ export function SettingsContent({
         queryClient.removeQueries({ queryKey });
       };
 
+      if (category === "audio") {
+        removeQuery(["asr-settings"]);
+        removeQuery(["asr-status"]);
+        removeQuery(["asr-preparation"]);
+      }
       if (category === "general") removeQuery(["settings"]);
       if (category === "editor") removeQuery(["settings"]);
       if (category === "notifications") removeQuery(["settings"]);

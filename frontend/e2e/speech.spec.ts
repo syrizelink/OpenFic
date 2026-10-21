@@ -8,7 +8,6 @@ let projectId: string;
 async function configure(request: APIRequestContext, extra = {}) {
   const response = await request.put("/api/v1/audio/config", {
     data: {
-      enabled: true,
       provider: "openai",
       api_key: "e2e-secret",
       config: { base_url: "http://127.0.0.1:18888/v1", model: "test-asr" },
@@ -182,7 +181,7 @@ test("settings persist each provider and never return API keys", async ({ page, 
   await page.getByRole("button", { name: "语音转写", exact: true }).click();
   const provider = page.getByRole("combobox", { name: "ASR 提供商" });
   const providerLabels: Record<string, string> = {
-    sensevoice: "本地 SenseVoice Small",
+    sensevoice: "Sense Voice (本地)",
     groq: "Groq",
     mistral: "Mistral",
     deepgram: "Deepgram",
@@ -214,24 +213,22 @@ test("settings persist each provider and never return API keys", async ({ page, 
   expect((await config.json()).providers.openai.base_url).toBe("http://127.0.0.1:18888/v1");
 });
 
-test("ASR settings use compact rows, save the toggle immediately and disclose optional paths", async ({
-  page,
-  request,
-}, testInfo) => {
+test("ASR settings use compact rows and disclose optional paths", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("button", { name: "语音转写", exact: true }).click();
-  const toggle = page.getByRole("switch", { name: "启用语音识别" });
-  const saved = page.waitForResponse(
-    (response) => response.url().endsWith("/audio/config") && response.request().method() === "PUT",
-  );
-  await toggle.click();
-  expect((await (await saved).json()).enabled).toBe(false);
+  await expect(page.getByRole("switch")).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "模型下载源" })).toHaveCount(0);
   const provider = page.getByRole("combobox", { name: "ASR 提供商" });
   await provider.click();
-  await page.getByRole("option", { name: "本地 SenseVoice Small", exact: true }).click();
+  await page.getByRole("option", { name: "Sense Voice (本地)", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "SenseVoice 模型绝对路径（可选）" })).toBeHidden();
   await expect(provider.locator('[data-asr-provider="sensevoice"] svg')).toBeVisible();
+  expect(
+    await provider
+      .locator(".select-option-label")
+      .evaluate((node) => node.scrollWidth <= node.clientWidth),
+  ).toBe(true);
   await page
     .getByRole("dialog")
     .screenshot({ path: testInfo.outputPath("asr-settings-local.png") });
@@ -246,7 +243,8 @@ test("ASR settings use compact rows, save the toggle immediately and disclose op
   expect((await (await persisted).json()).providers.sensevoice.model_path).toBe(
     "/opt/asr/model.int8.onnx",
   );
-  expect((await (await request.get("/api/v1/audio/config")).json()).enabled).toBe(false);
+  expect((await provider.boundingBox())!.width).toBe(192);
+  expect((await modelPath.locator("..").boundingBox())!.width).toBe(192);
   await provider.click();
   await page.getByRole("option", { name: "Groq", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "ASR API Key" })).toBeVisible();
@@ -283,10 +281,17 @@ test("ASR settings use compact rows, save the toggle immediately and disclose op
   await expectProviderInline();
   await page.screenshot({ path: testInfo.outputPath("asr-settings-mobile.png") });
   await page.setViewportSize({ width: 320, height: 844 });
-  for (const name of ["本地 SenseVoice Small", "OpenAI / OpenAI compatible"]) {
+  for (const name of ["Sense Voice (本地)", "OpenAI / OpenAI compatible"]) {
     await mobileProvider.click();
     await page.getByRole("button", { name, exact: true }).click();
     await expectProviderInline();
+    if (name === "Sense Voice (本地)") {
+      expect(
+        await mobileProvider
+          .locator(".select-option-label")
+          .evaluate((node) => node.scrollWidth <= node.clientWidth),
+      ).toBe(true);
+    }
     expect(
       await page
         .locator(".audio-settings")
@@ -392,17 +397,15 @@ test("inline microphone reuses the composer styling, moves down and stops withou
   expect((await (await request.get("http://127.0.0.1:18888/control")).json()).calls).toBe(1);
 });
 
-test("disabled ASR shows feedback without acquiring a microphone", async ({ page, request }) => {
-  await configure(request, { enabled: false });
-  await page.addInitScript(() => {
-    navigator.mediaDevices.getUserMedia = () => {
-      throw new Error("Microphone must not be requested");
-    };
-  });
+test("recording is available without a feature switch and reports unprepared local models", async ({
+  page,
+  request,
+}) => {
+  await configure(request, { provider: "sensevoice", config: {} });
   await page.goto(`/projects/${projectId}`);
-  await page.getByRole("button", { name: "语音转写", exact: true }).click();
-  const voice = page.locator(".agent-voice-input");
-  await expect(voice.getByRole("alert")).toContainText("请先在设置");
+  const voice = await startInline(page);
+  await voice.getByRole("button", { name: "停止并识别" }).click();
+  await expect(voice.getByRole("alert")).toContainText("Prepare the SenseVoice model");
   await voice.getByRole("button", { name: "取消", exact: true }).click();
   await expect(page.locator(".ai-sidebar-input-toolbar")).toBeVisible();
   expect((await (await request.get("http://127.0.0.1:18888/control")).json()).calls).toBe(0);
@@ -468,7 +471,7 @@ test("real SenseVoice model transcribes a speech recording through the UI", asyn
 
 // UI contract coverage uses controlled transfer snapshots; Python tests exercise
 // source probing, streaming, checksum validation, fallback and progress endpoints.
-test("model preparation persists its source and shows live byte progress on desktop and mobile", async ({
+test("model preparation shows live progress and replaces controls with a ready badge", async ({
   page,
   request,
 }, testInfo) => {
@@ -498,10 +501,7 @@ test("model preparation persists its source and shows live byte progress on desk
   await page.goto("/");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("button", { name: "语音转写", exact: true }).click();
-  const source = page.getByRole("combobox", { name: "模型下载源", exact: true });
-  await expect(source).toContainText("自动选择");
-  await source.click();
-  await page.getByRole("option", { name: "hf-mirror", exact: true }).click();
+  const provider = page.getByRole("combobox", { name: "ASR 提供商", exact: true });
   await page.getByRole("button", { name: "准备模型", exact: true }).click();
   try {
     const bar = page.getByRole("progressbar", { name: "模型下载进度" });
@@ -509,11 +509,7 @@ test("model preparation persists its source and shows live byte progress on desk
     await expect(
       page.getByText("model.int8.onnx · hf-mirror.com · 60.0 / 240.0 MB", { exact: true }),
     ).toBeVisible();
-    expect(
-      (await (await request.get("/api/v1/audio/config")).json()).providers.sensevoice
-        .download_source,
-    ).toBe("hf-mirror");
-    await expect(source).toBeDisabled();
+    await expect(provider).toBeDisabled();
     await page
       .getByRole("dialog")
       .screenshot({ path: testInfo.outputPath("asr-download-desktop.png") });
@@ -534,8 +530,25 @@ test("model preparation persists its source and shows live byte progress on desk
     await expect(page.getByText("正在校验模型…", { exact: true })).toBeVisible();
     progress = { ...progress, status: "ready", file_name: "", source: "" };
     release();
-    await expect(bar).toHaveAttribute("aria-valuenow", "100");
-    await expect(page.getByRole("button", { name: "准备模型", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "准备模型", exact: true })).toHaveCount(0);
+    await expect(page.getByText("已就绪", { exact: true })).toBeVisible();
+    await expect(bar).toHaveCount(0);
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "设置", exact: true }).click();
+    await page.getByRole("button", { name: "语音转写", exact: true }).click();
+    await expect(page.getByText("已就绪", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "准备模型", exact: true })).toHaveCount(0);
+    await expect(bar).toHaveCount(0);
+    await expect(page.getByText("SenseVoice Small · INT8", { exact: true })).toBeVisible();
+    expect(
+      await page
+        .getByText("已就绪", { exact: true })
+        .evaluate((node) => getComputedStyle(node).fontWeight),
+    ).toBe("700");
+    await page
+      .getByRole("dialog")
+      .screenshot({ path: testInfo.outputPath("asr-settings-ready.png") });
   } finally {
     release();
   }
@@ -627,3 +640,40 @@ for (const [width, reducedMotion] of [
       .toBe(Math.round(normal.height));
   });
 }
+
+test("ASR settings show loading and fetch fresh data on every category entry", async ({
+  page,
+  request,
+}) => {
+  let requests = 0;
+  const release: Array<() => void> = [];
+  await page.route("**/audio/config", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    requests++;
+    await new Promise<void>((resolve) => {
+      release.push(resolve);
+    });
+    await route.continue();
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  for (let entry = 0; entry < 2; entry++) {
+    if (entry) {
+      await page.getByRole("button", { name: "联网搜索", exact: true }).click();
+      await configure(request, { language: "ja" });
+    }
+    await page.getByRole("button", { name: "语音转写", exact: true }).click();
+    try {
+      await expect.poll(() => requests).toBe(entry + 1);
+      await expect(page.locator(".audio-settings-loading")).toBeVisible();
+      await expect(page.getByRole("combobox", { name: "ASR 提供商" })).toHaveCount(0);
+    } finally {
+      release[entry]?.();
+    }
+    await expect(page.getByRole("combobox", { name: "ASR 提供商" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "识别语言", exact: true })).toHaveValue(
+      entry ? "ja" : "auto",
+    );
+    if (!entry) await page.getByRole("textbox", { name: "识别语言", exact: true }).fill("zh");
+  }
+});

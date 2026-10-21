@@ -26,7 +26,6 @@ class ProviderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     base_url: str = Field(default="", max_length=2048)
     model: str = Field(default="", max_length=256)
-    download_source: Literal["auto", "huggingface", "hf-mirror"] = "auto"
     model_path: str = Field(default="", max_length=4096)
     tokens_path: str = Field(default="", max_length=4096)
     vad_path: str = Field(default="", max_length=4096)
@@ -62,7 +61,6 @@ class ProviderConfig(BaseModel):
 
 class ASRConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    enabled: bool = False
     provider: Provider = "sensevoice"
     language: str = Field(
         default="auto", pattern=r"^(auto|[a-z]{2,3}(-[A-Za-z]{2,4})?)$"
@@ -72,7 +70,6 @@ class ASRConfig(BaseModel):
 
 class ASRUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    enabled: bool
     provider: Provider
     language: str = Field(
         default="auto", pattern=r"^(auto|[a-z]{2,3}(-[A-Za-z]{2,4})?)$"

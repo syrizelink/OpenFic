@@ -2566,7 +2566,6 @@
   "speech": {
     "title": "语音转写",
     "description": "选择本地模型或云端服务，在 Agent 输入框录音转写。",
-    "enable": "启用语音识别",
     "provider": "ASR 提供商",
     "language": "识别语言",
     "languageHint": "auto 自动识别；SenseVoice 支持 zh、en、yue、ja、ko。",
@@ -2588,7 +2587,6 @@
     "prepareFailed": "模型准备失败，请检查网络、存储和模型路径后重试。已校验文件可复用。",
     "saving": "正在保存…",
     "inputHint": "录音或上传音频（最长 5 分钟、最大 30 MB），识别后可编辑文字并确认插入。",
-    "enableFirst": "请先在设置 → 语音转写中启用并配置 ASR。",
     "record": "开始录音",
     "stop": "停止并识别",
     "upload": "选择音频文件",
@@ -2606,7 +2604,7 @@
     "audioTooLarge": "音频文件不得超过 30 MB。",
     "loadFailed": "无法加载语音设置，请重试。",
     "providers": {
-      "sensevoice": "本地 SenseVoice Small",
+      "sensevoice": "Sense Voice (本地)",
       "openai": "OpenAI / OpenAI compatible",
       "groq": "Groq",
       "mistral": "Mistral",
@@ -2617,12 +2615,11 @@
     "waveform": "实时语音波形",
     "send": "转写并发送",
     "retryHint": "录音已保留，停止可转成文字，发送可重试提交。",
-    "enabledHint": "在 Agent 输入框使用录音转写。",
     "providerHint": "选择本地识别模型或云端服务。",
     "baseUrlHint": "留空使用提供商的默认 API 地址。",
     "modelHint": "留空使用提供商的默认语音识别模型。",
     "localModel": "本地模型",
-    "modelDownloadHint": "SenseVoice Small · INT8 · 约 241 MB，下载后可离线使用。",
+    "modelDownloadHint": "SenseVoice Small · INT8",
     "ready": "已就绪",
     "notReady": "未准备",
     "statusUnavailable": "状态不可用",
@@ -2634,14 +2631,7 @@
     "languageAutoHint": "auto 自动识别，也可填写服务支持的语言代码。",
     "keyWillClear": "保存后删除已保存的密钥。",
     "keepKey": "保留已保存的密钥",
-    "downloadSource": "模型下载源",
-    "downloadSourceHint": "自动优先使用响应更快的源，下载失败时切换备用源。",
     "downloadProgress": "模型下载进度",
-    "downloadSources": {
-      "auto": "自动选择",
-      "huggingface": "Hugging Face",
-      "hf-mirror": "hf-mirror"
-    },
     "downloadPhases": {
       "idle": "尚未开始",
       "selecting_source": "正在选择下载源…",

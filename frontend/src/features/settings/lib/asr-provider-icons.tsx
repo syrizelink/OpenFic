@@ -3,7 +3,7 @@ import { ProviderIcon } from "./provider-icons";
 
 // Vendored thesvg assets; provenance and license live alongside the SVGs.
 const ICONS: Record<ASRProvider, string> = {
-  sensevoice: "alibaba-cloud",
+  sensevoice: "qwen",
   openai: "openai",
   groq: "groq",
   mistral: "mistral",
@@ -19,7 +19,7 @@ export function ASRProviderIcon({ provider }: { provider: ASRProvider }) {
     >
       <ProviderIcon
         iconPath={`/provider-icons/asr/${ICONS[provider]}.svg`}
-        preserveColors={provider !== "openai"}
+        preserveColors={provider !== "openai" && provider !== "sensevoice"}
         size={16}
       />
     </span>

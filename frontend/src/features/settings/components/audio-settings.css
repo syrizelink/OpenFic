@@ -6,7 +6,7 @@
 .audio-settings-control {
   display: flex;
   justify-content: flex-end;
-  flex: 0 0 260px;
+  flex: 0 0 192px;
   min-width: 0;
 }
 
@@ -59,37 +59,4 @@
 
 .audio-settings-advanced[open] > summary > svg {
   transform: rotate(90deg);
-}
-
-@media (max-width: 600px) {
-  .audio-settings-row {
-    flex-wrap: wrap;
-    row-gap: 10px;
-  }
-
-  .audio-settings-control {
-    flex: 1 1 260px;
-    max-width: 100%;
-  }
-
-  .audio-settings-label {
-    flex-basis: 100%;
-  }
-
-  .audio-settings-row--compact {
-    flex-wrap: nowrap;
-  }
-
-  .audio-settings-row--compact .audio-settings-label {
-    flex: 1;
-  }
-
-  .audio-settings-row--compact .audio-settings-control {
-    flex: 0 1 auto;
-    max-width: 62%;
-  }
-
-  .audio-settings-row--compact .audio-settings-control:has(.audio-settings-provider-select) {
-    flex-basis: 62%;
-  }
 }
