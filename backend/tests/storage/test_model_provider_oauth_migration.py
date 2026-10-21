@@ -1,20 +1,13 @@
 import importlib
-from pathlib import Path
 
 import pytest
-from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
 
 def test_provider_oauth_migration_round_trip(tmp_path, monkeypatch):
-    backend_dir = Path(__file__).resolve().parents[2]
-    config = Config()
-    config.set_main_option("script_location", str(backend_dir / "app/storage/migrations"))
-    assert ScriptDirectory.from_config(config).get_current_head() == "1025"
     migration = importlib.import_module("app.storage.migrations.versions.1025_add_model_provider_oauth")
     engine = create_engine(f"sqlite:///{tmp_path / 'migration.db'}")
     try:

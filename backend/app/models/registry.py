@@ -31,6 +31,7 @@ from app.models.adapters.openai_responses_compatible import (
     OpenAIResponsesCompatibleAdapter,
 )
 from app.models.adapters.openrouter import OpenRouterAdapter
+from app.models.adapters.requesty import RequestyAdapter
 
 
 class AdapterRegistry:
@@ -52,8 +53,10 @@ class AdapterRegistry:
         "nvidia-ai-endpoints": NvidiaAIEndpointsAdapter,
         "cohere": CohereAdapter,
         "openrouter": OpenRouterAdapter,
+        "requesty": RequestyAdapter,
         "amazon-nova": AmazonNovaAdapter,
         "openai-compatible": OpenAICompatibleAdapter,
+        "infistar": OpenAICompatibleAdapter,
         "openai-compatible-responses": OpenAIResponsesCompatibleAdapter,
         **{
             provider_type: AnthropicCompatibleAdapter

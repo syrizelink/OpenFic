@@ -30,7 +30,8 @@
 }
 
 [data-slot="select-option-with-actions"] > .rt-SelectItem,
-[data-slot="select-option-with-actions"] > .searchable-select-item {
+[data-slot="select-option-with-actions"] > .searchable-select-item,
+[data-slot="select-option-with-actions"] > .mobile-select-item {
   flex: 1;
   min-width: 0;
 }

@@ -10,6 +10,66 @@ import pytest
 from app.agent_runtime.tools.errors import ToolExecutionError
 
 
+def test_note_category_ref_inputs_use_structured_schema() -> None:
+    from app.agent_runtime.tools.impls.note.create_note_category import (
+        CreateNoteCategoryInput,
+    )
+    from app.agent_runtime.tools.impls.note.move_note import MoveNoteInput
+    from app.agent_runtime.tools.impls.note.write_note import WriteNoteInput
+
+    cases = (
+        (CreateNoteCategoryInput, "parent_ref"),
+        (WriteNoteInput, "category_ref"),
+        (MoveNoteInput, "target_category_ref"),
+    )
+    for input_model, field_name in cases:
+        field_schema = input_model.model_json_schema()["properties"][field_name]
+        assert any(
+            branch.get("$ref") == "#/$defs/CategoryRef"
+            for branch in field_schema["anyOf"]
+            if isinstance(branch, dict)
+        )
+
+
+def test_note_category_ref_json_strings_are_normalized_before_validation() -> None:
+    from app.agent_runtime.tool_call_recovery import normalize_tool_input_for_schema
+    from app.agent_runtime.tools.impls.note.create_note_category import (
+        CreateNoteCategoryInput,
+    )
+    from app.agent_runtime.tools.impls.note.move_note import MoveNoteInput
+    from app.agent_runtime.tools.impls.note.write_note import WriteNoteInput
+
+    cases = (
+        (
+            CreateNoteCategoryInput,
+            {"title": "子分类", "parent_ref": '{"id":"cat-1"}'},
+            "parent_ref",
+        ),
+        (
+            WriteNoteInput,
+            {
+                "title": "笔记",
+                "content": "正文",
+                "category_ref": '{"id":"cat-1"}',
+            },
+            "category_ref",
+        ),
+        (
+            MoveNoteInput,
+            {
+                "note_ref": {"id": "note-1"},
+                "target_category_ref": '{"id":"cat-1"}',
+            },
+            "target_category_ref",
+        ),
+    )
+
+    for input_model, tool_input, field_name in cases:
+        normalized = normalize_tool_input_for_schema(tool_input, input_model)
+        input_model.model_validate(normalized)
+        assert normalized[field_name] == {"id": "cat-1"}
+
+
 def _make_state() -> dict:
     return {
         "session_id": "sess-1",

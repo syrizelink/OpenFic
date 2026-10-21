@@ -8,7 +8,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-COPY frontend/patches/ ./patches/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --store-dir /pnpm/store
 COPY frontend/ ./
@@ -16,6 +15,8 @@ RUN pnpm build
 
 # ---- 后端运行：按目标平台构建（amd64 / arm64）----
 FROM python:3.12-slim AS backend
+
+ARG OPENFIC_EXTRA=
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -29,14 +30,22 @@ WORKDIR /app
 # 先装依赖（利用层缓存）
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+    if [ -n "$OPENFIC_EXTRA" ]; then \
+        uv sync --frozen --no-dev --no-install-project --extra "$OPENFIC_EXTRA"; \
+    else \
+        uv sync --frozen --no-dev --no-install-project; \
+    fi
 
 # 复制后端源码
 COPY backend/ ./
 
 # 安装当前项目以写入发行版元数据，供运行时读取版本号
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    if [ -n "$OPENFIC_EXTRA" ]; then \
+        uv sync --frozen --no-dev --extra "$OPENFIC_EXTRA"; \
+    else \
+        uv sync --frozen --no-dev; \
+    fi
 
 # 前端构建产物打入包内
 COPY --from=frontend /build/dist ./app/frontend_dist

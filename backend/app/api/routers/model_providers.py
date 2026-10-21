@@ -34,6 +34,7 @@ from app.models.services.openai_codex_service import (
     get_openai_codex_credentials,
 )
 from app.core.encryption import EncryptionService
+from app.api.validation_errors import format_validation_error
 from app.core.errors import NotFoundError
 from app.settings import settings
 from app.storage.database import get_session
@@ -355,7 +356,7 @@ async def validate_provider(
         logger.error(f"验证提供商连接失败: {e}")
         return ModelProviderValidateResponse(
             success=False,
-            message=f"连接验证失败: {str(e)}",
+            message=f"连接验证失败: {format_validation_error(e)}",
             models=[],
         )
 

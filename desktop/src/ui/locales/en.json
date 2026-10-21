@@ -135,6 +135,8 @@
     "goToSetup": "Set up",
     "configuredInstances": "Configured instances",
     "instanceSettings": "Data management",
+    "instanceAccessKey": "Set access key",
+    "accessKeyEnabled": "Access key enabled",
     "currentInstance": "Current",
     "reconnect": "Reconnect",
     "connect": "Connect",
@@ -180,6 +182,16 @@
     "remoteDescription": "Remote instance data is stored on the server and will not be deleted.",
     "confirm": "Delete instance",
     "deleting": "Deleting..."
+  },
+  "instanceAccessKey": {
+    "title": "Set access key",
+    "description": "Protect this local instance with an access key. The key is encrypted on this device and takes effect the next time you connect.",
+    "label": "Access key",
+    "placeholder": "Enter an access key",
+    "configured": "An access key is set. Enter a new key to replace it, or save an empty value to remove protection.",
+    "notConfigured": "When enabled, this key will be required to access the local instance.",
+    "save": "Save",
+    "saving": "Saving..."
   },
   "data": {
     "title": "Data management",

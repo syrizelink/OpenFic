@@ -12,4 +12,20 @@
  * toast.info('提示信息');
  */
 
-export { toast } from "sonner";
+import { toast } from "sonner";
+
+import { ErrorToastDetails } from "./error-toast-details";
+
+export { toast };
+
+export function showErrorToast(message: string, error: unknown) {
+  return toast.error(
+    <ErrorToastDetails
+      message={message}
+      error={error}
+    />,
+    {
+      duration: 4000,
+    },
+  );
+}

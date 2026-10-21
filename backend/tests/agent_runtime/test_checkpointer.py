@@ -1,4 +1,4 @@
-from contextlib import closing
+from contextlib import AsyncExitStack, closing
 from dataclasses import dataclass
 import os
 import sqlite3
@@ -6,7 +6,8 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock, call
+from uuid import uuid4
 
 import app.agent_runtime.runner.checkpointer as checkpointer_mod
 import aiosqlite
@@ -17,14 +18,17 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import pytest
 from sqlalchemy import select
 from app.agent_runtime.runner.checkpointer import (
+    checkpoint_free_page_bytes,
     cleanup_unreachable_checkpoints,
     close_checkpointer,
     delete_checkpoints_after_for_thread,
     delete_checkpoints_for_thread,
     get_checkpointer,
     init_checkpointer,
+    latest_checkpoint_id_for_thread,
     prune_checkpoints_for_thread,
     prune_reachable_checkpoints,
+    prune_thread_checkpoints,
     reset_checkpointer,
     vacuum_checkpoint_database,
 )
@@ -32,9 +36,17 @@ from app.agent_runtime.tools.impls.interaction.ask_user import Question, Questio
 from app.agent_runtime.persistence.child_runs import create_child_run
 from app.agent_runtime.persistence.model import AgentChildRunRequest
 from app.storage.models.revision import Revision
+from app.storage.models.project import Project
 from app.storage.models.task import Task
 
 pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
+
+@pytest.fixture(autouse=True)
+def use_sqlite_checkpointer_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep SQLite-specific checkpoint tests independent from the host backend."""
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "sqlite")
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "checkpoint_database_url", None)
 
 
 @dataclass(frozen=True)
@@ -285,6 +297,437 @@ async def test_get_checkpointer_does_not_scan_all_checkpoints_without_legacy_api
         await reset_checkpointer()
 
 
+@pytest.mark.asyncio
+async def test_get_checkpointer_dispatches_to_postgresql_without_sqlite_setup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pytest.importorskip("langgraph.checkpoint.postgres.aio")
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    database_url = "postgresql://user:password@localhost/checkpoints"
+    postgres_saver = SimpleNamespace(setup=AsyncMock())
+    postgres_context = AsyncMock()
+    postgres_context.__aenter__.return_value = postgres_saver
+    postgres_context.__aexit__.return_value = False
+    from_conn_string = Mock(return_value=postgres_context)
+    monkeypatch.setattr(AsyncPostgresSaver, "from_conn_string", from_conn_string)
+    monkeypatch.setattr(
+        checkpointer_mod.app_settings,
+        "settings",
+        SimpleNamespace(
+            database_backend="postgresql",
+            checkpoint_database_url=database_url,
+        ),
+    )
+    sqlite_connect = AsyncMock(side_effect=AssertionError("SQLite must not be opened"))
+    monkeypatch.setattr(checkpointer_mod.aiosqlite, "connect", sqlite_connect)
+    monkeypatch.setattr(
+        checkpointer_mod,
+        "_get_db_path",
+        Mock(side_effect=AssertionError("SQLite path must not be read")),
+    )
+
+    await reset_checkpointer()
+    try:
+        assert await get_checkpointer() is postgres_saver
+        from_conn_string.assert_called_once()
+        assert from_conn_string.call_args.args == (database_url,)
+        postgres_saver.setup.assert_awaited_once()
+        sqlite_connect.assert_not_awaited()
+    finally:
+        await reset_checkpointer()
+
+
+async def test_postgresql_without_checkpoint_url_uses_sqlite_for_checkpoint_lifecycle(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "postgresql")
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(tmp_path / "fallback.db"))
+    await reset_checkpointer()
+    try:
+        saver = await get_checkpointer()
+        assert isinstance(saver, AsyncSqliteSaver)
+        for checkpoint_id in ("cp-001", "cp-002"):
+            await saver.conn.execute(
+                "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
+                ("fallback-thread", "", checkpoint_id),
+            )
+        await saver.conn.commit()
+        assert await latest_checkpoint_id_for_thread("fallback-thread") == "cp-002"
+        assert await delete_checkpoints_after_for_thread("fallback-thread", "cp-001") == 1
+        assert await delete_checkpoints_for_thread("fallback-thread") == 1
+        assert await checkpoint_free_page_bytes() != (0, 0)
+    finally:
+        await reset_checkpointer()
+
+
+async def test_failed_sqlite_checkpoint_setup_closes_connection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "postgresql")
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(tmp_path / "failed.db"))
+    await reset_checkpointer()
+    original_connect = aiosqlite.connect
+    connections = []
+
+    async def connect(*args, **kwargs):
+        conn = await original_connect(*args, **kwargs)
+        connections.append(conn)
+        return conn
+
+    monkeypatch.setattr(aiosqlite, "connect", connect)
+    monkeypatch.setattr(AsyncSqliteSaver, "setup", AsyncMock(side_effect=RuntimeError("setup failed")))
+    try:
+        with pytest.raises(RuntimeError, match="setup failed"):
+            await get_checkpointer()
+        assert checkpointer_mod._checkpointer is None
+        assert len(connections) == 1
+        with pytest.raises(ValueError, match="no active connection"):
+            await connections[0].execute("SELECT 1")
+    finally:
+        for conn in connections:
+            await conn.close()
+        await reset_checkpointer()
+
+
+async def test_explicit_postgresql_checkpoint_failure_does_not_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "postgresql")
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "checkpoint_database_url", "postgresql://localhost/unavailable")
+    monkeypatch.setattr(checkpointer_mod, "_create_postgresql_checkpointer", AsyncMock(side_effect=RuntimeError("PostgreSQL unavailable")))
+    connect = Mock(side_effect=AssertionError("must not silently switch checkpoint storage"))
+    monkeypatch.setattr(aiosqlite, "connect", connect)
+    await reset_checkpointer()
+    with pytest.raises(RuntimeError, match="PostgreSQL unavailable"):
+        await get_checkpointer()
+    assert checkpointer_mod._checkpointer is None
+    connect.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_reset_checkpointer_closes_postgresql_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    postgres_context = AsyncMock()
+    postgres_context.__aexit__.return_value = False
+    context_stack = AsyncExitStack()
+    await context_stack.enter_async_context(postgres_context)
+    checkpointer_mod._checkpointer = SimpleNamespace()
+    checkpointer_mod._checkpointer_context = context_stack
+
+    await reset_checkpointer()
+
+    postgres_context.__aexit__.assert_awaited_once()
+    assert postgres_context.__aexit__.await_args.args[-3:] == (None, None, None)
+    assert checkpointer_mod._checkpointer is None
+
+
+@pytest.mark.asyncio
+async def test_latest_checkpoint_id_for_postgresql_uses_saver_public_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint = SimpleNamespace(
+        config={
+            "configurable": {
+                "thread_id": "session-a",
+                "checkpoint_id": "pg-latest",
+            }
+        }
+    )
+
+    async def list_checkpoints(*args, **kwargs):
+        yield checkpoint
+
+    alist = Mock(side_effect=list_checkpoints)
+    monkeypatch.setattr(
+        checkpointer_mod,
+        "get_checkpointer",
+        AsyncMock(return_value=SimpleNamespace(alist=alist)),
+    )
+    monkeypatch.setattr(
+        checkpointer_mod.app_settings,
+        "settings",
+        SimpleNamespace(database_backend="postgresql", checkpoint_database_url="postgresql://localhost/checkpoints"),
+    )
+
+    assert await latest_checkpoint_id_for_thread("session-a") == "pg-latest"
+    alist.assert_called_once_with(
+        {"configurable": {"thread_id": "session-a"}},
+        limit=1,
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_checkpoints_for_postgresql_is_transactional(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transaction = AsyncMock()
+    cursor = SimpleNamespace(
+        execute=AsyncMock(), rowcount=2,
+        connection=SimpleNamespace(transaction=Mock(return_value=transaction)),
+    )
+    cursor_context = AsyncMock()
+    cursor_context.__aenter__.return_value = cursor
+    saver = SimpleNamespace(_cursor=Mock(return_value=cursor_context))
+    monkeypatch.setattr(
+        checkpointer_mod,
+        "get_checkpointer",
+        AsyncMock(return_value=saver),
+    )
+    monkeypatch.setattr(
+        checkpointer_mod.app_settings,
+        "settings",
+        SimpleNamespace(database_backend="postgresql", checkpoint_database_url="postgresql://localhost/checkpoints"),
+    )
+
+    assert await delete_checkpoints_for_thread("session-a") == 6
+    transaction.__aenter__.assert_awaited_once()
+    transaction.__aexit__.assert_awaited_once_with(None, None, None)
+    assert cursor.execute.await_args_list[:2] == [
+        call("DELETE FROM checkpoint_writes WHERE thread_id = %s", ("session-a",)),
+        call("DELETE FROM checkpoints WHERE thread_id = %s", ("session-a",)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_checkpoints_after_for_postgresql_deletes_rows_after_cutoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transaction = AsyncMock()
+    cursor = SimpleNamespace(rowcount=2, connection=SimpleNamespace(transaction=Mock(return_value=transaction)))
+    cursor_context = AsyncMock()
+    cursor_context.__aenter__.return_value = cursor
+    postgres_saver = SimpleNamespace(
+        _cursor=Mock(return_value=cursor_context),
+    )
+    execute = AsyncMock(side_effect=[None, None, None])
+    cursor.execute = execute
+    monkeypatch.setattr(
+        checkpointer_mod,
+        "get_checkpointer",
+        AsyncMock(return_value=postgres_saver),
+    )
+    monkeypatch.setattr(
+        checkpointer_mod.app_settings,
+        "settings",
+        SimpleNamespace(database_backend="postgresql", checkpoint_database_url="postgresql://localhost/checkpoints"),
+    )
+
+    assert await delete_checkpoints_after_for_thread("session-a", "cp-001") == 6
+    transaction.__aenter__.assert_awaited_once()
+    transaction.__aexit__.assert_awaited_once_with(None, None, None)
+
+    postgres_saver._cursor.assert_called_once_with()
+    assert execute.await_args_list == [
+        call(
+            "DELETE FROM checkpoint_writes "
+            "WHERE thread_id = %s AND checkpoint_id > %s",
+            ("session-a", "cp-001"),
+        ),
+        call(
+            "DELETE FROM checkpoints "
+            "WHERE thread_id = %s AND checkpoint_id > %s",
+            ("session-a", "cp-001"),
+        ),
+        call(
+            "DELETE FROM checkpoint_blobs AS blobs "
+            "WHERE blobs.thread_id = %s "
+            "AND NOT EXISTS ("
+            "SELECT 1 FROM checkpoints AS checkpoints "
+            "CROSS JOIN LATERAL jsonb_each_text(checkpoints.checkpoint->'channel_versions') "
+            "AS versions(channel, version) "
+            "WHERE checkpoints.thread_id = blobs.thread_id "
+            "AND checkpoints.checkpoint_ns = blobs.checkpoint_ns "
+            "AND versions.channel = blobs.channel "
+            "AND versions.version = blobs.version"
+            ")",
+            ("session-a",),
+        ),
+    ]
+
+
+async def test_prune_thread_checkpoints_for_postgresql_uses_rollback_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "postgresql")
+    retained = AsyncMock(return_value={"session-a": {"root-boundary", "child-boundary"}})
+    prune = AsyncMock(return_value=7)
+    monkeypatch.setattr(checkpointer_mod, "_list_retained_checkpoint_ids", retained)
+    monkeypatch.setattr(checkpointer_mod, "prune_checkpoints_for_thread", prune)
+    session = Mock()
+    saver = Mock()
+
+    assert await prune_thread_checkpoints(session, saver, "session-a") == 7
+    retained.assert_awaited_once_with(session, {"session-a"})
+    prune.assert_awaited_once_with(saver, "session-a", {"root-boundary", "child-boundary"})
+
+
+@pytest.fixture
+async def postgresql_pruning_saver(monkeypatch: pytest.MonkeyPatch):
+    database_url = os.getenv("OPENFIC_TEST_CHECKPOINT_DATABASE_URL")
+    if not database_url:
+        pytest.skip("Set OPENFIC_TEST_CHECKPOINT_DATABASE_URL to test PostgreSQL pruning")
+    psycopg = pytest.importorskip("psycopg")
+    postgres = pytest.importorskip("langgraph.checkpoint.postgres.aio")
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "postgresql")
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "checkpoint_database_url", database_url)
+    schema = f"checkpoint_pruning_{uuid4().hex}"
+    async with await psycopg.AsyncConnection.connect(database_url, autocommit=True) as conn:
+        await conn.execute(f'CREATE SCHEMA "{schema}"')
+        try:
+            await conn.execute(f'SET search_path TO "{schema}"')
+            saver = postgres.AsyncPostgresSaver(conn)
+            await saver.setup()
+            for thread_id, namespace, checkpoint_id, version in [
+                ("session-a", "", "cp-001", "1"),
+                ("session-a", "", "cp-002", "2"),
+                ("session-a", "", "cp-003", "2"),
+                ("session-a", "child", "cp-004", "1"),
+                ("session-a", "child", "cp-005", "2"),
+                ("session-b", "", "cp-001", "1"),
+            ]:
+                config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": namespace}}
+                checkpoint = {
+                    "v": 4,
+                    "id": checkpoint_id,
+                    "ts": "2026-10-14T00:00:00+00:00",
+                    "channel_values": {"messages": [AIMessage(content=f"{namespace}:{version}")]},
+                    "channel_versions": {"messages": version},
+                    "versions_seen": {},
+                    "pending_sends": [],
+                }
+                saved = await saver.aput(config, checkpoint, {}, {"messages": version})
+                await saver.aput_writes(saved, [("messages", "pending")], "task")
+            yield saver
+        finally:
+            await conn.execute(f'DROP SCHEMA "{schema}" CASCADE')
+
+
+@pytest.mark.parametrize("retained_ids", [set(), {"cp-002", "cp-004"}])
+async def test_postgresql_pruning_preserves_latest_rollback_and_shared_blobs(
+    postgresql_pruning_saver,
+    retained_ids: set[str],
+) -> None:
+    saver = postgresql_pruning_saver
+    deleted = await prune_checkpoints_for_thread(saver, "session-a", retained_ids)
+
+    expected = {"cp-003", "cp-005"} | retained_ids
+    assert deleted == (5 - len(expected)) * 2 + (2 if not retained_ids else 1)
+    async with saver._cursor() as cursor:
+        for table in ("checkpoints", "checkpoint_writes"):
+            await cursor.execute(f"SELECT checkpoint_id FROM {table} WHERE thread_id = %s", ("session-a",))
+            assert {row["checkpoint_id"] for row in await cursor.fetchall()} == expected
+            await cursor.execute(f"SELECT COUNT(*) AS count FROM {table} WHERE thread_id = %s", ("session-b",))
+            assert (await cursor.fetchone())["count"] == 1
+        await cursor.execute("SELECT checkpoint_ns, version FROM checkpoint_blobs WHERE thread_id = %s", ("session-a",))
+        blobs = {(row["checkpoint_ns"], row["version"]) for row in await cursor.fetchall()}
+        assert blobs == ({("", "2"), ("child", "2")} | ({("child", "1")} if retained_ids else set()))
+        await cursor.execute("SELECT COUNT(*) AS count FROM checkpoint_blobs WHERE thread_id = %s", ("session-b",))
+        assert (await cursor.fetchone())["count"] == 1
+    for namespace, checkpoint_id, version in [
+        ("", "cp-003", "2"), ("child", "cp-005", "2"),
+        *([("", "cp-002", "2"), ("child", "cp-004", "1")] if retained_ids else []),
+    ]:
+        restored = await saver.aget_tuple({"configurable": {
+            "thread_id": "session-a", "checkpoint_ns": namespace, "checkpoint_id": checkpoint_id,
+        }})
+        assert restored.checkpoint["channel_values"]["messages"][0].content == f"{namespace}:{version}"
+        assert restored.pending_writes
+    assert await prune_checkpoints_for_thread(saver, "session-a", retained_ids) == 0
+    assert await prune_checkpoints_for_thread(saver, "missing", set()) == 0
+    assert await prune_checkpoints_for_thread(saver, "", set()) == 0
+
+
+async def test_postgresql_pruning_rolls_back_all_deletes_on_failure(postgresql_pruning_saver) -> None:
+    errors = pytest.importorskip("psycopg.errors")
+    saver = postgresql_pruning_saver
+    async with saver._cursor() as cursor:
+        await cursor.execute("""
+            CREATE FUNCTION reject_blob_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'pruning failure'; END $$
+        """)
+        await cursor.execute("""
+            CREATE TRIGGER reject_blob_delete BEFORE DELETE ON checkpoint_blobs
+            FOR EACH ROW EXECUTE FUNCTION reject_blob_delete()
+        """)
+    with pytest.raises(errors.RaiseException, match="pruning failure"):
+        await prune_checkpoints_for_thread(saver, "session-a", set())
+    async with saver._cursor() as cursor:
+        for table, expected_count in [("checkpoints", 5), ("checkpoint_writes", 5), ("checkpoint_blobs", 4)]:
+            await cursor.execute(f"SELECT COUNT(*) AS count FROM {table} WHERE thread_id = %s", ("session-a",))
+            assert (await cursor.fetchone())["count"] == expected_count
+
+
+@pytest.mark.parametrize("delete_all", [False, True])
+async def test_postgresql_checkpoint_deletion_rolls_back_on_failure(
+    postgresql_pruning_saver, monkeypatch: pytest.MonkeyPatch, delete_all: bool,
+) -> None:
+    saver = postgresql_pruning_saver
+    monkeypatch.setattr(checkpointer_mod, "get_checkpointer", AsyncMock(return_value=saver))
+    errors = pytest.importorskip("psycopg.errors")
+    async with saver._cursor() as cursor:
+        await cursor.execute("""
+            CREATE FUNCTION reject_blob_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'rollback failure'; END $$
+        """)
+        await cursor.execute("""
+            CREATE TRIGGER reject_blob_delete BEFORE DELETE ON checkpoint_blobs
+            FOR EACH ROW EXECUTE FUNCTION reject_blob_delete()
+        """)
+    with pytest.raises(errors.RaiseException, match="rollback failure"):
+        if delete_all:
+            await delete_checkpoints_for_thread("session-a")
+        else:
+            await delete_checkpoints_after_for_thread("session-a", "cp-001")
+    async with saver._cursor() as cursor:
+        for table, expected_count in [("checkpoints", 5), ("checkpoint_writes", 5), ("checkpoint_blobs", 4)]:
+            await cursor.execute(f"SELECT COUNT(*) AS count FROM {table} WHERE thread_id = %s", ("session-a",))
+            assert (await cursor.fetchone())["count"] == expected_count
+
+
+async def test_postgresql_startup_cleanup_removes_orphans_and_prunes_reachable_history(
+    postgresql_pruning_saver, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    saver = postgresql_pruning_saver
+    monkeypatch.setattr(checkpointer_mod, "_list_reachable_checkpoint_thread_ids", AsyncMock(return_value={"session-a"}))
+    monkeypatch.setattr(checkpointer_mod, "_list_retained_checkpoint_ids", AsyncMock(return_value={"session-a": {"cp-002", "cp-004"}}))
+    session = Mock()
+    assert await cleanup_unreachable_checkpoints(session, saver) == 3
+    assert await prune_reachable_checkpoints(session, saver) == 3
+    async with saver._cursor() as cursor:
+        for table in ("checkpoints", "checkpoint_writes", "checkpoint_blobs"):
+            await cursor.execute(f"SELECT COUNT(*) AS count FROM {table} WHERE thread_id = %s", ("session-b",))
+            assert (await cursor.fetchone())["count"] == 0
+        await cursor.execute("SELECT checkpoint_id FROM checkpoints WHERE thread_id = %s", ("session-a",))
+        assert {row["checkpoint_id"] for row in await cursor.fetchall()} == {"cp-002", "cp-003", "cp-004", "cp-005"}
+    for namespace, checkpoint_id in [("", "cp-002"), ("", "cp-003"), ("child", "cp-004"), ("child", "cp-005")]:
+        assert await saver.aget_tuple({"configurable": {"thread_id": "session-a", "checkpoint_ns": namespace, "checkpoint_id": checkpoint_id}}) is not None
+    assert await cleanup_unreachable_checkpoints(session, saver) == 0
+    assert await prune_reachable_checkpoints(session, saver) == 0
+
+
+@pytest.mark.parametrize("thread_id", ["session-a", "write-only"])
+async def test_postgresql_pruning_cleans_orphan_writes_and_blobs_without_obsolete_checkpoints(
+    postgresql_pruning_saver, thread_id: str,
+) -> None:
+    saver = postgresql_pruning_saver
+    await prune_checkpoints_for_thread(saver, "session-a", set())
+    await saver.aput_writes(
+        {"configurable": {"thread_id": thread_id, "checkpoint_ns": "", "checkpoint_id": "missing"}},
+        [("messages", "orphan")], "orphan-task",
+    )
+    async with saver._cursor() as cursor:
+        await cursor.execute(
+            "INSERT INTO checkpoint_blobs (thread_id, checkpoint_ns, channel, version, type, blob) "
+            "SELECT %s, checkpoint_ns, channel, 'orphan-version', type, blob "
+            "FROM checkpoint_blobs WHERE thread_id = %s LIMIT 1",
+            (thread_id, "session-a"),
+        )
+    assert await prune_checkpoints_for_thread(saver, thread_id, set()) == 2
+    assert await prune_checkpoints_for_thread(saver, thread_id, set()) == 0
+
+
 async def test_get_checkpointer_creates_db():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test_checkpoints.db")
@@ -526,6 +969,7 @@ async def test_cleanup_unreachable_checkpoints_preserves_reachable_session_tree(
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
     await reset_checkpointer()
     parent_session_id = "agent-root"
+    session.add(Project(id="project-root", title="Root project"))
     task = Task(
         id="task-root",
         project_id="project-root",
@@ -562,7 +1006,7 @@ async def test_cleanup_unreachable_checkpoints_preserves_reachable_session_tree(
     await create_child_run(
         session,
         parent_session_id="deleted-agent-root",
-        parent_task_id="deleted-task",
+        parent_task_id=task.id,
         parent_thread_id="deleted-agent-root",
         child_thread_id="deleted-agent-root:child:orphan",
         agent_key="writer",
@@ -637,6 +1081,7 @@ async def test_prune_checkpoints_for_thread_keeps_latest_and_rollback_boundaries
     db_path = tmp_path / "test_checkpoints.db"
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
     await reset_checkpointer()
+    session.add(Project(id="project-root", title="Root project"))
     task = Task(
         id="task-root",
         project_id="project-root",
@@ -713,6 +1158,7 @@ async def test_prune_reachable_checkpoints_keeps_revision_and_child_boundaries(
     db_path = tmp_path / "test_checkpoints.db"
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
     await reset_checkpointer()
+    session.add(Project(id="project-root", title="Root project"))
     task = Task(
         id="task-root",
         project_id="project-root",
@@ -721,6 +1167,7 @@ async def test_prune_reachable_checkpoints_keeps_revision_and_child_boundaries(
         agent_session_id="agent-root",
     )
     session.add(task)
+    await session.commit()
     revision = Revision(
         id="revision-root",
         project_id=task.project_id,
@@ -795,6 +1242,7 @@ async def test_cleanup_unreachable_checkpoints_removes_inactive_child_thread(
     db_path = tmp_path / "test_checkpoints.db"
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
     await reset_checkpointer()
+    session.add(Project(id="project-root", title="Root project"))
     task = Task(
         id="task-root",
         project_id="project-root",

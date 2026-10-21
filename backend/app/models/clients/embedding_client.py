@@ -13,6 +13,7 @@ from loguru import logger
 from pydantic import SecretStr
 
 from app.models.helpers.openrouter_attribution import get_openrouter_attribution_headers
+from app.models.helpers.requesty_attribution import get_requesty_attribution_headers
 
 
 @dataclass
@@ -139,6 +140,11 @@ class EmbeddingClient:
             if config.provider_type == "openrouter":
                 openai_kwargs["default_headers"] = {
                     **get_openrouter_attribution_headers(),
+                    **(config.custom_headers or {}),
+                }
+            elif config.provider_type == "requesty":
+                openai_kwargs["default_headers"] = {
+                    **get_requesty_attribution_headers(),
                     **(config.custom_headers or {}),
                 }
             elif config.custom_headers:

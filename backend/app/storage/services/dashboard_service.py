@@ -116,8 +116,6 @@ async def get_records_dashboard(
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    if total is None:
-        total = await dashboard_repo.count_records(session, filters)
     return DashboardRecordsResult(
         options=await get_filter_options(session),
         records=DashboardRecordPage(
@@ -150,3 +148,9 @@ async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRes
         project_options=options.project_options,
         model_options=options.model_options,
     )
+
+
+async def get_record_details(
+    session: AsyncSession, record_id: str
+) -> dashboard_repo.DashboardRecordDetailsRow | None:
+    return await dashboard_repo.get_record_details(session, record_id)

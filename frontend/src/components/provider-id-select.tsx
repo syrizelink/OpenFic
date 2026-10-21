@@ -3,10 +3,12 @@ import { Check, ChevronDown, Component, Search } from "lucide-react";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import { getProviderDisplayName, OPENAI_ICON_PATH } from "@/features/settings/lib/provider-utils";
 import type { ModelProviderCatalogProvider } from "@/lib/model.types";
 
+import { MobileSelectSheet } from "./mobile-select-sheet";
 import { Spinner } from "./spinner";
 
 import "./provider-id-select.css";
@@ -70,6 +72,7 @@ export function ProviderIdSelect({
   disabled = false,
 }: ProviderIdSelectProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isListReady, setIsListReady] = useState(false);
@@ -194,6 +197,124 @@ export function ProviderIdSelect({
 
   if (disabled) return trigger;
 
+  const selectContent = (
+    <>
+      <Box
+        p="1"
+        className="provider-id-select-search"
+      >
+        <TextField.Root
+          size="2"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t("select.searchPlaceholder")}
+          autoFocus={!isMobile}
+        >
+          <TextField.Slot>
+            <Search
+              size={18}
+              aria-hidden="true"
+            />
+          </TextField.Slot>
+        </TextField.Root>
+      </Box>
+
+      <ScrollArea
+        scrollbars="vertical"
+        className="provider-id-select-list"
+      >
+        {!isListReady ? (
+          <Flex
+            align="center"
+            justify="center"
+            className="provider-id-select-loading"
+          >
+            <Spinner size={18} />
+          </Flex>
+        ) : (
+          <Flex direction="column">
+            {visibleCategories.length > 0 ? (
+              visibleCategories.map((category) => (
+                <Box
+                  key={category.id}
+                  className="provider-id-select-category"
+                >
+                  <Text
+                    size="1"
+                    weight="medium"
+                    color="gray"
+                    className="provider-id-select-category-label"
+                  >
+                    {category.label}
+                  </Text>
+                  {category.options.map((option) => {
+                    const isSelected = option.value === value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        data-slot="provider-id-select-item"
+                        data-state={isSelected ? "checked" : "unchecked"}
+                        className="provider-id-select-option"
+                        onClick={() => handleSelect(option.value)}
+                      >
+                        <Flex
+                          align="center"
+                          gap="2"
+                          className="provider-id-select-option-main"
+                        >
+                          <ProviderOptionIcon
+                            option={option}
+                            size={18}
+                          />
+                          <Text
+                            size="2"
+                            truncate
+                          >
+                            {option.label}
+                          </Text>
+                        </Flex>
+                        {isSelected ? (
+                          <Check
+                            size={15}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </Box>
+              ))
+            ) : (
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+                className="provider-id-select-empty"
+              >
+                {t("select.noMatchingOptions")}
+              </Text>
+            )}
+          </Flex>
+        )}
+      </ScrollArea>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <MobileSelectSheet
+        open={open}
+        onOpenChange={handleOpenChange}
+        title={t("connections.providerType")}
+        trigger={trigger}
+        contentClassName="provider-id-select-sheet-content"
+      >
+        {selectContent}
+      </MobileSelectSheet>
+    );
+  }
+
   return (
     <Popover.Root
       open={open}
@@ -207,105 +328,7 @@ export function ProviderIdSelect({
         className="provider-id-select-content"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <Box
-          p="1"
-          className="provider-id-select-search"
-        >
-          <TextField.Root
-            size="2"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t("select.searchPlaceholder")}
-            autoFocus
-          >
-            <TextField.Slot>
-              <Search
-                size={18}
-                aria-hidden="true"
-              />
-            </TextField.Slot>
-          </TextField.Root>
-        </Box>
-
-        <ScrollArea
-          scrollbars="vertical"
-          className="provider-id-select-list"
-        >
-          {!isListReady ? (
-            <Flex
-              align="center"
-              justify="center"
-              className="provider-id-select-loading"
-            >
-              <Spinner size={18} />
-            </Flex>
-          ) : (
-            <Flex direction="column">
-              {visibleCategories.length > 0 ? (
-                visibleCategories.map((category) => (
-                  <Box
-                    key={category.id}
-                    className="provider-id-select-category"
-                  >
-                    <Text
-                      size="1"
-                      weight="medium"
-                      color="gray"
-                      className="provider-id-select-category-label"
-                    >
-                      {category.label}
-                    </Text>
-                    {category.options.map((option) => {
-                      const isSelected = option.value === value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          data-slot="provider-id-select-item"
-                          data-state={isSelected ? "checked" : "unchecked"}
-                          className="provider-id-select-option"
-                          onClick={() => handleSelect(option.value)}
-                        >
-                          <Flex
-                            align="center"
-                            gap="2"
-                            className="provider-id-select-option-main"
-                          >
-                            <ProviderOptionIcon
-                              option={option}
-                              size={18}
-                            />
-                            <Text
-                              size="2"
-                              truncate
-                            >
-                              {option.label}
-                            </Text>
-                          </Flex>
-                          {isSelected ? (
-                            <Check
-                              size={15}
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </Box>
-                ))
-              ) : (
-                <Text
-                  size="2"
-                  color="gray"
-                  align="center"
-                  className="provider-id-select-empty"
-                >
-                  {t("select.noMatchingOptions")}
-                </Text>
-              )}
-            </Flex>
-          )}
-        </ScrollArea>
+        {selectContent}
       </Popover.Content>
     </Popover.Root>
   );

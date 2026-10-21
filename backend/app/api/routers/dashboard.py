@@ -17,6 +17,7 @@ from app.api.schemas.dashboard import (
     DashboardModelTimeSeriesPoint,
     DashboardRecordList,
     DashboardRecordPrompt,
+    DashboardRecordDetails,
     DashboardRecordsResponse,
     DashboardSummary,
     DashboardStatsResponse,
@@ -66,13 +67,11 @@ def _serialize_record(record: DashboardRecordRow) -> DashboardAuditRecord:
         first_token_ms=record.first_token_ms,
         status=record.status,
         error_type=record.error_type,
-        error_message=record.error_message,
         error_status_code=record.error_status_code,
         tool_calls_count=record.tool_calls_count,
         has_request_messages=record.has_request_messages,
-        tool_references=record.tool_references,
-        response_content=record.response_content,
-        response_tool_calls=record.response_tool_calls,
+        has_tool_references=record.has_tool_references,
+        has_output_details=record.has_output_details,
     )
 
 
@@ -208,6 +207,18 @@ async def get_llm_api_records_dashboard(
             page_size=result.records.page_size,
         ),
     )
+
+
+@router.get(
+    "/llm-api/records/{record_id}/details", response_model=DashboardRecordDetails
+)
+async def get_llm_api_record_details(
+    record_id: str, session: AsyncSession = Depends(get_session)
+) -> DashboardRecordDetails:
+    record = await dashboard_service.get_record_details(session, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="调用记录不存在")
+    return DashboardRecordDetails(**record.__dict__)
 
 
 @router.get("/llm-api/records/{record_id}/prompt", response_model=DashboardRecordPrompt)

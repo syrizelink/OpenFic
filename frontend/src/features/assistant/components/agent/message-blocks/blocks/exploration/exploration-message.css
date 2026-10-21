@@ -47,7 +47,7 @@
   background: color-mix(in srgb, var(--gray-8) 72%, transparent);
 }
 
-.agent-exploration-content > .agent-message-card {
+.agent-exploration-content > [data-scroll-message-ids] > .agent-message-card {
   padding-top: 2px;
   padding-bottom: 2px;
 }

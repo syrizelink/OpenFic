@@ -1,0 +1,112 @@
+.ai-sidebar-input-toolbar-shell {
+  overflow: hidden;
+}
+
+.ai-sidebar-input-area[data-voice-active="true"] .ai-sidebar-input-toolbar {
+  visibility: hidden;
+}
+
+.agent-composer-text-content {
+  transition: opacity 100ms ease-out 140ms;
+}
+
+.ai-sidebar-input-area .ai-sidebar-input-container[data-voice-active="true"] {
+  overflow: visible;
+  border-color: var(--gray-a6);
+}
+
+.ai-sidebar-input-container[data-voice-active="true"] .agent-composer-text-content {
+  visibility: hidden;
+  opacity: 0;
+  transition: none;
+}
+
+.agent-voice-shell {
+  position: absolute;
+  inset: 0;
+}
+
+.ai-sidebar-input-container:not([data-voice-active]) .agent-voice-shell {
+  pointer-events: none;
+}
+
+.agent-voice-input {
+  position: relative;
+  height: 100%;
+  outline: none;
+}
+
+.agent-voice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  min-width: 0;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.agent-voice-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-voice-waveform {
+  display: block;
+  width: 100%;
+  height: 26px;
+  color: var(--gray-12);
+}
+
+.agent-voice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  font-size: var(--font-size-sm);
+  color: var(--gray-11);
+}
+
+.rt-reset.agent-voice-button,
+.rt-reset.agent-voice-trigger {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.rt-reset.agent-voice-trigger:hover,
+.rt-reset.agent-voice-trigger:focus-visible,
+.rt-reset.agent-voice-button:not(.agent-voice-send):hover {
+  border-radius: 50%;
+  background: var(--gray-a3);
+}
+
+.agent-voice-error {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--red-11);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.agent-voice-sr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-composer-text-content {
+    transition: none;
+  }
+}

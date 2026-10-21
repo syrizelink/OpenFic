@@ -419,6 +419,9 @@ export function ModelFormDialog({
       <Dialog.Content
         maxWidth="600px"
         className="settings-background-panel"
+        onOpenAutoFocus={(event) => {
+          if (window.innerWidth < 768) event.preventDefault();
+        }}
         style={{
           maxHeight: "90vh",
           overflow: "hidden",

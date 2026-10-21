@@ -1,11 +1,17 @@
+from functools import partial, update_wrapper
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+from alembic.runtime.migration import RevisionStep
 
 from app.logging import configure_standard_logging
+
+from app.storage.migrations.postgresql_compat import upgrade_dashboard_metadata_indexes
+
 # 导入应用配置和模型
-from app.settings import settings
+from app.settings import settings, to_sync_database_url
 from sqlmodel import SQLModel
 
 # 注册所有表到 SQLModel.metadata 用于 autogenerate
@@ -23,11 +29,38 @@ from app.agent_runtime.persistence.model import (  # noqa: F401, F403
 # access to the values within the .ini file in use.
 config = context.config
 
+
+def _migration_steps(migration_fn, revisions, migration_context):
+    for step in migration_fn(revisions, migration_context):
+        if (
+            migration_context.dialect.name == "postgresql"
+            and isinstance(step, RevisionStep)
+            and step.is_upgrade
+            and step.to_revisions == ("1027",)
+        ):
+            # Keep published scripts immutable and replace only this execution step.
+            step.migration_fn = update_wrapper(
+                partial(upgrade_dashboard_metadata_indexes, step.revision.module),
+                step.migration_fn,
+            )
+        yield step
+
+
+def _configure_context(**options) -> None:
+    context.configure(**options)
+    migration_fn = context.get_context().opts["fn"]
+    context.configure(**options, fn=partial(_migration_steps, migration_fn))
+
+
 configure_standard_logging()
 
-# 配置数据库 URL（从应用设置获取，但使用同步 URL）
-database_url = settings.database_url.replace("+aiosqlite", "")
-config.set_main_option("sqlalchemy.url", database_url)
+# 配置数据库 URL。迁移工具可通过 Config.attributes 显式覆盖默认主库。
+database_url = (
+    config.attributes.get("openfic_database_url") or settings.database_sync_url
+)
+config.set_main_option(
+    "sqlalchemy.url", to_sync_database_url(database_url).replace("%", "%%")
+)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -54,7 +87,7 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
+    _configure_context(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
@@ -72,6 +105,16 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    connection = config.attributes.get("openfic_connection")
+    if connection is not None:
+        _configure_context(
+            connection=connection, target_metadata=target_metadata
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -79,7 +122,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
+        _configure_context(
             connection=connection, target_metadata=target_metadata
         )
 

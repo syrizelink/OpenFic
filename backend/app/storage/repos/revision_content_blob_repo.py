@@ -7,11 +7,13 @@ import hashlib
 import zlib
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import col
 
+from app.storage.database import is_sqlite_backend
 from app.storage.models.revision_content_blob import RevisionContentBlob
 
 # Text shorter than this stays inline in the owning row to avoid blob-table
@@ -44,8 +46,9 @@ async def put(session: AsyncSession, text: str | None) -> str | None:
         return None
     blob_id = blob_id_for_text(text)
     raw = text.encode("utf-8")
+    insert = sqlite_insert if is_sqlite_backend() else postgresql_insert
     statement = (
-        sqlite_insert(RevisionContentBlob)
+        insert(RevisionContentBlob)
         .values(
             id=blob_id,
             data=zlib.compress(raw, level=_COMPRESS_LEVEL),
@@ -105,4 +108,3 @@ async def hydrate_content(
         blob_id = getattr(row, blob_id_attr, None)
         if blob_id:
             set_committed_value(row, content_attr, contents.get(blob_id))
-

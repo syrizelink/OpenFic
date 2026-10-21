@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.agent_runtime.tools.impls.web_search.providers.base import WebSearchProvider
 from app.agent_runtime.tools.impls.web_search.providers.brave import BraveProvider
 from app.agent_runtime.tools.impls.web_search.providers.ddgs import DdgsProvider
+from app.agent_runtime.tools.impls.web_search.providers.deepseek import DeepSeekProvider
 from app.agent_runtime.tools.impls.web_search.providers.exa import ExaProvider
 from app.agent_runtime.tools.impls.web_search.providers.jina import JinaProvider
 from app.agent_runtime.tools.impls.web_search.providers.perplexity import (
@@ -20,6 +21,7 @@ PROVIDERS: dict[str, type[WebSearchProvider]] = {
     for provider_cls in (
         BraveProvider,
         DdgsProvider,
+        DeepSeekProvider,
         ExaProvider,
         JinaProvider,
         PerplexityProvider,
@@ -64,6 +66,7 @@ DDGS_BACKENDS = (
 _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], ...]] = {
     "brave": (),
     "ddgs": (("ddgs_backend", "select", False, DDGS_BACKENDS),),
+    "deepseek": (),
     "exa": (),
     "jina": (("jina_base_url", "text", False, ()),),
     "perplexity": (),

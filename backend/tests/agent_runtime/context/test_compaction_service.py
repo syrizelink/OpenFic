@@ -142,7 +142,7 @@ class FakeModel:
         self.response = response
         self.messages: list[Any] | None = None
 
-    async def ainvoke(self, messages: list[Any]) -> AIMessage:
+    async def ainvoke(self, messages: list[Any], config: dict | None = None) -> AIMessage:
         self.messages = messages
         if isinstance(self.response, Exception):
             raise self.response

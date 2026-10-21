@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { DesktopHeader } from "./components/header";
 import { DesktopNotices } from "./components/desktop-notices";
+import { InstanceAccessKeyDialog } from "./components/instance-access-key-dialog";
 import { InstanceDeletionDialog } from "./components/instance-deletion-dialog";
 import { BootPage } from "./pages/boot/page";
 import { DataManagementPage } from "./pages/data-management/page";
 import { FrontendPage, type FrontendWebviewElement } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
 import i18n, { isDesktopLanguage } from "./i18n";
-import {
-  isDesktopInstanceAppearance,
-  type DesktopAppearance,
-  type DesktopConfig,
-  type DesktopInstanceAppearance,
-} from "../shared/config";
+import { isDesktopInstanceAppearance, type DesktopAppearance, type DesktopConfig, type DesktopInstanceAppearance } from "../shared/config";
 import type { StartupProgressEvent, UpdateState } from "../shared/ipc";
 
 type ShellState = "booting" | "setup" | "frontend" | "data";
@@ -120,10 +116,7 @@ function isZoomFactor(value: unknown): value is number {
 function isDesktopAppearancePayload(value: unknown): value is DesktopAppearancePayload {
   if (!value || typeof value !== "object") return false;
   const candidate = value as DesktopAppearancePayload;
-  return (
-    isDesktopInstanceAppearance(candidate) &&
-    (candidate.persist === undefined || typeof candidate.persist === "boolean")
-  );
+  return isDesktopInstanceAppearance(candidate) && (candidate.persist === undefined || typeof candidate.persist === "boolean");
 }
 
 function getShellAppearance(config: DesktopConfig | null, instanceId: string | null): ShellAppearance {
@@ -209,6 +202,7 @@ export function App() {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [instancePanelOpen, setInstancePanelOpen] = useState(false);
   const [deletionInstanceId, setDeletionInstanceId] = useState<string | null>(null);
+  const [accessKeyInstanceId, setAccessKeyInstanceId] = useState<string | null>(null);
   const [dataManagementPrevState, setDataManagementPrevState] = useState<ShellState | null>(null);
   const [dataManagementInstanceId, setDataManagementInstanceId] = useState<string | null>(null);
   const [startupProgress, setStartupProgress] = useState<StartupProgressEvent | null>(null);
@@ -219,6 +213,7 @@ export function App() {
   const startupRequestId = useRef(0);
   const activeInstance = config?.instances.find((instance) => instance.id === activeInstanceId) ?? null;
   const deletionInstance = config?.instances.find((instance) => instance.id === deletionInstanceId) ?? null;
+  const accessKeyInstance = config?.instances.find((instance) => instance.id === accessKeyInstanceId) ?? null;
   const frontendPartition = activeInstanceId ? `persist:openfic-${activeInstanceId}` : "persist:openfic";
   const canCheckForUpdates = shellState === "frontend" && activeInstance !== null && updateState.status !== "unsupported";
 
@@ -332,9 +327,7 @@ export function App() {
               ),
             };
           });
-          void window.openficDesktop
-            .saveInstanceAppearance({ instanceId: activeInstanceId, ...appearancePatch })
-            .catch(() => undefined);
+          void window.openficDesktop.saveInstanceAppearance({ instanceId: activeInstanceId, ...appearancePatch }).catch(() => undefined);
         }
         return;
       }
@@ -500,6 +493,17 @@ export function App() {
     setDeletionInstanceId(instanceId);
   };
 
+  const handleRequestAccessKey = (instanceId: string) => {
+    if (!config?.instances.some((instance) => instance.id === instanceId && instance.mode === "local")) return;
+    setError(null);
+    setAccessKeyInstanceId(instanceId);
+  };
+
+  const handleSaveInstanceAccessKey = async (instanceId: string, accessKey: string) => {
+    const nextConfig = await window.openficDesktop.saveInstanceAccessKey({ instanceId, accessKey });
+    setConfig(nextConfig);
+  };
+
   const handleSwitchInstance = async (instanceId: string) => {
     const requestId = ++startupRequestId.current;
     const previousShellAppearance = shellAppearance;
@@ -610,9 +614,7 @@ export function App() {
       setShellAppearance(getShellAppearance(previousConfig, instance.id));
       const nextConfig: DesktopConfig = {
         activeInstanceId: previousConfig?.activeInstanceId ?? null,
-        instances: existingInstance
-          ? previousConfig?.instances ?? [instance]
-          : [...(previousConfig?.instances ?? []), instance],
+        instances: existingInstance ? (previousConfig?.instances ?? [instance]) : [...(previousConfig?.instances ?? []), instance],
       };
       await window.openficDesktop.saveConfig(nextConfig);
       if (requestId !== startupRequestId.current) return;
@@ -781,6 +783,7 @@ export function App() {
             onConnectRemote={(url) => void handleConnectRemote(url)}
             onConnectInstance={(instanceId) => void handleSwitchInstance(instanceId)}
             onRequestDeleteInstance={handleRequestDeleteInstance}
+            onRequestAccessKey={handleRequestAccessKey}
             onOpenDataManagementFor={handleOpenDataManagementFor}
             onStartLocal={(installDir, dataDir) => void handleStartLocal(installDir, dataDir)}
           />
@@ -816,6 +819,12 @@ export function App() {
         instance={deletionInstance}
         onClose={() => setDeletionInstanceId(null)}
         onConfirm={handleDeleteInstance}
+      />
+      <InstanceAccessKeyDialog
+        key={accessKeyInstanceId ?? "access-key-closed"}
+        instance={accessKeyInstance}
+        onClose={() => setAccessKeyInstanceId(null)}
+        onSave={handleSaveInstanceAccessKey}
       />
     </main>
   );

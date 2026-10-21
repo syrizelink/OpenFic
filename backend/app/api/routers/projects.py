@@ -65,7 +65,7 @@ async def create_project(
     title: Annotated[str, Form()],
     description: Annotated[str | None, Form()] = None,
     cover: Annotated[UploadFile | None, File()] = None,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
 ) -> ProjectResponse:
     """
     创建新的小说项目。

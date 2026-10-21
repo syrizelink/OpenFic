@@ -78,10 +78,16 @@ export interface DashboardAuditRecord {
   firstTokenMs: number | null;
   status: string;
   errorType: string | null;
-  errorMessage: string | null;
   errorStatusCode: number | null;
   toolCallsCount: number;
   hasRequestMessages: boolean;
+  hasToolReferences: boolean;
+  hasOutputDetails: boolean;
+}
+
+export interface DashboardRecordDetails {
+  id: string;
+  errorMessage: string | null;
   toolReferences: string | null;
   responseContent: string | null;
   responseToolCalls: string | null;

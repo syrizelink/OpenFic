@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@/lib/agent.types";
+import type { AgentChangeSummary, AgentMessage, AgentSessionChanges } from "@/lib/agent.types";
 
 import type { BlockDisplayMessage } from "./display-message-types";
 
@@ -26,8 +26,56 @@ export interface AgentRoundToolbarTarget {
   timestamp?: number;
 }
 
+export function buildAgentRoundChangeSummaries(
+  blocks: AgentMessageBlock[],
+  visibleBlocks: AgentMessageBlock[],
+  changes: AgentSessionChanges | null | undefined,
+  isSessionRunning: boolean,
+): Map<string, AgentChangeSummary> {
+  const visibleBlockIds = new Set(visibleBlocks.map((block) => block.id));
+  const rounds = new Map<
+    string,
+    { blocks: AgentMessageBlock[]; visibleBlocks: AgentMessageBlock[] }
+  >();
+
+  for (const block of blocks) {
+    if (!block.agentRoundId) continue;
+    let round = rounds.get(block.agentRoundId);
+    if (!round) {
+      round = { blocks: [], visibleBlocks: [] };
+      rounds.set(block.agentRoundId, round);
+    }
+    round.blocks.push(block);
+    if (visibleBlockIds.has(block.id)) round.visibleBlocks.push(block);
+  }
+
+  const summaries = new Map<string, AgentChangeSummary>();
+  const lastRoundId = Array.from(rounds.keys()).at(-1);
+  rounds.forEach((round, roundId) => {
+    const agentBlocks = round.blocks.filter((block) => block.type === "agent");
+    if (agentBlocks.length === 0 || agentBlocks.some(hasRunningAgentMessage)) return;
+    if (isSessionRunning && roundId === lastRoundId) return;
+
+    const anchorBlock = round.visibleBlocks.at(-1);
+    if (!anchorBlock) return;
+
+    const sourceRevisionId = agentBlocks.find((block) => block.sourceRevisionId)?.sourceRevisionId;
+    const sourceUserMessageId = round.blocks.find((block) => block.type === "user")?.messages[0]
+      ?.id;
+    const summary = changes?.turns.find(
+      (turn) =>
+        (Boolean(sourceRevisionId) && turn.revisionId === sourceRevisionId) ||
+        (Boolean(sourceUserMessageId) && turn.userMessageId === sourceUserMessageId),
+    )?.changes;
+    if (!summary || summary.itemCount === 0) return;
+    summaries.set(anchorBlock.id, summary);
+  });
+  return summaries;
+}
+
 interface BuildAgentMessageBlocksOptions {
   closeOpenNodeAt?: number;
+  previousBlocks?: AgentMessageBlock[];
 }
 
 function isInterruptedNodeEndMessage(message: BlockDisplayMessage): boolean {
@@ -74,7 +122,6 @@ export function buildAgentMessageBlocks(
   let resumableNodeBlock: ResumableNodeBlock | null = null;
   let activeAgentRoundId: string | undefined;
   let fallbackRoundCount = 0;
-  let agentBlockCount = 0;
 
   const ensureAgentRoundId = () => {
     if (!activeAgentRoundId) {
@@ -171,9 +218,8 @@ export function buildAgentMessageBlocks(
 
     if (!currentAgentBlock) {
       const agentRoundId = ensureAgentRoundId();
-      agentBlockCount += 1;
       currentAgentBlock = {
-        id: `agent:${agentRoundId}:${agentBlockCount}`,
+        id: `agent:${message.id}`,
         type: "agent",
         messages: [],
         sourceRevisionId: pendingUserRevisionId,
@@ -196,6 +242,21 @@ export function buildAgentMessageBlocks(
     activeNodeBlock.nodeStatus = activeNodeBlock.nodeStatus === "error" ? "error" : "completed";
   }
 
+  const previousIds = new Map(
+    (options.previousBlocks ?? [])
+      .filter((block) => block.type === "agent")
+      .flatMap((block) => block.messages.map((message) => [message.id, block.id] as const)),
+  );
+  const usedIds = new Set<string>();
+  for (const block of blocks) {
+    if (block.type !== "agent") continue;
+    const previousId = block.messages
+      .map((message) => previousIds.get(message.id))
+      .find((id) => id !== undefined && !usedIds.has(id));
+    if (previousId) block.id = previousId;
+    usedIds.add(block.id);
+  }
+
   return blocks;
 }
 
@@ -212,6 +273,15 @@ export function getVisibleAgentMessageBlocks(
 function hasRunningMessage(block: AgentMessageBlock): boolean {
   return block.messages.some((message) =>
     Boolean(message.isStreaming || message.status === "running"),
+  );
+}
+
+function hasRunningAgentMessage(block: AgentMessageBlock): boolean {
+  return (
+    block.type === "agent" &&
+    block.messages.some((message) =>
+      Boolean(message.isStreaming || message.status === "running" || message.status === "pending"),
+    )
   );
 }
 

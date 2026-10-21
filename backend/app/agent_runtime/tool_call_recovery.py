@@ -14,6 +14,141 @@ MALFORMED_TOOL_CALL_ERROR = "__parse_error__"
 MALFORMED_TOOL_CALL_MESSAGE = "工具参数 JSON 无法解析，未执行工具调用"
 
 
+def _resolve_schema_ref(
+    schema: Mapping[str, Any],
+    root_schema: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    ref = schema.get("$ref")
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        return schema
+
+    current: Any = root_schema
+    for part in ref[2:].split("/"):
+        part = part.replace("~1", "/").replace("~0", "~")
+        if not isinstance(current, Mapping) or part not in current:
+            return schema
+        current = current[part]
+    return current if isinstance(current, Mapping) else schema
+
+
+def _schema_variants(
+    schema: Mapping[str, Any],
+    root_schema: Mapping[str, Any],
+) -> list[Mapping[str, Any]]:
+    resolved = _resolve_schema_ref(schema, root_schema)
+    for union_key in ("anyOf", "oneOf"):
+        branches = resolved.get(union_key)
+        if isinstance(branches, list):
+            variants: list[Mapping[str, Any]] = []
+            for branch in branches:
+                if isinstance(branch, Mapping):
+                    variants.extend(_schema_variants(branch, root_schema))
+            return variants
+    return [resolved]
+
+
+def _parse_json_container(value: str) -> Any:
+    try:
+        parsed = repair_json_loads(value)
+    except Exception:
+        return value
+    return parsed if isinstance(parsed, (Mapping, list)) else value
+
+
+def _normalize_schema_value(
+    value: Any,
+    schema: Mapping[str, Any] | None,
+    root_schema: Mapping[str, Any],
+) -> Any:
+    if not isinstance(schema, Mapping):
+        return value
+
+    variants = _schema_variants(schema, root_schema)
+    accepts_object = any(item.get("type") == "object" for item in variants)
+    accepts_array = any(item.get("type") == "array" for item in variants)
+    if isinstance(value, str) and (accepts_object or accepts_array):
+        value = _parse_json_container(value)
+
+    object_variants = [item for item in variants if item.get("type") == "object"]
+    if isinstance(value, Mapping) and object_variants:
+        properties: dict[str, Mapping[str, Any]] = {}
+        additional_schema: Mapping[str, Any] | None = None
+        for variant in object_variants:
+            raw_properties = variant.get("properties")
+            if isinstance(raw_properties, Mapping):
+                properties.update(
+                    {
+                        str(key): child
+                        for key, child in raw_properties.items()
+                        if isinstance(child, Mapping)
+                    }
+                )
+            raw_additional = variant.get("additionalProperties")
+            if isinstance(raw_additional, Mapping):
+                additional_schema = raw_additional
+
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            child_schema = properties.get(str(key), additional_schema)
+            normalized[key] = _normalize_schema_value(
+                item,
+                child_schema,
+                root_schema,
+            )
+        return normalized
+
+    if isinstance(value, list):
+        item_schemas = [
+            item_schema
+            for variant in variants
+            if variant.get("type") == "array"
+            for item_schema in [variant.get("items")]
+            if isinstance(item_schema, Mapping)
+        ]
+        if item_schemas:
+            item_schema: Mapping[str, Any]
+            if len(item_schemas) == 1:
+                item_schema = item_schemas[0]
+            else:
+                item_schema = {"anyOf": item_schemas}
+            return [
+                _normalize_schema_value(item, item_schema, root_schema)
+                for item in value
+            ]
+
+    return value
+
+
+def normalize_tool_input_for_schema(
+    tool_input: Any,
+    args_schema: Any,
+) -> Any:
+    """Parse JSON-encoded nested containers only where the schema expects them.
+
+    Some model providers encode an object or array-valued tool argument as a
+    JSON string. Normalize those values before Pydantic validates the tool
+    input, while leaving ordinary string fields such as note content intact.
+    """
+    if not isinstance(tool_input, Mapping):
+        return tool_input
+
+    schema_builder = getattr(args_schema, "model_json_schema", None)
+    if not callable(schema_builder):
+        schema_builder = getattr(args_schema, "schema", None)
+    if not callable(schema_builder):
+        return dict(tool_input)
+
+    try:
+        schema = schema_builder()
+    except Exception:
+        return dict(tool_input)
+    if not isinstance(schema, Mapping):
+        return dict(tool_input)
+
+    normalized = _normalize_schema_value(dict(tool_input), schema, schema)
+    return normalized if isinstance(normalized, dict) else dict(tool_input)
+
+
 def parse_tool_args(args_raw: Any) -> dict[str, Any] | None:
     if args_raw is None:
         return {}

@@ -314,7 +314,7 @@ async def test_move_chapter_to_volume_marks_retrieval_state_stale(
         index_key=f"chapters:{project_id}",
         status="ready",
         source_hash=compute_chapter_source_hash(chapter["content"]),
-        embedding_model_ref_id="model-1",
+        embedding_model_ref_id=None,
         chunk_count=1,
     )
     session.add(state)

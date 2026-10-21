@@ -7,7 +7,6 @@
 /** 任务消息 */
 export interface TaskMessage {
   id: string;
-  taskId?: string | null;
   role: "system" | "user" | "assistant" | "tool";
   agentId?: string | null;
   content: string;
@@ -45,6 +44,8 @@ export interface Task {
   projectId: string;
   title: string;
   messages: TaskMessage[];
+  messagesCursor: number | null;
+  messagesHasMore: boolean;
   tokenInput: number;
   tokenOutput: number;
   tokenCache: number;

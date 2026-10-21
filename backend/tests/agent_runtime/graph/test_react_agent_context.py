@@ -862,6 +862,36 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
     )
 
 
+def test_resumption_prompt_is_model_only_and_not_graph_history() -> None:
+    from app.agent_runtime.continuation import RESUMPTION_PROMPT
+
+    config = ReactAgentConfig(
+        name="writer", tools=[_NoopTool()],
+        termination=TerminationCondition(mode="no_tool_call"), max_iterations=1,
+    )
+    observed = []
+
+    async def invoke(_model, messages, **_kwargs):
+        observed.extend(messages)
+        return AIMessage(content="done")
+
+    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=invoke):
+        model = Mock()
+        model.bind_tools.return_value = model
+        graph = create_react_agent(config, model=model)
+        result = asyncio.run(graph.ainvoke(
+            {"messages": [HumanMessage(content="original task")], "iteration_count": 0,
+             "is_done": False, "final_output": None},
+            config={"configurable": {"resumption_prompt": RESUMPTION_PROMPT}},
+        ))
+    assert [message.content for message in observed if isinstance(message, HumanMessage)] == [
+        "original task", RESUMPTION_PROMPT,
+    ]
+    assert [message.content for message in result["messages"] if isinstance(message, HumanMessage)] == [
+        "original task",
+    ]
+
+
 def test_llm_call_updates_skill_references_for_injected_command() -> None:
     from app.agent_runtime.tools.impls.skill.skill import ActivateSkillTool
 

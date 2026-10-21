@@ -33,7 +33,9 @@ async def _seed_story_graph(session) -> tuple[Volume, Chapter]:
         order=2,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
     await session.commit()
     return volume, chapter
@@ -63,8 +65,10 @@ async def _seed_note_world_and_character(session) -> tuple[Note, WorldInfoEntry,
         description="角色一\n角色二",
     )
     session.add(project)
-    session.add(note)
+    await session.flush()
     session.add(world_info)
+    await session.flush()
+    session.add(note)
     session.add(world_entry)
     session.add(character)
     await session.commit()

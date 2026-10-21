@@ -30,6 +30,24 @@ async def test_provider_list_recovers_after_connection_replacement(_replace_memo
 
 
 @pytest.mark.asyncio
+async def test_create_infistar_provider(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/model-providers",
+        data={
+            "name": "Infistar",
+            "url": "https://ignored.example/v1",
+            "api_key": "test-key",
+            "provider_type": "infistar",
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["url"] == "https://infistar.cc/v1"
+    assert payload["supported_task_types"] == ["embedding", "llm", "rerank"]
+    assert payload["catalog_match"]["display_name"] == "Infistar"
+
+
+@pytest.mark.asyncio
 async def test_create_provider(client: AsyncClient, session: AsyncSession):
     """测试创建提供商。"""
     request_data = {
@@ -389,7 +407,7 @@ async def test_validate_anthropic_compatible_provider_discovers_models(
 async def test_validate_openai_responses_compatible_provider_discovers_models(
     client: AsyncClient,
 ):
-    route = respx.get("https://gateway.example/v1/models").mock(
+    route = respx.get("https://gateway.example/models").mock(
         return_value=httpx.Response(
             200,
             json={"data": [{"id": "responses-model", "name": "Responses Model"}]},

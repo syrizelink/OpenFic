@@ -30,7 +30,7 @@ from app.storage.services import note_service
 
 class MoveNoteInput(BaseModel):
     note_ref: NoteRef = Field(description="要移动的笔记引用")
-    target_category_ref: dict | None = Field(
+    target_category_ref: CategoryRef | None = Field(
         default=None, description="目标分类引用；None 表示移到根层级"
     )
 

@@ -1,8 +1,9 @@
-import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { AlertTriangle, CircleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
+import { InfoTooltip } from "@/components";
 import {
   formatChapterDisplayName,
   getChapterDiffBodySection,
@@ -43,14 +44,16 @@ interface ToolErrorIndicatorProps {
 
 export function ToolErrorIndicator({ errorMessage }: ToolErrorIndicatorProps) {
   return (
-    <Tooltip content={<Box className="agent-tool-error-tooltip">{errorMessage}</Box>}>
+    <InfoTooltip content={<Box className="agent-tool-error-tooltip">{errorMessage}</Box>}>
       <Box
         className="agent-tool-error-indicator"
+        role="img"
         aria-label={errorMessage}
+        tabIndex={0}
       >
         <CircleAlert size={14} />
       </Box>
-    </Tooltip>
+    </InfoTooltip>
   );
 }
 

@@ -39,7 +39,8 @@ class AgentRunRegistry:
             existing = session_tasks.get("__parent__")
             if existing is not None and not existing.done() and existing is not task:
                 logger.bind(session_id=session_id).warning("replacing active agent run task")
-                existing.cancel()
+                if not existing.cancelling():
+                    existing.cancel()
             session_tasks["__parent__"] = task
 
     async def try_register_parent(
@@ -74,7 +75,8 @@ class AgentRunRegistry:
                     session_id=session_id,
                     child_run_id=child_run_id,
                 ).warning("replacing active child agent run task")
-                existing.cancel()
+                if not existing.cancelling():
+                    existing.cancel()
             session_tasks[child_run_id] = task
 
     async def try_register_child(
@@ -135,7 +137,8 @@ class AgentRunRegistry:
             task = (self._tasks.get(session_id) or {}).get(child_run_id)
             if task is None or task.done():
                 return False
-            task.cancel()
+            if not task.cancelling():
+                task.cancel()
             return True
 
     async def cancel(self, session_id: str) -> bool:
@@ -146,7 +149,8 @@ class AgentRunRegistry:
             if not tasks:
                 return False
             for task in tasks:
-                task.cancel()
+                if not task.cancelling():
+                    task.cancel()
             return True
 
     async def mark_cancelled(self, session_id: str) -> asyncio.Task[None] | None:
@@ -168,7 +172,8 @@ class AgentRunRegistry:
             session_tasks = self._tasks.get(session_id) or {}
             if task not in session_tasks.values() or task.done():
                 return False
-            task.cancel()
+            if not task.cancelling():
+                task.cancel()
             return True
 
     async def is_cancelled(self, session_id: str) -> bool:
@@ -208,7 +213,8 @@ class AgentRunRegistry:
             self._tasks.clear()
 
         for task in tasks:
-            task.cancel()
+            if not task.cancelling():
+                task.cancel()
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)

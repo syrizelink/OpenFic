@@ -2,9 +2,10 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
     "target": "ES2023",
-    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["node"],
+    "types": ["node", "vite-plus/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -23,5 +24,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["e2e/**/*.ts"]
+  "include": ["e2e/**/*.ts", "e2e/**/*.tsx", "src/*.d.ts"]
 }

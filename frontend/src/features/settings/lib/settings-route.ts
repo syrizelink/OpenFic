@@ -1,9 +1,11 @@
 export const SETTINGS_ROUTE_CATEGORIES = [
   "general",
+  "audio",
   "personalization",
   "editor",
   "notifications",
   "connections",
+  "tunnels",
   "models",
   "index",
   "context",

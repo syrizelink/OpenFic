@@ -5,20 +5,23 @@ import {
   Brain,
   CloudUpload,
   ExternalLink,
+  Mic,
   Plus,
+  Play,
   ShieldCheck,
   Square,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 
+import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
+
 import "react-photo-view/dist/react-photo-view.css";
 
-import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
@@ -28,6 +31,7 @@ import type { AgentComposerItems } from "@/lib/command.types";
 import { REASONING_EFFORT_OPTIONS } from "@/lib/reasoning-effort";
 
 import { useAgentInputHistory } from "../../hooks/use-agent-input-history";
+import { useVoiceInput } from "../../hooks/use-voice-input";
 import {
   getAgentFiles,
   hasLeftAgentDropZone,
@@ -49,6 +53,11 @@ import { AgentFileAttachmentCard } from "./agent-file-attachment-card";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
 import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
 import { AgentMentionSuggestions } from "./agent-mention-suggestions";
+import {
+  getNextToolbarCompressionLevel,
+  MAX_TOOLBAR_COMPRESSION_LEVEL,
+} from "./agent-toolbar-compression";
+import { AgentVoiceInput } from "./agent-voice-input";
 import { AgentPendingMessageCard } from "./pending-message-card";
 
 interface AgentInputProps {
@@ -66,8 +75,13 @@ interface AgentInputProps {
   modelsError: boolean;
   onChange: (value: string) => void;
   onAttachmentsChange: (attachments: PendingAgentAttachment[]) => void;
-  onSend: () => void;
+  onSend: (message?: string) => void;
+  voiceScope?: string;
   onAbort: () => void;
+  canContinue?: boolean;
+  isContinuing?: boolean;
+  isStopping?: boolean;
+  onContinue?: () => void | Promise<boolean>;
   onModelChange: (modelId: string) => void;
   onReasoningEffortChange?: (reasoningEffort: ReasoningEffort) => void;
   onAgentChange?: (agentKey: string) => void;
@@ -87,8 +101,6 @@ interface AgentInputProps {
   [ignoredModeSelectorProp: string]: unknown;
 }
 
-const MAX_TOOLBAR_COMPRESSION_LEVEL = 4;
-
 export function AgentInput({
   projectId,
   value,
@@ -106,6 +118,10 @@ export function AgentInput({
   onAttachmentsChange,
   onSend,
   onAbort,
+  canContinue = false,
+  isContinuing = false,
+  isStopping = false,
+  onContinue,
   onModelChange,
   onReasoningEffortChange,
   onAgentChange,
@@ -122,13 +138,14 @@ export function AgentInput({
   readOnly = false,
   readOnlyMessage,
   onUploadAttachments,
+  voiceScope = projectId,
 }: AgentInputProps) {
   const { t } = useTranslation();
   const bodyMode = getAgentInputBodyMode(agentStatus, Boolean(specialPanels), forceSpecialPanels);
   const hasContent = value.trim().length > 0 || attachments.length > 0;
   const hasPendingMessage = pendingMessage !== null;
   const isComposerLocked = isAgentInputLocked({
-    disabled,
+    disabled: disabled || isStopping,
     readOnly,
     hasPendingMessage,
   });
@@ -136,17 +153,30 @@ export function AgentInput({
     attachments.some((attachment) => attachment.status === "uploading") ||
     (isSending &&
       attachments.some((attachment) => attachment.file && !attachment.uploadedAttachment));
-  const shouldAbort = isSending && !hasContent;
+  const shouldAbort = isSending && !isStopping && !hasContent;
   const canSend = canSendAgentInput({
     hasContent,
-    disabled: disabled || isProcessingAttachments,
+    disabled: disabled || isStopping || isProcessingAttachments,
     readOnly,
     hasPendingMessage,
     bodyMode,
   });
   const shouldShowPendingMessage = hasPendingMessage && bodyMode === "composer" && !readOnly;
-  const buttonActive = shouldAbort || canSend;
+  const shouldContinue =
+    canContinue &&
+    !hasContent &&
+    !hasPendingMessage &&
+    !isSending &&
+    !readOnly &&
+    bodyMode === "composer" &&
+    (agentStatus === "idle" || agentStatus === "error") &&
+    Boolean(onContinue);
+  const buttonActive = isStopping || shouldAbort || shouldContinue || canSend;
+  const isButtonDisabled =
+    isStopping || (shouldAbort ? false : shouldContinue ? disabled || isContinuing : !canSend);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+  const focusAfterVoiceResult = useRef(false);
   const [pendingClearanceHeight, setPendingClearanceHeight] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(
     null,
@@ -155,7 +185,9 @@ export function AgentInput({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarCompressionLevelRef = useRef(0);
+  const previousToolbarContentKeyRef = useRef<string | null>(null);
   const previousToolbarWidthRef = useRef<number | null>(null);
+  const toolbarCompressionResetFrameRef = useRef<number | null>(null);
   const [toolbarCompressionLevel, setToolbarCompressionLevel] = useState(0);
   const addMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +245,7 @@ export function AgentInput({
     models.length,
     modelsError,
     modelId,
+    selectedModel?.name ?? "",
     reasoningEffort ?? "",
     shouldShowReasoningEffort,
     toolApprovalBypassEnabled,
@@ -261,13 +294,36 @@ export function AgentInput({
   );
 
   const handleSubmit = useCallback(() => {
+    if (isStopping) return;
     recordInputHistory(value);
     onSend();
-  }, [onSend, recordInputHistory, value]);
+  }, [isStopping, onSend, recordInputHistory, value]);
+
+  const voice = useVoiceInput({
+    scope: voiceScope,
+    disabled: isAddMenuDisabled || isStopping,
+    onResult: (text, action) => {
+      const message = value ? `${value}\n${text}` : text;
+      if (action === "stop") {
+        focusAfterVoiceResult.current = true;
+        handleComposerChange(message);
+      } else {
+        recordInputHistory(message);
+        onSend(message);
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (focusAfterVoiceResult.current && !voice.active) {
+      focusAfterVoiceResult.current = false;
+      inputContainerRef.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus();
+    }
+  }, [voice.active]);
 
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
-    if (!container) return;
+    if (!container || voice.active) return;
 
     const syncHeight = () => {
       const nextHeight = Math.round(container.getBoundingClientRect().height);
@@ -287,7 +343,7 @@ export function AgentInput({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [voice.active]);
 
   const updateToolbarCompressionLevel = useCallback((nextLevel: number) => {
     const normalizedLevel = Math.max(0, Math.min(nextLevel, MAX_TOOLBAR_COMPRESSION_LEVEL));
@@ -299,31 +355,73 @@ export function AgentInput({
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
-    if (!toolbar) return;
+    if (!toolbar || voice.active) return;
 
     const syncOverflow = (allowExpand: boolean) => {
+      if (toolbarCompressionResetFrameRef.current !== null) return;
+
       const currentLevel = toolbarCompressionLevelRef.current;
+      const contentChanged =
+        previousToolbarContentKeyRef.current !== null &&
+        previousToolbarContentKeyRef.current !== toolbarContentKey;
+      previousToolbarContentKeyRef.current = toolbarContentKey;
+
+      if (contentChanged && currentLevel > 0) {
+        if (toolbarCompressionResetFrameRef.current === null) {
+          toolbarCompressionResetFrameRef.current = requestAnimationFrame(() => {
+            toolbarCompressionResetFrameRef.current = null;
+            updateToolbarCompressionLevel(0);
+          });
+        }
+        return;
+      }
+
       const currentWidth = toolbar.clientWidth;
       const previousWidth = previousToolbarWidthRef.current;
       const widthIncreased = previousWidth !== null && currentWidth > previousWidth + 1;
       const isOverflowing = toolbar.scrollWidth > currentWidth + 1;
+      const nextLevel = getNextToolbarCompressionLevel({
+        currentLevel,
+        isOverflowing,
+        contentChanged,
+        allowExpand,
+        widthIncreased,
+      });
       previousToolbarWidthRef.current = currentWidth;
 
-      if (isOverflowing && currentLevel < MAX_TOOLBAR_COMPRESSION_LEVEL) {
-        updateToolbarCompressionLevel(currentLevel + 1);
-      } else if (allowExpand && widthIncreased && !isOverflowing && currentLevel > 0) {
-        updateToolbarCompressionLevel(currentLevel - 1);
-      }
+      if (nextLevel !== currentLevel) updateToolbarCompressionLevel(nextLevel);
     };
 
     syncOverflow(false);
 
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        if (toolbarCompressionResetFrameRef.current !== null) {
+          cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
+          toolbarCompressionResetFrameRef.current = null;
+        }
+      };
+    }
 
-    const resizeObserver = new ResizeObserver(() => syncOverflow(true));
+    let resizeFrame: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      // Compression changes layout; defer it outside the observer delivery cycle.
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        syncOverflow(true);
+      });
+    });
     resizeObserver.observe(toolbar);
-    return () => resizeObserver.disconnect();
-  }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel]);
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      if (toolbarCompressionResetFrameRef.current !== null) {
+        cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
+        toolbarCompressionResetFrameRef.current = null;
+      }
+    };
+  }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel, voice.active]);
 
   useEffect(() => {
     if (bodyMode === "composer" && !readOnly && !isComposerLocked) return;
@@ -444,7 +542,10 @@ export function AgentInput({
   };
 
   return (
-    <Box className="ai-sidebar-input-area">
+    <Box
+      className="ai-sidebar-input-area"
+      data-voice-active={voice.active || undefined}
+    >
       <input
         ref={imageFileInputRef}
         className="agent-composer-file-input"
@@ -460,7 +561,12 @@ export function AgentInput({
         multiple
         onChange={handleFilePickerChange}
       />
-      <div className="ai-sidebar-input-stage">
+      <motion.div
+        className="ai-sidebar-input-stage"
+        initial={false}
+        animate={{ marginBottom: voice.active ? 0 : 10 }}
+        transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+      >
         <AnimatePresence initial={false}>
           {mentionSuggestions ? (
             <AgentMentionSuggestions
@@ -514,10 +620,14 @@ export function AgentInput({
           ) : null}
         </AnimatePresence>
 
-        <div
+        <motion.div
+          initial={false}
+          animate={{ height: voice.active ? 44 : "auto" }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
           ref={inputContainerRef}
           className="ai-sidebar-input-container"
           data-mode={bodyMode}
+          data-voice-active={voice.active || undefined}
           data-dragging-files={isDraggingFiles || undefined}
           onDragEnter={(event) => {
             if (event.dataTransfer.types.includes("Files")) setIsDraggingFiles(true);
@@ -538,295 +648,292 @@ export function AgentInput({
           }}
           onDrop={handleDrop}
         >
-          <div
-            className="agent-file-drop-overlay"
-            aria-hidden="true"
-          >
-            <span className="agent-file-drop-overlay-content">
-              <CloudUpload size={16} />
-              {t("writing.aiSidebar.dropAttachments")}
-            </span>
-          </div>
-          <AnimatePresence
-            initial={false}
-            mode="wait"
-          >
-            {bodyMode === "special_panels" ? (
+          <AnimatePresence>
+            {voice.active ? (
               <motion.div
-                key="special-panels"
-                className="ai-sidebar-input-body"
-                data-mode="special_panels"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
+                key="voice"
+                className="agent-voice-shell"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  transition: { duration: reduceMotion ? 0 : 0.1, delay: reduceMotion ? 0 : 0.14 },
+                }}
+                exit={{
+                  opacity: 0,
+                  transition: { duration: reduceMotion ? 0 : 0.08 },
+                }}
               >
-                {specialPanels}
-              </motion.div>
-            ) : readOnly ? (
-              <motion.div
-                key="read-only"
-                className="ai-sidebar-input-body"
-                data-mode="read_only"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                <Box
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: "10px",
-                    background: "var(--gray-a3)",
-                    color: "var(--gray-11)",
-                    fontSize: "var(--font-size-sm)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {readOnlyMessage}
-                </Box>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="composer"
-                className="ai-sidebar-input-body"
-                data-mode="composer"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                {attachments.length > 0 ? (
-                  <PhotoProvider>
-                    <AgentAttachmentStrip
-                      className="agent-file-attachment-strip"
-                      previousLabel={t("writing.aiSidebar.previousAttachment")}
-                      nextLabel={t("writing.aiSidebar.nextAttachment")}
-                    >
-                      {attachments.map((attachment) => {
-                        const fileName =
-                          attachment.file?.name ??
-                          attachment.uploadedAttachment?.fileName ??
-                          t("writing.aiSidebar.attachmentFallbackName");
-                        const isImage = attachment.file
-                          ? attachment.file.type.startsWith("image/")
-                          : attachment.uploadedAttachment
-                            ? isImageAttachment(attachment.uploadedAttachment)
-                            : false;
-                        const isProcessing =
-                          attachment.status === "uploading" ||
-                          (isSending && Boolean(attachment.file && !attachment.uploadedAttachment));
-                        const sizeBytes =
-                          attachment.file?.size ?? attachment.uploadedAttachment?.sizeBytes ?? 0;
-                        return (
-                          <div
-                            key={attachment.id}
-                            className={
-                              isImage
-                                ? "agent-image-attachment-preview"
-                                : "agent-file-attachment-item"
-                            }
-                          >
-                            {isImage ? (
-                              <>
-                                <PhotoView src={attachment.previewUrl}>
-                                  <button
-                                    type="button"
-                                    className="agent-image-preview-trigger"
-                                    aria-label={t("writing.aiSidebar.viewImage", { fileName })}
-                                  >
-                                    <img
-                                      src={attachment.previewUrl}
-                                      alt={fileName}
-                                    />
-                                  </button>
-                                </PhotoView>
-                                <button
-                                  type="button"
-                                  className="agent-image-attachment-remove"
-                                  aria-label={t("writing.aiSidebar.removeAttachment", { fileName })}
-                                  onClick={() => handleRemoveAttachment(attachment.id)}
-                                >
-                                  <X size={12} />
-                                </button>
-                              </>
-                            ) : (
-                              <AgentFileAttachmentCard
-                                fileName={fileName}
-                                mimeType={
-                                  attachment.file?.type ?? attachment.uploadedAttachment?.mimeType
-                                }
-                                sizeBytes={sizeBytes}
-                                isProcessing={isProcessing}
-                                removeLabel={t("writing.aiSidebar.removeAttachment", { fileName })}
-                                extractingLabel={t("writing.aiSidebar.extractingAttachment")}
-                                onRemove={() => handleRemoveAttachment(attachment.id)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </AgentAttachmentStrip>
-                  </PhotoProvider>
-                ) : null}
-                <AgentComposerEditor
-                  projectId={projectId}
-                  placeholder={getPlaceholder()}
-                  value={value}
-                  disabled={isComposerLocked}
-                  onOpenMentionChapter={onOpenMentionChapter}
-                  onMentionSuggestionsChange={setMentionSuggestions}
-                  onComposerActionsChange={setComposerActions}
-                  onPasteFiles={handlePastedFiles}
-                  onDropFiles={handleDroppedFiles}
-                  onChange={handleComposerChange}
-                  onHistoryNavigate={handleHistoryNavigate}
-                  onSubmit={handleSubmit}
+                <AgentVoiceInput
+                  voice={voice}
+                  canSend={
+                    Boolean(modelId) &&
+                    !isModelsLoading &&
+                    !modelsError &&
+                    !isProcessingAttachments &&
+                    !isComposerLocked
+                  }
                 />
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
-        </div>
-      </div>
+          <div
+            className="agent-composer-text-content"
+            inert={voice.active || undefined}
+            aria-hidden={voice.active || undefined}
+          >
+            <div
+              className="agent-file-drop-overlay"
+              aria-hidden="true"
+            >
+              <span className="agent-file-drop-overlay-content">
+                <CloudUpload size={16} />
+                {t("writing.aiSidebar.dropAttachments")}
+              </span>
+            </div>
+            <AnimatePresence
+              initial={false}
+              mode="wait"
+            >
+              {bodyMode === "special_panels" ? (
+                <motion.div
+                  key="special-panels"
+                  className="ai-sidebar-input-body"
+                  data-mode="special_panels"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                >
+                  {specialPanels}
+                </motion.div>
+              ) : readOnly ? (
+                <motion.div
+                  key="read-only"
+                  className="ai-sidebar-input-body"
+                  data-mode="read_only"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                >
+                  <Box
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      background: "var(--gray-a3)",
+                      color: "var(--gray-11)",
+                      fontSize: "var(--font-size-sm)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {readOnlyMessage}
+                  </Box>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="composer"
+                  className="ai-sidebar-input-body"
+                  data-mode="composer"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                >
+                  {attachments.length > 0 ? (
+                    <PhotoProvider>
+                      <AgentAttachmentStrip
+                        className="agent-file-attachment-strip"
+                        previousLabel={t("writing.aiSidebar.previousAttachment")}
+                        nextLabel={t("writing.aiSidebar.nextAttachment")}
+                      >
+                        {attachments.map((attachment) => {
+                          const fileName =
+                            attachment.file?.name ??
+                            attachment.uploadedAttachment?.fileName ??
+                            t("writing.aiSidebar.attachmentFallbackName");
+                          const isImage = attachment.file
+                            ? attachment.file.type.startsWith("image/")
+                            : attachment.uploadedAttachment
+                              ? isImageAttachment(attachment.uploadedAttachment)
+                              : false;
+                          const isProcessing =
+                            attachment.status === "uploading" ||
+                            (isSending &&
+                              Boolean(attachment.file && !attachment.uploadedAttachment));
+                          const sizeBytes =
+                            attachment.file?.size ?? attachment.uploadedAttachment?.sizeBytes ?? 0;
+                          return (
+                            <div
+                              key={attachment.id}
+                              className={
+                                isImage
+                                  ? "agent-image-attachment-preview"
+                                  : "agent-file-attachment-item"
+                              }
+                            >
+                              {isImage ? (
+                                <>
+                                  <PhotoView src={attachment.previewUrl}>
+                                    <button
+                                      type="button"
+                                      className="agent-image-preview-trigger"
+                                      aria-label={t("writing.aiSidebar.viewImage", { fileName })}
+                                    >
+                                      <img
+                                        src={attachment.previewUrl}
+                                        alt={fileName}
+                                      />
+                                    </button>
+                                  </PhotoView>
+                                  <button
+                                    type="button"
+                                    className="agent-image-attachment-remove"
+                                    aria-label={t("writing.aiSidebar.removeAttachment", {
+                                      fileName,
+                                    })}
+                                    onClick={() => handleRemoveAttachment(attachment.id)}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </>
+                              ) : (
+                                <AgentFileAttachmentCard
+                                  fileName={fileName}
+                                  mimeType={
+                                    attachment.file?.type ?? attachment.uploadedAttachment?.mimeType
+                                  }
+                                  sizeBytes={sizeBytes}
+                                  isProcessing={isProcessing}
+                                  removeLabel={t("writing.aiSidebar.removeAttachment", {
+                                    fileName,
+                                  })}
+                                  extractingLabel={t("writing.aiSidebar.extractingAttachment")}
+                                  onRemove={() => handleRemoveAttachment(attachment.id)}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </AgentAttachmentStrip>
+                    </PhotoProvider>
+                  ) : null}
+                  <AgentComposerEditor
+                    projectId={projectId}
+                    placeholder={getPlaceholder()}
+                    value={value}
+                    disabled={isComposerLocked}
+                    onOpenMentionChapter={onOpenMentionChapter}
+                    onMentionSuggestionsChange={setMentionSuggestions}
+                    onComposerActionsChange={setComposerActions}
+                    onPasteFiles={handlePastedFiles}
+                    onDropFiles={handleDroppedFiles}
+                    onChange={handleComposerChange}
+                    onHistoryNavigate={handleHistoryNavigate}
+                    onSubmit={handleSubmit}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </motion.div>
 
       {readOnly ? null : (
-        <Flex
-          ref={toolbarRef}
-          justify="between"
-          align="center"
-          gap="2"
-          className="ai-sidebar-input-toolbar"
+        <motion.div
+          className="ai-sidebar-input-toolbar-shell"
+          initial={false}
+          animate={{ height: voice.active ? 0 : "auto", opacity: voice.active ? 0 : 1 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+          inert={voice.active || undefined}
+          aria-hidden={voice.active || undefined}
         >
           <Flex
+            ref={toolbarRef}
+            justify="between"
             align="center"
-            gap={isAgentSelectorCompact ? "0" : "2"}
-            wrap="nowrap"
-            className="ai-sidebar-input-toolbar-controls"
+            gap="2"
+            className="ai-sidebar-input-toolbar"
           >
-            <IconButton
-              ref={addMenuTriggerRef}
-              type="button"
-              variant="ghost"
-              size="1"
-              className="agent-composer-add-trigger"
-              disabled={isAddMenuDisabled}
-              aria-label={t("assistant.composerMenu.open")}
-              aria-expanded={isAddMenuOpen}
-              onClick={handleToggleAddMenu}
+            <Flex
+              align="center"
+              gap={isAgentSelectorCompact ? "0" : "2"}
+              wrap="nowrap"
+              className="ai-sidebar-input-toolbar-controls"
             >
-              <Plus size={16} />
-            </IconButton>
-            {isModelsLoading ? (
-              <Flex
-                align="center"
-                gap="2"
-                style={{ flex: "0 0 auto" }}
+              <IconButton
+                ref={addMenuTriggerRef}
+                type="button"
+                variant="ghost"
+                size="1"
+                className="agent-composer-add-trigger"
+                disabled={isAddMenuDisabled}
+                aria-label={t("assistant.composerMenu.open")}
+                aria-expanded={isAddMenuOpen}
+                onClick={handleToggleAddMenu}
               >
-                <Spinner size={18} />
-                <Text
-                  size="1"
-                  color="gray"
-                >
-                  {t("common.loading")}
-                </Text>
-              </Flex>
-            ) : models.length === 0 || modelsError ? (
-              <Tooltip content={t("writing.aiSidebar.noModelsTooltip")}>
+                <Plus size={16} />
+              </IconButton>
+              {isModelsLoading ? (
                 <Flex
                   align="center"
-                  gap="1"
-                  className="ai-sidebar-no-models"
+                  gap="2"
+                  style={{ flex: "0 0 auto" }}
                 >
+                  <Spinner size={18} />
                   <Text
                     size="1"
                     color="gray"
                   >
-                    {t("writing.aiSidebar.noModelsMessage")}
+                    {t("common.loading")}
                   </Text>
-                  <button
-                    type="button"
-                    className="ai-sidebar-no-models-action"
-                    onClick={onGoToSettings}
+                </Flex>
+              ) : models.length === 0 || modelsError ? (
+                <Tooltip content={t("writing.aiSidebar.noModelsTooltip")}>
+                  <Flex
+                    align="center"
+                    gap="1"
+                    className="ai-sidebar-no-models"
                   >
                     <Text
                       size="1"
-                      className="ai-sidebar-no-models-action-text"
+                      color="gray"
                     >
-                      {t("writing.aiSidebar.noModelsAction")}
+                      {t("writing.aiSidebar.noModelsMessage")}
                     </Text>
-                    <ExternalLink
-                      size={12}
-                      aria-hidden="true"
-                    />
-                  </button>
-                </Flex>
-              </Tooltip>
-            ) : (
-              <>
-                {agentOptions.length > 0 && onAgentChange ? (
-                  <Box className="ai-sidebar-model-selector ai-sidebar-agent-selector">
-                    <SimpleSelect
-                      value={agentKey ?? ""}
-                      options={agentOptions}
-                      onChange={onAgentChange}
-                      size="1"
-                      variant={isAgentSelectorCompact ? "icon" : "default"}
-                      triggerAriaLabel={
-                        agentOptions.find((option) => option.value === agentKey)?.label
-                      }
-                      hideTriggerChevron
-                      contentClassName="ai-sidebar-agent-select-content"
-                      triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
-                      triggerStyle={{
-                        fontSize: "var(--font-size-sm)",
-                        border: "none",
-                        background: "transparent",
-                        boxShadow: "none",
-                      }}
-                    />
-                  </Box>
-                ) : null}
-                <Flex
-                  align="center"
-                  gap={isModelCompact && isReasoningCompact ? "0" : "2"}
-                  className="ai-sidebar-model-reasoning-group"
-                >
-                  <Box className="ai-sidebar-model-selector">
-                    <ModelIdSelect
-                      value={modelId}
-                      models={models}
-                      onChange={onModelChange}
-                      editable={false}
-                      allowCustomValue={false}
-                      compact
-                      compactTrigger={isModelCompact}
-                      triggerPrefix={modelTriggerPrefix}
-                      hideTriggerChevron
-                      triggerClassName="ai-sidebar-inline-select-trigger"
-                      triggerStyle={{
-                        fontSize: "var(--font-size-sm)",
-                        border: "none",
-                        background: "transparent",
-                        boxShadow: "none",
-                      }}
-                    />
-                  </Box>
-                  {shouldShowReasoningEffort && reasoningEffort && onReasoningEffortChange ? (
-                    <Box
-                      className={`ai-sidebar-reasoning-effort-selector${
-                        isReasoningCompact ? " ai-sidebar-reasoning-effort-selector--compact" : ""
-                      }`}
+                    <button
+                      type="button"
+                      className="ai-sidebar-no-models-action"
+                      onClick={onGoToSettings}
                     >
-                      <SimpleSelect
-                        value={reasoningEffort}
-                        options={REASONING_EFFORT_OPTIONS}
-                        onChange={(value) => onReasoningEffortChange(value as ReasoningEffort)}
+                      <Text
                         size="1"
-                        variant={isReasoningCompact ? "icon" : "default"}
-                        triggerPrefix={isReasoningCompact ? <Brain size={14} /> : undefined}
-                        triggerAriaLabel={t("assistant.thinkingTitle")}
+                        className="ai-sidebar-no-models-action-text"
+                      >
+                        {t("writing.aiSidebar.noModelsAction")}
+                      </Text>
+                      <ExternalLink
+                        size={12}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </Flex>
+                </Tooltip>
+              ) : (
+                <>
+                  {agentOptions.length > 0 && onAgentChange ? (
+                    <Box className="ai-sidebar-model-selector ai-sidebar-agent-selector">
+                      <SimpleSelect
+                        value={agentKey ?? ""}
+                        options={agentOptions}
+                        onChange={onAgentChange}
+                        size="1"
+                        variant={isAgentSelectorCompact ? "icon" : "default"}
+                        triggerAriaLabel={
+                          agentOptions.find((option) => option.value === agentKey)?.label
+                        }
                         hideTriggerChevron
-                        triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-reasoning-effort-trigger"
+                        contentClassName="ai-sidebar-agent-select-content"
+                        triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
                         triggerStyle={{
                           fontSize: "var(--font-size-sm)",
                           border: "none",
@@ -836,94 +943,186 @@ export function AgentInput({
                       />
                     </Box>
                   ) : null}
-                </Flex>
-              </>
-            )}
-          </Flex>
+                  <Flex
+                    align="center"
+                    gap={isModelCompact && isReasoningCompact ? "0" : "2"}
+                    className="ai-sidebar-model-reasoning-group"
+                  >
+                    <Box className="ai-sidebar-model-selector">
+                      <ModelIdSelect
+                        value={modelId}
+                        models={models}
+                        onChange={onModelChange}
+                        editable={false}
+                        allowCustomValue={false}
+                        compact
+                        compactTrigger={isModelCompact}
+                        triggerPrefix={modelTriggerPrefix}
+                        hideTriggerChevron
+                        triggerClassName="ai-sidebar-inline-select-trigger"
+                        triggerStyle={{
+                          fontSize: "var(--font-size-sm)",
+                          border: "none",
+                          background: "transparent",
+                          boxShadow: "none",
+                        }}
+                      />
+                    </Box>
+                    {shouldShowReasoningEffort && reasoningEffort && onReasoningEffortChange ? (
+                      <Box
+                        className={`ai-sidebar-reasoning-effort-selector${
+                          isReasoningCompact ? " ai-sidebar-reasoning-effort-selector--compact" : ""
+                        }`}
+                      >
+                        <SimpleSelect
+                          value={reasoningEffort}
+                          options={REASONING_EFFORT_OPTIONS}
+                          onChange={(value) => onReasoningEffortChange(value as ReasoningEffort)}
+                          size="1"
+                          variant={isReasoningCompact ? "icon" : "default"}
+                          triggerPrefix={isReasoningCompact ? <Brain size={14} /> : undefined}
+                          triggerAriaLabel={t("assistant.thinkingTitle")}
+                          hideTriggerChevron
+                          triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-reasoning-effort-trigger"
+                          triggerStyle={{
+                            fontSize: "var(--font-size-sm)",
+                            border: "none",
+                            background: "transparent",
+                            boxShadow: "none",
+                          }}
+                        />
+                      </Box>
+                    ) : null}
+                  </Flex>
+                </>
+              )}
+            </Flex>
 
-          <Flex
-            align="center"
-            gap="2"
-            className="ai-sidebar-input-toolbar-actions"
-          >
-            {isIndexStatusHidden ? null : <AgentIndexStatusIndicator projectId={projectId} />}
-
-            <Tooltip
-              content={
-                toolApprovalBypassEnabled
-                  ? t("writing.aiSidebar.toolApprovalBypassOn")
-                  : t("writing.aiSidebar.toolApprovalBypassOff")
-              }
+            <Flex
+              align="center"
+              gap="2"
+              className="ai-sidebar-input-toolbar-actions"
             >
               <IconButton
                 type="button"
-                variant="ghost"
-                color={toolApprovalBypassEnabled ? "green" : "gray"}
-                highContrast={!toolApprovalBypassEnabled}
                 size="1"
-                onClick={onToggleToolApprovalBypass}
-                disabled={toolApprovalBypassDisabled}
-                aria-pressed={toolApprovalBypassEnabled}
-                aria-label={
+                variant="ghost"
+                color="gray"
+                disabled={isAddMenuDisabled}
+                className="agent-voice-trigger"
+                aria-label={t("speech.title")}
+                title={t("speech.title")}
+                onClick={() => {
+                  setIsAddMenuOpen(false);
+                  mentionSuggestions?.onClose();
+                  void voice.start();
+                }}
+              >
+                <Mic size={16} />
+              </IconButton>
+              {isIndexStatusHidden ? null : <AgentIndexStatusIndicator projectId={projectId} />}
+
+              <Tooltip
+                content={
                   toolApprovalBypassEnabled
                     ? t("writing.aiSidebar.toolApprovalBypassOn")
                     : t("writing.aiSidebar.toolApprovalBypassOff")
                 }
-                style={{
-                  width: "26px",
-                  height: "26px",
-                  padding: 0,
-                  borderRadius: "999px",
-                  background: toolApprovalBypassEnabled ? "var(--green-a3)" : "transparent",
-                  color: toolApprovalBypassEnabled ? "var(--green-11)" : undefined,
-                  border: "none",
-                }}
               >
-                <ShieldCheck size={14} />
-              </IconButton>
-            </Tooltip>
+                <IconButton
+                  type="button"
+                  variant="ghost"
+                  color={toolApprovalBypassEnabled ? "green" : "gray"}
+                  highContrast={!toolApprovalBypassEnabled}
+                  size="1"
+                  onClick={onToggleToolApprovalBypass}
+                  disabled={toolApprovalBypassDisabled}
+                  aria-pressed={toolApprovalBypassEnabled}
+                  aria-label={
+                    toolApprovalBypassEnabled
+                      ? t("writing.aiSidebar.toolApprovalBypassOn")
+                      : t("writing.aiSidebar.toolApprovalBypassOff")
+                  }
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    padding: 0,
+                    borderRadius: "999px",
+                    background: toolApprovalBypassEnabled ? "var(--green-a3)" : "transparent",
+                    color: toolApprovalBypassEnabled ? "var(--green-11)" : undefined,
+                    border: "none",
+                  }}
+                >
+                  <ShieldCheck size={14} />
+                </IconButton>
+              </Tooltip>
 
-            <motion.div
-              animate={{
-                opacity: buttonActive ? 1 : 0.2,
-                scale: 1,
-              }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              style={{ display: "flex" }}
-            >
-              <IconButton
-                variant="solid"
-                size="1"
-                className="ai-sidebar-send-button"
-                onClick={shouldAbort ? onAbort : handleSubmit}
-                disabled={shouldAbort ? false : !canSend}
-                aria-disabled={!buttonActive || undefined}
-                style={{
-                  width: "26px",
-                  height: "26px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 0,
-                  opacity: 1,
-                  pointerEvents: buttonActive ? undefined : "none",
+              <motion.div
+                animate={{
+                  opacity: buttonActive ? 1 : 0.2,
+                  scale: 1,
                 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                style={{ display: "flex" }}
               >
-                {shouldAbort ? (
-                  <Square
-                    size={12}
-                    fill="currentColor"
-                  />
-                ) : disabled ? (
-                  <Spinner size={18} />
-                ) : (
-                  <ArrowUp size={14} />
-                )}
-              </IconButton>
-            </motion.div>
+                <IconButton
+                  variant="solid"
+                  size="1"
+                  className="ai-sidebar-send-button"
+                  onClick={
+                    shouldAbort
+                      ? onAbort
+                      : shouldContinue
+                        ? () => void onContinue?.()
+                        : handleSubmit
+                  }
+                  disabled={isButtonDisabled}
+                  data-stopping={isStopping || undefined}
+                  aria-label={
+                    isStopping
+                      ? t("assistant.stopping")
+                      : shouldAbort
+                        ? t("assistant.stop")
+                        : shouldContinue
+                          ? t("assistant.continueSession")
+                          : t("assistant.sendMessage")
+                  }
+                  aria-busy={isStopping || undefined}
+                  aria-disabled={isButtonDisabled || undefined}
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    opacity: 1,
+                    pointerEvents: buttonActive ? undefined : "none",
+                  }}
+                >
+                  {isStopping ? (
+                    <Spinner size={18} />
+                  ) : shouldAbort ? (
+                    <Square
+                      size={12}
+                      fill="currentColor"
+                    />
+                  ) : shouldContinue ? (
+                    <Play
+                      size={14}
+                      fill="currentColor"
+                    />
+                  ) : disabled ? (
+                    <Spinner size={18} />
+                  ) : (
+                    <ArrowUp size={14} />
+                  )}
+                </IconButton>
+              </motion.div>
+            </Flex>
           </Flex>
-        </Flex>
+        </motion.div>
       )}
     </Box>
   );

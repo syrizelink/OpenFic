@@ -11,9 +11,11 @@ export const OPENAI_ICON_PATH = "/icons/model/catalog/openai.svg";
 const EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES = new Set<ProviderType>([
   "openai",
   "openrouter",
+  "requesty",
   "openai-compatible",
   "ollama",
   "nvidia-ai-endpoints",
+  "infistar",
 ]);
 
 const CUSTOM_PROVIDER_TYPES = new Set([
@@ -57,8 +59,10 @@ export function getProviderDisplayName(providerType: string): string {
     "nvidia-ai-endpoints": "NVIDIA AI Endpoints",
     cohere: "Cohere",
     openrouter: "OpenRouter",
+    requesty: "Requesty",
     "amazon-nova": "Amazon Nova",
     deepseek: "DeepSeek",
+    infistar: "Infistar",
     "openai-compatible": "OpenAI Compatible",
     "openai-compatible-responses": "OpenAI Compatible (Responses)",
     "anthropic-compatible": "Anthropic Compatible",

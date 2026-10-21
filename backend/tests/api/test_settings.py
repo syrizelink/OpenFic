@@ -476,20 +476,28 @@ async def test_changing_default_embedding_model_marks_retrieval_indexes_for_rebu
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "检索项目"})
+    project_id = project_response.json()["id"]
+    volume_id = (await client.get(f"/api/v1/projects/{project_id}/volumes")).json()[0]["id"]
+    chapter_response = await client.post(
+        f"/api/v1/projects/{project_id}/chapters",
+        json={"volume_id": volume_id, "title": "第一章", "content": "正文"},
+    )
+    chapter_id = chapter_response.json()["id"]
     old_model = await _create_embedding_model(session, "embed-old")
     new_model = await _create_embedding_model(session, "embed-new")
     retrieval_index = RetrievalIndex(
-        index_key="chapters:project-1",
-        table_name="chapters_project_1",
+        index_key=f"chapters:{project_id}",
+        table_name=f"chapters_{project_id}",
         status="ready",
         embedding_model_ref_id=old_model.id,
         embedding_model_id_snapshot=old_model.model_id,
         embedding_dimensions_snapshot=3,
     )
     chapter_state = RetrievalChapterIndexState(
-        project_id="project-1",
-        chapter_id="chapter-1",
-        index_key="chapters:project-1",
+        project_id=project_id,
+        chapter_id=chapter_id,
+        index_key=f"chapters:{project_id}",
         status="ready",
         source_hash="old-hash",
         embedding_model_ref_id=old_model.id,
@@ -782,9 +790,11 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
     session: AsyncSession,
 ) -> None:
     """清空详情不应删除调用统计，并应返回 UTF-8 字节占用。"""
+    project_response = await client.post("/api/v1/projects", data={"title": "审计项目"})
+    project_id = project_response.json()["id"]
     audit_log = LLMAuditLog(
         id="audit-detail-1",
-        project_id="project-1",
+        project_id=project_id,
         operation="writer",
         model_id="model-1",
         status="success",
@@ -818,6 +828,8 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
         )
         if value is not None
     )
+    assert audit_log.has_details is True
+    assert audit_log.detail_bytes == storage["detail_bytes"]
 
     clear_response = await client.delete("/api/v1/settings/audit-details")
 
@@ -833,6 +845,8 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
     assert audit_log.response_tool_calls is None
     assert audit_log.tool_call_results is None
     assert audit_log.extra_data is None
+    assert audit_log.has_details is False
+    assert audit_log.detail_bytes == 0
     assert audit_log.tokens_total == 42
     assert audit_log.latency_ms == 120
     assert audit_log.tool_calls_count == 1

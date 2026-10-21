@@ -1,8 +1,8 @@
 # OpenFic
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/syrizelink/OpenFic)
+![AtomGit Repo stars](https://atomgit.com/Syrize/OpenFic/star/badge.svg)
 ![License](https://img.shields.io/badge/License-Apache_2.0-red)
-![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
 ![GitHub Release](https://img.shields.io/github/v/release/syrizelink/OpenFic?logo=githubactions&logoColor=white&color=yellow)
 ![Release Downloads](https://img.shields.io/github/downloads/syrizelink/OpenFic/total?logo=github&logoColor=white&label=Release%20downloads&color=yellow)
 ![PyPI - Version](https://img.shields.io/pypi/v/openfic?logo=pypi&logoColor=white&color=green)

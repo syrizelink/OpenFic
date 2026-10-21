@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Task API contract tests for agent-runtime backed tasks."""
 
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -21,6 +22,7 @@ from app.agent_runtime.persistence.model import (
     PlanRecord,
     PlanTodoRecord,
 )
+from app.agent_runtime.persistence.task_projection import load_task_messages_for_agent_session
 from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.revision import Revision
 from app.storage.services import task_service
@@ -28,6 +30,208 @@ from app.storage.services import task_service
 
 @pytest.mark.asyncio
 class TestTaskAPI:
+    async def seed_messages(self, session, task, total, user_seqs, *, session_id=None):
+        rows = [
+            AgentRunMessage(
+                id=f"{session_id or task.agent_session_id}-{seq}",
+                session_id=session_id or task.agent_session_id,
+                task_id=task.id,
+                project_id=task.project_id,
+                seq=seq,
+                role="user" if seq in user_seqs else "assistant",
+                content=str(seq),
+                status="complete",
+            )
+            for seq in range(total)
+        ]
+        session.add_all(rows)
+        await session.commit()
+        return rows
+
+    @pytest.mark.parametrize(
+        ("total", "user_seqs", "oldest"),
+        [
+            (350, {0, 250}, 250),
+            (350, {0, 230, 240}, 240),
+            (450, {0, 160}, 160),
+            (450, {0, 150}, 150),
+            (450, {0, 149}, 150),
+            (450, set(), 150),
+            (300, set(), 0),
+            (350, {0, 251}, 50),
+            (280, {0}, 0),
+            (20, set(), 0),
+            (0, set(), None),
+        ],
+    )
+    async def test_message_page_turn_boundaries(self, client, session, total, user_seqs, oldest):
+        task, _, _ = await self.create_agent_task(client, session)
+        await self.seed_messages(session, task, total, user_seqs)
+        with (
+            patch.object(agent_run_repo, "list_by_session", side_effect=AssertionError("full scan")),
+            patch.object(agent_run_repo, "list_session_page", wraps=agent_run_repo.list_session_page) as pages,
+        ):
+            response = await client.get(f"/api/v1/tasks/{task.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["messages_cursor"] == oldest
+        assert data["messages_has_more"] is (oldest is not None and oldest > 0)
+        assert [int(message["content"]) for message in data["messages"]] == list(
+            range(oldest or 0, total)
+        )
+        assert pages.call_count <= 3
+        assert all(call.kwargs["limit"] == 100 for call in pages.call_args_list)
+        if oldest == 250:
+            assert pages.call_count == 1
+
+    async def test_cursor_pages_are_exclusive_stable_with_gaps_and_new_messages(self, client, session):
+        task, _, _ = await self.create_agent_task(client, session)
+        rows = await self.seed_messages(session, task, 12, {0, 4, 8})
+        for row in rows:
+            row.seq *= 2
+        await session.commit()
+        first = (await client.get(f"/api/v1/tasks/{task.id}?page_size=4")).json()
+        assert first["messages_cursor"] == 16
+        await agent_run_repo.insert_message(
+            session, session_id=task.agent_session_id, task_id=task.id,
+            project_id=task.project_id, role="assistant", status="complete", content="new",
+        )
+        second = (await client.get(f"/api/v1/tasks/{task.id}?page_size=4&cursor=16")).json()
+        assert [m["content"] for m in second["messages"]] == ["4", "5", "6", "7"]
+        assert second["messages_cursor"] == 8
+        third = (await client.get(f"/api/v1/tasks/{task.id}?page_size=4&cursor=8")).json()
+        assert [m["content"] for m in third["messages"]] == ["0", "1", "2", "3"]
+        assert third["messages_cursor"] == 0
+        assert third["messages_has_more"] is False
+        empty = (await client.get(f"/api/v1/tasks/{task.id}?cursor=0")).json()
+        assert empty["messages"] == []
+        assert empty["messages_cursor"] is None
+        assert empty["messages_has_more"] is False
+
+    @pytest.mark.parametrize("query", ["cursor=-1", "cursor=no", "page_size=0", "page_size=101"])
+    async def test_message_page_rejects_invalid_parameters(self, client, session, query):
+        task, _, _ = await self.create_agent_task(client, session)
+        assert (await client.get(f"/api/v1/tasks/{task.id}?{query}")).status_code == 422
+
+    async def test_patch_task_returns_default_message_page(self, client, session):
+        task, _, _ = await self.create_agent_task(client, session)
+        await self.seed_messages(session, task, 350, {0, 250})
+        response = await client.patch(f"/api/v1/tasks/{task.id}", json={"title": "renamed"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "renamed"
+        assert len(data["messages"]) == 100
+        assert data["messages_cursor"] == 250
+        assert data["messages_has_more"] is True
+
+    async def test_subagent_uses_same_message_pagination(self, client, session):
+        task, _, _ = await self.create_agent_task(client, session)
+        child = await create_child_run(
+            session, parent_session_id=task.agent_session_id, parent_task_id=task.id,
+            parent_thread_id=task.agent_session_id, child_thread_id="child-pagination",
+            agent_key="writer", dispatch_id="dispatch-page", tool_call_id="call-page", request={},
+        )
+        await self.seed_messages(session, task, 350, {0, 240}, session_id=child.child_thread_id)
+        data = (await client.get(f"/api/v1/agent/subagents/{child.id}")).json()
+        assert len(data["messages"]) == 110
+        assert data["messages_cursor"] == 240
+        assert data["messages_has_more"] is True
+        data = (await client.get(f"/api/v1/agent/subagents/{child.id}?cursor=240&page_size=10")).json()
+        assert data["messages_cursor"] == 210
+        assert len(data["messages"]) == 30
+
+    async def test_tool_projection_across_capped_pages_keeps_args_identity_and_latest_result(
+        self, client, session,
+    ):
+        task, _, _ = await self.create_agent_task(client, session)
+        rows = await self.seed_messages(session, task, 306, set())
+        rows[0].content = ""
+        rows[0].tool_calls = json.dumps([
+            {"id": "cross-page", "name": "write_chapter", "args": {"title": "chapter"}}
+        ])
+        for seq in (1, 305):
+            rows[seq].role = "tool"
+            rows[seq].tool_call_id = "cross-page"
+            rows[seq].tool_name = "write_chapter"
+            rows[seq].content = json.dumps({"success": seq == 305})
+        await session.commit()
+        data = (await client.get(f"/api/v1/tasks/{task.id}")).json()
+        assert data["messages_cursor"] == 6
+        tool = next(m for m in data["messages"] if m["role"] == "tool")
+        assert tool["id"] == rows[1].id
+        assert tool["payload"]["tool_args"] == {"title": "chapter"}
+        assert tool["payload"]["tool_result"]["success"] is True
+        older = (await client.get(f"/api/v1/tasks/{task.id}?cursor=6")).json()
+        assert all(m["role"] != "tool" for m in older["messages"])
+        full = await load_task_messages_for_agent_session(session, task.agent_session_id)
+        assert next(m.id for m in full if m.role == "tool") == tool["id"]
+
+    @pytest.mark.parametrize("caller_seq", [1, 6])
+    async def test_tool_page_uses_latest_call_arguments(self, client, session, caller_seq):
+        task, _, _ = await self.create_agent_task(client, session)
+        rows = await self.seed_messages(session, task, 306, set())
+        for seq, title in ((0, "old"), (caller_seq, "latest")):
+            rows[seq].tool_calls = json.dumps([
+                {"id": "repeated-call", "name": "write_chapter", "args": {"title": title}}
+            ])
+        rows[305].role = "tool"
+        rows[305].tool_call_id = "repeated-call"
+        rows[305].tool_name = "write_chapter"
+        await session.commit()
+        full = await load_task_messages_for_agent_session(session, task.agent_session_id)
+        expected = next(m for m in full if m.role == "tool").payload["tool_args"]
+        data = (await client.get(f"/api/v1/tasks/{task.id}")).json()
+        tool = next(m for m in data["messages"] if m["role"] == "tool")
+        assert tool["payload"]["tool_args"] == expected == {"title": "latest"}
+
+    @pytest.mark.parametrize("query", ["cursor=-1", "cursor=no", "page_size=0", "page_size=101"])
+    async def test_subagent_message_page_rejects_invalid_parameters(self, client, session, query):
+        task, _, _ = await self.create_agent_task(client, session)
+        child = await create_child_run(
+            session, parent_session_id=task.agent_session_id, parent_task_id=task.id,
+            parent_thread_id=task.agent_session_id, child_thread_id="child-invalid-pagination",
+            agent_key="writer", dispatch_id="dispatch-invalid", tool_call_id="call-invalid", request={},
+        )
+        response = await client.get(f"/api/v1/agent/subagents/{child.id}?{query}")
+        assert response.status_code == 422
+
+    async def test_parent_filters_cross_page_subagent_tools_and_advances_empty_projection(
+        self, client, session,
+    ):
+        task, _, _ = await self.create_agent_task(client, session)
+        rows = await self.seed_messages(session, task, 306, set())
+        rows[0].tool_calls = json.dumps([{"id": "dispatch", "name": "dispatch_subagent", "args": {}}])
+        rows[1].agent_id = "writer"
+        rows[1].tool_calls = json.dumps([{"id": "internal", "name": "write_chapter", "args": {}}])
+        for row in rows[6:]:
+            row.agent_id = "writer"
+        rows[305].agent_id = None
+        rows[305].role = "tool"
+        rows[305].tool_call_id = "internal"
+        rows[305].tool_name = "write_chapter"
+        await session.commit()
+        data = (await client.get(f"/api/v1/tasks/{task.id}")).json()
+        assert data["messages"] == []
+        assert data["messages_cursor"] == 6
+        assert data["messages_has_more"] is True
+
+    async def test_pagination_counts_raw_rows_and_preserves_seq_order(self, client, session):
+        task, _, _ = await self.create_agent_task(client, session)
+        rows = await self.seed_messages(session, task, 4, {0})
+        rows[1].reasoning = "reasoning"
+        rows[2].role = "system"
+        rows[2].message_type = "node_end"
+        rows[3].role = "tool"
+        rows[3].content = "result"
+        await session.commit()
+        data = (await client.get(f"/api/v1/tasks/{task.id}?page_size=4")).json()
+        assert len(data["messages"]) == 5
+        assert [m["message_type"] for m in data["messages"]] == [
+            "user_request", "reasoning", "text", "node_end", "tool",
+        ]
+        assert data["messages_cursor"] == 0
+        assert data["messages_has_more"] is False
+
     async def create_project_and_chapter(self, client: AsyncClient) -> tuple[str, str]:
         project_response = await client.post("/api/v1/projects", data={"title": "测试项目"})
         assert project_response.status_code == status.HTTP_201_CREATED

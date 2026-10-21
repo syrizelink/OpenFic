@@ -1,12 +1,7 @@
-import { app } from "electron";
+import { app, safeStorage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  defaultDesktopConfig,
-  isDesktopInstanceAppearance,
-  type DesktopConfig,
-  type DesktopInstance,
-} from "../shared/config.js";
+import { defaultDesktopConfig, isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 import {
   DEV_INSTANCE_ID,
   createDevInstance,
@@ -17,13 +12,21 @@ import {
   readDevInstanceDataDir,
 } from "./runtime/dev-backend.js";
 
+export interface StoredDesktopInstance extends Omit<DesktopInstance, "hasAccessKey"> {
+  accessKeyEncrypted?: string;
+}
+
+export interface StoredDesktopConfig extends Omit<DesktopConfig, "instances"> {
+  instances: StoredDesktopInstance[];
+}
+
 function getConfigPath(): string {
   return path.join(app.getPath("userData"), "config.json");
 }
 
-function isDesktopInstance(value: unknown): value is DesktopInstance {
+function isDesktopInstance(value: unknown): value is StoredDesktopInstance {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<DesktopInstance>;
+  const candidate = value as Partial<StoredDesktopInstance>;
   return (
     typeof candidate.id === "string" &&
     typeof candidate.name === "string" &&
@@ -32,13 +35,14 @@ function isDesktopInstance(value: unknown): value is DesktopInstance {
     typeof candidate.autoStartLocal === "boolean" &&
     (typeof candidate.installDir === "string" || candidate.installDir === null) &&
     (candidate.dataDir === undefined || typeof candidate.dataDir === "string" || candidate.dataDir === null) &&
-    isDesktopInstanceAppearance(candidate)
+    isDesktopInstanceAppearance(candidate) &&
+    (candidate.accessKeyEncrypted === undefined || typeof candidate.accessKeyEncrypted === "string")
   );
 }
 
-function isDesktopConfig(value: unknown): value is DesktopConfig {
+function isDesktopConfig(value: unknown): value is StoredDesktopConfig {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<DesktopConfig>;
+  const candidate = value as Partial<StoredDesktopConfig>;
   return (
     (typeof candidate.activeInstanceId === "string" || candidate.activeInstanceId === null) &&
     Array.isArray(candidate.instances) &&
@@ -84,8 +88,8 @@ function migrateLegacyConfig(config: Omit<DesktopInstance, "id" | "name">): Desk
   };
 }
 
-export async function readDesktopConfig(): Promise<DesktopConfig | null> {
-  let config: DesktopConfig | null;
+export async function readDesktopConfig(): Promise<StoredDesktopConfig | null> {
+  let config: StoredDesktopConfig | null;
   try {
     const raw = await readFile(getConfigPath(), "utf-8");
     const parsed = JSON.parse(raw) as unknown;
@@ -109,6 +113,30 @@ export async function readDesktopConfig(): Promise<DesktopConfig | null> {
     };
   }
   return config;
+}
+
+export function getPublicDesktopConfig(config: StoredDesktopConfig | null): DesktopConfig | null {
+  if (!config) return null;
+  return {
+    ...config,
+    instances: config.instances.map(getPublicDesktopInstance),
+  };
+}
+
+export function getPublicDesktopInstance(instance: StoredDesktopInstance): DesktopInstance {
+  const { accessKeyEncrypted, ...publicInstance } = instance;
+  return { ...publicInstance, hasAccessKey: Boolean(accessKeyEncrypted) };
+}
+
+export function encryptDesktopAccessKey(accessKey: string): string {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("系统安全存储不可用，无法保存访问密钥");
+  return safeStorage.encryptString(accessKey).toString("base64");
+}
+
+export function decryptDesktopAccessKey(instance: StoredDesktopInstance): string | undefined {
+  if (!instance.accessKeyEncrypted) return undefined;
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("系统安全存储不可用，无法读取访问密钥");
+  return safeStorage.decryptString(Buffer.from(instance.accessKeyEncrypted, "base64"));
 }
 
 export async function writeDesktopConfig(config: DesktopConfig): Promise<void> {

@@ -19,13 +19,22 @@ class _RecordingClient:
 
 
 @pytest.mark.asyncio
-async def test_openai_responses_compatible_adapter_discovers_llm_models_only() -> None:
+@pytest.mark.parametrize(
+    ("base_url", "expected_url"),
+    [
+        ("https://gateway.example", "https://gateway.example/models"),
+        ("https://gateway.example/v1/", "https://gateway.example/v1/models"),
+    ],
+)
+async def test_openai_responses_compatible_adapter_discovers_llm_models_only(
+    base_url: str, expected_url: str
+) -> None:
     adapter = AdapterRegistry.get_adapter("openai-compatible-responses")
     client = _RecordingClient()
 
     models = await adapter.get_llm_models(
         client,  # type: ignore[arg-type]
-        "https://gateway.example",
+        base_url,
         "test-key",
         headers={"X-Provider-Token": "custom-token"},
     )
@@ -37,7 +46,7 @@ async def test_openai_responses_compatible_adapter_discovers_llm_models_only() -
     assert models == [{"id": "responses-model", "name": "Responses Model"}]
     assert client.requests == [
         (
-            "https://gateway.example/v1/models",
+            expected_url,
             {
                 "Authorization": "Bearer test-key",
                 "X-Provider-Token": "custom-token",

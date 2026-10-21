@@ -1,6 +1,6 @@
 import { Box, Text } from "@radix-ui/themes";
 import { Brain } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AgentMessage } from "@/lib/agent.types";
@@ -24,6 +24,7 @@ interface AgentThinkingMessageProps {
 }
 
 const RUNNING_DURATION_TICK_MS = 100;
+const REASONING_SCROLL_BOTTOM_THRESHOLD_PX = 16;
 
 function getInitialDuration(message: AgentMessage): number {
   return getReasoningDurationMs(message);
@@ -35,6 +36,8 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
   const [initialDurationMs] = useState(() => getInitialDuration(message));
   const [startedAt] = useState(() => Date.now());
   const wasRunningRef = useRef(isRunning);
+  const reasoningContentRef = useRef<HTMLDivElement | null>(null);
+  const shouldFollowReasoningRef = useRef(true);
   const [durationMs, setDurationMs] = useState(initialDurationMs);
   const [isExpanded, setIsExpanded] = useState(isRunning);
   const content = message.content ?? "";
@@ -49,6 +52,12 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
 
     return () => window.clearInterval(intervalId);
   }, [initialDurationMs, isRunning, startedAt]);
+
+  useLayoutEffect(() => {
+    const element = reasoningContentRef.current;
+    if (!isRunning || !element || !shouldFollowReasoningRef.current) return;
+    element.scrollTop = element.scrollHeight;
+  }, [content, isRunning]);
 
   useEffect(() => {
     if (isRunning) {
@@ -69,6 +78,13 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
   const handleToggleExpanded = () => {
     if (!hasContent) return;
     setIsExpanded((value) => !value);
+  };
+
+  const handleReasoningContentScroll = () => {
+    const element = reasoningContentRef.current;
+    if (!element) return;
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    shouldFollowReasoningRef.current = distanceFromBottom <= REASONING_SCROLL_BOTTOM_THRESHOLD_PX;
   };
 
   return (
@@ -127,7 +143,11 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
         visible={hasContent && isExpanded}
       >
         <Box className="agent-tool-body agent-reasoning-body">
-          <Box className="agent-tool-block-content agent-reasoning-content">
+          <Box
+            ref={reasoningContentRef}
+            className="agent-tool-block-content agent-reasoning-content"
+            onScroll={handleReasoningContentScroll}
+          >
             <AgentMarkdownContent
               content={content}
               isStreaming={isRunning}

@@ -71,13 +71,26 @@ class DashboardAuditRecord(BaseModel):
     first_token_ms: int | None = Field(default=None, description="首 token 延迟")
     status: str = Field(description="调用状态")
     error_type: str | None = Field(default=None, description="错误类型")
-    error_message: str | None = Field(default=None, description="错误信息")
     error_status_code: int | None = Field(default=None, description="HTTP 错误码")
     tool_calls_count: int = Field(description="工具调用数")
     has_request_messages: bool = Field(description="是否存在可查看的输入提示词")
-    tool_references: str | None = Field(default=None, description="请求携带的工具定义 JSON")
+    has_tool_references: bool = Field(description="是否存在可查看的工具定义")
+    has_output_details: bool = Field(description="是否存在可查看的输出或错误详情")
+
+
+class DashboardRecordDetails(BaseModel):
+    """按需加载的调用记录详情。"""
+
+    id: str
+    tool_references: str | None = Field(
+        default=None, description="请求携带的工具定义 JSON"
+    )
     response_content: str | None = Field(default=None, description="模型输出文本")
-    response_tool_calls: str | None = Field(default=None, description="模型工具调用 JSON")
+    response_tool_calls: str | None = Field(
+        default=None, description="模型工具调用 JSON"
+    )
+
+    error_message: str | None = Field(default=None, description="错误信息")
 
 
 class DashboardRecordPrompt(BaseModel):

@@ -505,7 +505,7 @@ async def test_subagent_runner_uses_child_thread_history_and_parent_task(
         and message.agent_id == "writer"
         for message in child_messages
     )
-    assert [message.content for message in captured["initial_state"]["messages"]] == [
+    assert [message.content for message in captured["initial_state"]["messages"].value] == [
         "child-only",
         "write",
     ]
@@ -649,6 +649,8 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
             configurable = config["configurable"]
             assert callable(configurable["agent_event_sink"])
             assert callable(configurable["compaction_usage_sink"])
+            assert configurable["model_config"]["max_context_tokens"] == 8000
+            assert callable(configurable["history_seq_resolver"])
 
             await configurable["agent_event_sink"](
                 "agent:compaction_start",
@@ -1037,7 +1039,7 @@ async def test_subagent_runner_drains_queued_notify_requests_on_same_child_threa
 
     class FakeGraph:
         async def astream_events(self, initial_state, config=None, version=None):
-            last_message = initial_state["messages"][-1]
+            last_message = initial_state["messages"].value[-1]
             yield {
                 "event": "on_chain_end",
                 "data": {"output": {
@@ -1049,7 +1051,7 @@ async def test_subagent_runner_drains_queued_notify_requests_on_same_child_threa
             }
 
         async def ainvoke(self, initial_state, config=None):
-            last_message = initial_state["messages"][-1]
+            last_message = initial_state["messages"].value[-1]
             return {
                 "messages": [AIMessage(content=f"reply:{last_message.content}")],
                 "iteration_count": 1,
@@ -1814,6 +1816,7 @@ async def test_subagent_runner_streams_and_persists_child_transcript_on_child_th
         },
         project_id="project-1",
     )
+    monkeypatch.setattr(runner, "_prune_child_thread_checkpoints", AsyncMock())
     result = await runner.run(row.id)
 
     assert result["assistant_content"] == "child stream output"
@@ -1823,6 +1826,18 @@ async def test_subagent_runner_streams_and_persists_child_transcript_on_child_th
         for name, payload, room in emitted
         if payload.get("session_id") == "child-thread-transcript"
     ]
+    node_event = child_events.pop(0)
+    assert node_event[0] == "agent:node"
+    assert node_event[1] == {
+        "session_id": "child-thread-transcript",
+        "request_id": node_event[1]["request_id"],
+        "node": "agent",
+        "phase": "start",
+        "status": "running",
+        "current_node": "agent",
+        "previous_node": None,
+    }
+    assert node_event[2] == "agent_subagent_session:child-thread-transcript"
     assert child_events == [
         (
             "agent:token",

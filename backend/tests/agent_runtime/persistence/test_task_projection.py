@@ -71,6 +71,7 @@ async def test_projects_runtime_messages_to_task_messages(
     assert messages[0].role == "user"
     assert messages[0].content == "续写一段剧情"
     assert messages[0].payload == {"kind": "user_request"}
+    assert "task_id" not in messages[0].model_dump()
     assert messages[1].content == "我需要先确认走向。"
     assert messages[1].payload == {"kind": "reasoning", "duration_ms": 2450}
     assert messages[2].content == "需要补充信息"
@@ -85,6 +86,41 @@ async def test_projects_runtime_messages_to_task_messages(
     assert messages[4].payload["tool_name"] == "ask_user"
     assert messages[4].payload["tool_args"] == {"questions": [{"title": "剧情走向？"}]}
     assert messages[4].payload["tool_result"]["data"] == {"answer": "按原著"}
+    assert messages[4].content == ""
+
+
+@pytest.mark.asyncio
+async def test_does_not_duplicate_tool_result_without_explicit_data(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    sid = "session_projection_compact_tool_result"
+
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content=json.dumps(
+            {
+                "success": True,
+                "chapter_id": "chapter-1",
+                "chapter_title": "第一章",
+            },
+            ensure_ascii=False,
+        ),
+        status="complete",
+        tool_call_id="call-write",
+        tool_name="write_chapter",
+    )
+
+    messages = await load_task_messages_for_agent_session(db_session, sid)
+    tool_message = messages[0]
+
+    assert tool_message.content == ""
+    assert "data" not in tool_message.payload["tool_result"]
+    assert tool_message.payload["tool_result"]["chapter_id"] == "chapter-1"
 
 
 @pytest.mark.asyncio
@@ -756,7 +792,7 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
     assert tool_messages[0].message_status == "completed"
     assert tool_messages[0].payload["tool_result"]["reason"] == "approval_preview"
     assert (
-        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+        tool_messages[0].payload["tool_result"]["metadata"]["chapter_diff"][
             "operation"
         ]
         == "create"
@@ -803,24 +839,24 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
 
     tool_messages = [message for message in messages if message.message_type == "tool"]
     assert len(tool_messages) == 1
-    assert tool_messages[0].payload["tool_result"]["data"]["word_count"] == 2
+    assert tool_messages[0].payload["tool_result"]["word_count"] == 2
     assert (
-        tool_messages[0].payload["tool_result"]["data"]["chapter"]["id"] == "chapter_1"
+        tool_messages[0].payload["tool_result"]["chapter"]["id"] == "chapter_1"
     )
     assert (
-        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+        tool_messages[0].payload["tool_result"]["metadata"]["chapter_diff"][
             "operation"
         ]
         == "create"
     )
     assert (
-        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+        tool_messages[0].payload["tool_result"]["metadata"]["chapter_diff"][
             "chapter_id"
         ]
         == "chapter_1"
     )
     assert (
-        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+        tool_messages[0].payload["tool_result"]["metadata"]["chapter_diff"][
             "sections"
         ][0]["type"]
         == "content"

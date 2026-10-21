@@ -40,6 +40,19 @@ class ComplexValidationTool(AgentTool):
         return "ok"
 
 
+class TextInput(BaseModel):
+    content: str
+
+
+class TextTool(AgentTool):
+    name: str = "text"
+    description: str = "A tool with a string field"
+    args_schema: type[BaseModel] = TextInput
+
+    async def _execute(self, content: str) -> str:
+        return content
+
+
 class PreviewTool(AgentTool):
     name: str = "preview"
     description: str = "A tool with approval preview"
@@ -181,6 +194,28 @@ async def test_agent_tool_validation_error_is_logged():
     bound_logger = logger.bind.return_value
     bound_logger.warning.assert_called_once()
     assert "参数校验失败" in str(bound_logger.warning.call_args.args)
+
+
+async def test_agent_tool_normalizes_nested_json_strings_before_validation():
+    tool = ComplexValidationTool(_state=_make_state())
+
+    result = await tool.ainvoke(
+        {
+            "volume_ref": '{"type":"order"}',
+            "chapter_ref": {"type": "title"},
+        }
+    )
+
+    assert result == "ok"
+
+
+async def test_agent_tool_does_not_parse_json_looking_string_fields():
+    tool = TextTool(_state=_make_state())
+    content = '{"title":"正文里的 JSON"}'
+
+    result = await tool.ainvoke({"content": content})
+
+    assert result == content
 
 
 async def test_agent_tool_validation_error_omits_repeated_pydantic_help_urls():

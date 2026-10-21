@@ -22,14 +22,14 @@ _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
 
 
-def _windows_selector_loop_factory() -> asyncio.AbstractEventLoop:
-    return asyncio.SelectorEventLoop()
+def _windows_proactor_loop_factory() -> asyncio.AbstractEventLoop:
+    return getattr(asyncio, "ProactorEventLoop")()
 
 
 def _get_uvicorn_loop_factory() -> str:
-    """Use a selector loop on Windows because pyzmq requires add_reader."""
+    """Use Proactor for Windows subprocesses; pyzmq uses Tornado for add_reader."""
     if sys.platform == "win32":
-        return "app.cli:_windows_selector_loop_factory"
+        return "app.cli:_windows_proactor_loop_factory"
     return "auto"
 
 
@@ -359,6 +359,23 @@ def handle_openai_codex_import(args: argparse.Namespace) -> None:
     print(f"OpenAI Codex 凭据已导入，provider_id: {provider_id}")
 
 
+def handle_db_migrate(args: argparse.Namespace) -> None:
+    _ensure_data_dir()
+    from app.storage.database_migration import DatabaseMigrationError, migrate_database
+
+    try:
+        report = migrate_database(
+            target_url=args.target_url,
+            source_url=args.source_url,
+            repair_orphaned_references=args.repair_orphaned_references,
+        )
+    except DatabaseMigrationError as exc:
+        print(f"数据库迁移失败: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+
+    print(report.summary())
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openfic",
@@ -392,6 +409,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_parser.add_argument("--input", required=True, help="加密凭据文件路径")
     import_parser.set_defaults(handler=handle_openai_codex_import)
+
+    db_parser = subparsers.add_parser("db", help="数据库维护")
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+
+    migrate_parser = db_subparsers.add_parser(
+        "migrate",
+        help="将主业务库迁移到另一个数据库",
+    )
+    migrate_parser.add_argument(
+        "--target-url",
+        required=True,
+        help="目标主业务库 URL",
+    )
+    migrate_parser.add_argument(
+        "--source-url",
+        default=None,
+        help="源主业务库 URL（默认使用当前配置）",
+    )
+    migrate_parser.add_argument(
+        "--repair-orphaned-references",
+        action="store_true",
+        help="将可空悬空引用置为 NULL，并删除不可空悬空行，源库不修改",
+    )
+    migrate_parser.set_defaults(handler=handle_db_migrate)
 
     return parser
 

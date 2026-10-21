@@ -196,7 +196,9 @@ async def _create_project_with_chapters(
         word_count=6,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(ready_chapter)
     session.add(stale_chapter)
     await session.flush()
@@ -594,7 +596,9 @@ async def test_search_chapters_skips_chunks_for_other_project_chapters(
         word_count=4,
     )
     session.add(other_project)
+    await session.flush()
     session.add(other_volume)
+    await session.flush()
     session.add(other_chapter)
     session.add(
         RetrievalIndex(

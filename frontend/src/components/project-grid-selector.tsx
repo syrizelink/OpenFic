@@ -4,12 +4,14 @@
  * 项目网格选择器，以图书封面+标题的形式展示和选择项目。
  */
 
-import { Box, Flex, Text, ScrollArea } from "@radix-ui/themes";
-import { BookOpen, X } from "lucide-react";
+import { Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { BookOpen, Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import type { Project } from "@/lib/project.types";
+import { formatRelativeTime } from "@/lib/time-utils";
 
 import "./project-grid-selector.css";
 
@@ -59,6 +61,88 @@ function ProjectCard({ selected, disabled, label, onSelect, children }: ProjectC
   );
 }
 
+interface ProjectListCardProps extends ProjectCardProps {
+  project: Project | null;
+}
+
+function ProjectListCard({
+  project,
+  selected,
+  disabled,
+  label,
+  onSelect,
+  children,
+}: ProjectListCardProps) {
+  const { t } = useTranslation();
+
+  return (
+    <button
+      type="button"
+      className="project-grid-selector__list-card"
+      data-disabled={disabled ? "true" : "false"}
+      data-state={selected ? "selected" : "unselected"}
+      disabled={disabled}
+      onClick={onSelect}
+    >
+      <Box className="project-grid-selector__list-cover">{children}</Box>
+      <Box className="project-grid-selector__list-info">
+        <Text
+          size="3"
+          weight="bold"
+          truncate
+          className="project-grid-selector__list-title"
+        >
+          {label}
+        </Text>
+        {project?.description ? (
+          <Text
+            size="2"
+            color="gray"
+            className="project-grid-selector__list-description"
+          >
+            {project.description}
+          </Text>
+        ) : null}
+        {project ? (
+          <Flex
+            gap="3"
+            mt="1"
+            align="center"
+            wrap="wrap"
+            className="project-grid-selector__list-meta"
+          >
+            <Text
+              size="1"
+              color="gray"
+            >
+              {project.wordCount.toLocaleString()} {t("projects.words")}
+            </Text>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {project.chapterCount} {t("projects.chapters")}
+            </Text>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {formatRelativeTime(project.updatedAt)}
+            </Text>
+          </Flex>
+        ) : null}
+      </Box>
+      {selected ? (
+        <Check
+          size={18}
+          aria-hidden="true"
+          className="project-grid-selector__list-check"
+        />
+      ) : null}
+    </button>
+  );
+}
+
 export function ProjectGridSelector({
   projects,
   value,
@@ -67,50 +151,86 @@ export function ProjectGridSelector({
   showNoneOption = true,
 }: ProjectGridSelectorProps) {
   const { t } = useTranslation();
+  const { isMobile } = useAppShell();
 
   const handleSelect = (projectId: string) => {
     if (disabled) return;
     onChange(projectId);
   };
 
-  return (
-    <ScrollArea style={{ maxHeight: 380 }}>
-      <Flex
-        wrap="wrap"
-        gap="3"
-        py="2"
-      >
-        {showNoneOption && (
-          <ProjectCard
-            selected={value === ""}
-            disabled={disabled}
-            label={t("projectSelect.noBinding")}
-            onSelect={() => handleSelect("")}
-          >
-            <Flex
-              align="center"
-              justify="center"
-              className="project-grid-selector__cover-placeholder"
-            >
-              <X size={24} />
-            </Flex>
-          </ProjectCard>
-        )}
+  const selectionOptions = [
+    ...(showNoneOption
+      ? [
+          {
+            id: "",
+            label: t("projectSelect.noBinding"),
+            project: null,
+          },
+        ]
+      : []),
+    ...projects.map((project) => ({
+      id: project.id,
+      label: project.title,
+      project,
+    })),
+  ];
 
-        {projects.map((project) => {
-          const isSelected = value === project.id;
-          return (
-            <ProjectCard
-              key={project.id}
-              selected={isSelected}
+  return (
+    <ScrollArea
+      className="project-grid-selector__scroll"
+      style={{ maxHeight: isMobile ? "min(64dvh, 520px)" : 380 }}
+    >
+      {isMobile ? (
+        <Flex
+          direction="column"
+          gap="2"
+          py="2"
+        >
+          {selectionOptions.map((option) => (
+            <ProjectListCard
+              key={option.id || "none"}
+              project={option.project}
+              selected={value === option.id}
               disabled={disabled}
-              label={project.title}
-              onSelect={() => handleSelect(project.id)}
+              label={option.label}
+              onSelect={() => handleSelect(option.id)}
             >
-              {project.coverUrl ? (
+              {option.project?.coverUrl ? (
                 <img
-                  src={project.coverUrl}
-                  alt={project.title}
+                  src={option.project.coverUrl}
+                  alt={option.project.title}
+                  className="project-grid-selector__list-cover-img"
+                />
+              ) : (
+                <Flex
+                  align="center"
+                  justify="center"
+                  className="project-grid-selector__list-cover-placeholder"
+                >
+                  {option.project ? <BookOpen size={24} /> : <X size={24} />}
+                </Flex>
+              )}
+            </ProjectListCard>
+          ))}
+        </Flex>
+      ) : (
+        <Flex
+          wrap="wrap"
+          gap="3"
+          py="2"
+        >
+          {selectionOptions.map((option) => (
+            <ProjectCard
+              key={option.id || "none"}
+              selected={value === option.id}
+              disabled={disabled}
+              label={option.label}
+              onSelect={() => handleSelect(option.id)}
+            >
+              {option.project?.coverUrl ? (
+                <img
+                  src={option.project.coverUrl}
+                  alt={option.project.title}
                   className="project-grid-selector__cover-img"
                 />
               ) : (
@@ -119,13 +239,13 @@ export function ProjectGridSelector({
                   justify="center"
                   className="project-grid-selector__cover-placeholder"
                 >
-                  <BookOpen size={24} />
+                  {option.project ? <BookOpen size={24} /> : <X size={24} />}
                 </Flex>
               )}
             </ProjectCard>
-          );
-        })}
-      </Flex>
+          ))}
+        </Flex>
+      )}
     </ScrollArea>
   );
 }

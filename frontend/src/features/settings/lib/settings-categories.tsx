@@ -1,4 +1,5 @@
 import {
+  Mic,
   Brain,
   Bell,
   Bot,
@@ -6,6 +7,7 @@ import {
   Database,
   FileText,
   Globe,
+  Network,
   MessagesSquare,
   Palette,
   Package,
@@ -18,11 +20,13 @@ import {
 import type { ReactNode } from "react";
 
 export type SettingsCategory =
+  | "audio"
   | "general"
   | "personalization"
   | "editor"
   | "notifications"
   | "connections"
+  | "tunnels"
   | "models"
   | "index"
   | "context"
@@ -38,6 +42,7 @@ interface SettingsCategoryItem {
   id: SettingsCategory;
   icon: ReactNode;
   labelKey: string;
+  badgeKey?: string;
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
@@ -96,6 +101,7 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     icon: <Globe size={16} />,
     labelKey: "settings.webSearch",
   },
+  { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
   {
     id: "rules",
     icon: <FileText size={16} />,
@@ -110,6 +116,12 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "agents",
     icon: <Bot size={16} />,
     labelKey: "settings.agents",
+  },
+  {
+    id: "tunnels",
+    icon: <Network size={16} />,
+    labelKey: "settings.tunnels",
+    badgeKey: "settings.experimental",
   },
   {
     id: "advanced",

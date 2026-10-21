@@ -109,6 +109,8 @@ export function WorldInfoPage() {
     agentStatus: "idle",
     isAgentRunning: false,
   });
+  const assistantStateRef = useRef(assistantState);
+  assistantStateRef.current = assistantState;
 
   // 从 URL 参数初始化状态
   useEffect(() => {
@@ -189,7 +191,7 @@ export function WorldInfoPage() {
   // 获取当前选中条目的完整数据
   const { data: selectedEntry, isLoading: isEntryLoading } = useQuery({
     queryKey: ["world-info-entry-detail", currentEntryId],
-    queryFn: () => fetchWorldInfoEntry(currentEntryId!),
+    queryFn: ({ signal }) => fetchWorldInfoEntry(currentEntryId!, signal),
     enabled: !!currentEntryId,
     staleTime: 0,
   });
@@ -685,6 +687,7 @@ export function WorldInfoPage() {
       scrollToLine={scrollToLine}
       onScrollComplete={handleScrollComplete}
       isAgentLocked={isAgentLocked}
+      canSave={() => !assistantStateRef.current.isAgentRunning}
     />
   ) : currentEntryId && isEntryLoading ? (
     <Box p="4">

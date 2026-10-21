@@ -195,12 +195,22 @@ class AgentToolMetadataResponse(BaseModel):
     is_readonly: bool = Field(..., description="是否只读")
 
 
+class AgentCurrentErrorResponse(BaseModel):
+    """当前轮次的运行错误。"""
+
+    type: str = Field(description="错误类型")
+    reason: str = Field(description="可显示的错误原因")
+    round_id: str = Field(description="父 revision ID 或子 request ID")
+
+
 class AgentSessionStateResponse(BaseModel):
     """会话状态响应。"""
 
     session_id: str = Field(..., description="会话ID")
     state: dict = Field(..., description="状态信息")
     is_running: bool = Field(default=False, description="会话是否仍有后台运行任务")
+    can_continue: bool = Field(default=False, description="是否可以继续最近未完成的用户任务")
+    current_error: AgentCurrentErrorResponse | None = None
     interrupts: list[dict] = Field(default_factory=list, description="待处理的可恢复中断")
 
 
@@ -303,6 +313,9 @@ class ActiveSubagentStateResponse(BaseModel):
 class SubagentSessionResponse(BaseModel):
     """子代理会话详情。"""
 
+    messages_cursor: int | None = Field(default=None, description="本页原始消息最小 seq，下页排除此值")
+    messages_has_more: bool = Field(default=False, description="是否存在更早的原始消息")
+
     child_run_id: str = Field(..., description="子运行ID")
     parent_session_id: str = Field(..., description="父会话ID")
     parent_task_id: str = Field(..., description="父任务ID")
@@ -320,7 +333,9 @@ class SubagentSessionResponse(BaseModel):
     result: dict | None = Field(default=None, description="子运行结果负载")
     pending_approval: dict | None = Field(default=None, description="待用户处理的审批负载")
     error: str | None = Field(default=None, description="错误信息")
+    current_error: AgentCurrentErrorResponse | None = None
     metadata: dict = Field(default_factory=dict, description="子运行元数据")
+    current_request_id: str | None = Field(default=None, description="最新已实际执行的子请求 ID")
     token_input: int = Field(default=0, description="当前子会话最近一次输入 token")
     token_output: int = Field(default=0, description="当前子会话最近一次输出 token")
     token_cache: int = Field(default=0, description="当前子会话最近一次缓存 token")
@@ -402,3 +417,9 @@ class AgentCancelResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     session_id: str = Field(..., description="会话ID")
     message: str = Field(..., description="取消消息")
+
+
+class AgentContinueResponse(BaseModel):
+    success: bool
+    session_id: str
+    message: str

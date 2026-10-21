@@ -13,6 +13,7 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_by_pending_approval,
     get_latest_child_run_requests,
     get_waiting_child_run_for_tool_call,
+    list_descendant_child_runs,
     list_child_runs_for_parent,
     list_child_runs_for_parents,
     record_child_run_pending_approval,
@@ -56,6 +57,42 @@ async def test_create_child_run_persists_parent_and_child_thread_boundary(
     assert persisted is not None
     assert persisted.parent_session_id == "parent-session"
     assert persisted.child_thread_id == "child-thread"
+
+
+@pytest.mark.asyncio
+async def test_list_descendant_child_runs_loads_nested_runs_in_one_query(
+    db_session: AsyncSession,
+    sample_task,
+):
+    await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="child-thread",
+        agent_key="writer",
+        dispatch_id="dispatch-1",
+        tool_call_id="tool-call-1",
+        request={"goal": "write"},
+    )
+    await create_child_run(
+        db_session,
+        parent_session_id="child-thread",
+        parent_task_id=sample_task.id,
+        parent_thread_id="child-thread",
+        child_thread_id="grandchild-thread",
+        agent_key="reviewer",
+        dispatch_id="dispatch-2",
+        tool_call_id="tool-call-2",
+        request={"goal": "review"},
+    )
+
+    descendants = await list_descendant_child_runs(db_session, "parent-session")
+
+    assert {run.child_thread_id for run in descendants} == {
+        "child-thread",
+        "grandchild-thread",
+    }
 
 
 @pytest.mark.asyncio

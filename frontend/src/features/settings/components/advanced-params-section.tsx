@@ -4,13 +4,14 @@
  * 模型高级参数面板，包含温度、Top-P、Top-K 等参数。
  */
 
-import { Box, Button, Flex, Grid, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, Grid, Text } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import type { Control, FieldValues, Path } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
+import { InfoTooltip } from "@/components";
 import { SliderField } from "@/components/slider-field";
 
 interface AdvancedParamsSectionProps<T extends FieldValues> {
@@ -130,7 +131,7 @@ export function AdvancedParamsSection<T extends FieldValues>({
             gap="1"
           >
             <Text>{t("models.advancedParams")}</Text>
-            <Tooltip
+            <InfoTooltip
               content={
                 <Flex
                   direction="column"
@@ -149,7 +150,7 @@ export function AdvancedParamsSection<T extends FieldValues>({
               >
                 <Info size={14} />
               </span>
-            </Tooltip>
+            </InfoTooltip>
           </Flex>
           <AnimatePresence mode="wait">
             <motion.div

@@ -1,0 +1,316 @@
+"""Instance-owned tunnel processes. Credentials are never logged or exposed in snapshots."""
+
+import asyncio
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+from collections.abc import Awaitable, Callable
+from pathlib import Path
+from typing import Literal
+
+from loguru import logger
+from pydantic import BaseModel, Field, SecretStr, model_validator
+
+Provider = Literal["cloudflare", "ngrok"]
+TunnelMode = Literal["quick", "managed-remote"]
+STARTUP_TIMEOUT = 60
+MAX_OUTPUT_LINES = 20
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_SENSITIVE_OUTPUT_RE = re.compile(
+    r"(?i)\b(token|authtoken|tunnel[_-]?token|api[_-]?key|access[_-]?token)\b"
+    r"(\s*[:=]\s*)\S+"
+)
+_BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+\S+")
+_ERROR_OUTPUT_RE = re.compile(
+    r"(?i)\b(error|err|fatal|fail(?:ed|ure)?|unable|denied|unauthori[sz]ed|"
+    r"invalid|exception|panic|timeout)\b"
+)
+TUNNEL_STATUS_EVENT = "tunnel:status"
+TunnelStatusPublisher = Callable[[dict[str, object]], Awaitable[None]]
+
+
+class TunnelStart(BaseModel):
+    provider: Provider = "cloudflare"
+    mode: TunnelMode = "quick"
+    token: SecretStr | None = None
+    hostname: str | None = Field(default=None, max_length=253)
+
+    @model_validator(mode="after")
+    def validate_mode(self) -> "TunnelStart":
+        if self.mode == "managed-remote":
+            if self.provider != "cloudflare":
+                raise ValueError("Managed tunnels require Cloudflare")
+            if not self.token or not self.token.get_secret_value().strip():
+                raise ValueError("Cloudflare tunnel token is required")
+            if not self.hostname or not re.fullmatch(
+                r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}",
+                self.hostname,
+            ):
+                raise ValueError(
+                    "A public hostname without a scheme or path is required"
+                )
+        return self
+
+
+class TunnelStartRequest(BaseModel):
+    """API payload that may reuse a persisted managed-tunnel token."""
+
+    provider: Provider | None = None
+    mode: TunnelMode | None = None
+    token: SecretStr | None = None
+    hostname: str | None = Field(default=None, max_length=253)
+
+
+class TunnelConfigUpdate(BaseModel):
+    """Persisted tunnel configuration update payload."""
+
+    provider: Provider | None = None
+    mode: TunnelMode | None = None
+    token: SecretStr | None = None
+    hostname: str | None = Field(default=None, max_length=253)
+
+
+def executable(provider: Provider) -> str | None:
+    name = "cloudflared" if provider == "cloudflare" else "ngrok"
+    search_path = os.pathsep.join(
+        [os.environ.get("PATH", ""), "/opt/homebrew/bin", "/usr/local/bin"]
+    )
+    return shutil.which(name, path=search_path)
+
+
+def public_url(provider: Provider, line: str) -> str | None:
+    if provider == "cloudflare":
+        match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com\b", line)
+        return match.group(0) if match else None
+    try:
+        record = json.loads(line)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(record, dict) or record.get("msg") != "started tunnel":
+        return None
+    url = record.get("url")
+    return (
+        url
+        if isinstance(url, str) and re.fullmatch(r"https://[a-zA-Z0-9.-]+", url)
+        else None
+    )
+
+
+def sanitize_output_line(text: str) -> str:
+    sanitized = _ANSI_ESCAPE_RE.sub("", text).strip()
+    sanitized = _SENSITIVE_OUTPUT_RE.sub(r"\1\2[REDACTED]", sanitized)
+    return _BEARER_TOKEN_RE.sub("Bearer [REDACTED]", sanitized)
+
+
+async def spawn_tunnel(
+    binary: str, args: list[str], env: dict[str, str]
+) -> asyncio.subprocess.Process:
+    return await asyncio.create_subprocess_exec(
+        binary,
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        stdin=asyncio.subprocess.DEVNULL,
+        env=env,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+async def terminate_process(process: asyncio.subprocess.Process) -> None:
+    if process.returncode is None:
+        try:
+            process.terminate()
+        except ProcessLookupError:
+            pass
+        try:
+            await asyncio.wait_for(process.wait(), 5)
+        except TimeoutError:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await process.wait()
+
+
+class TunnelManager:
+    def __init__(self, on_status_change: TunnelStatusPublisher | None = None) -> None:
+        self.lock = asyncio.Lock()
+        self.process: asyncio.subprocess.Process | None = None
+        self.monitor: asyncio.Task[None] | None = None
+        self.provider: Provider | None = None
+        self.mode: str | None = None
+        self.status = "stopped"
+        self.url: str | None = None
+        self.error: str | None = None
+        self.error_message: str | None = None
+        self._output_lines: list[str] = []
+        self.config_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._on_status_change = on_status_change
+        self._last_published_state = (None, None, "stopped", None, None, None)
+
+    def snapshot(self) -> dict[str, object]:
+        return {
+            "provider": self.provider,
+            "mode": self.mode,
+            "status": self.status,
+            "url": self.url,
+            "error": self.error,
+            "error_message": self.error_message,
+            "providers": {
+                name: bool(executable(name)) for name in ("cloudflare", "ngrok")
+            },
+        }
+
+    async def _publish_status(self) -> None:
+        if self._on_status_change is None:
+            return
+        snapshot = self.snapshot()
+        state = (
+            snapshot["provider"],
+            snapshot["mode"],
+            snapshot["status"],
+            snapshot["url"],
+            snapshot["error"],
+            snapshot["error_message"],
+        )
+        if state == self._last_published_state:
+            return
+        self._last_published_state = state
+        try:
+            await self._on_status_change(snapshot)
+        except Exception as exc:
+            logger.warning("Tunnel status event publish failed: {}", exc)
+
+    async def start(self, payload: TunnelStart, port: int) -> dict:
+        async with self.lock:
+            if self.status in {"starting", "running"}:
+                raise ValueError("Stop the active tunnel before starting another")
+            binary = executable(payload.provider)
+            if not binary:
+                raise ValueError(
+                    "Install cloudflared or ngrok on the OpenFic server first"
+                )
+            await self._stop()
+            origin = f"http://127.0.0.1:{port}"
+            env = os.environ.copy()
+            if payload.provider == "ngrok":
+                args = ["http", origin, "--log", "stdout", "--log-format", "json"]
+            elif payload.mode == "managed-remote":
+                args = ["tunnel", "--no-autoupdate", "run"]
+                assert payload.token is not None
+                env["TUNNEL_TOKEN"] = payload.token.get_secret_value().strip()
+            else:
+                # Isolate quick mode from any existing named-tunnel config.
+                self.config_dir = tempfile.TemporaryDirectory(prefix="openfic-tunnel-")
+                config_path = Path(self.config_dir.name) / "config.yml"
+                config_path.write_text("{}\n", encoding="utf-8")
+                args = [
+                    "tunnel",
+                    "--config",
+                    str(config_path),
+                    "--no-autoupdate",
+                    "--url",
+                    origin,
+                ]
+            self.provider, self.mode = payload.provider, payload.mode
+            self.status, self.url, self.error, self.error_message = "starting", None, None, None
+            self._output_lines.clear()
+            await self._publish_status()
+            try:
+                self.process = await spawn_tunnel(binary, args, env)
+            except OSError:
+                self._cleanup_config()
+                self.status, self.error = "error", "launch_failed"
+                await self._publish_status()
+                return self.snapshot()
+            self.monitor = asyncio.create_task(self._watch(payload.hostname))
+            return self.snapshot()
+
+    async def _watch(self, hostname: str | None) -> None:
+        process = self.process
+        assert process is not None and process.stdout is not None
+
+        async def read_output() -> None:
+            assert process.stdout is not None
+            discovered_url: str | None = None
+            edge_connected = False
+            while line := await process.stdout.readline():
+                text = line.decode("utf-8", errors="replace")
+                assert self.provider is not None
+                url = public_url(self.provider, text)
+                if self.provider == "cloudflare":
+                    if url:
+                        discovered_url = url
+                    if "Registered tunnel connection" in text:
+                        edge_connected = True
+                    if self.mode == "managed-remote":
+                        discovered_url = f"https://{hostname}"
+                    url = discovered_url if edge_connected else None
+                output_line = sanitize_output_line(text)
+                if output_line:
+                    self._output_lines.append(output_line)
+                    del self._output_lines[:-MAX_OUTPUT_LINES]
+                if url and self.status in {"starting", "running"}:
+                    self.url, self.status = url, "running"
+                    await self._publish_status()
+
+        reader = asyncio.create_task(read_output())
+        try:
+            async with asyncio.timeout(STARTUP_TIMEOUT):
+                while self.status == "starting" and process.returncode is None:
+                    if reader.done():
+                        await reader
+                        break
+                    await asyncio.sleep(0.1)
+                if self.status == "starting":
+                    await process.wait()
+            await reader
+            await process.wait()
+            self.url, self.status, self.error = None, "error", "process_exited"
+            self.error_message = self._get_output_error()
+            await self._publish_status()
+        except TimeoutError:
+            self.url, self.status, self.error = None, "error", "startup_timeout"
+            self.error_message = self._get_output_error()
+            await self._publish_status()
+        except (ValueError, OSError):
+            self.url, self.status, self.error = None, "error", "process_exited"
+            self.error_message = self._get_output_error()
+            await self._publish_status()
+        finally:
+            await terminate_process(process)
+            reader.cancel()
+            await asyncio.gather(reader, return_exceptions=True)
+            self._cleanup_config()
+
+    def _get_output_error(self) -> str | None:
+        if not self._output_lines:
+            return None
+        error_lines = [line for line in self._output_lines if _ERROR_OUTPUT_RE.search(line)]
+        return "\n".join((error_lines or self._output_lines)[-3:])
+
+    def _cleanup_config(self) -> None:
+        if self.config_dir:
+            self.config_dir.cleanup()
+            self.config_dir = None
+
+    async def _stop(self) -> None:
+        if self.monitor:
+            self.monitor.cancel()
+            await asyncio.gather(self.monitor, return_exceptions=True)
+        # A monitor cancelled before its first turn never enters its cleanup block.
+        if self.process:
+            await terminate_process(self.process)
+        self._cleanup_config()
+        self.process, self.monitor = None, None
+        self.status, self.url, self.error, self.error_message = "stopped", None, None, None
+        self._output_lines.clear()
+        await self._publish_status()
+
+    async def stop(self) -> dict:
+        async with self.lock:
+            await self._stop()
+            return self.snapshot()

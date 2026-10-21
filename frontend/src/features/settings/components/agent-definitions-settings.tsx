@@ -11,7 +11,6 @@ import {
   Dialog,
   IconButton,
   Badge,
-  Tooltip,
 } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +31,7 @@ import { useNavigate } from "react-router";
 
 import {
   LabeledSelect,
+  InfoTooltip,
   ModelIdSelect,
   ReasoningEffortSelect,
   type ModelIdSelectOption,
@@ -83,13 +83,13 @@ const MotionBox = motion.create(Box);
 
 const mobilePageVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? "100%" : "-100%",
+    transform: direction > 0 ? "translateX(100%)" : "translateX(-100%)",
   }),
   center: {
-    x: 0,
+    transform: "translateX(0%)",
   },
   exit: (direction: number) => ({
-    x: direction > 0 ? "-100%" : "100%",
+    transform: direction > 0 ? "translateX(-100%)" : "translateX(100%)",
   }),
 };
 
@@ -363,7 +363,7 @@ function AgentForm({
             >
               {t("settings.agentsKind")}
             </Text>
-            <Tooltip
+            <InfoTooltip
               content={
                 <Flex
                   direction="column"
@@ -381,7 +381,7 @@ function AgentForm({
               >
                 <Info size={14} />
               </button>
-            </Tooltip>
+            </InfoTooltip>
           </Flex>
           <LabeledSelect
             value={formKind}
@@ -1533,7 +1533,7 @@ export function AgentDefinitionsSettings({
                 >
                   {t("settings.agentsKind")}
                 </Text>
-                <Tooltip
+                <InfoTooltip
                   content={
                     <Flex
                       direction="column"
@@ -1551,7 +1551,7 @@ export function AgentDefinitionsSettings({
                   >
                     <Info size={14} />
                   </button>
-                </Tooltip>
+                </InfoTooltip>
               </Flex>
               <LabeledSelect
                 value={newKind}

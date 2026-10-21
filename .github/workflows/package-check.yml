@@ -73,7 +73,7 @@ jobs:
           path: backend/dist/*.whl
 
   docker:
-    name: Docker (${{ matrix.platform }})
+    name: Docker (${{ matrix.variant }} ${{ matrix.platform }})
     if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     strategy:
       fail-fast: false
@@ -81,8 +81,20 @@ jobs:
         include:
           - runner: ubuntu-latest
             platform: linux/amd64
+            variant: sqlite
+            extra: ''
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
+            variant: sqlite
+            extra: ''
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            variant: postgresql
+            extra: postgresql
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            variant: postgresql
+            extra: postgresql
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
@@ -94,6 +106,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: false
           provenance: false
+          build-args: |
+            OPENFIC_EXTRA=${{ matrix.extra }}
 
   desktop:
     name: Desktop (${{ matrix.os }} ${{ matrix.arch }})

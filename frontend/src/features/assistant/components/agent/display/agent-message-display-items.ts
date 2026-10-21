@@ -235,7 +235,10 @@ export function formatExplorationSummary(summary: ExplorationSummary | undefined
   return parts.join(" ");
 }
 
-export function buildAgentDisplayItems(messages: AgentBlockDisplayMessage[]): AgentDisplayItem[] {
+export function buildAgentDisplayItems(
+  messages: AgentBlockDisplayMessage[],
+  previousItems: AgentDisplayItem[] = [],
+): AgentDisplayItem[] {
   const items: AgentDisplayItem[] = [];
   const requests = splitAgentRequests(messages);
   requests.forEach((request) => {
@@ -245,5 +248,19 @@ export function buildAgentDisplayItems(messages: AgentBlockDisplayMessage[]): Ag
     }
     pushRequestItems(request.messages, items);
   });
+  const previousIds = new Map(
+    previousItems
+      .filter((item) => item.type === "exploration")
+      .flatMap((item) => item.messages.map((message) => [message.id, item.id] as const)),
+  );
+  const usedIds = new Set<string>();
+  for (const item of items) {
+    if (item.type !== "exploration") continue;
+    const previousId = item.messages
+      .map((message) => previousIds.get(message.id))
+      .find((id) => id !== undefined && !usedIds.has(id));
+    if (previousId) item.id = previousId;
+    usedIds.add(item.id);
+  }
   return items;
 }

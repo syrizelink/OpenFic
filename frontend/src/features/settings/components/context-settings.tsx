@@ -229,7 +229,7 @@ export function ContextSettings() {
         max={ratio ? 100 : undefined}
         step={1}
         unit={ratio ? "%" : "tokens"}
-        width={160}
+        width={148}
         increaseAriaLabel={t("settings.increaseValue")}
         decreaseAriaLabel={t("settings.decreaseValue")}
         onChange={(value) => setValues((current) => ({ ...current, [key]: value }))}
@@ -250,6 +250,7 @@ export function ContextSettings() {
         gap="5"
       >
         <Flex
+          className="context-settings__row"
           align="end"
           justify="between"
           gap="4"
@@ -333,6 +334,7 @@ export function ContextSettings() {
             </Text>
           </Flex>
           <Flex
+            className="context-settings__model-controls"
             align="end"
             gap="3"
             wrap="wrap"
@@ -344,7 +346,7 @@ export function ContextSettings() {
               isLoading={isModelsLoading}
               editable={false}
               allowCustomValue={false}
-              triggerStyle={{ width: 160 }}
+              triggerStyle={{ width: 148 }}
               triggerClassName="select-trigger--background"
               contentClassName="settings-background-panel"
             />

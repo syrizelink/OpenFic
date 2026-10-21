@@ -18,10 +18,11 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Spinner } from "@/components";
 import {
   type AgentChangeItem,
   type AgentChangeLine,
@@ -55,6 +56,10 @@ interface AgentChangeItemDiffProps {
 
 interface AgentSessionChangesDialogProps {
   changes: AgentSessionChanges | null;
+  details: AgentSessionChanges | null;
+  detailsRevisionId: string | null;
+  onLoadDetails?: (revisionId?: string) => Promise<AgentSessionChanges | null>;
+  revisionId?: string | null;
   summaryOverride?: AgentChangeSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -80,6 +85,38 @@ function getLinePrefix(type: AgentChangeLine["type"]): string {
 
 function getItemKey(item: AgentChangeItem): string {
   return `${item.key}:${item.source}:${item.childRunId ?? "primary"}:${item.requestId ?? "current"}`;
+}
+
+function isSameChangeItem(left: AgentChangeItem, right: AgentChangeItem): boolean {
+  if (left.key !== right.key) return false;
+  if (left.childRunId && left.childRunId !== right.childRunId) return false;
+  if (left.requestId && left.requestId !== right.requestId) return false;
+  if (left.revisionId && left.revisionId !== right.revisionId) return false;
+  return true;
+}
+
+function resolveDetailedSummary(
+  summary: AgentChangeSummary,
+  details: AgentSessionChanges | null,
+): AgentChangeSummary {
+  if (!details || summary.items.length === 0) return summary;
+  const detailedSummaries = details.turns.flatMap((turn) => [
+    turn.changes,
+    ...turn.subagentRuns.map((run) => run.changes),
+  ]);
+  const items = summary.items.flatMap((item) => {
+    const detailedItem = detailedSummaries
+      .flatMap((candidate) => candidate.items)
+      .find((candidate) => isSameChangeItem(item, candidate));
+    return detailedItem ? [detailedItem] : [];
+  });
+  if (items.length === 0) return summary;
+  return {
+    itemCount: items.length,
+    added: items.reduce((total, item) => total + item.added, 0),
+    removed: items.reduce((total, item) => total + item.removed, 0),
+    items,
+  };
 }
 
 function ChangeKindIcon({ item, size = 15 }: { item: AgentChangeItem; size?: number }) {
@@ -582,16 +619,52 @@ export function AgentChangeSummaryCard({ summary, onOpenChanges }: AgentChangeSu
 
 export function AgentSessionChangesDialog({
   changes,
+  details,
+  detailsRevisionId,
+  onLoadDetails,
+  revisionId,
   summaryOverride,
   open,
   onOpenChange,
 }: AgentSessionChangesDialogProps) {
   const { t } = useTranslation();
+  const detailsRequestStartedRef = useRef<string | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const summary = summaryOverride ?? changes?.sessionChanges ?? EMPTY_CHANGE_SUMMARY;
+  const hasMatchingDetails =
+    details !== null && (detailsRevisionId ?? null) === (revisionId ?? null);
+  const loadedSummary = summaryOverride
+    ? resolveDetailedSummary(summary, hasMatchingDetails ? details : null)
+    : ((hasMatchingDetails ? details?.sessionChanges : null) ?? summary);
   const [collapsedItemKeys, setCollapsedItemKeys] = useState<Set<string>>(() => new Set());
   const [isSplitView, setIsSplitView] = useState(false);
   const [isWrapEnabled, setIsWrapEnabled] = useState(false);
-  const areItemsExpanded = summary.items.every((item) => !collapsedItemKeys.has(getItemKey(item)));
+  useEffect(() => {
+    if (!open) {
+      detailsRequestStartedRef.current = null;
+      setIsLoadingDetails(false);
+      return;
+    }
+    if (hasMatchingDetails || !onLoadDetails) {
+      setIsLoadingDetails(false);
+      return;
+    }
+    const requestKey = revisionId ?? "all";
+    if (detailsRequestStartedRef.current === requestKey) return;
+    detailsRequestStartedRef.current = requestKey;
+    setIsLoadingDetails(true);
+    let isActive = true;
+    void onLoadDetails(revisionId ?? undefined).finally(() => {
+      if (isActive) setIsLoadingDetails(false);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, [hasMatchingDetails, onLoadDetails, open, revisionId]);
+
+  const areItemsExpanded = loadedSummary.items.every(
+    (item) => !collapsedItemKeys.has(getItemKey(item)),
+  );
   const expandActionLabel = areItemsExpanded
     ? t("assistant.sessionChanges.collapseAll")
     : t("assistant.sessionChanges.expandAll");
@@ -603,7 +676,7 @@ export function AgentSessionChangesDialog({
     : t("assistant.sessionChanges.enableWrap");
   const handleToggleAll = () => {
     setCollapsedItemKeys(
-      areItemsExpanded ? new Set(summary.items.map((item) => getItemKey(item))) : new Set(),
+      areItemsExpanded ? new Set(loadedSummary.items.map((item) => getItemKey(item))) : new Set(),
     );
   };
 
@@ -654,8 +727,8 @@ export function AgentSessionChangesDialog({
                 {t("assistant.sessionChanges.overviewTitle")}
               </Text>
               <ChangeStats
-                added={summary.added}
-                removed={summary.removed}
+                added={loadedSummary.added}
+                removed={loadedSummary.removed}
               />
             </Flex>
             <Flex
@@ -701,10 +774,30 @@ export function AgentSessionChangesDialog({
               </Tooltip>
             </Flex>
           </Flex>
-          <Box className="agent-session-changes-content">
-            {summary.items.length > 0 ? (
+          <Box
+            className="agent-session-changes-content"
+            aria-busy={isLoadingDetails}
+          >
+            {isLoadingDetails ? (
+              <Flex
+                align="center"
+                justify="center"
+                direction="column"
+                gap="2"
+                className="agent-session-changes-loading"
+                role="status"
+              >
+                <Spinner size={18} />
+                <Text
+                  size="2"
+                  color="gray"
+                >
+                  {t("common.loading")}
+                </Text>
+              </Flex>
+            ) : loadedSummary.items.length > 0 ? (
               <Box className="agent-session-changes-list">
-                {summary.items.map((item) => (
+                {loadedSummary.items.map((item) => (
                   <AgentChangeItemDiff
                     key={getItemKey(item)}
                     item={item}

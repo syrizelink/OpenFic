@@ -17,6 +17,7 @@ from app.api.schemas.model import (
     TaskType,
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
+from app.api.validation_errors import format_validation_error
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.models.services import ModelService
@@ -118,9 +119,11 @@ async def validate_model_connection(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
-    except Exception:
+    except Exception as exc:
         logger.opt(exception=True).warning("验证模型连接失败: model_id={}", model_id)
-        return ModelValidationResponse(success=False, message="模型连接验证失败")
+        return ModelValidationResponse(
+            success=False, message=f"模型连接验证失败: {format_validation_error(exc)}"
+        )
 
     return ModelValidationResponse(success=True, message="模型连接验证成功")
 

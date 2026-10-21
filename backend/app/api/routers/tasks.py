@@ -12,7 +12,7 @@ from sqlmodel import col
 from app.agent_runtime.modes import AgentMode
 from app.agent_runtime.attachments import delete_attachments_for_task
 from app.agent_runtime.persistence.child_runs import list_child_runs_for_parent
-from app.agent_runtime.persistence.task_projection import load_task_messages_for_agent_session
+from app.agent_runtime.persistence.task_projection import load_task_message_page_for_agent_session
 from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread, get_checkpointer
 
 from app.api.schemas.task import (
@@ -85,24 +85,24 @@ async def _delete_checkpoint_threads(
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: str,
+    cursor: int | None = Query(default=None, ge=0),
+    page_size: int = Query(default=100, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> TaskResponse:
     try:
         task = await task_service.get_task(session, task_id)
-        if task.agent_session_id:
-            task_messages = await load_task_messages_for_agent_session(
-                session,
-                task.agent_session_id,
-            )
-        else:
-            task_messages = []
+        page = await load_task_message_page_for_agent_session(
+            session, task.agent_session_id, cursor=cursor, page_size=page_size,
+        )
 
         return TaskResponse(
             id=task.id,
             project_id=task.project_id,
             title=task.title,
             mode=_require_agent_mode(task.mode),
-            messages=task_messages,
+            messages=page.messages,
+            messages_cursor=page.cursor,
+            messages_has_more=page.has_more,
             token_input=task.token_input,
             token_output=task.token_output,
             token_cache=task.token_cache,
@@ -207,20 +207,16 @@ async def update_task(
             is_favorited=request.is_favorited,
         )
         await session.commit()
-        if task.agent_session_id:
-            task_messages = await load_task_messages_for_agent_session(
-                session,
-                task.agent_session_id,
-            )
-        else:
-            task_messages = []
+        page = await load_task_message_page_for_agent_session(session, task.agent_session_id)
 
         return TaskResponse(
             id=task.id,
             project_id=task.project_id,
             title=task.title,
             mode=_require_agent_mode(task.mode),
-            messages=task_messages,
+            messages=page.messages,
+            messages_cursor=page.cursor,
+            messages_has_more=page.has_more,
             token_input=task.token_input,
             token_output=task.token_output,
             token_cache=task.token_cache,

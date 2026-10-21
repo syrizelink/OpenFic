@@ -5,6 +5,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.agent_runtime.persistence.model import AgentAttachment
+from app.storage.models.project import Project
+from app.storage.models.task import Task
 
 
 def _state() -> dict[str, str]:
@@ -15,10 +17,27 @@ def _state() -> dict[str, str]:
     }
 
 
+async def _seed_task(session) -> None:
+    session.add_all(
+        [
+            Project(id="project-1", title="测试项目"),
+            Task(
+                id="task_test",
+                project_id="project-1",
+                title="测试任务",
+                mode="agent",
+                agent_session_id="parent-session",
+            ),
+        ]
+    )
+    await session.flush()
+
+
 @pytest.mark.asyncio
 async def test_list_file_returns_basic_metadata_without_content(session) -> None:
     from app.agent_runtime.tools.impls.file.list_file import ListFileTool
 
+    await _seed_task(session)
     session.add(
         AgentAttachment(
             id="file-1",
@@ -60,6 +79,7 @@ async def test_list_file_returns_basic_metadata_without_content(session) -> None
 async def test_read_file_returns_requested_content_range(session) -> None:
     from app.agent_runtime.tools.impls.file.read_file import ReadFileTool
 
+    await _seed_task(session)
     session.add(
         AgentAttachment(
             id="file-1",

@@ -23,8 +23,16 @@ def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
         if not _is_history(m):
             keep.append(True)
             continue
-        if (not m.content or not m.content.strip()) and not m.attachments and not (
-            m.role == "assistant" and m.tool_calls
+        persisted_attachments = (
+            (m.additional_kwargs or {}).get("openfic_attachments")
+            if m.role == "user"
+            else None
+        )
+        if (
+            (not m.content or not m.content.strip())
+            and not m.attachments
+            and not (isinstance(persisted_attachments, list) and persisted_attachments)
+            and not (m.role == "assistant" and m.tool_calls)
         ):
             keep.append(False)
             continue

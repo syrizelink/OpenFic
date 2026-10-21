@@ -85,21 +85,64 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-      - name: Install dependencies
+      - name: Install dependencies (including PostgreSQL extra)
         working-directory: backend
-        run: uv sync --frozen
+        run: uv sync --frozen --extra postgresql
       - name: Run lint
         working-directory: backend
-        run: uv run ruff check .
+        run: uv run --no-sync ruff check .
       - name: Run type check
         working-directory: backend
-        run: uv run ty check app
+        run: uv run --no-sync ty check app
       - name: Run tests
         working-directory: backend
-        run: uv run pytest
+        run: uv run --no-sync pytest
       - name: Build package
         working-directory: backend
         run: uv build
+
+  backend-postgresql:
+    name: Backend (PostgreSQL)
+    needs: changes
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--') && needs.changes.outputs.backend == 'true'"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: openfic
+          POSTGRES_PASSWORD: openfic
+          POSTGRES_DB: openfic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openfic -d openfic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      OPENFIC_DATABASE_BACKEND: postgresql
+      OPENFIC_DATABASE_URL: postgresql+psycopg://openfic:openfic@127.0.0.1:5432/openfic
+      OPENFIC_CHECKPOINT_DATABASE_URL: postgresql://openfic:openfic@127.0.0.1:5432/openfic
+      OPENFIC_TEST_DATABASE_URL: postgresql+psycopg://openfic:openfic@127.0.0.1:5432/openfic
+      OPENFIC_TEST_CHECKPOINT_DATABASE_URL: postgresql://openfic:openfic@127.0.0.1:5432/openfic
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install PostgreSQL dependencies
+        working-directory: backend
+        run: uv sync --frozen --extra postgresql
+      - name: Run PostgreSQL backend tests
+        env:
+          OPENFIC_DATA_DIR: ${{ runner.temp }}/openfic-data
+        working-directory: backend
+        run: uv run --extra postgresql pytest
 
   frontend:
     name: Frontend
@@ -168,17 +211,18 @@ jobs:
   summary:
     name: Summary
     if: "always() && !startsWith(github.event.pull_request.head.ref, 'release-please--')"
-    needs: [changes, backend, frontend, desktop]
+    needs: [changes, backend, backend-postgresql, frontend, desktop]
     runs-on: ubuntu-latest
     steps:
       - name: Verify checks
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
+          BACKEND_POSTGRESQL_RESULT: ${{ needs.backend-postgresql.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DESKTOP_RESULT: ${{ needs.desktop.result }}
         run: |
-          for result in "$CHANGES_RESULT" "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DESKTOP_RESULT"; do
+          for result in "$CHANGES_RESULT" "$BACKEND_RESULT" "$BACKEND_POSTGRESQL_RESULT" "$FRONTEND_RESULT" "$DESKTOP_RESULT"; do
             if [ "$result" = 'failure' ] || [ "$result" = 'cancelled' ]; then
               exit 1
             fi

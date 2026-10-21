@@ -72,6 +72,7 @@ class TestProviderRegistry:
         assert set(list_provider_names()) == {
             "brave",
             "ddgs",
+            "deepseek",
             "exa",
             "jina",
             "perplexity",

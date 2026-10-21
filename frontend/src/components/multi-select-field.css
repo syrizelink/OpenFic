@@ -145,3 +145,22 @@
   padding: 10px;
   font-size: var(--font-size-md);
 }
+
+.mobile-select-sheet-content .multi-select-field__options {
+  max-height: min(64dvh, 520px);
+}
+
+.mobile-select-sheet-content .multi-select-field__options-inner {
+  padding: 0;
+}
+
+.mobile-select-sheet-content .multi-select-field__option {
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-a3);
+  border-radius: 0;
+}
+
+.mobile-select-sheet-content .multi-select-field__option:last-child {
+  border-bottom: 0;
+}
