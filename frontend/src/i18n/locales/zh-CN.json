@@ -2565,7 +2565,7 @@
   },
   "speech": {
     "title": "语音转写",
-    "description": "选择本地模型或云端服务，转写后可编辑文字并确认插入。",
+    "description": "选择本地模型或云端服务，在 Agent 输入框录音转写。",
     "enable": "启用语音识别",
     "provider": "ASR 提供商",
     "language": "识别语言",
@@ -2601,7 +2601,7 @@
     "failed": "语音识别失败，请检查音频格式和提供商配置",
     "noSpeech": "未识别到语音，请重新录音或选择其他音频。",
     "microphoneFailed": "无法使用麦克风，请检查权限和设备。",
-    "unsupported": "浏览器不支持录音，请使用 HTTPS 或 localhost 并检查权限，也可以上传音频。",
+    "unsupported": "浏览器不支持录音，请使用 HTTPS 或 localhost 并检查权限。",
     "audioTooLong": "音频时长不得超过 5 分钟。",
     "audioTooLarge": "音频文件不得超过 30 MB。",
     "loadFailed": "无法加载语音设置，请重试。",

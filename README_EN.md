@@ -52,7 +52,7 @@ Thanks to [Infistar.cc](https://www.infistar.cc/register?aff=WRDQ4VSF&ref_source
 - 🚀 **Ready out of the box**: install with Docker or pip, or use the desktop app directly, with minimal setup
 - ✒️ **Built for writing**: an editor designed around fiction writing, with a comfortable long-form writing experience
 - 🤝 **Broad model support**: works with many providers, including any model compatible with the OpenAI API
-- 🎙️ **Speech to text**: record or upload audio with local SenseVoice Small or cloud ASR providers, in the Agent input, then insert the transcript or send it directly. [Setup guide](docs/speech-recognition.md)
+- 🎙️ **Speech to text**: record audio with local SenseVoice Small or cloud ASR providers, in the Agent input, then insert the transcript or send it directly. [Setup guide](docs/speech-recognition.md)
 - 📱 **Responsive UI**: designed for desktop, mobile, and browser use without breaking the workflow
 - 🧩 **Custom workflows**: a highly configurable Agent system that lets you adapt prompts and workflows to your needs
 - 🤖 **Human-AI co-writing**: Agents help with brainstorming, plotting, and editing, instead of replacing the writing process with one-click generation

@@ -22,7 +22,13 @@ export default defineConfig({
     screenshot: "only-on-failure",
     launchOptions: {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+      args: [
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+        ...(process.env.OPENFIC_ASR_SAMPLE
+          ? [`--use-file-for-fake-audio-capture=${process.env.OPENFIC_ASR_SAMPLE}`]
+          : []),
+      ],
     },
   },
   webServer: [

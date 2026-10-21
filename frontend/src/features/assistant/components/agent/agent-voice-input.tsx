@@ -98,6 +98,18 @@ export function AgentVoiceInput({
       }}
     >
       <div className="agent-voice-row">
+        <IconButton
+          type="button"
+          className="agent-voice-button agent-voice-cancel"
+          variant="ghost"
+          color="gray"
+          size="1"
+          aria-label={t("common.cancel")}
+          title={t("common.cancel")}
+          onClick={voice.cancel}
+        >
+          <X size={14} />
+        </IconButton>
         <div className="agent-voice-content">
           {voice.state === "recording" ? (
             <VoiceWaveform analyser={voice.analyser} />
@@ -106,11 +118,11 @@ export function AgentVoiceInput({
               className="agent-voice-status"
               role="status"
             >
-              {voice.state !== "error" ? <Spinner size={18} /> : null}
+              {voice.state !== "error" ? <Spinner size={12} /> : null}
               {t(
                 voice.state === "error"
                   ? voice.retryable
-                    ? "speech.retryHint"
+                    ? "speech.retry"
                     : "speech.title"
                   : `speech.${voice.state}`,
               )}
@@ -119,38 +131,32 @@ export function AgentVoiceInput({
         </div>
         <IconButton
           type="button"
-          className="agent-voice-stop"
-          variant="soft"
+          className="agent-voice-button agent-voice-stop"
+          variant="ghost"
           color="gray"
-          radius="full"
-          size="3"
-          aria-label={t(actionable ? "speech.stop" : "common.cancel")}
-          title={t(actionable ? "speech.stop" : "common.cancel")}
-          onClick={() => (actionable ? voice.finish("stop") : voice.cancel())}
+          size="1"
+          disabled={!actionable}
+          aria-label={t("speech.stop")}
+          title={t("speech.stop")}
+          onClick={() => voice.finish("stop")}
         >
-          {actionable ? (
-            <Square
-              size={15}
-              fill="currentColor"
-            />
-          ) : (
-            <X size={18} />
-          )}
+          <Square
+            size={12}
+            fill="currentColor"
+          />
         </IconButton>
         <IconButton
           type="button"
-          className="agent-voice-send"
+          className="agent-voice-button agent-voice-send ai-sidebar-send-button"
           variant="solid"
           color="gray"
-          highContrast
-          radius="full"
-          size="3"
+          size="1"
           disabled={!actionable || !canSend}
           aria-label={t("speech.send")}
           title={t("speech.send")}
           onClick={() => voice.finish("send")}
         >
-          <ArrowUp size={22} />
+          <ArrowUp size={14} />
         </IconButton>
       </div>
       {voice.error ? (

@@ -2565,7 +2565,7 @@
   },
   "speech": {
     "title": "Speech to text",
-    "description": "Choose a local model or cloud service. Review and edit the transcript before inserting it.",
+    "description": "Choose a local model or cloud provider to transcribe recordings in the Agent input.",
     "enable": "Enable speech recognition",
     "provider": "ASR provider",
     "language": "Recognition language",
@@ -2601,7 +2601,7 @@
     "failed": "Speech recognition failed. Check audio format and provider settings",
     "noSpeech": "No speech detected. Record again or choose another audio file.",
     "microphoneFailed": "Cannot access the microphone. Check permissions and the device.",
-    "unsupported": "Recording is unavailable. Use HTTPS or localhost and check permissions, or upload audio.",
+    "unsupported": "Recording is unavailable. Use HTTPS or localhost and check microphone permissions.",
     "audioTooLong": "Audio must be no longer than 5 minutes.",
     "audioTooLarge": "Audio files must be no larger than 30 MB.",
     "loadFailed": "Could not load speech settings. Please retry.",
