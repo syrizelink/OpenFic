@@ -31,6 +31,7 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
     assert data["has_api_keys"] == {
         "brave": False,
         "ddgs": False,
+        "deepseek": False,
         "exa": False,
         "jina": False,
         "perplexity": False,
@@ -57,6 +58,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
     assert names == [
         "brave",
         "ddgs",
+        "deepseek",
         "exa",
         "jina",
         "perplexity",
