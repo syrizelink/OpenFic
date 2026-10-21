@@ -348,6 +348,35 @@ def test_create_chat_model_does_not_route_opencode_go_gemini_to_native_client() 
     assert not isinstance(model, ChatGoogleGenerativeAI)
 
 
+@pytest.mark.parametrize(
+    ("provider_type", "base_url", "expected_base_url"),
+    [
+        ("opencode", "https://opencode.ai/zen/v1", "https://opencode.ai/zen"),
+        ("opencode-go", "https://opencode.ai/zen/go/v1/", "https://opencode.ai/zen/go"),
+    ],
+)
+def test_create_chat_model_routes_opencode_claude_models_to_anthropic_messages(
+    provider_type: str,
+    base_url: str,
+    expected_base_url: str,
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url=base_url,
+            api_key="test-key",
+            model_id="claude-haiku-5-5",
+            session_id="agent-session-1",
+        )
+    )
+
+    from langchain_anthropic import ChatAnthropic
+
+    assert isinstance(model, ChatAnthropic)
+    assert model.anthropic_api_url == expected_base_url
+    assert model.default_headers["x-opencode-session"] == "agent-session-1"
+
+
 def test_create_chat_model_does_not_reroute_user_selected_provider_type() -> None:
     model = create_chat_model(
         ModelConfig(
