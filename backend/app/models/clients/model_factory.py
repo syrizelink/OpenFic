@@ -132,6 +132,38 @@ def _is_opencode_provider(config: ModelConfig) -> bool:
     return (urlparse(config.base_url).hostname or "").lower() == "opencode.ai"
 
 
+# OpenCode Zen / Go serve different models over different wire protocols, so the
+# protocol has to be chosen per model instead of once per provider.
+_OPENCODE_PROVIDER_TYPES = frozenset({"opencode", "opencode-go"})
+_OPENCODE_ANTHROPIC_MODEL_PREFIXES = ("claude-",)
+_OPENCODE_RESPONSES_MODEL_PREFIXES = ("gpt-", "grok-", "muse-spark-")
+_OPENCODE_GEMINI_MODEL_PREFIXES = ("gemini-",)
+
+
+def _is_opencode_model(
+    config: ModelConfig,
+    prefixes: tuple[str, ...],
+    *,
+    provider_types: frozenset[str] = _OPENCODE_PROVIDER_TYPES,
+) -> bool:
+    return (
+        config.provider_type.lower() in provider_types
+        and config.model_id.lower().startswith(prefixes)
+    )
+
+
+def _is_opencode_gemini_model(config: ModelConfig) -> bool:
+    # Gemini is only served natively on Zen (/zen/v1/models/<id>), not on Go.
+    return _is_opencode_model(
+        config, _OPENCODE_GEMINI_MODEL_PREFIXES, provider_types=frozenset({"opencode"})
+    )
+
+
+def _opencode_root_url(base_url: str) -> str:
+    # The Anthropic and Google clients append /v1 themselves.
+    return base_url.rstrip("/").removesuffix("/v1")
+
+
 def _model_request_headers(config: ModelConfig) -> dict[str, str]:
     headers = dict(config.custom_headers or {})
     if config.provider_type == "requesty":
@@ -191,17 +223,24 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     provider = config.provider_type
     reasoning_effort = _enabled_reasoning_effort(config)
 
+    is_opencode_anthropic = _is_opencode_model(
+        config, _OPENCODE_ANTHROPIC_MODEL_PREFIXES
+    )
     if (
         provider == "anthropic"
         or provider == "anthropic-compatible"
         or provider in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+        or is_opencode_anthropic
     ):
         from langchain_anthropic import ChatAnthropic
 
+        anthropic_base_url = config.base_url
+        if is_opencode_anthropic:
+            anthropic_base_url = _opencode_root_url(anthropic_base_url)
         return ChatAnthropic(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=anthropic_base_url or None,
             default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
@@ -230,7 +269,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             google_kwargs["client_options"] = {"api_endpoint": config.base_url}
         return ChatGoogleGenerativeAI(**google_kwargs)
 
-    if provider == "gemini-compatible":
+    is_opencode_gemini = _is_opencode_gemini_model(config)
+    if provider == "gemini-compatible" or is_opencode_gemini:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         gemini_kwargs = _compact_kwargs(
@@ -243,11 +283,15 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             thinking_level=_three_level_reasoning_effort(reasoning_effort),
             additional_headers=_model_request_headers(config),
             max_retries=0,
-            api_version="v1beta",
+            api_version="v1" if is_opencode_gemini else "v1beta",
         )
         if config.base_url:
             gemini_kwargs["client_options"] = {
-                "api_endpoint": _gemini_compatible_base_url(config.base_url)
+                "api_endpoint": (
+                    _opencode_root_url(config.base_url)
+                    if is_opencode_gemini
+                    else _gemini_compatible_base_url(config.base_url)
+                )
             }
         return ChatGoogleGenerativeAI(**gemini_kwargs)
 
@@ -396,7 +440,9 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         _update_http_client_headers(model.async_client, headers)
         return model
 
-    if provider == "openai-compatible-responses":
+    if provider == "openai-compatible-responses" or _is_opencode_model(
+        config, _OPENCODE_RESPONSES_MODEL_PREFIXES
+    ):
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
