@@ -1,5 +1,6 @@
 /* OpenFic SDK 2.0: framework-independent, isolated iframe transport. */
 (() => {
+  if (globalThis.OpenFic) return; // Legacy pages may also load the host SDK explicitly.
   let channel, context, nextId = 0, resolveReady;
   let debugListenersAdded = false;
   const reportError = (error, details = {}) => {

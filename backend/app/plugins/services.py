@@ -20,7 +20,7 @@ def bounded_json(value, maximum=4 * 1024 * 1024):
 
 
 class PluginAssets:
-    """Read immutable frontend resources from this plugin's own package."""
+    """Read immutable, explicitly public resources from this plugin's package."""
 
     def __init__(self, host, plugin):
         self.host, self.plugin = host, plugin
@@ -31,12 +31,9 @@ class PluginAssets:
 
         if "ui" not in self.plugin.manifest.capabilities:
             raise PermissionError("Plugin has not declared ui")
-        base = (self.host.root / self.plugin.manifest.id / "frontend").resolve()
-        path = (base / safe_path(name)).resolve()
-        if not path.is_relative_to(base) or not path.is_file():
-            raise ValueError(
-                "Asset must be a file inside this plugin's frontend directory"
-            )
+        path = self.plugin.manifest.resource_path(
+            self.host.root / self.plugin.manifest.id, name
+        )
         if path.stat().st_size > 3 * 1024 * 1024 - 4096:
             raise ValueError("Asset exceeds bridge transfer limit")
         return {

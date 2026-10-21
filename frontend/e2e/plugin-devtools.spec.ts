@@ -125,18 +125,20 @@ test("devtools: source watch preserves state/version, rejects bad props, rolls b
   await page.request.post(`${api}/plugins/devtools-demo/rpc`, {
     data: { method: "sdk.storage.delete", params: { key: "iframe-count" } },
   });
-  const backendFile = path.join(source!, "backend/main.py");
-  const htmlFile = path.join(source!, "frontend/index.html");
+  const entryFile = path.join(source!, "main.py");
+  const viewFile = path.join(source!, "views.py");
+  const htmlFile = path.join(source!, "panel/index.html");
   if (path.resolve(source!).endsWith("/examples/plugins/devtools-demo"))
     throw new Error("Use a disposable copy, not the tracked example source");
-  const original = readFileSync(backendFile, "utf8");
+  const entry = readFileSync(entryFile, "utf8");
+  const original = readFileSync(viewFile, "utf8");
   const html = readFileSync(htmlFile, "utf8");
   try {
     await page.goto("/extensions/devtools?pluginId=devtools-demo");
     const preview = page.frameLocator('iframe[title="插件独立视口预览"]');
     await expect(preview.locator("#demo-count")).toHaveText("计数：1");
     const revision = (await state(page)).revision;
-    writeFileSync(backendFile, original.replace("原生 SDK 开发示例", "热重载后的原生组件"));
+    writeFileSync(viewFile, original.replace("原生 SDK 开发示例", "热重载后的原生组件"));
     await expect
       .poll(async () => (await state(page)).revision, { timeout: 20000 })
       .toBeGreaterThan(revision);
@@ -145,12 +147,13 @@ test("devtools: source watch preserves state/version, rejects bad props, rolls b
     const version = (await (await page.request.get(`${api}/plugins`)).json()).plugins.find(
       (item: { id: string }) => item.id === "devtools-demo",
     ).version;
-    expect(version).toBe("1.0.0");
-    writeFileSync(backendFile, original.replace('size="4"', 'size="99"'));
+    expect(version).toBe("1.1.0");
+    writeFileSync(viewFile, original.replace('size="4"', 'size="99"'));
     await expect.poll(async () => (await state(page)).status, { timeout: 20000 }).toBe("error");
     await expect(page.locator('[data-diagnostic-code="ui.value"]')).toBeVisible();
     await expect(preview.getByRole("heading", { name: "热重载后的原生组件" })).toBeVisible();
-    writeFileSync(backendFile, original + '\nraise RuntimeError("E2E activation failure")\n');
+    writeFileSync(viewFile, original);
+    writeFileSync(entryFile, entry + '\nraise RuntimeError("E2E activation failure")\n');
     await expect
       .poll(
         async () =>
@@ -161,7 +164,8 @@ test("devtools: source watch preserves state/version, rejects bad props, rolls b
       )
       .toBe(true);
     await expect(preview.getByRole("heading", { name: "热重载后的原生组件" })).toBeVisible();
-    writeFileSync(backendFile, original);
+    writeFileSync(entryFile, entry);
+    writeFileSync(viewFile, original);
     await expect.poll(async () => (await state(page)).status, { timeout: 20000 }).toBe("ready");
     await expect(preview.getByRole("heading", { name: "原生 SDK 开发示例" })).toBeVisible();
     await choice(page, "视图 / 插槽", "自带前端示例 · settings.plugins");
@@ -196,7 +200,8 @@ test("devtools: source watch preserves state/version, rejects bad props, rolls b
       animations: "disabled",
     });
   } finally {
-    writeFileSync(backendFile, original);
+    writeFileSync(entryFile, entry);
+    writeFileSync(viewFile, original);
     writeFileSync(htmlFile, html);
   }
 });

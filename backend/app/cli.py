@@ -458,7 +458,8 @@ def build_parser() -> argparse.ArgumentParser:
     development.add_argument("--port", type=int, default=8011)
     development.add_argument("--data-dir", help="独立开发数据目录，必须为空或已标记为此插件的开发目录")
     development.add_argument("--frontend-url", help="另行运行的前端地址；默认使用后端内嵌前端")
-    development.add_argument("--frontend-script", help="同时运行 frontend/package.json 中的构建监听脚本")
+    development.add_argument("--watch-script", "--frontend-script", dest="watch_script", help="同时运行插件 package.json 中的构建监听脚本")
+    development.add_argument("--script-dir", help="构建脚本目录，相对于插件根；默认优先使用根目录 package.json")
     development.set_defaults(handler=plugin_handler)
     return parser
 

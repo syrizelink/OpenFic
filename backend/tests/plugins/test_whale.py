@@ -55,7 +55,7 @@ async def test_overlay_permission_and_native_component_contract():
         "id": "iframe",
         "title": "Iframe",
         "slot": "app.overlay",
-        "entry": "frontend/index.html",
+        "entry": "panel/index.html",
     }
     with pytest.raises(ValidationError, match="declarative"):
         Manifest.model_validate(manifest)
@@ -70,19 +70,18 @@ async def test_assets_are_package_scoped_bounded_and_capability_checked(
     result = await ctx.assets.read("assets/whale.png")
     assert result["mime"] == "image/png"
     assert (
-        base64.b64decode(result["base64"])
-        == (SOURCE / "frontend/assets/whale.png").read_bytes()
+        base64.b64decode(result["base64"]) == (SOURCE / "assets/whale.png").read_bytes()
     )
-    for path in ["../backend/main.py", "/etc/passwd", "missing.png"]:
+    for path in ["../main.py", "/etc/passwd", "missing.png"]:
         with pytest.raises(ValueError):
             await ctx.assets.read(path)
-    frontend = host.root / "deepseek-whale/frontend"
-    (frontend / "linked.py").symlink_to(host.root / "deepseek-whale/backend/main.py")
+    assets = host.root / "deepseek-whale/assets"
+    (assets / "linked.py").symlink_to(host.root / "deepseek-whale/main.py")
     with pytest.raises(ValueError):
-        await ctx.assets.read("linked.py")
-    (frontend / "big.bin").write_bytes(b"x" * (3 * 1024 * 1024))
+        await ctx.assets.read("assets/linked.py")
+    (assets / "big.bin").write_bytes(b"x" * (3 * 1024 * 1024))
     with pytest.raises(ValueError, match="limit"):
-        await ctx.assets.read("big.bin")
+        await ctx.assets.read("assets/big.bin")
     ctx.plugin.manifest.capabilities.remove("ui")
     with pytest.raises(PermissionError):
         await ctx.assets.read("assets/whale.png")

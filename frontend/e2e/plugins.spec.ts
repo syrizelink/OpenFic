@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 const backend = process.env.OPENFIC_E2E_BACKEND ?? "http://127.0.0.1:8000";
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const packagePath = `${root}examples/plugins/dist/project-statistics-1.1.0.zip`;
+const packagePath = `${root}examples/plugins/dist/project-statistics-1.2.0.zip`;
 test.use({ video: "off" });
 
 test("install a unified package, render statistics, configure, disable and uninstall", async ({

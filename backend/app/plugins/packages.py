@@ -1,7 +1,6 @@
 """Deterministic development package snapshots, shared by checker and watcher."""
 
 import io
-import os
 import stat
 import zipfile
 from pathlib import Path
@@ -14,58 +13,12 @@ from app.plugins.manifest import (
     safe_path,
 )
 
-IGNORED = {
-    ".git",
-    ".venv",
-    "venv",
-    "node_modules",
-    "__pycache__",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".mypy_cache",
-    ".openfic-dev",
-}
-
-
-def source_files(root: Path):
-    def unreadable(error):
-        raise error
-
-    # Prune before traversing: node_modules and a live development database can
-    # contain thousands of files and must never participate in a polling scan.
-    for directory, folders, files in os.walk(root, onerror=unreadable):
-        folders[:] = sorted(name for name in folders if name not in IGNORED)
-        for name in [*folders, *sorted(files)]:
-            path = Path(directory) / name
-            if name in IGNORED or path.suffix in {".pyc", ".zip"}:
-                continue
-            if path.is_symlink():
-                raise ValueError(
-                    f"Symbolic links are not supported: {path.relative_to(root)}"
-                )
-            if path.is_file():
-                yield path
-
-
-def build_package(root: Path) -> bytes:
-    root = root.resolve()
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-        total = 0
-        for index, path in enumerate(source_files(root)):
-            if index >= 512:
-                raise ValueError("Package exceeds 512 files")
-            total += path.stat().st_size
-            if total > 40 * 1024 * 1024:
-                raise ValueError("Package exceeds 40 MiB unpacked")
-            entry = zipfile.ZipInfo(
-                path.relative_to(root).as_posix(), (2026, 1, 1, 0, 0, 0)
-            )
-            entry.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(entry, path.read_bytes())
-    if output.tell() > MAX_PACKAGE_BYTES:
-        raise ValueError("Package exceeds 20 MiB")
-    return output.getvalue()
+# Public aliases keep existing callers on the shared standard-library packager.
+from app.plugins.package_builder import (
+    IGNORED as IGNORED,
+    source_files as source_files,
+    build_package as build_package,
+)
 
 
 class PackageValidationError(ValueError):
@@ -110,10 +63,16 @@ def extract_package(content: bytes, target: Path) -> Manifest:
                 (target / "plugin.json").read_bytes()
             )
             entries = [view.entry for view in manifest.views if view.entry]
-            if manifest.backend:
-                entries.append(manifest.backend)
+            if manifest.entry:
+                entries.append(manifest.entry)
             if any(not (target / entry).is_file() for entry in entries):
                 raise PackageValidationError("Manifest references a missing entry file")
+            if not manifest._legacy_resources and any(
+                not (target / root).exists() for root in manifest.resources
+            ):
+                raise PackageValidationError(
+                    "Manifest references a missing public resource"
+                )
             return manifest
     except PackageValidationError:
         raise

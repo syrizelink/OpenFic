@@ -27,6 +27,8 @@ export interface PluginSetting {
   description?: string;
 }
 export interface InstalledPlugin {
+  entry?: string | null;
+  resources?: string[];
   id: string;
   name: string;
   version: string;

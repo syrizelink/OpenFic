@@ -28,7 +28,7 @@ async function install(page: Page) {
   await page.getByRole("checkbox").check();
   await page
     .locator('input[type="file"]')
-    .setInputFiles(root + "examples/plugins/dist/deepseek-whale-1.0.0.zip");
+    .setInputFiles(root + "examples/plugins/dist/deepseek-whale-1.1.0.zip");
   const card = page.locator('[data-plugin-id="deepseek-whale"]');
   await expect(card).toBeVisible();
   await checked(

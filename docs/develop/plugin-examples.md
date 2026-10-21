@@ -6,11 +6,13 @@
 
 | 安装包 | 作用 |
 | --- | --- |
-| `examples/plugins/dist/project-statistics-1.1.0.zip` | 项目统计卡片、写作目标、卷字数表格及响应式布局 |
-| `examples/plugins/dist/google-drive-sync-1.2.0.zip` | Google Drive 章节双向同步、冲突解决、编辑器入口、Agent 手动同步工具 |
-| `examples/plugins/dist/handoff-workflow-1.1.0.zip` | 规划/写作/审稿交接、自定义项目 Graph、结果保存为笔记 |
-| `examples/plugins/dist/prompt-elements-1.2.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
-| `examples/plugins/dist/deepseek-whale-1.0.0.zip` | 原生悬浮挂件、DeepSeek 余额观测、分币种账本与 Agent 用量气泡；[移植范围及安装](../../examples/plugins/deepseek-whale/README.md) |
+| `examples/plugins/dist/project-statistics-1.2.0.zip` | 项目统计卡片、写作目标、卷字数表格及响应式布局 |
+| `examples/plugins/dist/google-drive-sync-1.3.0.zip` | Google Drive 章节双向同步、冲突解决、编辑器入口、Agent 手动同步工具 |
+| `examples/plugins/dist/handoff-workflow-1.2.0.zip` | 规划/写作/审稿交接、自定义项目 Graph、结果保存为笔记 |
+| `examples/plugins/dist/prompt-elements-1.3.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
+| `examples/plugins/dist/deepseek-whale-1.1.0.zip` | 原生悬浮挂件、DeepSeek 余额观测、分币种账本与 Agent 用量气泡；[移植范围及安装](../../examples/plugins/deepseek-whale/README.md) |
+| `examples/plugins/dist/declarative-showcase-1.1.0.zip` | 原生组件目录、项目组件、事件、CSS 和移动端选择器 |
+| `examples/plugins/dist/devtools-demo-1.1.0.zip` | 多文件相对导入、原生/iframe 混合 UI、检查与热重载示例；[开发说明](../../examples/plugins/devtools-demo/README.md) |
 
 这些插件只使用公共 SDK、Python 标准库及后端已有的 LangGraph/LangChain/regex 依赖；没有直接操作应用 ORM 或导入内部业务模块。
 
@@ -58,9 +60,9 @@
 ## 打包与本地验证
 
 ```bash
-python examples/plugins/build_package.py examples/plugins/google-drive-sync examples/plugins/dist/google-drive-sync-1.2.0.zip
-python examples/plugins/build_package.py examples/plugins/handoff-workflow examples/plugins/dist/handoff-workflow-1.1.0.zip
-python examples/plugins/build_package.py examples/plugins/prompt-elements examples/plugins/dist/prompt-elements-1.2.0.zip
+python examples/plugins/build_package.py examples/plugins/google-drive-sync examples/plugins/dist/google-drive-sync-1.3.0.zip
+python examples/plugins/build_package.py examples/plugins/handoff-workflow examples/plugins/dist/handoff-workflow-1.2.0.zip
+python examples/plugins/build_package.py examples/plugins/prompt-elements examples/plugins/dist/prompt-elements-1.3.0.zip
 ```
 
 ```bash

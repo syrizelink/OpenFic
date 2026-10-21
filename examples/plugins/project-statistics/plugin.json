@@ -1,11 +1,12 @@
 {
   "id": "project-statistics",
   "name": "项目统计",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "api_version": 1,
   "description": "统计项目字数、章节、卷、角色、世界书和笔记，并展示各卷字数分布。",
   "author": "OpenFic",
-  "backend": "backend/main.py",
+  "entry": "main.py",
+  "resources": [],
   "capabilities": [
     "projects.read",
     "project.entities.read",

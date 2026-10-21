@@ -433,6 +433,19 @@ async def ticket_asset(ticket: str, plugin_id: str, filename: str, manager: Host
     if manager.ticket_plugin(ticket) != plugin_id:
         raise PluginError("View ticket is scoped to another plugin", 404)
     path = manager.asset(plugin_id, filename)
+    plugin = manager.get(plugin_id)
+    if any(
+        view.entry and plugin.manifest.resource_url_name(view.entry) == filename
+        for view in plugin.manifest.views
+    ):
+        from app.plugins.html import inject_sdk
+
+        return HTMLResponse(
+            inject_sdk(
+                path.read_text(encoding="utf-8-sig"), f"/plugin-assets/{ticket}/sdk.js"
+            ),
+            headers=ASSET_HEADERS,
+        )
     return FileResponse(
         path,
         media_type=mimetypes.guess_type(path.name)[0] or "application/octet-stream",

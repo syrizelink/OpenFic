@@ -4,6 +4,8 @@ import type {
   UIDocument,
   UIEventRequest,
   PluginView,
+  PluginManifest,
+  PluginDevelopmentConfig,
   UINode,
   UIPropsFor,
 } from "../../../packages/plugin-sdk";
@@ -67,3 +69,18 @@ const imageProps: UIPropsFor<"Project.Image"> = {
   fit: "cover",
 };
 void [strictButton, badButton, badHandler, imageProps];
+
+export const manifest = {
+  id: "typed-example",
+  name: "Typed example",
+  version: "1.0.0",
+  api_version: 1,
+  entry: "src/plugin.py",
+  resources: ["assets", "dist/panel"],
+  capabilities: ["ui"],
+  views: [editorView],
+} satisfies PluginManifest;
+export const development = {
+  fixtures: [{ view: "sync", file: "fixtures/sync.json" }],
+  package: { include: ["src", "assets", "dist/panel"], exclude: ["src/*.test.py"] },
+} satisfies PluginDevelopmentConfig;

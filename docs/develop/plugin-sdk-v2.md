@@ -52,7 +52,7 @@ Claude Mods 原包兼容支持已移除，包括包转换、JS/TS/JSX 执行和 
 ## SDK 分发与调用约定
 
 - Python 公共入口：`from app.plugins import PluginContext`。`context` 的数据对象都是 JSON DTO；常用资源还有 `chapters`、`projects`、`notes`。
-- 前端：加载宿主的 `../../sdk.js` 后使用全局 `OpenFic`。React/Vue/Svelte 可以直接使用，不要求插件共享主应用的框架实例。
+- 前端：宿主在 iframe 应用脚本之前自动初始化全局 `OpenFic`。React/Vue/Svelte 可以直接使用，不要求插件共享主应用的框架实例。
 - 独立包：`packages/plugin-sdk` 是 `@openfic/plugin-sdk@2.0.0` 的无依赖模块包装及 TypeScript 声明，可用本地 `file:` 依赖或 `npm pack` 安装；本任务没有发布 npm。声明同时由 `/api/v1/plugins/sdk.d.ts` 提供。
 - 所有业务操作的准确路径、HTTP 方法、请求字段与响应类型，以 `/api/v1/plugins/catalogue` 的 `operations` 和 OpenAPI 为准。`context.resource(name)` 的便捷方法覆盖常见 CRUD；不是每个业务对象都存在全部 CRUD 方法，特殊对象使用目录中的实际路径。
 

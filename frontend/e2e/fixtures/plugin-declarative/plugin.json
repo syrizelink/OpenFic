@@ -3,8 +3,14 @@
   "name": "Declarative UI fixture",
   "version": "1.0.0",
   "api_version": 1,
-  "backend": "backend/main.py",
-  "capabilities": ["ui", "storage"],
+  "entry": "main.py",
+  "resources": [
+    "panel"
+  ],
+  "capabilities": [
+    "ui",
+    "storage"
+  ],
   "views": [
     {
       "id": "native",
@@ -13,6 +19,10 @@
       "render": "ui.render",
       "action": "ui.action"
     },
-    { "id": "legacy", "title": "Legacy iframe", "entry": "frontend/index.html" }
+    {
+      "id": "legacy",
+      "title": "Legacy iframe",
+      "entry": "panel/index.html"
+    }
   ]
 }

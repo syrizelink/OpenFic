@@ -412,12 +412,12 @@ test("React plugin uses the typed SDK package, inline styles, persistence and ca
       data: { password: process.env.OPENFIC_E2E_PASSWORD },
     });
   const directory = "/tmp/openfic-e2e-react-plugin";
-  execFileSync("node", [`${root}frontend/e2e/build-react-plugin.mjs`, `${directory}/frontend`], {
+  execFileSync("node", [`${root}frontend/e2e/build-react-plugin.mjs`, `${directory}/dist/panel`], {
     cwd: `${root}frontend`,
   });
   execFileSync("python3", [
     "-c",
-    `from pathlib import Path;import json\np=Path('${directory}');p.mkdir(exist_ok=True);(p/'plugin.json').write_text(json.dumps({'id':'react-sdk-test','name':'React SDK fixture','version':'1.0.0','api_version':1,'capabilities':['storage','ui'],'views':[{'id':'react','title':'React SDK fixture','entry':'frontend/index.html','slot':'sidebar.extensions'}]}))`,
+    `from pathlib import Path;import json\np=Path('${directory}');p.mkdir(exist_ok=True);(p/'plugin.json').write_text(json.dumps({'id':'react-sdk-test','name':'React SDK fixture','version':'1.0.0','api_version':1,'capabilities':['storage','ui'],'resources':['dist/panel'],'views':[{'id':'react','title':'React SDK fixture','entry':'dist/panel/index.html','slot':'sidebar.extensions'}]}))`,
   ]);
   const zip = "/tmp/openfic-e2e-react-plugin.zip";
   execFileSync("python3", [`${root}examples/plugins/build_package.py`, directory, zip]);

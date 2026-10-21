@@ -21,7 +21,7 @@ SOURCE = Path(__file__).resolve().parents[3] / "examples/plugins/project-statist
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
-def package(version="1.0.0", backend=None, capabilities=None):
+def package(version="1.0.0", backend=None, capabilities=None, *, legacy=False):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
     manifest["version"] = version
@@ -30,15 +30,21 @@ def package(version="1.0.0", backend=None, capabilities=None):
         {
             "id": "overview",
             "title": "项目统计",
-            "entry": "frontend/index.html",
+            "entry": "panel/index.html",
             "slot": "sidebar.extensions",
         }
     ]
+    manifest["resources"] = ["panel"]
     if capabilities is not None:
         manifest["capabilities"] = capabilities
+    if legacy:
+        manifest["backend"] = "backend/main.py"
+        manifest.pop("entry", None)
+        manifest.pop("resources", None)
+        manifest["views"][0]["entry"] = "frontend/index.html"
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
-            "frontend/index.html",
+            manifest["views"][0]["entry"],
             "<!doctype html><main>Legacy transport fixture</main>",
         )
         for path in sorted(SOURCE.rglob("*")):
@@ -48,9 +54,11 @@ def package(version="1.0.0", backend=None, capabilities=None):
             content = path.read_bytes()
             if name == "plugin.json":
                 content = json.dumps(manifest).encode()
-            if name == "backend/main.py" and backend is not None:
+            if name == "main.py" and backend is not None:
                 content = backend.encode()
-            archive.writestr(name, content)
+            archive.writestr(
+                "backend/main.py" if legacy and name == "main.py" else name, content
+            )
     return output.getvalue()
 
 
@@ -135,11 +143,11 @@ async def test_install_enable_statistics_configuration_restart_export_uninstall(
         "ui.action",
         "ui.render",
     ]
-    asset = await api.get("/api/v1/plugins/project-statistics/assets/index.html")
+    asset = await api.get("/api/v1/plugins/project-statistics/assets/panel/index.html")
     assert asset.status_code == 200
     assert "connect-src 'none'" in asset.headers["content-security-policy"]
     assert (
-        await api.get("/api/v1/plugins/project-statistics/assets/backend/main.py")
+        await api.get("/api/v1/plugins/project-statistics/assets/main.py")
     ).status_code == 404
     stats = await api.post(
         "/api/v1/plugins/project-statistics/rpc",
@@ -189,7 +197,7 @@ async def test_install_enable_statistics_configuration_restart_export_uninstall(
         )
     ).status_code == 200
     assert (
-        await api.get("/api/v1/plugins/project-statistics/assets/index.html")
+        await api.get("/api/v1/plugins/project-statistics/assets/panel/index.html")
     ).status_code == 409
     assert (await api.delete("/api/v1/plugins/project-statistics")).status_code == 204
     assert (await api.get("/api/v1/plugins")).json()["plugins"] == []
@@ -270,7 +278,7 @@ async def test_invalid_contract_symlink_and_missing_capability(plugin_api, sessi
     with zipfile.ZipFile(output, "w") as archive:
         link = zipfile.ZipInfo("frontend/link")
         link.external_attr = (stat.S_IFLNK | 0o777) << 16
-        archive.writestr(link, "../backend/main.py")
+        archive.writestr(link, "../main.py")
     assert (await install(api, output.getvalue())).status_code == 400
     assert (await install(api, b"invalid zip")).status_code == 400
     await install(api, package(capabilities=[]))
@@ -290,7 +298,7 @@ async def test_authentication_protects_management_rpc_and_assets(plugin_api):
         for path in [
             "/api/v1/plugins",
             "/api/v1/plugins/sdk.js",
-            "/api/v1/plugins/project-statistics/assets/index.html",
+            "/api/v1/plugins/project-statistics/assets/panel/index.html",
         ]:
             assert (await client.get(path)).status_code == 401
         client.cookies.set("openfic_auth", auth.create_cookie_value())

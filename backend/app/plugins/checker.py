@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from urllib.parse import urlsplit, urljoin, unquote
+from urllib.parse import quote, urlsplit, urljoin, unquote
 
 from app.plugins.declarative import (
     resolve_component,
@@ -42,12 +42,16 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
     with tempfile.TemporaryDirectory(prefix="openfic-plugin-check-") as temporary:
         root = Path(temporary) / "package"
         root.mkdir()
+        runtime = None
         try:
             if source.is_file() and source.stat().st_size > 20 * 1024 * 1024:
                 raise ValueError("Package exceeds 20 MiB")
             content = source.read_bytes() if source.is_file() else build_package(source)
             manifest = extract_package(content, root)
             report["pluginId"] = manifest.id
+            if source.is_dir():
+                runtime = root
+                root = source
         except Exception as error:
             # Validation errors can embed input/default secrets. Never emit input values.
             message = (
@@ -94,22 +98,23 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                     urljoin(
                         "https://plugin.invalid"
                         + prefix
-                        + view.entry.removeprefix("frontend/"),
+                        + quote(manifest.resource_url_name(view.entry), safe="/"),
                         reference,
                     )
                 )
                 if url.path == "/plugin-assets/ticket/sdk.js":
                     continue
                 relative = unquote(url.path.removeprefix(prefix))
-                file = (root / "frontend" / relative).resolve()
-                if (
-                    not url.path.startswith(prefix)
-                    or not file.is_relative_to(root / "frontend")
-                    or not file.is_file()
-                ):
+                try:
+                    if not url.path.startswith(prefix):
+                        raise ValueError("Outside public resources")
+                    manifest.resource_path(root, relative)
+                    if runtime is not None:
+                        manifest.resource_path(runtime, relative)
+                except ValueError:
                     issue(
                         "frontend.asset",
-                        "Referenced HTML resource is missing or outside the plugin frontend: "
+                        "Referenced HTML resource is missing or not a declared public resource: "
                         + reference,
                         view.entry,
                         line,
@@ -129,6 +134,15 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                         path.relative_to(root),
                         getattr(error, "lineno", None),
                     )
+        python_trees = trees
+        # Syntax/lint cover developer source too. Component semantics concern
+        # shipped code, so negative UI fixtures inside excluded tests are not
+        # mistaken for production UI declarations.
+        trees = {
+            name: tree
+            for name, tree in trees.items()
+            if runtime is None or (runtime / name).is_file()
+        }
         functions = {
             node.name: node
             for tree in trees.values()
@@ -153,7 +167,7 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                         commands[node.args[0].value] = node.args[1].id
                     else:
                         dynamic_registration = True
-        if manifest.backend:
+        if manifest.entry:
             for view in manifest.views:
                 if view.renderer == "declarative":
                     for command in [view.render, view.action]:
@@ -345,14 +359,14 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                                 component in {"Image", "Project.Image"}
                                 and prop == "asset"
                             ):
-                                asset = (root / "frontend" / value).resolve()
-                                if (
-                                    not asset.is_relative_to(root / "frontend")
-                                    or not asset.is_file()
-                                ):
+                                try:
+                                    manifest.resource_path(root, value)
+                                    if runtime is not None:
+                                        manifest.resource_path(runtime, value)
+                                except ValueError:
                                     issue(
                                         "ui.asset",
-                                        "Image asset is missing or outside frontend/",
+                                        "Image asset is missing or not a declared public resource",
                                         name,
                                         item.lineno,
                                     )
@@ -510,7 +524,7 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
         # ZIPs contain artifacts, not necessarily the original lint projects.
         live_root = source if source.is_dir() else None
         if live_root and run_checks:
-            python_files = [str(live_root / name) for name in trees]
+            python_files = [str(live_root / name) for name in python_trees]
             ruff = shutil.which("ruff") or str(Path(sys.executable).parent / "ruff")
             if python_files and Path(ruff).is_file():
                 entry = {"name": "ruff", "status": "failed"}

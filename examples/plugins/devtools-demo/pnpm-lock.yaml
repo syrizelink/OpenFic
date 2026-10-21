@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@openfic/plugin-sdk':
-        specifier: file:../../../../packages/plugin-sdk
-        version: file:../../../../packages/plugin-sdk
+        specifier: file:../../../packages/plugin-sdk
+        version: file:../../../packages/plugin-sdk
       oxlint:
         specifier: 1.72.0
         version: 1.72.0
@@ -20,8 +20,8 @@ importers:
 
 packages:
 
-  '@openfic/plugin-sdk@file:../../../../packages/plugin-sdk':
-    resolution: {directory: ../../../../packages/plugin-sdk, type: directory}
+  '@openfic/plugin-sdk@file:../../../packages/plugin-sdk':
+    resolution: {directory: ../../../packages/plugin-sdk, type: directory}
 
   '@oxlint/binding-android-arm-eabi@1.72.0':
     resolution: {integrity: sha512-zhCmvn+1Mj3UchAc/90i99S0t7jJUsHmFVSPg4UWrjO8b8eaSGwscgO6QAUtvHBstkjQwBttQNswEnAF1mIQdA==}
@@ -165,7 +165,7 @@ packages:
 
 snapshots:
 
-  '@openfic/plugin-sdk@file:../../../../packages/plugin-sdk': {}
+  '@openfic/plugin-sdk@file:../../../packages/plugin-sdk': {}
 
   '@oxlint/binding-android-arm-eabi@1.72.0':
     optional: true

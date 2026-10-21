@@ -1,1 +1,25 @@
-{"id":"overlay-probe","name":"Generic overlay probe","version":"1.0.0","api_version":1,"backend":"backend/main.py","capabilities":["ui","ui.overlay","storage"],"views":[{"id":"panel","title":"Independent overlay","slot":"app.overlay","renderer":"declarative","render":"ui.render","action":"ui.action"}]}
+{
+  "id": "overlay-probe",
+  "name": "Generic overlay probe",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.py",
+  "resources": [
+    "assets"
+  ],
+  "capabilities": [
+    "ui",
+    "ui.overlay",
+    "storage"
+  ],
+  "views": [
+    {
+      "id": "panel",
+      "title": "Independent overlay",
+      "slot": "app.overlay",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    }
+  ]
+}

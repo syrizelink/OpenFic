@@ -1,12 +1,58 @@
 {
-  "id": "devtools-demo", "name": "SDK 开发工具示例", "version": "1.0.0", "api_version": 1,
+  "id": "devtools-demo",
+  "name": "SDK 开发工具示例",
+  "version": "1.1.0",
+  "api_version": 1,
   "description": "验证静态检查、同版本热重载、插槽预览和 Inspector。",
-  "backend": "backend/main.py", "capabilities": ["ui", "ui.overlay", "storage", "secrets"],
-  "views": [
-    {"id":"overview","title":"原生组件示例","slot":"sidebar.extensions","renderer":"declarative","render":"ui.render","action":"ui.action"},
-    {"id":"toolbar","title":"工具栏示例","slot":"editor.toolbar","renderer":"declarative","render":"ui.render","action":"ui.action"},
-    {"id":"floating","title":"浮层示例","slot":"app.overlay","renderer":"declarative","render":"ui.render","action":"ui.action"},
-    {"id":"iframe","title":"自带前端示例","slot":"settings.plugins","entry":"frontend/index.html"}
+  "entry": "main.py",
+  "resources": [
+    "panel"
   ],
-  "settings": [{"key":"apiKey","label":"用于验证诊断脱敏的测试密钥","type":"string","default":"","secret":true}]
+  "capabilities": [
+    "ui",
+    "ui.overlay",
+    "storage",
+    "secrets"
+  ],
+  "views": [
+    {
+      "id": "overview",
+      "title": "原生组件示例",
+      "slot": "sidebar.extensions",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    {
+      "id": "toolbar",
+      "title": "工具栏示例",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    {
+      "id": "floating",
+      "title": "浮层示例",
+      "slot": "app.overlay",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    {
+      "id": "iframe",
+      "title": "自带前端示例",
+      "slot": "settings.plugins",
+      "entry": "panel/index.html"
+    }
+  ],
+  "settings": [
+    {
+      "key": "apiKey",
+      "label": "用于验证诊断脱敏的测试密钥",
+      "type": "string",
+      "default": "",
+      "secret": true
+    }
+  ]
 }

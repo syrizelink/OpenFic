@@ -83,7 +83,7 @@ with zipfile.ZipFile(sys.argv[1]) as source, zipfile.ZipFile(sys.argv[2], 'w') a
  for entry in source.namelist():
   data=source.read(entry)
   if entry=='plugin.json':
-   m=json.loads(data);m.update(id='regression-ui-only',backend=None,capabilities=['ui']);m['views'][0]['title']='UI only probe';data=json.dumps(m).encode()
+   m=json.loads(data);m.update(id='regression-ui-only',entry=None,capabilities=['ui']);m['views'][0]['title']='UI only probe';data=json.dumps(m).encode()
   target.writestr(entry,data)
 `,
             zip,

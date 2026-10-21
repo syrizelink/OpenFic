@@ -3,7 +3,10 @@
   "name": "Editor toolbar contract",
   "version": "1.0.0",
   "api_version": 1,
-  "backend": "backend/main.py",
+  "entry": "main.py",
+  "resources": [
+    "panel"
+  ],
   "capabilities": [
     "ui",
     "storage",
@@ -23,7 +26,7 @@
       "id": "legacy",
       "title": "旧上下文",
       "slot": "editor.context",
-      "entry": "frontend/index.html"
+      "entry": "panel/index.html"
     },
     {
       "id": "panel",

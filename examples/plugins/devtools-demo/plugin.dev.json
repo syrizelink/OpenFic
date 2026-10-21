@@ -1,1 +1,17 @@
-{"fixtures":[{"view":"overview","file":"ui/overview.json"}]}
+{
+  "fixtures": [
+    {
+      "view": "overview",
+      "file": "fixtures/overview.json"
+    }
+  ],
+  "package": {
+    "include": [
+      "main.py",
+      "views.py",
+      "actions.py",
+      "panel",
+      "README.md"
+    ]
+  }
+}

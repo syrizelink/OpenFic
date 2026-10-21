@@ -1,5 +1,7 @@
 # 原生插件 UI、CSS 与 SDK 增强验证
 
+本页保留历史验证结果。旧版安装包已迁移，当前下载见 [示例插件](./plugin-examples.md)，目录迁移与最新验证见 [统一插件结构验证](./plugin-layout-verification.md)。
+
 本文记录 `73bf598` 的历史验证；CSSOM / `@scope` 实现已由后续 [PostCSS 改造](./plugin-css-postcss-verification.md) 替换，当前用法见 [声明式 UI 文档](./declarative-plugin-ui.md)。
 
 验证日期：2026-10-19，分支 `feat/extension-host`，基于移除 Mods 后的 `5dafe68`。本轮保留 Mod 拒绝逻辑，没有恢复兼容运行时。
@@ -10,7 +12,7 @@
 - 复用真实模型/项目选择器、搜索选择、单位输入、数字步进、Spinner、进度和 Tooltip；数据经已有 SDK 网关和能力校验读取。
 - 扩展颜色、variant、尺寸、响应式布局、复合组件、受控状态和字符串/布尔/数组事件；目录同时由 HTTP、SDK RPC 和公开 TypeScript 类型提供。
 - 自定义 CSS 经 CSSOM 解析并按视图 `@scope`；项目及 Radix 弹层进入对应 Portal，动画名称按实例隔离。支持内联样式、CSS 变量、嵌套规则及条件查询，限制深度/规则数，过滤不支持的全局规则及危险值。
-- 可直接安装 [展示插件 ZIP](../../examples/plugins/dist/declarative-showcase-1.0.0.zip)，源码见 [示例](../../examples/plugins/declarative-showcase/README.md)，协议见 [使用文档](./declarative-plugin-ui.md)。
+- 可直接安装 `展示插件 ZIP`，源码见 [示例](../../examples/plugins/declarative-showcase/README.md)，协议见 [使用文档](./declarative-plugin-ui.md)。
 
 ## 最终结果
 

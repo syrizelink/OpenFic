@@ -4,14 +4,15 @@
 
 ```json
 {
+  "resources": ["panel"],
   "views": [
     {"id": "weather", "title": "Weather", "slot": "assistant.above-prompt", "renderer": "declarative", "render": "weather.render", "action": "weather.action"},
-    {"id": "dashboard", "title": "Dashboard", "renderer": "iframe", "entry": "frontend/index.html"}
+    {"id": "dashboard", "title": "Dashboard", "renderer": "iframe", "entry": "panel/index.html"}
   ]
 }
 ```
 
-省略 `renderer` 默认 `iframe`，旧插件无须修改。iframe 的 `entry` 必须引用 `frontend/` 下的 HTML；声明式视图不能声明 `entry`，必须声明已注册的 `render/action` 命令和 `ui` 能力，不能把 SDK 方法绑定为这两个命令。缺少绑定命令时启用失败，并在管理页面显示原因。
+省略 `renderer` 默认 `iframe`，旧插件无须修改。iframe 的 `entry` 引用清单 resources 范围内的 HTML（例如 resources: ["panel"]）；声明式视图不能声明 `entry`，必须声明已注册的 `render/action` 命令和 `ui` 能力，不能把 SDK 方法绑定为这两个命令。缺少绑定命令时启用失败，并在管理页面显示原因。
 
 ## 渲染与事件
 
@@ -103,7 +104,7 @@ return {"tree": {"type": "FloatingPanel", "props": {
 
 `FloatingPanel` 在浏览器本地更新拖动位置，松开后通过 action 的 `value={x,y}`、`event="change"` 提交一次；方向键每次移动 10px 并提交。指针取消恢复原位置。尺寸/视口变化会限制位置在屏幕内；宽度限制为 96–640px，内容超高时内部滚动。`position: null` 使用右下角默认位置。位置的长期保存由插件自己完成，宿主不创建业务专用存储。
 
-`Image.asset` 是相对于本插件 `frontend/` 的路径，例如文件 `frontend/assets/mascot.png` 传 `assets/mascot.png`。它通过认证的 SDK `assets.read` 获取 `{name,mime,base64}`；Python 使用 `await context.assets.read(name)`，iframe 使用 `await OpenFic.assets.read(name)`。要求 `ui` 能力，禁止越界路径和链接到其他目录的文件，单文件最大 `3 MiB - 4096 bytes`。包资源只读，插件可写文本文件仍使用 `files`。UI 只渲染 PNG/JPEG/WebP/GIF/AVIF，拒绝 SVG 等格式，不接受任意 URL 或 HTML；图片不会加入宿主安装包。支持 `alt/width/height/fit/loading` 和公共样式属性。
+`Image.asset` 是相对于插件包根的公共资源路径，例如声明 resources: ["assets"] 后，文件 `assets/mascot.png` 传 `assets/mascot.png`。它通过认证的 SDK `assets.read` 获取 `{name,mime,base64}`；Python 使用 `await context.assets.read(name)`，iframe 使用 `await OpenFic.assets.read(name)`。要求 `ui` 能力，禁止越界路径和链接到其他目录的文件，单文件最大 `3 MiB - 4096 bytes`。包资源只读，插件可写文本文件仍使用 `files`。UI 只渲染 PNG/JPEG/WebP/GIF/AVIF，拒绝 SVG 等格式，不接受任意 URL 或 HTML；图片不会加入宿主安装包。支持 `alt/width/height/fit/loading` 和公共样式属性。
 
 ## 组件名称和优先级
 
@@ -113,7 +114,7 @@ return {"tree": {"type": "FloatingPanel", "props": {
 
 | 项目组件 | 用途与权限 |
 | --- | --- |
-| `Image` | 显示本插件 `frontend/` 内的 raster 图片；需 `ui`，不执行 SVG |
+| `Image` | 显示本插件 resources 声明范围内的 raster 图片；需 `ui`，不执行 SVG |
 | `FloatingPanel` | 可拖动的原生浮层，需 `ui.overlay`；支持鼠标、触摸和方向键 |
 | `Icon`（别名 `LucideIcon`） | 按名称显示宿主 Lucide 图标，不需额外能力 |
 | `Spinner`、`CircularProgress` | 项目加载和进度显示 |

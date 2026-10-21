@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import uuid
+from urllib.parse import quote
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -334,18 +335,20 @@ class PluginHost:
             f"_openfic_plugin_{manifest.id.replace('-', '_')}_{uuid.uuid4().hex}"
         )
         try:
-            if manifest.backend:
-                entry = self.root / manifest.id / manifest.backend
-                spec = importlib.util.spec_from_file_location(module_name, entry)
+            if manifest.entry:
+                entry = self.root / manifest.id / manifest.entry
+                spec = importlib.util.spec_from_file_location(
+                    module_name, entry, submodule_search_locations=[str(entry.parent)]
+                )
                 if spec is None or spec.loader is None:
-                    raise ValueError("Cannot load backend entry")
+                    raise ValueError("Cannot load plugin entry")
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[module_name] = module
                 plugin.module_name = module_name
                 spec.loader.exec_module(module)
                 register = getattr(module, "register", None)
                 if not callable(register):
-                    raise ValueError("Backend must export register(host)")
+                    raise ValueError("Plugin entry must export register(host)")
                 async with asyncio.timeout(15):
                     await _await_result(register(registration))
             requirements = [
@@ -366,7 +369,7 @@ class PluginHost:
                     raise ValueError(
                         f"Declarative view {view.id} references an unregistered command"
                     )
-            plugin.module_name = module_name if manifest.backend else None
+            plugin.module_name = module_name if manifest.entry else None
             plugin.registration = registration
             for seconds, handler in registration.intervals:
                 task = asyncio.create_task(self._run_interval(plugin, seconds, handler))
@@ -434,7 +437,11 @@ class PluginHost:
             except Exception as error:
                 self._log(plugin.manifest.id, "disable", str(error), "error")
             finally:
-                sys.modules.pop(plugin.module_name, None)
+                for name in list(sys.modules):
+                    if name == plugin.module_name or name.startswith(
+                        plugin.module_name + "."
+                    ):
+                        sys.modules.pop(name, None)
         plugin.module_name = None
         plugin.registration = None
 
@@ -671,11 +678,10 @@ class PluginHost:
             safe_path(filename)
         except ValueError as error:
             raise PluginError("Invalid asset path", 404) from error
-        base = (self.root / plugin_id / "frontend").resolve()
-        path = (base / filename).resolve()
-        if not path.is_relative_to(base) or not path.is_file():
-            raise PluginError("Plugin asset not found", 404)
-        return path
+        try:
+            return plugin.manifest.resource_path(self.root / plugin_id, filename)
+        except ValueError as error:
+            raise PluginError("Plugin asset not found", 404) from error
 
     def open_view(self, plugin_id: str, view_id: str) -> str:
         plugin = self.get(plugin_id)
@@ -696,7 +702,8 @@ class PluginHost:
             raise PluginError("Too many active plugin views", 429)
         token = secrets.token_urlsafe(32)
         self._view_tickets[token] = (plugin_id, now + 900)
-        return f"/plugin-assets/{token}/{plugin_id}/assets/{view.entry.removeprefix('frontend/')}"
+        name = plugin.manifest.resource_url_name(view.entry)
+        return f"/plugin-assets/{token}/{plugin_id}/assets/{quote(name, safe='/')}"
 
     def ticket_plugin(self, token: str) -> str:
         ticket = self._view_tickets.get(token)

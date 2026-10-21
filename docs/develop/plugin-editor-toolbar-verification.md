@@ -1,5 +1,7 @@
 # 编辑器插件工具栏与 Lucide SDK 验证
 
+本页保留历史验证结果。旧版安装包已迁移，当前下载见 [示例插件](./plugin-examples.md)，目录迁移与最新验证见 [统一插件结构验证](./plugin-layout-verification.md)。
+
 验证日期：2026-10-20；分支 `feat/extension-host`，基于 `24331c5`。机器可读记录见 [plugin-editor-toolbar-results.json](./plugin-editor-toolbar-results.json)。
 
 ## 最终行为
@@ -10,8 +12,8 @@ SDK 增加清单 `icon`、`presentation: "popover" | "dialog"`，并补充编辑
 
 Google Drive 与提示词示例升级至 **1.2.0**，使用 `CloudUpload`、`TextCursorInput` 工具栏按钮及浮层；Drive 浮层内部的操作按钮也使用声明式 Icon。提示词在笔记入口隐藏不支持的撤销操作。可从管理页更新安装包，保留已有插件存储和配置：
 
-- [Google Drive 1.2.0](../../examples/plugins/dist/google-drive-sync-1.2.0.zip)
-- [提示词元素 1.2.0](../../examples/plugins/dist/prompt-elements-1.2.0.zip)
+- `Google Drive 1.2.0`
+- `提示词元素 1.2.0`
 
 项目统计和 Handoff 的 1.1.0 安装包保持可用，本轮同样执行安装和 UI 回归。
 

@@ -62,6 +62,40 @@ def handle_plugin(args):
             print(f"Package: {output}")
 
 
+def resolve_script_directory(
+    source: Path, script: str, directory: str | None = None
+) -> Path:
+    from app.plugins.packages import source_files
+
+    source = source.resolve()
+    if directory is not None:
+        selected = (source / directory).resolve()
+        if not selected.is_relative_to(source):
+            raise ValueError("Script directory must be inside the plugin source")
+        candidates = [selected / "package.json"]
+    else:
+        candidates = [source / "package.json"]
+        if not candidates[0].is_file():
+            candidates = [
+                path for path in source_files(source) if path.name == "package.json"
+            ]
+    matches = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        project = json.loads(path.read_text())
+        scripts = project.get("scripts", {})
+        if not isinstance(scripts, dict):
+            raise ValueError("package.json scripts must be an object")
+        if isinstance(scripts.get(script), str):
+            matches.append(path.parent)
+    if len(matches) != 1:
+        raise ValueError(
+            "Build script must match one package.json; use --script-dir to select its directory"
+        )
+    return matches[0]
+
+
 def serve_development(args):
     source = Path(args.source).expanduser().resolve()
     if not source.is_dir() or not (source / "plugin.json").is_file():
@@ -103,12 +137,19 @@ def serve_development(args):
         flush=True,
     )
     process = None
-    if args.frontend_script:
+    if args.watch_script:
         import shutil
 
+        try:
+            directory = resolve_script_directory(
+                source, args.watch_script, args.script_dir
+            )
+        except (OSError, ValueError, AttributeError) as error:
+            raise SystemExit(str(error)) from error
+
         process = subprocess.Popen(
-            [shutil.which("npm") or "npm", "run", args.frontend_script],
-            cwd=source / "frontend",
+            [shutil.which("npm") or "npm", "run", args.watch_script],
+            cwd=directory,
             start_new_session=True,
         )
     try:

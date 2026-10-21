@@ -28,12 +28,12 @@ def bundle(manifest, backend="def register(host): pass", files=None):
                     "name": "SDK test",
                     "version": "1.0.0",
                     "api_version": 1,
-                    "backend": "backend/main.py",
+                    "entry": "main.py",
                     **manifest,
                 }
             ),
         )
-        archive.writestr("backend/main.py", backend)
+        archive.writestr("main.py", backend)
         for name, content in (files or {}).items():
             archive.writestr(name, content)
     return buffer.getvalue()

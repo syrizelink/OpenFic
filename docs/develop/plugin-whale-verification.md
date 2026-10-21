@@ -1,10 +1,12 @@
 # 小鲸鱼原生移植与 SDK 验证
 
+本页保留历史验证结果。旧版安装包已迁移，当前下载见 [示例插件](./plugin-examples.md)，目录迁移与最新验证见 [统一插件结构验证](./plugin-layout-verification.md)。
+
 验证日期：2026-10-20；分支 `feat/extension-host`，基于 `cc15585`。机器可读记录见 [plugin-whale-results.json](./plugin-whale-results.json)。
 
 ## 移植范围
 
-参考上游 0.4.2，提交 `5247dd6813d6e4430728f39ccc63d43cda046022`。交付 [deepseek-whale-1.0.0.zip](../../examples/plugins/dist/deepseek-whale-1.0.0.zip)，从插件管理安装并启用即可运行；完整安装说明、功能对照、记账限制和素材许可见 [插件 README](../../examples/plugins/deepseek-whale/README.md)。
+参考上游 0.4.2，提交 `5247dd6813d6e4430728f39ccc63d43cda046022`。交付 `deepseek-whale-1.0.0.zip`，从插件管理安装并启用即可运行；完整安装说明、功能对照、记账限制和素材许可见 [插件 README](../../examples/plugins/deepseek-whale/README.md)。
 
 本次是核心交互的原生 SDK 移植。宿主没有 DSH 模块加载器、路由/账户协议、DOM 注入或按插件 ID 判断的适配。余额 HTTP、账本、预算提示、台词与 Agent 用量聚合都在插件内；宿主仅新增下表的通用接口。
 

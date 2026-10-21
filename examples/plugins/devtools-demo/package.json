@@ -1,14 +1,14 @@
 {
-  "name": "openfic-devtools-demo-frontend",
-  "version": "1.0.0",
+  "name": "openfic-devtools-demo",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint app.js",
+    "lint": "oxlint panel/app.js",
     "type-check": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@openfic/plugin-sdk": "file:../../../../packages/plugin-sdk",
+    "@openfic/plugin-sdk": "file:../../../packages/plugin-sdk",
     "oxlint": "1.72.0",
     "typescript": "5.9.3"
   }

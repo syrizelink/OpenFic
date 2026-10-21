@@ -1,9 +1,21 @@
 """Versioned, framework-independent plugin package contract."""
 
-from pathlib import PurePosixPath
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    model_validator,
+)
+
+from app.plugins.package_builder import (
+    safe_path,
+    MAX_PACKAGE_BYTES as MAX_PACKAGE_BYTES,
+    MAX_EXPANDED_BYTES as MAX_EXPANDED_BYTES,
+)
 
 API_VERSION = 1
 SDK_VERSION = "2.0.0"
@@ -69,24 +81,6 @@ CAPABILITIES = frozenset(
         "timers",
     ]
 )
-MAX_PACKAGE_BYTES = 20 * 1024 * 1024
-MAX_EXPANDED_BYTES = 40 * 1024 * 1024
-
-
-def safe_path(value: str) -> str:
-    path = PurePosixPath(value)
-    if (
-        not value
-        or "\\" in value
-        or ":" in value
-        or "\x00" in value
-        or path.is_absolute()
-        or any(part in {"", ".", ".."} for part in value.split("/"))
-    ):
-        raise ValueError(
-            "Plugin paths must be relative and cannot traverse directories"
-        )
-    return value
 
 
 class Contract(BaseModel):
@@ -125,10 +119,8 @@ class View(Contract):
                     "Iframe views require entry and cannot bind render/action commands"
                 )
             safe_path(self.entry)
-            if not self.entry.startswith("frontend/") or not self.entry.endswith(
-                ".html"
-            ):
-                raise ValueError("Views must reference an HTML file under frontend/")
+            if not self.entry.endswith(".html"):
+                raise ValueError("Views must reference an HTML file")
         elif self.entry or not self.render or not self.action:
             raise ValueError(
                 "Declarative views require render/action commands and cannot have entry"
@@ -194,7 +186,10 @@ class Manifest(Contract):
     api_version: Literal[1]
     description: str = Field(default="", max_length=1000)
     author: str = Field(default="", max_length=100)
-    backend: str | None = None
+    entry: str | None = Field(
+        default=None, validation_alias=AliasChoices("entry", "backend")
+    )
+    resources: list[str] = Field(default_factory=list, max_length=50)
     capabilities: list[str] = Field(default_factory=list)
     views: list[View] = Field(default_factory=list, max_length=60)
     settings: list[Setting] = Field(default_factory=list, max_length=100)
@@ -202,6 +197,62 @@ class Manifest(Contract):
     format: Literal["openfic"] = "openfic"
     # Accept metadata from older native exports, but no longer emit it.
     compatibility: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    _legacy_resources: bool = PrivateAttr(default=False)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def legacy_layout(cls, value, handler):
+        # Read old installed manifests and exports without making their layout
+        # the convention for newly authored plugins. Always serialize entry/resources.
+        legacy = isinstance(value, cls) and value._legacy_resources
+        if isinstance(value, dict) and "resources" not in value:
+            views = value.get("views", [])
+            if "backend" in value or (
+                isinstance(views, list)
+                and any(
+                    isinstance(v, dict)
+                    and str(v.get("entry", "")).startswith("frontend/")
+                    for v in views
+                )
+            ):
+                value = {**value, "resources": ["frontend"]}
+                legacy = True
+        result = handler(value)
+        result._legacy_resources = legacy
+        return result
+
+    def resource_url_name(self, name: str) -> str:
+        return name.removeprefix("frontend/") if self._legacy_resources else name
+
+    def resource_name(self, name: str) -> str:
+        try:
+            self.resource_root(name)
+            return name
+        except ValueError:
+            if not self._legacy_resources:
+                raise
+            name = "frontend/" + safe_path(name)
+            self.resource_root(name)
+            return name
+
+    def resource_root(self, name: str) -> str:
+        safe_path(name)
+        for root in self.resources:
+            if name == root or name.startswith(root + "/"):
+                return root
+        raise ValueError("Path is not a declared public resource")
+
+    def resource_path(self, package, name: str):
+        name = self.resource_name(name)
+        root = (package / self.resource_root(name)).resolve()
+        path = (package / name).resolve()
+        if (
+            not root.is_relative_to(package.resolve())
+            or not path.is_relative_to(root)
+            or not path.is_file()
+        ):
+            raise ValueError("Resource is missing or outside its declared public root")
+        return path
 
     @model_validator(mode="after")
     def validate_entries(self):
@@ -211,10 +262,25 @@ class Manifest(Contract):
             )
         if any("/" in host or ":" in host or not host for host in self.network_hosts):
             raise ValueError("Network hosts must be hostnames without scheme or port")
-        if self.backend:
-            safe_path(self.backend)
-            if not self.backend.endswith(".py"):
-                raise ValueError("Backend entry must be a Python file")
+        if self.entry:
+            safe_path(self.entry)
+            if not self.entry.endswith(".py"):
+                raise ValueError("Plugin entry must be a Python file")
+        for root in self.resources:
+            safe_path(root)
+            if any(
+                name
+                and (
+                    name.casefold() == root.casefold()
+                    or name.casefold().startswith(root.casefold() + "/")
+                )
+                for name in (self.entry, "plugin.json", "plugin.dev.json")
+            ):
+                raise ValueError(
+                    "Public resources cannot expose the plugin entry or manifests"
+                )
+        if len({root.casefold() for root in self.resources}) != len(self.resources):
+            raise ValueError("Duplicate public resource root")
         if (
             any(view.renderer == "declarative" for view in self.views)
             and "ui" not in self.capabilities
@@ -230,6 +296,9 @@ class Manifest(Contract):
             for view in self.views
         ):
             raise ValueError("Application overlays currently require declarative UI")
+        for view in self.views:
+            if view.entry:
+                self.resource_root(view.entry)
         for values in (
             [view.id for view in self.views],
             [s.key for s in self.settings],

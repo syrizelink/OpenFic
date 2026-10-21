@@ -1,5 +1,7 @@
 # 四个示例插件的声明式 UI 迁移验证
 
+本页保留历史验证结果。旧版安装包已迁移，当前下载见 [示例插件](./plugin-examples.md)，目录迁移与最新验证见 [统一插件结构验证](./plugin-layout-verification.md)。
+
 验证日期：2026-10-20；分支 `feat/extension-host`，基于 `ddbe34b`。
 
 ## 安装包与界面
@@ -8,10 +10,10 @@
 
 | 插件 | 安装包 | UI 入口和效果 |
 | --- | --- | --- |
-| 项目统计 | [project-statistics-1.1.0.zip](../../examples/plugins/dist/project-statistics-1.1.0.zip) | 侧栏独立页面；原生项目选择器、8 个统计卡片、目标进度、卷分布表；移动端两列卡片 |
-| Google Drive | [google-drive-sync-1.1.0.zip](../../examples/plugins/dist/google-drive-sync-1.1.0.zip) | 侧栏页面和编辑器工具栏；连接状态、加密令牌导入、方向选择、变化预览、原生冲突确认弹窗、保存后同步 |
-| Handoff | [handoff-workflow-1.1.0.zip](../../examples/plugins/dist/handoff-workflow-1.1.0.zip) | 侧栏页面；项目与模型选择器、任务输入、交接记录、结果、笔记保存、导出及项目 Graph 切换 |
-| 动态提示词 | [prompt-elements-1.1.0.zip](../../examples/plugins/dist/prompt-elements-1.1.0.zip) | 侧栏规则页面、对话输入框上方开关、编辑器工具栏；JSON 草稿、规则预览、配置导出、读取/插入保存/撤销 |
+| 项目统计 | `project-statistics-1.1.0.zip` | 侧栏独立页面；原生项目选择器、8 个统计卡片、目标进度、卷分布表；移动端两列卡片 |
+| Google Drive | `google-drive-sync-1.1.0.zip` | 侧栏页面和编辑器工具栏；连接状态、加密令牌导入、方向选择、变化预览、原生冲突确认弹窗、保存后同步 |
+| Handoff | `handoff-workflow-1.1.0.zip` | 侧栏页面；项目与模型选择器、任务输入、交接记录、结果、笔记保存、导出及项目 Graph 切换 |
+| 动态提示词 | `prompt-elements-1.1.0.zip` | 侧栏规则页面、对话输入框上方开关、编辑器工具栏；JSON 草稿、规则预览、配置导出、读取/插入保存/撤销 |
 
 控件复用现有项目组件及 Radix Themes，布局使用响应式属性和由宿主 PostCSS 处理的 CSS。页面不使用 iframe。声明式 action 的 `UIActionResult.effects` 通过现有前端 SDK 桥顺序执行编辑器和浏览器操作，保留能力检查、编辑器锁、视图生命周期及调用预算；普通 render 不执行这些操作。协议和限制见 [声明式 UI 文档](./declarative-plugin-ui.md)。
 

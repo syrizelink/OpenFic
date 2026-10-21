@@ -1,18 +1,18 @@
-"""Build a deterministic installable package without frontend build dependencies."""
+"""Repository wrapper around the same packager used by plugin check/dev/pack."""
 
 import argparse
-import zipfile
+from runpy import run_path
 from pathlib import Path
 
 
 def build(source: Path, output: Path):
+    module = (
+        Path(__file__).resolve().parents[2] / "backend/app/plugins/package_builder.py"
+    )
+    build_package = run_path(str(module))["build_package"]
+
     output.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(source.rglob("*")):
-            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".zip":
-                entry = zipfile.ZipInfo(path.relative_to(source).as_posix(), (2026, 1, 1, 0, 0, 0))
-                entry.compress_type = zipfile.ZIP_DEFLATED
-                archive.writestr(entry, path.read_bytes())
+    output.write_bytes(build_package(source))
 
 
 if __name__ == "__main__":

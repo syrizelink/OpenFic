@@ -311,7 +311,9 @@ async def test_python_sdk_call_keeps_capability_checks(plugin_api, session):
 async def test_statistics_upgrade_replaces_legacy_ui_and_keeps_settings(plugin_api):
     host, api, _ = plugin_api
     await host.install(
-        host_tests.package(capabilities=["projects.read", "project.entities.read"])
+        host_tests.package(
+            capabilities=["projects.read", "project.entities.read"], legacy=True
+        )
     )
     await host.configure(
         "project-statistics", {"targetWords": 800, "showVolumes": False}
@@ -325,7 +327,7 @@ async def test_statistics_upgrade_replaces_legacy_ui_and_keeps_settings(plugin_a
         data={"trusted": "true"},
         files={
             "file": (
-                "project-statistics-1.1.0.zip",
+                "project-statistics-1.2.0.zip",
                 example_package("project-statistics"),
                 "application/zip",
             )
@@ -333,7 +335,7 @@ async def test_statistics_upgrade_replaces_legacy_ui_and_keeps_settings(plugin_a
     )
     assert response.status_code == 200, response.text
     plugin = host.get("project-statistics")
-    assert plugin.manifest.version == "1.1.0"
+    assert plugin.manifest.version == "1.2.0"
     assert plugin.manifest.views[0].renderer == "declarative"
     assert plugin.enabled
     assert (

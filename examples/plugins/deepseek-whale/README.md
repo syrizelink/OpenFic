@@ -6,7 +6,7 @@
 
 ## 安装与使用
 
-1. 使用包含本轮 SDK 的 OpenFic。在「插件管理」确认可信来源，上传 [deepseek-whale-1.0.0.zip](../dist/deepseek-whale-1.0.0.zip)。安装后默认停用。
+1. 使用包含本轮 SDK 的 OpenFic。在「插件管理」确认可信来源，上传 [deepseek-whale-1.1.0.zip](../dist/deepseek-whale-1.1.0.zip)。安装后默认停用。
 2. 在插件配置填写自己的 DeepSeek API Key，按需设置低余额阈值、每日预算（0 关闭）。密钥加密保存，只发送至 `https://api.deepseek.com/user/balance`，不会读回到 UI。不读取宿主已有模型提供商的密钥。
 3. 启用后出现全局挂件。点击刷新按钮获取余额，之后每 60 秒刷新；没有配置密钥时不联网。拖动顶部手柄或用方向键移动，位置持久化；点击角色切换台词。
 4. 设置按钮或侧栏「DeepSeek 小鲸鱼」打开独立原生页面，可修改大小、台词、显示状态及今日观测消费。隐藏后从设置页重新显示。停用会移除整个挂件。
@@ -39,8 +39,8 @@ OpenFic 模型费用取自宿主配置的 USD 价格，可能来自任意服务�
 
 ## 素材与打包
 
-`frontend/assets/whale.png` 是上游 `assets/DSniang1.png` 的逐字节副本，仅改文件名。原图不属于 MIT 代码许可：上游声明按原样随插件分发、仅用于运行本插件、不授予再许可。保留 [上游代码许可](./UPSTREAM-LICENSE) 和 [上游完整素材来源说明](./UPSTREAM-PROVENANCE.md)，此处不扩大授权范围。未复制上游 DSH JavaScript 运行代码、其他图片或音频。
+`assets/whale.png` 是上游 `assets/DSniang1.png` 的逐字节副本，仅改文件名。原图不属于 MIT 代码许可：上游声明按原样随插件分发、仅用于运行本插件、不授予再许可。保留 [上游代码许可](./UPSTREAM-LICENSE) 和 [上游完整素材来源说明](./UPSTREAM-PROVENANCE.md)，此处不扩大授权范围。未复制上游 DSH JavaScript 运行代码、其他图片或音频。
 
 ```bash
-python examples/plugins/build_package.py examples/plugins/deepseek-whale examples/plugins/dist/deepseek-whale-1.0.0.zip
+python examples/plugins/build_package.py examples/plugins/deepseek-whale examples/plugins/dist/deepseek-whale-1.1.0.zip
 ```

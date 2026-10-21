@@ -1,15 +1,15 @@
 # 扩展宿主与插件开发（包 API v1 / SDK 2.0）
 
-新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。项目统计 1.1.0 同样使用声明式 UI；下文还保留通用 iframe 包格式说明。
+新增完整业务访问、编辑器操作、多个插槽、Agent 工具/中间件/Graph，见 [SDK 2.0](./plugin-sdk-v2.md) 和 [三个示例插件](./plugin-examples.md)。项目统计和其他示例均采用统一插件结构；声明式 UI 是默认推荐方式，自带 iframe 界面按需添加。
 
 OpenFic 使用统一 ZIP 插件包。插件安装在当前连接的后端实例的 `OPENFIC_DATA_DIR/plugins/` 中；前端由内嵌的扩展宿主动态加载插件资源，不需要重新构建主应用。桌面版同样使用运行时配置中的后端地址。
 
 ## 安装项目统计插件
 
-仓库提供可安装包 `examples/plugins/dist/project-statistics-1.1.0.zip` 和完整源码。重新打包：
+仓库提供可安装包 `examples/plugins/dist/project-statistics-1.2.0.zip` 和完整源码。重新打包：
 
 ```bash
-python examples/plugins/build_package.py examples/plugins/project-statistics examples/plugins/dist/project-statistics-1.1.0.zip
+python examples/plugins/build_package.py examples/plugins/project-statistics examples/plugins/dist/project-statistics-1.2.0.zip
 ```
 
 1. 打开侧栏独立「扩展」区域的「插件管理」，或设置中的「插件管理」。
@@ -26,15 +26,30 @@ python examples/plugins/build_package.py examples/plugins/project-statistics exa
 
 ## 包格式
 
-ZIP 根目录必须直接包含 `plugin.json`，而非多套一层项目目录。声明式 UI 只需要清单和 Python 后端，详见 [声明式 UI 协议](./declarative-plugin-ui.md)；以下结构适用于 iframe 插件，其前端文件必须已经构建。后端入口是 Python 文件。当前不自动执行 pip/npm 安装。
+ZIP 根目录直接包含 `plugin.json`。宿主根据清单定位代码和公共资源，不要求 `backend/`、`frontend/` 或 `src/` 等目录。一个简单插件只需要清单和入口：
 
 ```text
-plugin.json
-backend/main.py
-frontend/index.html
-frontend/app.js
-frontend/style.css
+my-plugin/
+├── plugin.json
+└── main.py
 ```
+
+稍复杂的声明式 UI 插件可以按功能拆分：
+
+```text
+my-plugin/
+├── plugin.json
+├── main.py
+├── views.py
+├── actions.py
+├── assets/
+│   ├── styles.css
+│   └── icon.png
+├── tests/
+└── README.md
+```
+
+入口也可以是 `src/plugin.py`，其相邻模块通过 `from .views import render` 等包内相对导入访问。每次激活使用独立模块命名空间，停用、更新及失败回退时清理相关子模块；不要依赖修改全局 sys.path 或同名顶层模块。
 
 ```json
 {
@@ -42,27 +57,42 @@ frontend/style.css
   "name": "My plugin",
   "version": "1.0.0",
   "api_version": 1,
-  "backend": "backend/main.py",
-  "capabilities": ["projects.read", "project.entities.read"],
-  "views": [
-    {
-      "id": "overview",
-      "title": "My view",
-      "entry": "frontend/index.html",
-      "slot": "sidebar.extensions"
-    }
-  ],
-  "settings": [
-    {"key": "target", "label": "Target", "type": "integer", "default": 100, "minimum": 1}
-  ]
+  "entry": "main.py",
+  "resources": ["assets"],
+  "capabilities": ["ui"],
+  "views": [{
+    "id": "overview", "title": "My view", "renderer": "declarative",
+    "render": "ui.render", "action": "ui.action", "slot": "sidebar.extensions"
+  }]
 }
 ```
 
-`backend` 可省略，支持纯 UI 包；`views` 可以为空，支持纯后端包。ID、版本、入口和设置在安装时严格验证。压缩包上限 20 MiB、展开内容上限 40 MiB、最多 512 个条目；拒绝路径穿越、符号链接、重复路径、加密包和缺失入口。
+`entry` 是可选 Python 入口，导出 `register(host)`；不需要代码的纯 UI 包可以省略。`views` 可为空，适用于工具、事件和工作流插件。`resources` 明确列出允许公开访问的文件或目录，路径均相对于插件根。默认不公开任何文件；公共根不能覆盖入口、plugin.json 或 plugin.dev.json。`assets.read("assets/icon.png")` 使用包根相对路径，HTTP 资源接口和票据遵守同一边界。清单、代码、构建配置不会因为放在插件目录中就被自动公开。
+
+自带 React/Vue 或原生 HTML 时，添加可选 `panel/` 或 `src/panel/`，构建产物可放在 `dist/panel/`。例如 `resources: ["assets", "dist/panel"]`，视图 `entry: "dist/panel/index.html"`。iframe HTML 必须已经构建；宿主不会动态编译 UI 源码，也不会自动执行 pip/npm 安装。原生声明式 UI 不需要这套前端工程。
+
+ID、版本、入口和设置在安装时严格验证。压缩包上限 20 MiB、展开内容上限 40 MiB、最多 512 个条目；拒绝路径穿越、符号链接、重复路径、加密包和缺失入口/公共资源。
+
+旧包的 `backend` 字段和隐式 frontend 资源仍可读取，用于已安装插件继续运行、重启、导出和升级。新模板与本仓库所有当前示例均使用 `entry/resources`；显式声明 resources 后按新包规则解析根相对路径。
+
+### 源码与安装包
+
+开发检查会读取完整源码、测试、UI fixture 和项目自己的检查脚本。可在 `plugin.dev.json` 中选择运行文件：
+
+```json
+{
+  "fixtures": [{"view":"overview", "file":"fixtures/overview.json"}],
+  "package": {"include": ["main.py", "views.py", "actions.py", "assets", "panel", "README.md"], "exclude": ["panel/*.map"]}
+}
+```
+
+include/exclude 使用包根相对的路径或 fnmatch 模式；目录名包含其子文件。plugin.json 始终包含，不能排除；未配置时保留原有的全部源码打包行为，但始终忽略 node_modules、缓存、Git 和 `.openfic-dev/`。宿主、CLI 和仓库打包脚本共享同一实现。安装包还会单独校验入口、公共资源和可静态识别的 UI 引用，避免源码检查成功但打包遗漏页面脚本。Python 动态导入和任意业务文件读取仍需运行测试，作者应将它们加入运行文件列表。
+
+详见 [Devtools](./plugin-devtools.md)，可运行的多文件、原生 UI 与 iframe 混合示例为 [devtools-demo](../../examples/plugins/devtools-demo/README.md)。
 
 更新使用「更新安装包」，包 ID 必须匹配，版本必须严格递增。安装更新时保留仍存在的设置与启用状态。新版本激活失败，会恢复旧代码、配置和命令。临时目录和目录交换的备份支持启动时清理/恢复。
 
-## 后端 SDK
+## 插件 Python SDK
 
 入口导出 `register(host)`，可同步或异步执行。`host.register_command(name, handler)` 注册插件命名空间内的命令，不会覆盖其他插件或内置业务接口。处理函数接收请求级 `PluginContext` 与参数：
 
@@ -91,10 +121,9 @@ Context 包含宿主绑定的 `plugin_id`、当前设置快照和数据接口：
 
 SDK 2.0 提供多个 UI 插槽；以下以 `sidebar.extensions` 和独立页面宿主为例。插件页面在 `sandbox="allow-scripts"` 的 iframe 中运行，不能直接操作主页面 DOM、应用 cookie 或编辑器。资源响应 CSP 禁止页面直接发起网络请求；UI 通过消息桥调用本插件后端命令。
 
-位于 `frontend/index.html` 的页面可以这样加载公共 SDK：
+宿主在页面应用脚本之前自动加载公共 SDK。页面不需要手写 SDK 路径，只引用自己的代码：
 
 ```html
-<script src="../../sdk.js" defer></script>
 <script src="./app.js" defer></script>
 ```
 
@@ -108,7 +137,7 @@ OpenFic.ready.then(async (context) => {
 
 宿主校验 iframe 窗口来源、opaque origin、每次挂载的随机 channel 和消息格式。宿主固定 RPC 的插件 ID，插件不能通过消息选择调用其他插件。关闭页面会清理监听器，并忽略已关闭页面的迟到响应。框架无需与 OpenFic React 版本绑定。
 
-隔离 iframe 的资源请求不依赖登录 cookie。已认证的前端先申请 15 分钟的随机静态资源票据，再打开 `/plugin-assets/{ticket}/...`。票据仅能读取指定插件的前端资源和公共 SDK，不能调用 RPC 或管理 API；停用、更新和卸载会撤销票据。资源使用 no-store 与 no-referrer，宿主访问日志不记录票据值。到期后重新打开页面即可申请新票据。
+隔离 iframe 的资源请求不依赖登录 cookie。已认证的前端先申请 15 分钟的随机静态资源票据，再打开 `/plugin-assets/{ticket}/...`。票据仅能读取指定插件声明的公共资源和宿主 SDK，不能调用 RPC 或管理 API；停用、更新和卸载会撤销票据。资源使用 no-store 与 no-referrer，宿主访问日志不记录票据值。到期后重新打开页面即可申请新票据。
 
 从项目页面打开插件时携带项目上下文；从全局打开时插件自行提供项目选择。主应用和示例 UI 支持移动布局，语言和主题在打开时传入。管理列表每五秒检查状态，使多窗口中的启停可见。
 
@@ -128,7 +157,7 @@ OpenFic.ready.then(async (context) => {
 | `DELETE /plugins/{id}` | 卸载 |
 | `POST /plugins/{id}/rpc` | `{ "method": "name", "params": {} }` |
 | `POST /plugins/{id}/views/{viewId}` | 申请仅限静态资源的短期视图地址 |
-| `GET /plugins/{id}/assets/{path}` | 已启用插件的前端资源 |
+| `GET /plugins/{id}/assets/{path}` | 已启用插件声明的公共资源 |
 
 安装权限沿用应用当前的共享密码模式；不是新增多租户权限系统。
 

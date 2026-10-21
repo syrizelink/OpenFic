@@ -1,6 +1,6 @@
 # 插件 Devtools
 
-Devtools 包含离线检查与打包 CLI、独立数据的源码开发服务、插槽预览和宿主 Inspector。组件校验复用实际安装器和声明式组件目录；样式诊断复用宿主的 PostCSS 编译器。普通服务默认不采集诊断。
+Devtools 包含离线检查与打包 CLI、独立数据的源码开发服务、插槽预览和宿主 Inspector。源码结构和运行包规则见 [统一插件结构](./plugins.md#包格式)。组件校验复用实际安装器和声明式组件目录；样式诊断复用宿主的 PostCSS 编译器。普通服务默认不采集诊断。
 
 ## 检查和打包
 
@@ -16,11 +16,11 @@ openfic plugin pack ./my-plugin --output ./my-plugin.zip --run-checks --strict
 
 | 检查 | 覆盖与边界 |
 | --- | --- |
-| 安装包 | 根清单、API/版本/插槽/能力/入口、大小、路径、重复文件与符号链接；与安装器使用同一提取器 |
+| 安装包 | 根清单、API/版本/插槽/能力、统一 entry 和 resources、运行文件选择、大小、路径、重复文件与符号链接；与安装器使用同一提取器 |
 | Python | 内建 AST 语法检查；`--run-checks` 执行已安装的 Ruff |
 | 声明式 UI | 可静态识别的组件、Props 和字面值、组件权限、Image 资源、静态 command 注册及 action 分支；不会求值动态表达式 |
-| 声明式 CSS | Python 顶层 `CSS/STYLES` 字面量与 fixture 的 CSS，通过与宿主相同的编译器报告被过滤/无效样式 |
-| 网络与前端资源 | 可识别的字面量 HTTP 域名和 network 声明；HTML 相对 script/link/img/source 引用及宿主 SDK 路径；不抓取外部资源 |
+| 声明式 CSS | 运行模块顶层 `CSS/STYLES` 字面量与 fixture 的 CSS，通过与宿主相同的编译器报告被过滤/无效样式 |
+| 网络与前端资源 | 可识别的字面量 HTTP 域名和 network 声明；HTML 相对 script/link/img/source 引用及公共资源边界；同时检查源码与实际运行包；不抓取外部资源 |
 | JS/TS/框架源码 | 识别源码内各 package.json 的 lint、type-check/typecheck 脚本；`--run-checks` 在原项目目录执行，不替换项目配置 |
 
 没有配置、没有依赖或没有执行的检查会明确显示为 warning、failed 或 not-run。`--strict` 将警告和未执行检查都视为失败，适合配合 `--run-checks` 用于 CI 和打包。ZIP 检查不能替代原项目源码的 lint；不要把编译后的 JS 通过包格式校验理解为源码质量检查通过。工具不会自动安装 npm/pip 依赖。
@@ -62,15 +62,19 @@ const invalid: UINode = { type: 'Button', props: { asset: 'logo.png' } };
 openfic plugin dev ./my-plugin --port 8011
 # 前端单独使用 Vite 时，VITE_BACKEND_URL 应指向这个后端：
 openfic plugin dev ./my-plugin --port 8011 --frontend-url http://127.0.0.1:9000
-# 持续构建 iframe 前端：执行 my-plugin/frontend/package.json 中已有的脚本
-openfic plugin dev ./my-plugin --frontend-script build:watch
+# 执行插件根 package.json 中已有的构建监听脚本
+openfic plugin dev ./my-plugin --watch-script build:watch
+# 工具项目位于自选子目录时显式选择
+openfic plugin dev ./my-plugin --watch-script build:watch --script-dir tools/ui
 ```
 
 打开 CLI 输出的 `/extensions/devtools`。默认数据保存在源码的 `.openfic-dev/`，包括开发数据库、插件配置和插件存储；它被打包器和监听器排除，仓库也已忽略。可以通过 `--data-dir /other/empty-directory` 指定目录。目录必须为空或包含绑定本源码的开发标记，不能直接使用已有应用数据；源码内的自定义数据目录必须位于 `.openfic-dev/` 下。
 
 开发服务固定绑定 127.0.0.1，在导入应用前设定独立数据目录，覆盖当前环境的 OPENFIC_DATA_DIR。它保留显式配置的应用密码。独立开发数据不等于 Python 执行沙箱；插件仍按现有可信代码模型运行。
 
-监听 Python、清单、静态资源和前端构建产物；node_modules、缓存、Git、ZIP 及开发数据目录不参与快照。编辑后先做离线预检，再通过原安装器替换，保留配置和存储。只有显式开发会话的目标插件允许同版本替换，普通安装/更新仍要求递增版本。预检失败或激活失败保留旧版本；错误出现在开发页，修复后自动重试。修改 plugin ID 需重启开发会话。后端 interval/dispose 沿用现有停用、激活与清理流程。
+默认从根 package.json 执行脚本；根不存在时查找唯一匹配的脚本项目，多个候选需指定 --script-dir。--frontend-script 作为旧命令别名保留。
+
+监听 Python、清单、静态资源和构建产物；node_modules、缓存、Git、ZIP 及开发数据目录不参与快照。检查基于完整源码，安装按 plugin.dev.json 的 package.include/exclude 选择运行文件。编辑后先做离线预检，再通过原安装器替换，保留配置和存储。只有显式开发会话的目标插件允许同版本替换，普通安装/更新仍要求递增版本。预检失败或激活失败保留旧版本；错误出现在开发页，修复后自动重试。修改 plugin ID 需重启开发会话。后端 interval/dispose 沿用现有停用、激活与清理流程。
 
 默认热重载不反复执行 lint/type-check；开发页展开“源码检查覆盖范围”可查看哪些检查未运行。可在另一个终端运行自己的 lint/type-check/watch，或在打包前执行严格检查。前端源代码需要先经作者的构建流程产出清单 entry；热重载不会在运行时编译任意 React/Vue 源码。
 
@@ -97,4 +101,4 @@ Inspector 的记录可能包含正文、提示词和业务响应等开发内容�
 
 [devtools-demo](../../examples/plugins/devtools-demo/README.md) 提供原生页面、工具栏、浮层和自带 JS 的 iframe，包含可执行的前端 lint/type-check 配置、UI fixture、权限错误、CSS 过滤与 secret 脱敏场景。它不包含任何业务插件专用适配。
 
-验证记录与边界见 [Devtools 验证报告](./plugin-devtools-verification.md)。
+Devtools 初始验证见 [Devtools 验证报告](./plugin-devtools-verification.md)；当前统一目录、运行包选择与旧包迁移的验证见 [统一插件结构验证](./plugin-layout-verification.md)。

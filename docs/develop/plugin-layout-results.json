@@ -1,0 +1,369 @@
+{
+  "completedAt": "2026-10-22T00:18:46+08:00",
+  "timezone": "Asia/Hong_Kong",
+  "baseCommit": "cdbd1001f7b5c1554f64ef955a65993fcbc0e45b",
+  "backend": {
+    "fullRegression": {
+      "passed": 2370,
+      "skipped": 19,
+      "seconds": 220.31
+    },
+    "finalPluginAndCLIRegression": {
+      "passed": 141,
+      "skipped": 1,
+      "seconds": 33.38
+    },
+    "stdlibPackagerWithoutSitePackages": "passed",
+    "ruffAndNewModuleFormat": "passed"
+  },
+  "frontend": {
+    "typeAwareLint": "passed",
+    "typescriptBuild": "passed",
+    "generatedSDKAndCSS": "passed",
+    "productionBuild": "passed",
+    "changedFilesFormat": "passed"
+  },
+  "playwright": {
+    "runs": {
+      "regression": {
+        "passed": 28,
+        "durationMs": 317829.607
+      },
+      "devtools": {
+        "passed": 2,
+        "durationMs": 79907.632
+      },
+      "writing": {
+        "passed": 3,
+        "durationMs": 102737.377
+      }
+    },
+    "uniquePassed": 33,
+    "browserCases": 22,
+    "logicCases": 11
+  },
+  "packages": {
+    "declarative-showcase": {
+      "version": "1.1.0",
+      "package": "declarative-showcase-1.1.0.zip",
+      "bytes": 3465,
+      "files": [
+        "README.md",
+        "main.py",
+        "plugin.json"
+      ],
+      "sha256": "ea9f543da4f4b25f1d13a862580f9ce577609e2cf1e18240f523ada26c499a7f",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "declarative-showcase",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 66,
+          "dynamicValues": 10,
+          "documents": 0,
+          "actionIdsChecked": 0,
+          "actionIdsUnverified": 11
+        },
+        "ok": true
+      }
+    },
+    "deepseek-whale": {
+      "version": "1.1.0",
+      "package": "deepseek-whale-1.1.0.zip",
+      "bytes": 268175,
+      "files": [
+        "README.md",
+        "UPSTREAM-LICENSE",
+        "UPSTREAM-PROVENANCE.md",
+        "main.py",
+        "plugin.json",
+        "assets/whale.png"
+      ],
+      "sha256": "d11987125392ab696afb07e0e448f2a18a7a1365e989b92bbcb21a516e55c2d2",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "deepseek-whale",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "css",
+            "status": "passed"
+          },
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 36,
+          "dynamicValues": 12,
+          "documents": 0,
+          "actionIdsChecked": 5,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    },
+    "devtools-demo": {
+      "version": "1.1.0",
+      "package": "devtools-demo-1.1.0.zip",
+      "bytes": 4808,
+      "files": [
+        "README.md",
+        "actions.py",
+        "main.py",
+        "plugin.json",
+        "views.py",
+        "panel/app.js",
+        "panel/index.html"
+      ],
+      "sha256": "0f4cba5b6a9bece14de598bf87294cafb0df5fd8a5580fa93c6616d776aba124",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "devtools-demo",
+        "diagnostics": [],
+        "checks": [
+          {
+            "name": "css",
+            "status": "passed"
+          },
+          {
+            "name": "ruff",
+            "status": "passed"
+          },
+          {
+            "name": ".:lint",
+            "status": "passed"
+          },
+          {
+            "name": ".:type-check",
+            "status": "passed"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 8,
+          "dynamicValues": 1,
+          "documents": 1,
+          "actionIdsChecked": 5,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    },
+    "google-drive-sync": {
+      "version": "1.3.0",
+      "package": "google-drive-sync-1.3.0.zip",
+      "bytes": 7502,
+      "files": [
+        "main.py",
+        "plugin.json"
+      ],
+      "sha256": "1a2da7cb14f151c2a12c0453846de305b3052992aaecdf56433b02272b67ea99",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "google-drive-sync",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 2,
+          "dynamicValues": 0,
+          "documents": 0,
+          "actionIdsChecked": 0,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    },
+    "handoff-workflow": {
+      "version": "1.2.0",
+      "package": "handoff-workflow-1.2.0.zip",
+      "bytes": 5468,
+      "files": [
+        "main.py",
+        "plugin.json"
+      ],
+      "sha256": "388ee84c869e5ae25c81c886eab96b84c7c80d64afffee7c644b33922dbc6798",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "handoff-workflow",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 2,
+          "dynamicValues": 0,
+          "documents": 0,
+          "actionIdsChecked": 0,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    },
+    "project-statistics": {
+      "version": "1.2.0",
+      "package": "project-statistics-1.2.0.zip",
+      "bytes": 3590,
+      "files": [
+        "main.py",
+        "plugin.json"
+      ],
+      "sha256": "2ef296d1efc0012fa79cd4a97366051612884b72dd74b9756a8836f6fc8233ac",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "project-statistics",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 2,
+          "dynamicValues": 0,
+          "documents": 0,
+          "actionIdsChecked": 0,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    },
+    "prompt-elements": {
+      "version": "1.3.0",
+      "package": "prompt-elements-1.3.0.zip",
+      "bytes": 7317,
+      "files": [
+        "main.py",
+        "plugin.json"
+      ],
+      "sha256": "99aeae7169d22ba762b435b1c6a1457d109807c1757587285a097669b1461a95",
+      "sourceIdentical": true,
+      "check": {
+        "pluginId": "prompt-elements",
+        "diagnostics": [
+          {
+            "code": "ui.dynamic",
+            "severity": "warning",
+            "file": "plugin.json",
+            "line": null,
+            "message": "No UI fixtures supplied. Dynamic render output and action behavior require runtime validation."
+          }
+        ],
+        "checks": [
+          {
+            "name": "external lint/type-check",
+            "status": "not-run",
+            "reason": "Use --run-checks to execute project scripts and Ruff"
+          }
+        ],
+        "coverage": {
+          "staticNodes": 2,
+          "dynamicValues": 0,
+          "documents": 0,
+          "actionIdsChecked": 0,
+          "actionIdsUnverified": 0
+        },
+        "ok": true
+      }
+    }
+  },
+  "bundle": {
+    "baseline": {
+      "files": 748,
+      "raw": 37417857,
+      "jsGzip6": 4341786
+    },
+    "current": {
+      "files": 748,
+      "raw": 37417857,
+      "jsGzip6": 4341786
+    },
+    "delta": {
+      "files": 0,
+      "raw": 0,
+      "jsGzip6": 0
+    },
+    "sdkTypesIdentical": true
+  },
+  "wheel": {
+    "name": "openfic-0.12.1-py3-none-any.whl",
+    "files": 1403,
+    "bytes": 30840645,
+    "modulesIdentical": true,
+    "frontendIdentical": true
+  },
+  "npmSDK": {
+    "name": "@openfic/plugin-sdk@2.0.0",
+    "bytes": 22975,
+    "files": 4,
+    "sourceIdentical": true
+  },
+  "whaleArtworkSHA256": "dcc456613dbb1102a4b7ef636a8b622371e33b763489d6249c434fb54248ba5c",
+  "limits": [
+    "Linux/Chromium only; no native desktop installers or PostgreSQL integration run",
+    "Google Drive, DeepSeek and model execution use test protocol simulators",
+    "Static checks cannot prove arbitrary dynamic imports, file accesses or business branches",
+    "Trusted Python execution model unchanged; resource boundaries and separate development data are not a sandbox"
+  ],
+  "encodedResourcePaths": "passed (space in browser; # in source and runtime package checks)"
+}

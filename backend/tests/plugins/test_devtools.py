@@ -31,7 +31,7 @@ def copy_source(tmp_path):
 async def test_offline_checker_reports_real_ui_errors_without_importing_code(tmp_path):
     root = copy_source(tmp_path)
     marker = tmp_path / "must-not-exist"
-    path = root / "backend/main.py"
+    path = root / "main.py"
     original = path.read_text()
     path.write_text(
         original
@@ -50,7 +50,7 @@ async def test_offline_checker_reports_real_ui_errors_without_importing_code(tmp
     assert not invalid["ok"] and {"ui.prop", "ui.value"} <= codes
     path.write_text(
         original
-        + '\ndef missing():\n return {"type":"Image","props":{"asset":"../backend/main.py"}}\n'
+        + '\ndef missing():\n return {"type":"Image","props":{"asset":"../main.py"}}\n'
     )
     assert "ui.asset" in {item["code"] for item in check_plugin(root)["diagnostics"]}
     # JSON Schema dictionaries are not component trees.
@@ -72,7 +72,7 @@ async def test_checker_uses_host_css_compiler_and_package_validation(tmp_path):
         )
         (directory / "outside").symlink_to(tmp_path, target_is_directory=True)
     assert build_package(root) == baseline
-    document = root / "ui/overview.json"
+    document = root / "fixtures/overview.json"
     value = json.loads(document.read_text())
     value["css"] = '@import url("https://example.com/filtered.css"); .ok { color:red; }'
     document.write_text(json.dumps(value))
@@ -87,7 +87,7 @@ async def test_checker_uses_host_css_compiler_and_package_validation(tmp_path):
     (root / "plugin.json").write_text(json.dumps(manifest))
     document.write_text(json.dumps(value))
     assert not check_plugin(root)["ok"]
-    (root / "frontend/link").symlink_to(root / "backend/main.py")
+    (root / "panel/link").symlink_to(root / "main.py")
     report = check_plugin(root)
     assert not report["ok"] and report["diagnostics"][0]["code"] == "package.invalid"
 
@@ -217,7 +217,7 @@ async def test_hot_reload_preserves_data_and_rolls_back_invalid_activation(
             {"viewId": "overview", "id": "increment"},
             session,
         )
-        path = source / "backend/main.py"
+        path = source / "main.py"
         original = path.read_text()
         path.write_text(original + '\nraise RuntimeError("broken activation")\n')
         await development.reload()
@@ -226,7 +226,11 @@ async def test_hot_reload_preserves_data_and_rolls_back_invalid_activation(
             "devtools-demo", "ui.render", {"viewId": "overview"}, session
         )
         assert "计数：1" in json.dumps(document, ensure_ascii=False)
-        path.write_text(original.replace("原生 SDK 开发示例", "热重载后的原生组件"))
+        path.write_text(original)
+        views = source / "views.py"
+        views.write_text(
+            views.read_text().replace("原生 SDK 开发示例", "热重载后的原生组件")
+        )
         await development.reload()
         assert development.status == "ready" and development.revision == 2
         document = await host.call(
@@ -234,8 +238,8 @@ async def test_hot_reload_preserves_data_and_rolls_back_invalid_activation(
         )
         assert "热重载后的原生组件" in json.dumps(document, ensure_ascii=False)
         assert "计数：1" in json.dumps(document, ensure_ascii=False)
-        (source / "frontend/app.js").write_text(
-            (source / "frontend/app.js").read_text() + "\n// watched asset edit\n"
+        (source / "panel/app.js").write_text(
+            (source / "panel/app.js").read_text() + "\n// watched asset edit\n"
         )
 
         async def changed():
@@ -289,7 +293,7 @@ async def test_cli_is_offline_strict_and_pack_gated(tmp_path):
     )
     assert packed.returncode == 0 and output.is_file()
     assert check_plugin(output)["ok"]
-    (root / "frontend/app.js").unlink()
+    (root / "panel/app.js").unlink()
     report = check_plugin(root)
     assert not report["ok"] and any(
         item["code"] == "frontend.asset" for item in report["diagnostics"]

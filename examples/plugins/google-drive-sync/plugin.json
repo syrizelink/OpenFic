@@ -1,11 +1,12 @@
 {
   "id": "google-drive-sync",
   "name": "Google Drive 章节同步",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "api_version": 1,
   "description": "双向同步已保存的章节，保护并发冲突，并提供 Agent 手动同步工具。",
   "author": "OpenFic",
-  "backend": "backend/main.py",
+  "entry": "main.py",
+  "resources": [],
   "capabilities": [
     "projects.read",
     "project.entities.read",

@@ -83,7 +83,7 @@ async def test_mixed_views_and_bound_actions(plugin_api):
         {"renderer": "unknown"},
         {"renderer": "declarative"},
         {"renderer": "declarative", "render": "sdk.storage.get", "action": "ui.action"},
-        {"renderer": "iframe", "entry": "frontend/page.html", "action": "ui.action"},
+        {"renderer": "iframe", "entry": "panel/page.html", "action": "ui.action"},
     ],
 )
 async def test_invalid_view_contract(changes):
@@ -93,7 +93,7 @@ async def test_invalid_view_contract(changes):
 
 async def test_explicit_ui_capability_and_legacy_default():
     assert (
-        View(id="test", title="Test", entry="frontend/page.html").renderer == "iframe"
+        View(id="test", title="Test", entry="panel/page.html").renderer == "iframe"
     )
     manifest = json.loads((FIXTURE / "plugin.json").read_text())
     manifest["capabilities"] = []
@@ -316,17 +316,17 @@ async def test_editor_slot_presentation_and_icon_contract(slot):
     assert view.presentation == "popover"
     assert (
         View(
-            id="legacy", title="Legacy", slot=slot, entry="frontend/index.html"
+            id="legacy", title="Legacy", slot=slot, entry="panel/index.html"
         ).presentation
         is None
     )
     with pytest.raises(ValidationError, match="Unknown Lucide"):
-        View(id="invalid", title="Invalid", entry="frontend/index.html", icon="<svg/>")
+        View(id="invalid", title="Invalid", entry="panel/index.html", icon="<svg/>")
     with pytest.raises(ValidationError, match="editor slots"):
         View(
             id="invalid",
             title="Invalid",
-            entry="frontend/index.html",
+            entry="panel/index.html",
             presentation="dialog",
         )
 
