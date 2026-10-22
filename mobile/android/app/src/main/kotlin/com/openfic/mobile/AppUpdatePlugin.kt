@@ -1,6 +1,11 @@
 package com.openfic.mobile
 
 import android.app.DownloadManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -34,6 +39,28 @@ class AppUpdatePlugin : Plugin() {
     override fun load() {
         preferences = context.getSharedPreferences("openfic.updates", Context.MODE_PRIVATE)
         downloads = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        handleUpdateIntent(activity.intent)
+    }
+
+    override fun handleOnNewIntent(intent: Intent) {
+        handleUpdateIntent(intent)
+    }
+
+    private fun handleUpdateIntent(intent: Intent?) {
+        if (intent?.action != "com.openfic.mobile.DOWNLOAD_UPDATE") return
+        intent.action = null
+        bridge.execute {
+            try {
+                val saved = preferences.getString("manifest", null) ?: return@execute
+                val manifest = JSONObject(saved)
+                validate(manifest)
+                if (manifest.getLong("versionCode") > installedCode() && preferences.getLong("downloadId", -1) == -1L) {
+                    enqueueDownload(manifest)
+                }
+            } catch (error: Exception) {
+                fail(error.message)
+            }
+        }
     }
 
     @PluginMethod
@@ -59,7 +86,7 @@ class AppUpdatePlugin : Plugin() {
                         call.resolve(status())
                         return@execute
                     }
-                    enqueueTestDownload(testManifest)
+                    saveAvailable(testManifest)
                     call.resolve(status())
                     return@execute
                 }
@@ -93,27 +120,32 @@ class AppUpdatePlugin : Plugin() {
                     throw Exception("更新清单与 Release 版本不一致。")
                 }
                 validate(manifest)
-                clearDownload()
-                val target = apkFile()
-                if (!target.parentFile!!.isDirectory && !target.parentFile!!.mkdirs()) {
-                    throw Exception("无法创建更新下载目录。")
-                }
-                if (target.exists() && !target.delete()) {
-                    throw Exception("无法清理旧安装包。")
-                }
-                val request = DownloadManager.Request(Uri.parse(apkUrl))
-                    .setTitle("OpenFic $version")
-                    .setDescription("正在下载应用更新,完成后请返回 OpenFic 安装。")
-                    .setMimeType("application/vnd.android.package-archive")
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                    .setDestinationInExternalFilesDir(context, null, "updates/update.apk")
-                    .setAllowedOverMetered(true)
-                    .setAllowedOverRoaming(false)
-                val id = downloads.enqueue(request)
-                preferences.edit().putString("manifest", manifest.toString()).putLong("downloadId", id).remove("error").commit()
+                manifest.put("url", apkUrl)
+                saveAvailable(manifest)
                 call.resolve(status())
             } catch (error: Exception) {
                 fail("检查更新失败:${error.message}")
+                call.resolve(errorStatus())
+            }
+        }
+    }
+
+    @PluginMethod
+    fun download(call: PluginCall) {
+        bridge.execute {
+            try {
+                val saved = preferences.getString("manifest", null)
+                    ?: throw Exception("没有可用的更新。")
+                val manifest = JSONObject(saved)
+                validate(manifest)
+                if (manifest.getLong("versionCode") <= installedCode()) {
+                    call.resolve(status())
+                    return@execute
+                }
+                if (preferences.getLong("downloadId", -1) == -1L) enqueueDownload(manifest)
+                call.resolve(status())
+            } catch (error: Exception) {
+                fail(error.message)
                 call.resolve(errorStatus())
             }
         }
@@ -138,7 +170,7 @@ class AppUpdatePlugin : Plugin() {
                 if (status().getString("status") != "ready") {
                     throw Exception("安装包尚未下载完成,请重试。")
                 }
-                verify(JSONObject(preferences.getString("manifest", "{}")))
+                verify(JSONObject(preferences.getString("manifest", "{}") ?: "{}"))
                 activity.runOnUiThread {
                     try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
@@ -179,13 +211,21 @@ class AppUpdatePlugin : Plugin() {
     private fun status(): JSObject {
         val saved = preferences.getString("manifest", null)
         val id = preferences.getLong("downloadId", -1)
-        if (saved == null || id == -1L) return errorStatus()
+        if (saved == null) return errorStatus()
         val manifest = JSONObject(saved)
         validate(manifest)
         if (manifest.getLong("versionCode") <= installedCode()) {
             clearDownload()
             preferences.edit().remove("error").commit()
             return errorStatus()
+        }
+        if (id == -1L) {
+            notifyAvailable(manifest)
+            val result = JSObject()
+            result.put("status", "available")
+            result.put("version", manifest.getString("version"))
+            result.put("currentVersion", installed().versionName)
+            return result
         }
         val result = JSObject()
         result.put("version", manifest.getString("version"))
@@ -231,7 +271,7 @@ class AppUpdatePlugin : Plugin() {
         )
     }
 
-    private fun enqueueTestDownload(manifest: JSONObject) {
+    private fun enqueueDownload(manifest: JSONObject) {
         val version = manifest.getString("version")
         clearDownload()
         val target = apkFile()
@@ -243,7 +283,7 @@ class AppUpdatePlugin : Plugin() {
         }
         val request = DownloadManager.Request(Uri.parse(manifest.getString("url")))
             .setTitle("OpenFic $version")
-            .setDescription("Downloading app update. Return to OpenFic to install.")
+            .setDescription("OpenFic 更新正在下载")
             .setMimeType("application/vnd.android.package-archive")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             .setDestinationInExternalFilesDir(context, null, "updates/update.apk")
@@ -252,6 +292,37 @@ class AppUpdatePlugin : Plugin() {
         val id = downloads.enqueue(request)
         preferences.edit().putString("manifest", manifest.toString()).putLong("downloadId", id).remove("error").commit()
         verifiedId = -1
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(UPDATE_NOTIFICATION)
+    }
+
+    private fun saveAvailable(manifest: JSONObject) {
+        preferences.edit().putString("manifest", manifest.toString()).remove("downloadId").remove("error").commit()
+        verifiedId = -1
+        notifyAvailable(manifest)
+    }
+
+    private fun notifyAvailable(manifest: JSONObject) {
+        val version = manifest.getString("version")
+        if (preferences.getString("notifiedVersion", null) == version) return
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (!manager.areNotificationsEnabled()) return
+        if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(
+            NotificationChannel("app-updates", "应用更新", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = "com.openfic.mobile.DOWNLOAD_UPDATE"
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pending = PendingIntent.getActivity(context, UPDATE_NOTIFICATION, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        manager.notify(UPDATE_NOTIFICATION, NotificationCompat.Builder(context, "app-updates")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle("OpenFic $version 可用")
+            .setContentText("点击下载更新安装包")
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build())
+        preferences.edit().putString("notifiedVersion", version).apply()
     }
 
     @Suppress("DEPRECATION")
@@ -298,6 +369,7 @@ class AppUpdatePlugin : Plugin() {
         if (id != -1L) downloads.remove(id)
         preferences.edit().remove("downloadId").remove("manifest").commit()
         verifiedId = -1
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(UPDATE_NOTIFICATION)
     }
 
     private fun fail(message: String?) {
@@ -359,6 +431,7 @@ class AppUpdatePlugin : Plugin() {
     }
 
     companion object {
+        private const val UPDATE_NOTIFICATION = 1001
         private const val RELEASES = "https://github.com/syrizelink/OpenFic/releases/download/"
         private const val LATEST = "https://api.github.com/repos/syrizelink/OpenFic/releases/latest"
     }

@@ -7,13 +7,8 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
 import android.webkit.*
-import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,12 +92,12 @@ class InstanceActivity : AppCompatActivity() {
                         }
                     }
                     runOnUiThread {
-                        Toast.makeText(this, "文件已保存", Toast.LENGTH_SHORT).show()
+                        showNotice("文件已保存")
                     }
                 } ?: throw IOException("无法打开文件")
             } catch (error: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "保存失败", Toast.LENGTH_LONG).show()
+                    showNotice("保存失败", true)
                 }
             }
         }.start()
@@ -121,46 +116,11 @@ class InstanceActivity : AppCompatActivity() {
         val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == 
                    Configuration.UI_MODE_NIGHT_YES
         val background = if (dark) Color.rgb(24, 24, 27) else Color.rgb(250, 250, 250)
-        val foreground = if (dark) Color.WHITE else Color.rgb(24, 24, 27)
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(background)
         }
-
-        val toolbar = LinearLayout(this).apply {
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val instances = Button(this).apply {
-            text = "‹ 实例"
-            contentDescription = "返回远程实例列表"
-            setTextColor(foreground)
-            setBackgroundColor(Color.TRANSPARENT)
-            setOnClickListener { finish() }
-        }
-        toolbar.addView(instances, LinearLayout.LayoutParams(dp(82), dp(48)))
-
-        val title = TextView(this).apply {
-            text = intent.getStringExtra("name")
-            setTextColor(foreground)
-            isSingleLine = true
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        toolbar.addView(title, LinearLayout.LayoutParams(0, dp(48), 1f))
-
-        val reload = Button(this).apply {
-            text = "↻"
-            textSize = 24f
-            setTextColor(foreground)
-            contentDescription = "重新加载实例"
-            setBackgroundColor(Color.TRANSPARENT)
-            setOnClickListener { webView.reload() }
-        }
-        toolbar.addView(reload, LinearLayout.LayoutParams(dp(54), dp(48)))
-
-        layout.addView(toolbar)
 
         webView = WebView(this).apply {
             setBackgroundColor(background)
@@ -168,10 +128,20 @@ class InstanceActivity : AppCompatActivity() {
         layout.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
 
         setContentView(layout)
-
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
         ViewCompat.setOnApplyWindowInsetsListener(layout) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            view.setPadding(0, 0, 0, ime.bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val density = resources.displayMetrics.density
+            safeAreaScript = "document.documentElement.style.setProperty('--mobile-safe-top','${bars.top / density}px');document.documentElement.style.setProperty('--mobile-safe-bottom','${if (ime.bottom > 0) 0f else bars.bottom / density}px');document.documentElement.style.setProperty('--mobile-safe-left','${bars.left / density}px');document.documentElement.style.setProperty('--mobile-safe-right','${bars.right / density}px');"
+            webView.evaluateJavascript(safeAreaScript, null)
             WindowInsetsCompat.CONSUMED
         }
 
@@ -242,6 +212,7 @@ class InstanceActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 CookieManager.getInstance().flush()
+                view.evaluateJavascript(safeAreaScript, null)
                 view.evaluateJavascript(BLOB_DOWNLOAD_SCRIPT, null)
             }
         }
@@ -266,6 +237,20 @@ class InstanceActivity : AppCompatActivity() {
         }
 
         if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            androidx.webkit.WebViewCompat.addWebMessageListener(webView, "OpenFicAppearance", setOf(baseUrl)) { _, message, _, isMainFrame, _ ->
+                if (isMainFrame) {
+                    try {
+                        val data = JSONObject(message.data ?: "{}")
+                        val light = data.optString("appearance") == "light"
+                        val controller = androidx.core.view.WindowCompat.getInsetsController(window, webView)
+                        controller.isAppearanceLightStatusBars = light
+                        controller.isAppearanceLightNavigationBars = light
+                        val color = Color.parseColor(data.getString("background"))
+                        webView.setBackgroundColor(color)
+                        layout.setBackgroundColor(color)
+                    } catch (_: Exception) { }
+                }
+            }
             androidx.webkit.WebViewCompat.addWebMessageListener(
                 webView,
                 "OpenFicDownloads",
@@ -287,7 +272,7 @@ class InstanceActivity : AppCompatActivity() {
                     savePicker.launch(intent)
                 } catch (error: Exception) {
                     pendingDownload = null
-                    Toast.makeText(this, "无法保存此文件", Toast.LENGTH_LONG).show()
+                    showNotice("无法保存此文件", true)
                 }
             }
         }
@@ -311,7 +296,7 @@ class InstanceActivity : AppCompatActivity() {
             } catch (error: Exception) {
                 pendingDownloadUrl = null
                 pendingDownloadCookie = null
-                Toast.makeText(this, "无法保存此文件", Toast.LENGTH_LONG).show()
+                showNotice("无法保存此文件", true)
             }
         }
 
@@ -326,10 +311,18 @@ class InstanceActivity : AppCompatActivity() {
         } else {
             webView.loadUrl("$baseUrl/")
         }
+        ViewCompat.requestApplyInsets(layout)
     }
 
-    private fun dp(value: Int): Int {
-        return (value * resources.displayMetrics.density).toInt()
+    private var safeAreaScript = ""
+
+    private fun showNotice(message: String, error: Boolean = false) {
+        if (isDestroyed || !::webView.isInitialized) return
+        val detail = JSONObject().put("message", message).put("error", error)
+        webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('openfic:native-notice',{detail:$detail}));",
+            null,
+        )
     }
 
     private fun sameOrigin(uri: Uri): Boolean {
@@ -385,7 +378,7 @@ class InstanceActivity : AppCompatActivity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (error: ActivityNotFoundException) {
-            Toast.makeText(this, "无法打开此链接", Toast.LENGTH_SHORT).show()
+            showNotice("无法打开此链接", true)
         }
     }
 

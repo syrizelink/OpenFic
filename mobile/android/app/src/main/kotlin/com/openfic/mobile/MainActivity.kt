@@ -43,6 +43,13 @@ class MainActivity : BridgeActivity() {
             WindowInsetsCompat.CONSUMED
         }
         ViewCompat.requestApplyInsets(content)
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val preferences = getSharedPreferences("openfic.updates", MODE_PRIVATE)
+            if (!preferences.getBoolean("notificationPermissionRequested", false)) {
+                preferences.edit().putBoolean("notificationPermissionRequested", true).apply()
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
     }
 
     companion object {

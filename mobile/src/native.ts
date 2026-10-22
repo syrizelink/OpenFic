@@ -6,7 +6,7 @@ interface RemoteInstancePlugin {
 const RemoteInstance = registerPlugin<RemoteInstancePlugin>("RemoteInstance");
 
 export interface UpdateState {
-  status: "unsupported" | "idle" | "checking" | "downloading" | "ready" | "error";
+  status: "unsupported" | "idle" | "available" | "checking" | "downloading" | "ready" | "error";
   currentVersion?: string;
   version?: string;
   progress?: number;
@@ -15,6 +15,7 @@ export interface UpdateState {
 
 interface AppUpdatePlugin {
   check(): Promise<UpdateState>;
+  download(): Promise<UpdateState>;
   getStatus(): Promise<UpdateState>;
   install(): Promise<{ permissionRequired: boolean }>;
 }
@@ -28,7 +29,9 @@ export async function checkInstance(url: string): Promise<{ version: string }> {
   const data = await response.json();
   if (data.status !== "ok" && data.status !== "healthy")
     throw new Error("该地址不是可用的 OpenFic 实例。");
-  return data;
+  if (typeof data.version !== "string" || !data.version)
+    throw new Error("该地址不是可用的 OpenFic 实例。");
+  return { version: data.version };
 }
 export async function openInstance(url: string, name: string): Promise<void> {
   if (!Capacitor.isNativePlatform())

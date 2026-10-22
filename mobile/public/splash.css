@@ -1,0 +1,20 @@
+.mobile-splash {
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #fcfcfc;
+}
+.mobile-splash img {
+  width: 96px;
+  height: 96px;
+  animation: logo-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes logo-pulse {
+  from { opacity: 0.45; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-splash img { animation: none; }
+}
