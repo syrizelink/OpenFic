@@ -365,6 +365,30 @@ def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
     return buffer.getvalue()
 
 
+_APPLE_DOUBLE_CONTENT = b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        "
+
+
+class _LegacyNameZipInfo(zipfile.ZipInfo):
+    """以指定编码写入文件名且不设置 UTF-8 标志位，模拟系统自带压缩工具生成的条目。"""
+
+    def __init__(self, filename: str, name_encoding: str) -> None:
+        super().__init__(filename)
+        self.name_encoding = name_encoding
+
+    def _encodeFilenameFlags(self) -> tuple[bytes, int]:
+        return self.filename.encode(self.name_encoding), self.flag_bits
+
+
+def _build_legacy_name_zip(
+    entries: list[tuple[str, bytes]], name_encoding: str
+) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for filename, content in entries:
+            archive.writestr(_LegacyNameZipInfo(filename, name_encoding), content)
+    return buffer.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_preview_markdown_file(client: AsyncClient) -> None:
     content = "# Markdown 标题\n\n这是 Markdown 正文。"
@@ -412,6 +436,55 @@ async def test_preview_zip_files_as_chapters_and_folders_as_volumes(
         for chapter in volume["chapters"]
     ] == ["序章", "第一章", "第二章", "终章"]
     assert data["chapter_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_preview_zip_created_by_macos_keeps_names_and_skips_metadata(
+    client: AsyncClient,
+) -> None:
+    # macOS 系统压缩以 UTF-8 写入文件名但不设置标志位，并附带 __MACOSX 元数据文件
+    archive_content = _build_legacy_name_zip(
+        [
+            ("我的小说/卷一/第一章.txt", "第一章正文".encode("utf-8")),
+            ("__MACOSX/我的小说/卷一/._第一章.txt", _APPLE_DOUBLE_CONTENT),
+            ("我的小说/卷一/第二章.txt", "第二章正文".encode("utf-8")),
+            ("__MACOSX/我的小说/卷一/._第二章.txt", _APPLE_DOUBLE_CONTENT),
+        ],
+        "utf-8",
+    )
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.zip", archive_content, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [volume["title"] for volume in data["volumes"]] == ["我的小说/卷一"]
+    assert [
+        (chapter["title"], chapter["content_preview"])
+        for chapter in data["volumes"][0]["chapters"]
+    ] == [("第一章", "第一章正文"), ("第二章", "第二章正文")]
+    assert data["chapter_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_preview_zip_decodes_gbk_file_names(client: AsyncClient) -> None:
+    # Windows 中文环境的压缩工具常以 GBK 写入文件名且不设置 UTF-8 标志位
+    archive_content = _build_legacy_name_zip(
+        [("卷一/第一章 开端.txt", "第一章正文".encode("utf-8"))],
+        "gbk",
+    )
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.zip", archive_content, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [volume["title"] for volume in data["volumes"]] == ["卷一"]
+    assert [chapter["title"] for chapter in data["volumes"][0]["chapters"]] == [
+        "第一章 开端"
+    ]
 
 
 @pytest.mark.asyncio
