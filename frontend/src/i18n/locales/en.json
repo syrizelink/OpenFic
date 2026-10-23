@@ -843,6 +843,10 @@
         "name": "Move Chapter",
         "description": "Move a specified chapter to the end of a target volume."
       },
+      "reorderChapters": {
+        "name": "Reorder Chapters",
+        "description": "Reorder all chapters within a specified volume."
+      },
       "listNotes": {
         "name": "List Notes",
         "description": "List all notes and categories in a directory."
@@ -2369,6 +2373,8 @@
       "editVolume": "Rename volume",
       "deleteVolume": "Delete volume",
       "moveChapterToVolume": "Move chapter",
+      "reorderChapters": "Reorder chapters",
+      "reorderChaptersDetail": "\"{{volume}}\" · {{count}} chapters",
       "chapterSummaries": "Chapter summaries",
       "summaryCount": "{{count}} summaries",
       "rangeSummaries": "Range summaries",

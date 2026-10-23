@@ -66,6 +66,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "edit_volume",
             "delete_volume",
             "move_chapter_to_volume",
+            "reorder_chapters",
         ),
     }
 )

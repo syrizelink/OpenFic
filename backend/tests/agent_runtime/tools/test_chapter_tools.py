@@ -1011,3 +1011,252 @@ def test_edit_chapter_input_rejects_empty_old_content() -> None:
             "old_content": "",
             "new_content": "x",
         })
+
+
+async def test_reorder_chapters_reorders_within_volume() -> None:
+    from app.agent_runtime.tools.impls.chapter.reorder_chapters import (
+        ReorderChaptersTool,
+    )
+
+    volume = _make_volume(volume_id="vol-1", order=1, title="第一卷")
+    chapter_a = _make_chapter(order=1, title="第一章", chapter_id="chap-1")
+    chapter_b = _make_chapter(order=2, title="第二章", chapter_id="chap-2")
+    chapter_c = _make_chapter(order=3, title="第三章", chapter_id="chap-3")
+    # 新顺序：第三章、第一章、第二章。
+    # service 返回 metadata-only 对象（load_only，正文未加载）——content 置哨兵，
+    # 断言工具的 after 快照不读 service 对象的正文（真实事故：MissingGreenlet）。
+    updated_c = _make_chapter(order=1, title="第三章", chapter_id="chap-3")
+    updated_a = _make_chapter(order=2, title="第一章", chapter_id="chap-1")
+    updated_b = _make_chapter(order=3, title="第二章", chapter_id="chap-2")
+    for _u in (updated_c, updated_a, updated_b):
+        _u.content = "SENTINEL-UNLOADED-CONTENT"
+    tool = ReorderChaptersTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.list_by_volume",
+            AsyncMock(return_value=[chapter_a, chapter_b, chapter_c]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.get_by_volume_ref",
+            AsyncMock(side_effect=[chapter_c, chapter_a, chapter_b]),
+        ) as get_by_volume_ref, patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_service.reorder_chapters",
+            AsyncMock(return_value=[updated_c, updated_a, updated_b]),
+        ) as reorder, patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.record_chapter_diffs",
+            AsyncMock(return_value=["chap-1", "chap-2", "chap-3"]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.record_agent_activity_for_change",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.refresh_project_stats",
+            AsyncMock(),
+        ):
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "ordered_chapter_refs": [
+                        {"type": "title", "value": "第三章"},
+                        {"type": "title", "value": "第一章"},
+                        {"type": "title", "value": "第二章"},
+                    ],
+                }
+            )
+
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert [item["title"] for item in data["metadata"]["new_order"]] == [
+        "第三章",
+        "第一章",
+        "第二章",
+    ]
+    reorder.assert_awaited_once_with(
+        mock_session, "vol-1", ["chap-3", "chap-1", "chap-2"]
+    )
+    assert get_by_volume_ref.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_reorder_chapters_reads_snapshot_inside_lock() -> None:
+    """竞态回归：before 快照必须取自锁内最新读取。
+
+    预先持有章节锁时 reorder 不应发起读取；锁内重读保证并发提交的正文
+    修改进入修订记录。旧实现在锁外读快照，本测试两处断言会失败：
+    ①锁被持有时 list_by_volume 已被调用 ②before 快照仍是旧正文。
+    """
+    from app.agent_runtime.tools.impls._locks import keyed_locks
+    from app.agent_runtime.tools.impls.chapter.reorder_chapters import (
+        ReorderChaptersTool,
+    )
+
+    volume = _make_volume(volume_id="vol-1", order=1, title="第一卷")
+    chapter_a_old = _make_chapter(
+        order=1, title="第一章", content="旧正文", chapter_id="chap-1"
+    )
+    chapter_b_old = _make_chapter(
+        order=2, title="第二章", content="旧正文", chapter_id="chap-2"
+    )
+    chapter_a_new = _make_chapter(
+        order=1, title="第一章", content="并发编辑后的新正文", chapter_id="chap-1"
+    )
+    chapter_b_new = _make_chapter(
+        order=2, title="第二章", content="并发编辑后的新正文", chapter_id="chap-2"
+    )
+    updated_b = _make_chapter(order=1, title="第二章", chapter_id="chap-2")
+    updated_a = _make_chapter(order=2, title="第一章", chapter_id="chap-1")
+
+    tool = ReorderChaptersTool(_state=_make_state())
+    list_by_volume = AsyncMock(return_value=[chapter_a_old, chapter_b_old])
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.volume_repo.list_by_project",
+        AsyncMock(return_value=[volume]),
+    ), patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.list_by_volume",
+        list_by_volume,
+    ), patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.get_by_volume_ref",
+        AsyncMock(side_effect=[chapter_b_old, chapter_a_old]),
+    ), patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_service.reorder_chapters",
+        AsyncMock(return_value=[updated_b, updated_a]),
+    ), patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.record_chapter_diffs",
+        AsyncMock(return_value=["chap-1", "chap-2"]),
+    ) as record_diffs, patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.record_agent_activity_for_change",
+        AsyncMock(),
+    ), patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.refresh_project_stats",
+        AsyncMock(),
+    ):
+        mock_cs.return_value = AsyncMock()
+        async with keyed_locks([("chapters", "proj-1")]):
+            task = asyncio.create_task(
+                tool.ainvoke(
+                    {
+                        "volume_ref": {"type": "order", "value": 1},
+                        "ordered_chapter_refs": [
+                            {"type": "title", "value": "第二章"},
+                            {"type": "title", "value": "第一章"},
+                        ],
+                    }
+                )
+            )
+            for _ in range(20):
+                await asyncio.sleep(0)
+            # 锁被持有时，reorder 不得发起读取（旧实现锁外先读，此处即败）
+            assert list_by_volume.await_count == 0
+            # 模拟并发编辑提交：锁内重读将拿到新正文
+            list_by_volume.return_value = [chapter_a_new, chapter_b_new]
+
+        result = await task
+
+    data = json.loads(result)
+    assert data["success"] is True
+    # 修订记录的 before 快照取自锁内最新读取（新正文），而非锁外旧值
+    before = record_diffs.call_args.kwargs["before"]
+    assert before["chap-1"].content == "并发编辑后的新正文"
+    assert before["chap-2"].content == "并发编辑后的新正文"
+    # 只改顺序、保留正文：after 以 before 为底仅替换 order
+    after = record_diffs.call_args.kwargs["after"]
+    assert after["chap-1"].content == before["chap-1"].content
+    assert after["chap-2"].order == 1  # 第二章重排后居首
+
+
+async def test_reorder_chapters_rejects_incomplete_refs() -> None:
+    from app.agent_runtime.tools.impls.chapter.reorder_chapters import (
+        ReorderChaptersTool,
+    )
+
+    volume = _make_volume(volume_id="vol-1", order=1, title="第一卷")
+    chapter_a = _make_chapter(order=1, title="第一章", chapter_id="chap-1")
+    chapter_b = _make_chapter(order=2, title="第二章", chapter_id="chap-2")
+    tool = ReorderChaptersTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.list_by_volume",
+            AsyncMock(return_value=[chapter_a, chapter_b]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.get_by_volume_ref",
+            AsyncMock(return_value=chapter_a),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_service.reorder_chapters",
+            AsyncMock(),
+        ) as reorder:
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "ordered_chapter_refs": [
+                        {"type": "title", "value": "第一章"},
+                    ],
+                }
+                )
+
+    data = json.loads(result)
+    assert data["success"] is False
+    assert "一一对应" in data["message"]
+    reorder.assert_not_awaited()
+
+
+async def test_reorder_chapters_rejects_duplicate_refs() -> None:
+    from app.agent_runtime.tools.impls.chapter.reorder_chapters import (
+        ReorderChaptersTool,
+    )
+
+    volume = _make_volume(volume_id="vol-1", order=1, title="第一卷")
+    chapter_a = _make_chapter(order=1, title="第一章", chapter_id="chap-1")
+    chapter_b = _make_chapter(order=2, title="第二章", chapter_id="chap-2")
+    tool = ReorderChaptersTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.reorder_chapters.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.list_by_volume",
+            AsyncMock(return_value=[chapter_a, chapter_b]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_repo.get_by_volume_ref",
+            AsyncMock(return_value=chapter_a),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.reorder_chapters.chapter_service.reorder_chapters",
+            AsyncMock(),
+        ) as reorder:
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "ordered_chapter_refs": [
+                        {"type": "title", "value": "第一章"},
+                        {"type": "order", "value": 1},
+                        {"type": "title", "value": "第二章"},
+                    ],
+                }
+                )
+
+    data = json.loads(result)
+    assert data["success"] is False
+    assert "重复" in data["message"]
+    reorder.assert_not_awaited()

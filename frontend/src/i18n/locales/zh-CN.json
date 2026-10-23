@@ -843,6 +843,10 @@
         "name": "移动章节",
         "description": "将章节移动到目标分卷末尾"
       },
+      "reorderChapters": {
+        "name": "重排章节顺序",
+        "description": "按新顺序重排指定分卷内的全部章节"
+      },
       "listNotes": {
         "name": "列出笔记",
         "description": "列出目录下所有笔记及分类"
@@ -2432,6 +2436,8 @@
       "editVolume": "重命名卷",
       "deleteVolume": "删除卷",
       "moveChapterToVolume": "移动章节",
+      "reorderChapters": "重排章节顺序",
+      "reorderChaptersDetail": "「{{volume}}」 · {{count}} 章",
       "chapterSummaries": "章节摘要",
       "summaryCount": "{{count}} 条摘要",
       "rangeSummaries": "区间摘要",

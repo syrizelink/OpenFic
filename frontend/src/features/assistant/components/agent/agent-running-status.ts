@@ -68,6 +68,7 @@ const TOOL_RUNNING_STATUS: Record<string, AgentRunningStatus> = {
   edit_volume: AGENT_RUNNING_STATUS.chapterWrite,
   delete_volume: AGENT_RUNNING_STATUS.chapterWrite,
   move_chapter_to_volume: AGENT_RUNNING_STATUS.chapterWrite,
+  reorder_chapters: AGENT_RUNNING_STATUS.chapterWrite,
   activate_skill: AGENT_RUNNING_STATUS.callingSkill,
   reference_skill: AGENT_RUNNING_STATUS.callingSkill,
 };

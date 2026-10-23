@@ -25,6 +25,7 @@ export const REGISTERED_TOOL_NAMES = [
   "edit_volume",
   "delete_volume",
   "move_chapter_to_volume",
+  "reorder_chapters",
   "read_chapter_summaries",
   "read_range_summaries",
   "list_characters",
@@ -251,6 +252,13 @@ export const TOOL_DESCRIPTOR_META = {
   },
   move_chapter_to_volume: {
     toolName: "move_chapter_to_volume",
+    group: "volume",
+    tag: "move",
+    isExplore: false,
+    contentMode: "hidden",
+  },
+  reorder_chapters: {
+    toolName: "reorder_chapters",
     group: "volume",
     tag: "move",
     isExplore: false,

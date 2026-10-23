@@ -95,6 +95,10 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.moveChapterToVolume.name",
     description: "settings.agentTool.moveChapterToVolume.description",
   },
+  reorder_chapters: {
+    name: "settings.agentTool.reorderChapters.name",
+    description: "settings.agentTool.reorderChapters.description",
+  },
   list_notes: {
     name: "settings.agentTool.listNotes.name",
     description: "settings.agentTool.listNotes.description",

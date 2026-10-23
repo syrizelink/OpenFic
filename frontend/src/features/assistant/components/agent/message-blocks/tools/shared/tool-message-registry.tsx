@@ -8,6 +8,7 @@ import {
   UserRoundPen,
   UserRoundX,
   FilePenLine,
+  ArrowDownUp,
   FileText,
   FileXCorner,
   FolderPen,
@@ -574,6 +575,27 @@ const TOOL_REGISTRY = {
       const targetLabel = getVolumeRefLabel(message, "target_volume_ref");
       if (chapterLabel && targetLabel) return `${chapterLabel} \u2192 ${targetLabel}`;
       return chapterLabel ?? targetLabel;
+    },
+  },
+  reorder_chapters: {
+    toolName: "reorder_chapters",
+    group: "volume",
+    tag: "move",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: ArrowDownUp,
+    getTitle: () => i18n.t("assistant.tools.reorderChapters"),
+    getDetail: (message) => {
+      const volumeLabel = getVolumeRefLabel(message, "volume_ref");
+      const refs = getStreamingData(message).ordered_chapter_refs;
+      const count = Array.isArray(refs) ? refs.length : 0;
+      if (volumeLabel && count > 0) {
+        return i18n.t("assistant.tools.reorderChaptersDetail", {
+          volume: volumeLabel,
+          count,
+        });
+      }
+      return volumeLabel ?? undefined;
     },
   },
   read_chapter_summaries: {
