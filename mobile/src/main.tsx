@@ -1,5 +1,5 @@
 import { Theme, Button, TextField, Dialog, IconButton } from "@radix-ui/themes";
-import { Check, Globe, Plus, Server, Trash2 } from "lucide-react";
+import { Check, Globe, Plus, ScanQrCode, Server, Trash2 } from "lucide-react";
 import { StrictMode, useEffect, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -9,7 +9,7 @@ import { Toaster } from "../../frontend/src/components/toaster";
 import { version as appVersion } from "../package.json";
 import { AppUpdatePanel } from "./app-update";
 import { normalizeInstanceUrl, readInstances, STORAGE_KEY, type Instance } from "./instances.mjs";
-import { checkInstance, openInstance } from "./native";
+import { checkInstance, openInstance, scanInstanceUrl, supportsInstanceScanning } from "./native";
 
 import "../../frontend/src/styles/index.css";
 import "./styles.css";
@@ -27,6 +27,7 @@ export function App() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<"connect" | "about">("connect");
   const [showList, setShowList] = useState(false);
@@ -39,6 +40,7 @@ export function App() {
   const [removing, setRemoving] = useState<Instance | null>(null);
   const isAddingRef = useRef(false);
   const isOpeningRef = useRef(false);
+  const isScanningRef = useRef(false);
   const selected = instances.find((item) => item.id === selectedId) ?? instances[0];
 
   function save(next: Instance[]) {
@@ -47,7 +49,7 @@ export function App() {
   }
   async function add(event: FormEvent) {
     event.preventDefault();
-    if (isAddingRef.current) return;
+    if (isAddingRef.current || isScanningRef.current) return;
     isAddingRef.current = true;
     setBusy(true);
     try {
@@ -73,6 +75,22 @@ export function App() {
     } finally {
       isAddingRef.current = false;
       setBusy(false);
+    }
+  }
+  async function handleScanQrCode() {
+    if (isScanningRef.current || isAddingRef.current || isOpeningRef.current) return;
+    isScanningRef.current = true;
+    setScanning(true);
+    try {
+      const scannedUrl = await scanInstanceUrl();
+      if (scannedUrl !== null) setUrl(scannedUrl);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "扫描失败，请重试。", {
+        id: "mobile-instance-scan-error",
+      });
+    } finally {
+      isScanningRef.current = false;
+      setScanning(false);
     }
   }
   async function open(instance: Instance) {
@@ -222,6 +240,21 @@ export function App() {
                   >
                     <div className="mobile-section-heading">
                       <h2 id="connect-title">连接远程实例</h2>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        loading={scanning}
+                        disabled={
+                          busy || scanning || activeId !== null || !supportsInstanceScanning
+                        }
+                        title={
+                          supportsInstanceScanning ? undefined : "请在 Android APP 中扫描二维码"
+                        }
+                        onClick={() => void handleScanQrCode()}
+                      >
+                        <ScanQrCode size={17} />
+                        扫描二维码
+                      </Button>
                     </div>
                     <form onSubmit={add}>
                       <label htmlFor="instance-name">
@@ -234,7 +267,7 @@ export function App() {
                         maxLength={60}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        disabled={busy}
+                        disabled={busy || scanning}
                       />
                       <label htmlFor="instance-url">服务器地址</label>
                       <TextField.Root
@@ -249,7 +282,7 @@ export function App() {
                         size="3"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        disabled={busy}
+                        disabled={busy || scanning}
                       />
                       {url.trim().toLowerCase().startsWith("http://") && (
                         <p className="mobile-http-note">
@@ -261,7 +294,7 @@ export function App() {
                           type="submit"
                           size="3"
                           loading={busy}
-                          disabled={activeId !== null}
+                          disabled={activeId !== null || scanning}
                         >
                           <Check size={17} />
                           验证并添加
@@ -271,7 +304,7 @@ export function App() {
                             type="button"
                             variant="ghost"
                             size="3"
-                            disabled={busy}
+                            disabled={busy || scanning}
                             onClick={() => setAdding(false)}
                           >
                             取消

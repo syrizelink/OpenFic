@@ -1,9 +1,17 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 interface RemoteInstancePlugin {
+  scanUrl(): Promise<{ value: string | null }>;
   check(options: { url: string }): Promise<{ version: string }>;
   open(options: { url: string; name: string }): Promise<void>;
 }
 const RemoteInstance = registerPlugin<RemoteInstancePlugin>("RemoteInstance");
+export const supportsInstanceScanning = Capacitor.getPlatform() === "android";
+
+export async function scanInstanceUrl(): Promise<string | null> {
+  if (!supportsInstanceScanning) throw new Error("请在 Android APP 中扫描二维码。");
+  const result = await RemoteInstance.scanUrl();
+  return result.value;
+}
 
 export interface UpdateState {
   status: "unsupported" | "idle" | "available" | "checking" | "downloading" | "ready" | "error";
