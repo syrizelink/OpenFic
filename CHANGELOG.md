@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.13.0](https://github.com/syrizelink/OpenFic/compare/v0.12.1...v0.13.0) (2026-10-24)
+
+
+### ✨ 新功能
+
+* **asr:** 支持基于本地模型与云服务商的语音转写 ([#455](https://github.com/syrizelink/OpenFic/issues/455)) ([7a14cca](https://github.com/syrizelink/OpenFic/commit/7a14ccaee7c7d002259d8e8f0c30ff6cfe80b8e6))
+* **backend:** 支持 PostgreSQL 数据库后端 ([#452](https://github.com/syrizelink/OpenFic/issues/452)) ([8ce5cb8](https://github.com/syrizelink/OpenFic/commit/8ce5cb8c1dbbd8947c314460f795dfcd629bf9eb))
+* **mobile:** 新增 Android 远程连接客户端 ([#460](https://github.com/syrizelink/OpenFic/issues/460)) ([37e95a9](https://github.com/syrizelink/OpenFic/commit/37e95a93ed0800eeccad0561e2906d8f16ba5527))
+* **tunnels:** 支持设置基于提供商的隧道以启用远程连接 ([#453](https://github.com/syrizelink/OpenFic/issues/453)) ([1035d1e](https://github.com/syrizelink/OpenFic/commit/1035d1e4a5b9a152350f71e6fcebe6e4d107b2ff))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复模型以 JSON 字符串格式传递工具对象参数时解析失败的问题 ([#450](https://github.com/syrizelink/OpenFic/issues/450)) ([cc98518](https://github.com/syrizelink/OpenFic/commit/cc985187950f125702ab2c5bf1163ae7caf2e5f3))
+* **agent:** 修复流式传输在特定情况下导致工具名重复拼接的问题 ([#456](https://github.com/syrizelink/OpenFic/issues/456)) ([a8b138c](https://github.com/syrizelink/OpenFic/commit/a8b138ccd61ca5098192146f4fa34bf22092ec4b))
+* **agent:** 按模型协议路由 OpenCode Zen/Go 请求 ([#427](https://github.com/syrizelink/OpenFic/issues/427)) ([03549b5](https://github.com/syrizelink/OpenFic/commit/03549b5eba2a173be06e11ea9a55301e95d05491))
+
+
+### 🔧 杂项
+
+* **agent:** 支持 DeepSeek 联网搜索 ([#454](https://github.com/syrizelink/OpenFic/issues/454)) ([e0db008](https://github.com/syrizelink/OpenFic/commit/e0db008d9c1b4a33289185933aed052e67d264f9))
+* **provider:** 添加 Requesty 提供商 ([#420](https://github.com/syrizelink/OpenFic/issues/420)) ([d578743](https://github.com/syrizelink/OpenFic/commit/d578743fda02024f42c191bfdf73388e3f78469a))
+
 ## [0.12.1](https://github.com/syrizelink/OpenFic/compare/v0.12.0...v0.12.1) (2026-10-11)
 
 
