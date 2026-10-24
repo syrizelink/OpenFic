@@ -14,11 +14,12 @@ concurrency:
 
 jobs:
   packages:
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     uses: ./.github/workflows/package-build.yml
 
   summary:
     name: Summary
-    if: always()
+    if: "always() && !startsWith(github.event.pull_request.head.ref, 'release-please--')"
     needs: packages
     runs-on: ubuntu-latest
     steps:

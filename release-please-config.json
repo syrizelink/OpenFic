@@ -11,7 +11,7 @@
     { "type": "docs", "section": "📚 文档" },
     { "type": "test", "section": "✅ 测试" },
     { "type": "chore", "section": "🔧 杂项", "hidden": false },
-    { "type": "ci", "section": "👷 CI/CD", "hidden": false },
+    { "type": "ci", "section": "👷 CI/CD", "hidden": true },
     { "type": "style", "section": "💄 格式", "hidden": true }
   ],
   "packages": {
