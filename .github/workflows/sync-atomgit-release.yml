@@ -66,17 +66,19 @@ jobs:
           release_name=$(jq -r '.name' <<< "$release_json")
           release_body=$(jq -r '.body' <<< "$release_json")
 
-          release_status=$(curl -sS -o "$RUNNER_TEMP/atomgit-release.json" -w '%{http_code}' \
-            "${api}/${TAG}?access_token=${ATOMGIT_TOKEN}")
+          release_status=$(curl -sS --connect-timeout 30 --max-time 60 \
+            -H "Authorization: Bearer ${ATOMGIT_TOKEN}" \
+            -o "$RUNNER_TEMP/atomgit-release.json" -w '%{http_code}' "${api}/${TAG}")
           if [[ "$release_status" == 200 ]]; then
             echo "AtomGit Release $TAG already exists"
           elif [[ "$release_status" == 404 ]]; then
             jq -n --arg tag "$TAG" --arg name "$release_name" --arg body "$release_body" \
               '{tag_name: $tag, name: $name, body: $body, release_status: "latest"}' \
               > "$RUNNER_TEMP/release.json"
-            curl -fsS -X POST -H 'Content-Type: application/json' \
+            curl --fail-with-body -sS --connect-timeout 30 --max-time 60 -X POST \
+              -H "Authorization: Bearer ${ATOMGIT_TOKEN}" -H 'Content-Type: application/json' \
               -d @"$RUNNER_TEMP/release.json" \
-              "${api}?access_token=${ATOMGIT_TOKEN}" > /dev/null
+              "$api" > /dev/null
             echo "Created AtomGit Release $TAG"
           else
             echo "AtomGit Release lookup failed with HTTP $release_status" >&2
@@ -90,19 +92,48 @@ jobs:
             exit 1
           fi
 
-          for file in "${assets[@]}"; do
+          upload_file() {
+            local file="$1" file_name file_size_bytes file_size_mib upload_url put_url
+            local attempt started_at elapsed_seconds speed_mib
+
             file_name=$(basename "$file")
-            upload_url=$(curl -fsS --get \
-              --data-urlencode "access_token=${ATOMGIT_TOKEN}" \
-              --data-urlencode "file_name=${file_name}" \
-              "${api}/${TAG}/upload_url")
-            put_url=$(jq -er '.url' <<< "$upload_url")
-            put_args=()
-            while IFS= read -r header; do
-              put_args+=(-H "$header")
-            done < <(jq -r '.headers | to_entries[] | "\(.key): \(.value)"' <<< "$upload_url")
-            echo "Uploading $file_name"
-            curl -fsS -X PUT "${put_args[@]}" --upload-file "$file" "$put_url"
+            file_size_bytes=$(stat --printf='%s' "$file")
+            file_size_mib=$(awk -v bytes="$file_size_bytes" 'BEGIN { printf "%.2f", bytes / 1024 / 1024 }')
+
+            for attempt in 1 2 3; do
+              echo "Uploading $file_name (${file_size_mib} MiB, attempt $attempt/3)"
+              started_at=$(date +%s)
+              if upload_url=$(curl --fail-with-body -sS --connect-timeout 30 --max-time 60 \
+                -H "Authorization: Bearer ${ATOMGIT_TOKEN}" --get \
+                --data-urlencode "file_name=${file_name}" "${api}/${TAG}/upload_url") &&
+                put_url=$(jq -er '.url' <<< "$upload_url"); then
+                put_args=()
+                while IFS= read -r header; do
+                  put_args+=(-H "$header")
+                done < <(jq -r '.headers | to_entries[] | "\(.key): \(.value)"' <<< "$upload_url")
+                if curl --fail-with-body --progress-bar --connect-timeout 30 --max-time 3600 -X PUT \
+                  "${put_args[@]}" --upload-file "$file" "$put_url"; then
+                  elapsed_seconds=$(( $(date +%s) - started_at ))
+                  if (( elapsed_seconds == 0 )); then elapsed_seconds=1; fi
+                  speed_mib=$(awk -v bytes="$file_size_bytes" -v seconds="$elapsed_seconds" \
+                    'BEGIN { printf "%.2f", bytes / 1024 / 1024 / seconds }')
+                  echo "Uploaded $file_name in ${elapsed_seconds}s (${speed_mib} MiB/s)"
+                  return 0
+                fi
+              fi
+              if (( attempt < 3 )); then sleep 3; fi
+            done
+
+            echo "Failed to upload $file_name after 3 attempts" >&2
+            return 1
+          }
+
+          for file in "${assets[@]}"; do
+            case "$file" in *.yml|*.yaml|*.json) continue ;; esac
+            upload_file "$file"
+          done
+          for file in "${assets[@]}"; do
+            case "$file" in *.yml|*.yaml|*.json) upload_file "$file" ;; esac
           done
 
           echo "AtomGit Release sync completed for $TAG"
