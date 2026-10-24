@@ -1,0 +1,106 @@
+name: Sync AtomGit Release
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: GitHub Release tag to sync
+        required: true
+        type: string
+    secrets:
+      ATOMGIT_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub Release tag to sync (for example, v0.12.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-atomgit-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          tag="${EVENT_TAG:-${INPUT_TAG:-}}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Download GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release download "$TAG" --dir "$RUNNER_TEMP/assets"
+
+      - name: Sync release metadata and assets to AtomGit
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+          ATOMGIT_REPO: Syrize/OpenFic
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          api="https://api.atomgit.com/api/v5/repos/${ATOMGIT_REPO}/releases"
+
+          release_json=$(gh release view "$TAG" --json name,body)
+          release_name=$(jq -r '.name' <<< "$release_json")
+          release_body=$(jq -r '.body' <<< "$release_json")
+
+          release_status=$(curl -sS -o "$RUNNER_TEMP/atomgit-release.json" -w '%{http_code}' \
+            "${api}/${TAG}?access_token=${ATOMGIT_TOKEN}")
+          if [[ "$release_status" == 200 ]]; then
+            echo "AtomGit Release $TAG already exists"
+          elif [[ "$release_status" == 404 ]]; then
+            jq -n --arg tag "$TAG" --arg name "$release_name" --arg body "$release_body" \
+              '{tag_name: $tag, name: $name, body: $body, release_status: "latest"}' \
+              > "$RUNNER_TEMP/release.json"
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d @"$RUNNER_TEMP/release.json" \
+              "${api}?access_token=${ATOMGIT_TOKEN}" > /dev/null
+            echo "Created AtomGit Release $TAG"
+          else
+            echo "AtomGit Release lookup failed with HTTP $release_status" >&2
+            exit 1
+          fi
+
+          shopt -s nullglob
+          assets=("$RUNNER_TEMP"/assets/*)
+          if ((${#assets[@]} == 0)); then
+            echo "GitHub Release $TAG has no assets" >&2
+            exit 1
+          fi
+
+          for file in "${assets[@]}"; do
+            file_name=$(basename "$file")
+            upload_url=$(curl -fsS --get \
+              --data-urlencode "access_token=${ATOMGIT_TOKEN}" \
+              --data-urlencode "file_name=${file_name}" \
+              "${api}/${TAG}/upload_url")
+            put_url=$(jq -er '.url' <<< "$upload_url")
+            put_args=()
+            while IFS= read -r header; do
+              put_args+=(-H "$header")
+            done < <(jq -r '.headers | to_entries[] | "\(.key): \(.value)"' <<< "$upload_url")
+            echo "Uploading $file_name"
+            curl -fsS -X PUT "${put_args[@]}" --upload-file "$file" "$put_url"
+          done
+
+          echo "AtomGit Release sync completed for $TAG"

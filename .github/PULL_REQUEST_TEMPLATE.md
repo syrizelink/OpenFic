@@ -4,7 +4,7 @@
 
 <!-- 格式: <type>(<scope>): <subject>
 示例: feat(backend): 添加章节摘要生成功能
-类型: feat | fix | docs | style | refactor | perf | test | chore
+类型: feat | fix | docs | style | refactor | perf | test | chore | ci
 范围: frontend | backend | agent | storage | api | db | config -->
 
 ## 变更说明
@@ -32,6 +32,7 @@
 - [ ] 性能优化 (perf)
 - [ ] 测试相关 (test)
 - [ ] 杂项 (chore)
+- [ ] CI 配置 (ci)
 
 <!-- 必填，且仅选择一项 -->
 <!-- 变更类型应与 PR Title 中的`<type>`保持一致 -->

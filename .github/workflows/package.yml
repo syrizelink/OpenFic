@@ -128,3 +128,11 @@ jobs:
           tag_name: ${{ needs.build.outputs.release_tag }}
           files: assets/*
           fail_on_unmatched_files: true
+
+  sync-atomgit-release:
+    needs: [build, publish-release]
+    uses: ./.github/workflows/sync-atomgit-release.yml
+    with:
+      tag: ${{ needs.build.outputs.release_tag }}
+    secrets:
+      ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
