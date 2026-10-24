@@ -46,6 +46,7 @@ jobs:
 
       - name: Download GitHub Release assets
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
         run: gh release download "$TAG" --dir "$RUNNER_TEMP/assets"
@@ -54,6 +55,7 @@ jobs:
         env:
           ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
           ATOMGIT_REPO: Syrize/OpenFic
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
         run: |
