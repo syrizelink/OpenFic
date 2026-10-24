@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
-import { access, readFile, readdir, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
+import { access, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -105,11 +105,7 @@ function listConnectedDevices(adb, env) {
 function getEmulatorPath(env) {
   const sdkRoot = env.ANDROID_HOME || env.ANDROID_SDK_ROOT;
   return sdkRoot
-    ? path.join(
-        sdkRoot,
-        "emulator",
-        process.platform === "win32" ? "emulator.exe" : "emulator",
-      )
+    ? path.join(sdkRoot, "emulator", process.platform === "win32" ? "emulator.exe" : "emulator")
     : process.platform === "win32"
       ? "emulator.exe"
       : "emulator";
@@ -143,8 +139,7 @@ async function startEmulatorIfNeeded(adb, env, args) {
   const requestedAvd = env.MOBILE_ANDROID_AVD?.trim();
   const avd = requestedAvd
     ? avds.find((name) => name === requestedAvd)
-    : avds.find((name) => name.includes("OpenFic")) ??
-      (avds.length === 1 ? avds[0] : undefined);
+    : (avds.find((name) => name.includes("OpenFic")) ?? (avds.length === 1 ? avds[0] : undefined));
 
   if (!avd) {
     const available = avds.length ? avds.join(", ") : "none";
@@ -173,15 +168,12 @@ async function startEmulatorIfNeeded(adb, env, args) {
   let nextProgressAt = Date.now() + 15000;
   console.log("Waiting for Android to finish booting...");
   while (Date.now() < deadline) {
-    const device = listConnectedDevices(adb, env).find((serial) =>
-      serial.startsWith("emulator-"),
-    );
+    const device = listConnectedDevices(adb, env).find((serial) => serial.startsWith("emulator-"));
     if (device) {
-      const result = spawnSync(
-        adb,
-        ["-s", device, "shell", "getprop", "sys.boot_completed"],
-        { encoding: "utf8", env },
-      );
+      const result = spawnSync(adb, ["-s", device, "shell", "getprop", "sys.boot_completed"], {
+        encoding: "utf8",
+        env,
+      });
       if (result.status === 0 && result.stdout.trim() === "1") {
         console.log(`Android emulator ${device} is ready.`);
         return device;
@@ -240,7 +232,9 @@ const wrapperProperties = await readFile(
 const distributionName = wrapperProperties.match(/\/(gradle-[^/]+)\.zip/)?.[1];
 const gradleVersion = distributionName?.match(/^gradle-(\d+(?:\.\d+)+)-/)?.[1];
 if (!distributionName || !gradleVersion) {
-  throw new Error("Could not determine the Gradle wrapper distribution from gradle-wrapper.properties");
+  throw new Error(
+    "Could not determine the Gradle wrapper distribution from gradle-wrapper.properties",
+  );
 }
 
 const androidConfigPath = path.join(
@@ -301,17 +295,8 @@ const forwardSignal = (signal) => {
 
 try {
   adbPath = await getAdbPath(childEnv);
-  const autoTarget = await startEmulatorIfNeeded(
-    adbPath,
-    childEnv,
-    process.argv.slice(2),
-  );
-  newlyForwarded = forwardVitePort(
-    adbPath,
-    childEnv,
-    process.argv.slice(2),
-    port,
-  );
+  const autoTarget = await startEmulatorIfNeeded(adbPath, childEnv, process.argv.slice(2));
+  newlyForwarded = forwardVitePort(adbPath, childEnv, process.argv.slice(2), port);
   console.log(`Using JDK 21 at ${javaHome}`);
   if (childEnv.GRADLE_USER_HOME) {
     console.log(`Using Gradle cache at ${childEnv.GRADLE_USER_HOME}`);
