@@ -2,224 +2,82 @@ name: Package
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: package-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  PYTHON_VERSION: '3.12'
-  NODE_VERSION: '22.18.0'
-  PNPM_VERSION: '11.8.0'
-  UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
-
 jobs:
-  # ---------------------------------------------------------------- context
-  context:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      release_tag: ${{ steps.meta.outputs.release_tag }}
-      image: ${{ steps.meta.outputs.image }}
-      major_minor: ${{ steps.meta.outputs.major_minor }}
-    steps:
-      - id: meta
-        run: |
-          RELEASE_TAG=${GITHUB_REF#refs/tags/}
-          VERSION=${RELEASE_TAG#v}
-          IMAGE=ghcr.io/${{ github.repository_owner }}/openfic
-          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1,2)
+  build:
+    uses: ./.github/workflows/package-build.yml
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
-          echo "major_minor=${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
-
-  # ---------------------------------------------------------------- frontend
-  build-frontend:
-    needs: [context]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
-        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
-      - uses: actions/cache/restore@v5
-        id: pnpm-cache
-        with:
-          path: .pnpm-store
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
-      - name: 构建前端产物
-        working-directory: frontend
-        run: |
-          pnpm install --frozen-lockfile
-          OPENFIC_BUILD_VERSION=${{ needs.context.outputs.version }} pnpm build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: frontend-dist
-          path: frontend/dist/
-      - uses: actions/cache/save@v5
-        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: .pnpm-store
-          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
-
-  # ---------------------------------------------------------------- pypi
-  pypi:
-    needs: [context, build-frontend]
+  publish-pypi:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: pypi
+    permissions:
+      id-token: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: actions/download-artifact@v8
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
-        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
-      - uses: actions/cache/restore@v5
-        id: pnpm-cache
-        with:
-          path: .pnpm-store
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@v5
-      - name: 生成 uv 缓存 key lock
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          source = Path("backend/uv.lock")
-          target = Path("backend/.uv-cache-key.lock")
-          lines = source.read_text(encoding="utf-8").splitlines()
-          normalized: list[str] = []
-          is_openfic_package = False
-
-          for line in lines:
-              if line == "[[package]]":
-                  is_openfic_package = False
-              elif line == 'name = "openfic"':
-                  is_openfic_package = True
-
-              if is_openfic_package and line.startswith("version = "):
-                  continue
-
-              normalized.append(line)
-
-          target.write_text("\n".join(normalized) + "\n", encoding="utf-8")
-          PY
-      - uses: actions/cache/restore@v5
-        id: uv-cache
-        with:
-          path: .uv-cache
-          key: ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/.uv-cache-key.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-
-      - name: 构建后端 Python 包
-        working-directory: backend
-        run: uv build
-      - uses: actions/cache/save@v5
-        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: .pnpm-store
-          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
-      - uses: actions/cache/save@v5
-        if: ${{ steps.uv-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: .uv-cache
-          key: ${{ steps.uv-cache.outputs.cache-primary-key }}
-      - name: 发布到 PyPI
+          name: backend-dist
+          path: dist
+      - name: 发布已验证的 Python 包
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: backend/dist
 
-  # ---------------------------------------------------------------- docker
-  docker:
-    needs: [context]
+  publish-docker:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      packages: write
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            suffix: linux-x86_64
-            variant: sqlite
-            tag_suffix: ''
-            extra: ''
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: linux-aarch64
-            variant: sqlite
-            tag_suffix: ''
-            extra: ''
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            suffix: linux-x86_64
-            variant: postgresql
-            tag_suffix: -postgresql
-            extra: postgresql
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: linux-aarch64
-            variant: postgresql
-            tag_suffix: -postgresql
-            extra: postgresql
-    runs-on: ${{ matrix.runner }}
-    env:
-      BUILDX_NO_DEFAULT_ATTESTATIONS: true
+        variant: [sqlite, postgresql]
+        suffix: [linux-x86_64, linux-aarch64]
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/download-artifact@v8
+        with:
+          name: docker-${{ matrix.variant }}-${{ matrix.suffix }}
+          path: ${{ runner.temp }}/docker-image
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: tags
+      - name: 发布已验证的 Docker 镜像
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          VERSION: ${{ needs.build.outputs.version }}
+          MAJOR_MINOR: ${{ needs.build.outputs.major_minor }}
+          VARIANT: ${{ matrix.variant }}
+          SUFFIX: ${{ matrix.suffix }}
         run: |
-          IMAGE=${{ needs.context.outputs.image }}
-          VERSION=${{ needs.context.outputs.version }}
-          MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
-          SUFFIX=${{ matrix.suffix }}
-          TAG_SUFFIX=${{ matrix.tag_suffix }}
-
-          echo "tags=${IMAGE}:latest${TAG_SUFFIX}-${SUFFIX},${IMAGE}:${VERSION}${TAG_SUFFIX}-${SUFFIX},${IMAGE}:${MAJOR_MINOR}${TAG_SUFFIX}-${SUFFIX}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: ${{ matrix.platform }}
-          push: true
-          provenance: false
-          tags: ${{ steps.tags.outputs.tags }}
-          build-args: |
-            OPENFIC_EXTRA=${{ matrix.extra }}
-          cache-from: type=gha,scope=docker-${{ matrix.variant }}-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=docker-${{ matrix.variant }}-${{ matrix.suffix }}
+          set -euo pipefail
+          docker load --input "$RUNNER_TEMP/docker-image/image.tar"
+          tag_suffix=''
+          if [[ "$VARIANT" == postgresql ]]; then tag_suffix=-postgresql; fi
+          for version in "$VERSION" "$MAJOR_MINOR" latest; do
+            docker push "${IMAGE}:${version}${tag_suffix}-${SUFFIX}"
+          done
 
   docker-manifest:
-    needs: [context, docker]
+    needs: [build, publish-docker]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      packages: write
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-buildx-action@v4
@@ -229,290 +87,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 发布多架构 Docker 标签
-        run: |
-          IMAGE=${{ needs.context.outputs.image }}
-          VERSION=${{ needs.context.outputs.version }}
-          MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
-
-          create_manifest() {
-            local tag_suffix="$1"
-            docker buildx imagetools create \
-              -t "${IMAGE}:latest${tag_suffix}" \
-              "${IMAGE}:latest${tag_suffix}-linux-x86_64" \
-              "${IMAGE}:latest${tag_suffix}-linux-aarch64"
-            docker buildx imagetools create \
-              -t "${IMAGE}:${VERSION}${tag_suffix}" \
-              "${IMAGE}:${VERSION}${tag_suffix}-linux-x86_64" \
-              "${IMAGE}:${VERSION}${tag_suffix}-linux-aarch64"
-            docker buildx imagetools create \
-              -t "${IMAGE}:${MAJOR_MINOR}${tag_suffix}" \
-              "${IMAGE}:${MAJOR_MINOR}${tag_suffix}-linux-x86_64" \
-              "${IMAGE}:${MAJOR_MINOR}${tag_suffix}-linux-aarch64"
-          }
-
-          create_manifest ""
-          create_manifest "-postgresql"
-
-  # ---------------------------------------------------------------- android
-  android:
-    needs: [context, build-frontend]
-    runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - name: 安装 Android SDK
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
-      - uses: actions/download-artifact@v8
-        with:
-          name: frontend-dist
-          path: frontend/dist
-      - name: 安装构建依赖
-        run: |
-          pnpm --dir frontend install --frozen-lockfile
-          pnpm --dir mobile install --frozen-lockfile
-      - name: 校验移动端版本与更新清单逻辑
-        working-directory: mobile
         env:
-          RELEASE_VERSION: ${{ needs.context.outputs.version }}
-        run: |
-          pnpm test
-          pnpm type-check
-          pnpm exec node --input-type=module -e 'import p from "./package.json" with { type: "json" }; if (p.version !== process.env.RELEASE_VERSION) throw new Error("Mobile version does not match release tag")'
-      - name: 设置签名文件路径
-        run: echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/openfic-release.keystore" >> "$GITHUB_ENV"
-      - name: 准备正式签名
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          IMAGE: ${{ needs.build.outputs.image }}
+          VERSION: ${{ needs.build.outputs.version }}
+          MAJOR_MINOR: ${{ needs.build.outputs.major_minor }}
         run: |
           set -euo pipefail
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing Android signing secret: $name"
-              exit 1
-            fi
+          for tag_suffix in '' -postgresql; do
+            for version in "$VERSION" "$MAJOR_MINOR" latest; do
+              docker buildx imagetools create \
+                -t "${IMAGE}:${version}${tag_suffix}" \
+                "${IMAGE}:${VERSION}${tag_suffix}-linux-x86_64" \
+                "${IMAGE}:${VERSION}${tag_suffix}-linux-aarch64"
+            done
           done
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
-          chmod 600 "$ANDROID_KEYSTORE_PATH"
-      - name: 构建移动端并同步 Android
-        working-directory: mobile
-        run: |
-          pnpm build:shell
-          pnpm exec node scripts/copy-frontend.mjs
-          pnpm exec cap sync android
-      - name: 运行 Android 单元测试
-        working-directory: mobile/android
-        run: ./gradlew testDebugUnitTest --no-daemon
-      - name: 构建正式 APK 与更新清单
-        working-directory: mobile
-        run: pnpm exec node scripts/build-apk.mjs --release
-      - name: 校验 APK 签名
-        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose mobile/out/OpenFic-*-android.apk'
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android-update
-          path: |
-            mobile/out/OpenFic-*-android.apk
-            mobile/out/android-update.json
-          if-no-files-found: error
-      - name: 发布 Android 安装包及更新清单
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.context.outputs.release_tag }}
-        run: gh release upload "$RELEASE_TAG" mobile/out/OpenFic-*-android.apk mobile/out/android-update.json --clobber
-      - name: 清理签名文件
-        if: always()
-        run: rm -f "$ANDROID_KEYSTORE_PATH"
 
-  # ---------------------------------------------------------------- desktop
-  desktop:
-    needs: [context, build-frontend, pypi]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            electron_args: '--win --x64'
-            artifact_name: windows-update-x86_64
-          - os: windows-11-arm
-            electron_args: '--win --arm64'
-            artifact_name: windows-update-aarch64
-          - os: ubuntu-24.04
-            electron_args: '--linux --x64'
-            artifact_name: desktop-linux-x86_64
-          - os: ubuntu-24.04-arm
-            electron_args: '--linux --arm64'
-            artifact_name: desktop-linux-aarch64
-          - os: macos-15-intel
-            electron_args: '--mac --x64'
-            artifact_name: desktop-mac-x86_64
-          - os: macos-15
-            electron_args: '--mac --arm64'
-            artifact_name: desktop-mac-aarch64
-    runs-on: ${{ matrix.os }}
-    env:
-      ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
-      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: frontend-dist
-          path: frontend/dist
-      - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
-        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
-      - uses: actions/cache/restore@v5
-        id: pnpm-cache
-        with:
-          path: .pnpm-store
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-desktop-${{ hashFiles('desktop/pnpm-lock.yaml', 'frontend/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-desktop-
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
-      - uses: actions/cache/restore@v5
-        id: electron-cache
-        with:
-          path: |
-            .electron-cache
-            .electron-builder-cache
-          key: ${{ runner.os }}-${{ runner.arch }}-electron-${{ hashFiles('desktop/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-electron-
-      - name: 安装前端依赖
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-      - name: 安装桌面端依赖
-        working-directory: desktop
-        run: pnpm install --frozen-lockfile
-      - name: 构建桌面端
-        working-directory: desktop
-        run: pnpm build
-      - name: 构建 Electron 安装包
-        working-directory: desktop
-        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish never
-      - name: 统一安装包架构命名
-        working-directory: desktop
-        run: node scripts/normalize-artifact-names.mjs
-      - name: 校验 Windows 安装包完整性
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          archives=(desktop/dist-electron/*.zip)
-          ((${#archives[@]}))
-          for archive in "${archives[@]}"; do
-            7z t "$archive"
-          done
-      - name: 校验 Linux 安装包完整性
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          tar_files=(desktop/dist-electron/*.tar.gz)
-          ((${#tar_files[@]}))
-          for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
-      - name: 校验 macOS 安装包完整性
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          zip_files=(desktop/dist-electron/*.zip)
-          dmg_files=(desktop/dist-electron/*.dmg)
-          ((${#zip_files[@]} && ${#dmg_files[@]}))
-          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
-          for dmg_file in "${dmg_files[@]}"; do hdiutil verify "$dmg_file"; done
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: |
-            desktop/dist-electron/*.exe
-            desktop/dist-electron/*.blockmap
-            desktop/dist-electron/*.AppImage
-            desktop/dist-electron/*.tar.gz
-            desktop/dist-electron/*.zip
-            desktop/dist-electron/*.dmg
-      - uses: actions/cache/save@v5
-        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: .pnpm-store
-          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
-      - uses: actions/cache/save@v5
-        if: ${{ steps.electron-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: |
-            .electron-cache
-            .electron-builder-cache
-          key: ${{ steps.electron-cache.outputs.cache-primary-key }}
-
-  desktop-windows-update:
-    needs: [context, desktop]
-    if: ${{ always() && needs.desktop.result == 'success' }}
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: windows-update-*
-          merge-multiple: true
-          path: desktop/dist-electron
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: 整理 Windows 自动更新产物
-        working-directory: desktop
-        run: node scripts/prepare-windows-update.mjs
-      - name: 发布 Windows 自动更新产物
-        run: |
-          gh release upload "${{ needs.context.outputs.release_tag }}" \
-            desktop/dist-electron/OpenFic-*-win-*-setup.exe \
-            desktop/dist-electron/OpenFic-*-win-*-setup.exe.blockmap \
-            desktop/dist-electron/OpenFic-*-win-*.zip \
-            desktop/dist-electron/latest*.yml \
-            --clobber
-
-  # ---------------------------------------------------------------- release
   publish-release:
-    needs: [context, desktop, desktop-windows-update]
-    if: ${{ always() && needs.desktop.result == 'success' && needs.desktop-windows-update.result == 'success' }}
+    needs: [build, publish-pypi, docker-manifest]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           merge-multiple: true
           path: assets
-      - name: 列出产物
-        run: |
-          mkdir -p assets
-          find assets -type f -print
-      # release-please 已创建 Release（含 changelog body），此处仅追加构建产物
-      - uses: softprops/action-gh-release@v3
+      - uses: actions/download-artifact@v8
         with:
-          tag_name: ${{ needs.context.outputs.release_tag }}
+          name: windows-release
+          path: assets
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-update
+          path: assets
+      - name: 发布已验证的安装包与更新清单
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build.outputs.release_tag }}
           files: assets/*
+          fail_on_unmatched_files: true
