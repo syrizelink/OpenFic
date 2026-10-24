@@ -52,6 +52,8 @@ def _get_model_discovery_provider_type(provider_type: str) -> str:
         return OPENAI_CODEX_PROVIDER_TYPE
     if provider_type == "requesty":
         return "requesty"
+    if provider_type == "opper":
+        return "opper"
     return "openai-compatible"
 
 
