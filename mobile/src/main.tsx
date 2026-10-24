@@ -297,7 +297,7 @@ export function App() {
             </div>
             <div className="mobile-about-row">
               <h2>版本</h2>
-              <p>Stable {appVersion}</p>
+              <p>Mobile v{appVersion}</p>
             </div>
             <AppUpdatePanel />
             <a
@@ -316,17 +316,14 @@ export function App() {
             >
               开源许可证
             </a>
-            <div className="mobile-about-row">
-              <h2>隐私说明</h2>
-              <p>连接记录保存在本机，创作内容发送至你选择的实例。检查更新会连接 GitHub。</p>
-            </div>
             <a
               className="mobile-about-row"
               href="https://github.com/syrizelink/OpenFic"
               target="_blank"
               rel="noreferrer"
             >
-              GitHub · OpenFic
+              <span>GitHub</span>
+              <span className="mobile-about-value">/syrizelink/OpenFic</span>
             </a>
           </section>
         </div>

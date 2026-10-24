@@ -28,26 +28,6 @@ body {
   overflow: auto;
 }
 
-html[data-mobile-host] body {
-  background: var(--theme-background);
-}
-
-html[data-mobile-host] #root {
-  padding-top: var(--mobile-safe-top, env(safe-area-inset-top));
-  padding-bottom: var(--mobile-safe-bottom, env(safe-area-inset-bottom));
-  padding-left: var(--mobile-safe-left, env(safe-area-inset-left));
-  padding-right: var(--mobile-safe-right, env(safe-area-inset-right));
-  background: var(--theme-background);
-}
-
-html[data-mobile-host] .app-layout-root {
-  height: calc(100dvh - var(--mobile-safe-top, 0px) - var(--mobile-safe-bottom, 0px));
-}
-
-html[data-mobile-host] .auth-page {
-  min-height: calc(100dvh - var(--mobile-safe-top, 0px) - var(--mobile-safe-bottom, 0px));
-}
-
 input,
 textarea,
 select,

@@ -1,183 +1,264 @@
-import { Button } from "@radix-ui/themes";
-import { useEffect, useState } from "react";
+import { Button, Dialog } from "@radix-ui/themes";
+import { useEffect, useRef, useState } from "react";
 
 import { toast } from "../../frontend/src/components/toast";
 import { AppUpdate, supportsAppUpdates, type UpdateState } from "./native";
 
+type UpdateDialog = "available" | "ready" | null;
+
+function UpdateProgress({ progress }: { progress: number }) {
+  const value = Math.max(0, Math.min(100, progress));
+  const accessibleValue = Math.round(value);
+  const circumference = 2 * Math.PI * 10;
+  const offset = circumference * (1 - value / 100);
+
+  return (
+    <span
+      className="mobile-update-circle"
+      aria-label={`下载进度 ${accessibleValue}%`}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={accessibleValue}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <circle
+          className="mobile-update-circle-track"
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <circle
+          className="mobile-update-circle-value"
+          cx="12"
+          cy="12"
+          r="10"
+          strokeDasharray={circumference}
+          style={{ strokeDashoffset: offset }}
+        />
+      </svg>
+    </span>
+  );
+}
+
 export function AppUpdatePanel() {
   const [update, setUpdate] = useState<UpdateState>({
-    status: supportsAppUpdates ? "checking" : "unsupported",
+    status: supportsAppUpdates ? "idle" : "unsupported",
   });
+  const [dialog, setDialog] = useState<UpdateDialog>(null);
   const [installing, setInstalling] = useState(false);
+  const isCheckingRef = useRef(false);
+  const isDownloadingRef = useRef(false);
+  const isInstallingRef = useRef(false);
 
   useEffect(() => {
     if (!supportsAppUpdates) return;
     let disposed = false;
-    async function check() {
+    async function checkOnStartup() {
       try {
+        const current = await AppUpdate.getStatus();
+        if (disposed) return;
+        setUpdate(current);
+        if (current.status === "available" || current.status === "ready") {
+          setDialog(current.status);
+          return;
+        }
+        if (current.status === "downloading") return;
         const next = await AppUpdate.check();
         if (disposed) return;
         setUpdate(next);
-      } catch (cause) {
-        if (!disposed)
-          setUpdate({
-            status: "error",
-            message: cause instanceof Error ? cause.message : "检查更新失败。",
-          });
+        if (next.status === "available") setDialog("available");
+      } catch {
+        // Startup checks stay silent; manual checks report errors through toast.
       }
     }
-    void check();
+    void checkOnStartup();
     return () => {
       disposed = true;
     };
   }, []);
 
   useEffect(() => {
-    if (update.status !== "downloading" && update.status !== "available") return;
+    if (update.status !== "downloading") return;
     let disposed = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     async function poll() {
       try {
         const next = await AppUpdate.getStatus();
         if (disposed) return;
-        if (next.status === "ready" && update.status === "downloading")
-          toast.success("更新安装包已下载并校验，请在关于页面安装。", {
-            id: "mobile-update-ready",
-          });
         setUpdate(next);
-        if (next.status === "downloading" || next.status === "available")
-          timer = setTimeout(() => void poll(), 1500);
+        if (next.status === "ready") {
+          setDialog("ready");
+          return;
+        }
+        if (next.status === "downloading") timer = setTimeout(() => void poll(), 250);
       } catch (cause) {
-        if (!disposed)
+        if (!disposed) {
           setUpdate({
             status: "error",
             message: cause instanceof Error ? cause.message : "读取下载状态失败。",
           });
+          toast.error("读取下载状态失败。", { id: "mobile-update-status" });
+        }
       }
     }
-    timer = setTimeout(() => void poll(), 1500);
+
+    timer = setTimeout(() => void poll(), 250);
     return () => {
       disposed = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [update.status]);
 
   async function handleCheck() {
-    setUpdate((current) => ({ ...current, status: "checking" }));
+    if (!supportsAppUpdates) {
+      toast.error("当前环境不支持应用更新。", { id: "mobile-update-check" });
+      return;
+    }
+    if (isCheckingRef.current || isDownloadingRef.current) return;
+    isCheckingRef.current = true;
+    setUpdate((current) => ({ ...current, status: "checking", message: undefined }));
     try {
       const next = await AppUpdate.check();
       setUpdate(next);
-      if (next.status === "idle")
+      if (next.status === "idle") {
         toast.success("当前已是最新版本。", { id: "mobile-update-check" });
-      if (next.status === "error")
+      } else if (next.status === "error") {
         toast.error(next.message ?? "检查更新失败。", { id: "mobile-update-check" });
+      } else if (next.status === "available") {
+        setDialog("available");
+      }
     } catch (cause) {
-      setUpdate({
-        status: "error",
-        message: cause instanceof Error ? cause.message : "检查更新失败。",
-      });
+      const message = cause instanceof Error ? cause.message : "检查更新失败。";
+      setUpdate({ status: "error", message });
+      toast.error(message, { id: "mobile-update-check" });
+    } finally {
+      isCheckingRef.current = false;
     }
   }
 
   async function handleDownload() {
-    setUpdate((current) => ({ ...current, status: "checking" }));
+    if (isDownloadingRef.current) return;
+    isDownloadingRef.current = true;
     try {
-      setUpdate(await AppUpdate.download());
+      const next = await AppUpdate.download();
+      setUpdate(next);
+      setDialog(next.status === "ready" ? "ready" : null);
     } catch (cause) {
-      setUpdate({
-        status: "error",
-        message: cause instanceof Error ? cause.message : "开始下载失败。",
-      });
+      const message = cause instanceof Error ? cause.message : "开始下载失败。";
+      setUpdate({ status: "error", message });
+      toast.error(message, { id: "mobile-update-download" });
+    } finally {
+      isDownloadingRef.current = false;
     }
   }
 
   async function handleInstall() {
+    if (isInstallingRef.current) return;
+    isInstallingRef.current = true;
     setInstalling(true);
     try {
       const result = await AppUpdate.install();
-      toast.info(
-        result.permissionRequired
-          ? "请允许 OpenFic 安装未知应用，返回后再次点击“安装更新”。"
-          : "请在系统安装界面确认安装；若已取消，可再次点击安装。",
-        { id: "mobile-update-install" },
-      );
+      if (result.permissionRequired) {
+        toast.info("请允许 OpenFic 安装未知应用，返回后再次点击安装更新。", {
+          id: "mobile-update-install",
+        });
+      } else {
+        setDialog(null);
+        toast.info("请在系统安装界面确认更新。", { id: "mobile-update-install" });
+      }
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "无法安装更新，请重试。", {
         id: "mobile-update-install",
       });
     } finally {
+      isInstallingRef.current = false;
       setInstalling(false);
     }
   }
 
-  if (update.status === "unsupported")
-    return <p className="mobile-about-row">请在 Android App 中检查更新。</p>;
-  const isBusy = update.status === "checking" || update.status === "downloading";
-  const title =
-    update.status === "checking"
-      ? "正在检查更新…"
-      : update.status === "downloading"
-        ? `正在下载 OpenFic ${update.version}`
-        : update.status === "ready"
-          ? `OpenFic ${update.version} 已准备安装`
-          : update.status === "error"
-            ? "应用更新失败"
-            : "应用更新";
+  const isChecking = update.status === "checking";
+  const isDownloading = update.status === "downloading";
+  const isReady = update.status === "ready";
 
   return (
-    <section
-      className="mobile-update"
-      aria-label="应用更新"
-    >
-      <h2>{title}</h2>
-      <p role="status">
-        {update.message ||
-          (update.status === "ready"
-            ? "安装包已校验，安装需要你在系统界面确认。"
-            : update.status === "available"
-              ? "新版本已发布，点击后开始下载。"
-              : update.status === "idle"
-                ? "当前已是最新版本。"
-                : "正在连接 GitHub Release。")}
-      </p>
-      {update.status === "downloading" && (
-        <div className="mobile-update-progress">
-          <progress
-            value={update.progress ?? 0}
-            max={100}
-            aria-label="更新下载进度"
+    <>
+      <button
+        className="mobile-about-row mobile-update-check-row"
+        type="button"
+        disabled={isChecking || isDownloading || installing}
+        onClick={() => {
+          if (isReady) void handleInstall();
+          else void handleCheck();
+        }}
+      >
+        <span>检查更新</span>
+        {isDownloading ? (
+          <UpdateProgress progress={update.progress ?? 0} />
+        ) : isChecking ? (
+          <span
+            className="mobile-update-spinner"
+            aria-label="正在检查更新"
           />
-          <span>{update.progress ?? 0}%</span>
-        </div>
-      )}
-      {update.currentVersion && <p>当前版本：{update.currentVersion}</p>}
-      <div className="mobile-update-actions">
-        {update.status === "available" && (
-          <Button
-            size="2"
-            onClick={() => void handleDownload()}
-          >
-            下载更新
-          </Button>
-        )}
-        {update.status === "ready" && (
-          <Button
-            size="2"
-            disabled={installing}
-            onClick={() => void handleInstall()}
-          >
-            安装更新
-          </Button>
-        )}
-        <Button
-          size="2"
-          variant="soft"
-          disabled={isBusy || installing}
-          onClick={() => void handleCheck()}
-        >
-          {update.status === "error" ? "重试更新" : "检查更新"}
-        </Button>
-      </div>
-    </section>
+        ) : isReady ? (
+          <span className="mobile-update-action-label">安装更新</span>
+        ) : update.status === "error" ? (
+          <span className="mobile-update-action-label">重试</span>
+        ) : null}
+      </button>
+
+      <Dialog.Root
+        open={dialog === "available"}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+      >
+        <Dialog.Content maxWidth="400px">
+          <Dialog.Title>发现新版本</Dialog.Title>
+          <Dialog.Description>v{update.version} 已发布，是否下载更新安装包？</Dialog.Description>
+          <div className="mobile-dialog-actions">
+            <Button
+              variant="soft"
+              onClick={() => setDialog(null)}
+            >
+              稍后
+            </Button>
+            <Button onClick={() => void handleDownload()}>下载更新</Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={dialog === "ready"}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+      >
+        <Dialog.Content maxWidth="400px">
+          <Dialog.Title>更新已下载</Dialog.Title>
+          <Dialog.Description>
+            v{update.version} 已下载并完成校验，是否立即安装？
+          </Dialog.Description>
+          <div className="mobile-dialog-actions">
+            <Button
+              variant="soft"
+              onClick={() => setDialog(null)}
+            >
+              稍后
+            </Button>
+            <Button
+              disabled={installing}
+              onClick={() => void handleInstall()}
+            >
+              安装更新
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 }

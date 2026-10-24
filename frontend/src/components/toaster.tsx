@@ -68,14 +68,8 @@ export function Toaster({ appearance, position, visibleToasts }: ToasterProps) {
         position={position ?? (isMobileViewport ? "top-center" : "bottom-center")}
         visibleToasts={visibleToasts}
         closeButton
-        offset={{
-          top: "calc(var(--mobile-safe-top, 0px) + 16px)",
-          bottom: "calc(var(--mobile-safe-bottom, 0px) + 16px)",
-        }}
-        mobileOffset={{
-          top: "calc(var(--mobile-safe-top, 0px) + 16px)",
-          bottom: "calc(var(--mobile-safe-bottom, 0px) + 16px)",
-        }}
+        offset={16}
+        mobileOffset={16}
         theme={appearance}
         style={{ zIndex: 2147483647, pointerEvents: "auto" }}
       />

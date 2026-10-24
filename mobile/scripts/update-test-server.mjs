@@ -166,6 +166,14 @@ delete childEnv.ANDROID_SDK_HOME;
 const pathKey = Object.keys(childEnv).find((key) => key.toLowerCase() === "path") || "PATH";
 childEnv[pathKey] = [path.join(childEnv.JAVA_HOME, "bin"), childEnv[pathKey]].filter(Boolean).join(path.delimiter);
 
+console.log("Synchronizing the current mobile and frontend assets before building update-test APKs...");
+run("pnpm", ["sync"], {
+  cwd: root,
+  env: childEnv,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+
 const generatedConfigPath = path.join(androidRoot, "app", "src", "main", "assets", "capacitor.config.json");
 const generatedConfig = JSON.parse(await readFile(generatedConfigPath, "utf8"));
 if (generatedConfig.server?.url) {

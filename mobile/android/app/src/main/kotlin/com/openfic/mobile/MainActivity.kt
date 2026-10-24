@@ -38,7 +38,7 @@ class MainActivity : BridgeActivity() {
         // Keep web content clear of the status bar, navigation bar and keyboard.
         val content = findViewById<View>(android.R.id.content)
         ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }

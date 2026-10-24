@@ -47,15 +47,24 @@ class AppUpdatePlugin : Plugin() {
     }
 
     private fun handleUpdateIntent(intent: Intent?) {
-        if (intent?.action != "com.openfic.mobile.DOWNLOAD_UPDATE") return
+        val action = intent?.action ?: return
+        if (action != "com.openfic.mobile.DOWNLOAD_UPDATE" &&
+            action != "com.openfic.mobile.INSTALL_UPDATE"
+        ) return
         intent.action = null
         bridge.execute {
             try {
                 val saved = preferences.getString("manifest", null) ?: return@execute
                 val manifest = JSONObject(saved)
                 validate(manifest)
-                if (manifest.getLong("versionCode") > installedCode() && preferences.getLong("downloadId", -1) == -1L) {
-                    enqueueDownload(manifest)
+                if (action == "com.openfic.mobile.DOWNLOAD_UPDATE") {
+                    if (manifest.getLong("versionCode") > installedCode() &&
+                        preferences.getLong("downloadId", -1) == -1L
+                    ) {
+                        enqueueDownload(manifest)
+                    }
+                } else if (status().getString("status") == "ready") {
+                    activity.runOnUiThread { launchInstall() }
                 }
             } catch (error: Exception) {
                 fail(error.message)
@@ -173,29 +182,9 @@ class AppUpdatePlugin : Plugin() {
                 verify(JSONObject(preferences.getString("manifest", "{}") ?: "{}"))
                 activity.runOnUiThread {
                     try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
-                            !context.packageManager.canRequestPackageInstalls()) {
-                            val settings = Intent(
-                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                Uri.parse("package:${context.packageName}")
-                            )
-                            activity.startActivity(settings)
-                            val result = JSObject()
-                            result.put("permissionRequired", true)
-                            call.resolve(result)
-                            return@runOnUiThread
-                        }
-                        val uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            apkFile()
-                        )
-                        val install = Intent(Intent.ACTION_VIEW)
-                            .setDataAndType(uri, "application/vnd.android.package-archive")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        activity.startActivity(install)
+                        val permissionRequired = launchInstall()
                         val result = JSObject()
-                        result.put("permissionRequired", false)
+                        result.put("permissionRequired", permissionRequired)
                         call.resolve(result)
                     } catch (error: Exception) {
                         call.reject("无法打开安装界面:${error.message}")
@@ -206,6 +195,29 @@ class AppUpdatePlugin : Plugin() {
                 call.reject(error.message)
             }
         }
+    }
+
+    private fun launchInstall(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            val settings = Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:${context.packageName}"),
+            )
+            activity.startActivity(settings)
+            return true
+        }
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            apkFile(),
+        )
+        val install = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        activity.startActivity(install)
+        return false
     }
 
     private fun status(): JSObject {
@@ -249,7 +261,10 @@ class AppUpdatePlugin : Plugin() {
                 val received = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
                 val total = manifest.getLong("size")
                 result.put("status", "downloading")
-                result.put("progress", minOf(99, maxOf(0, received * 100 / total)))
+                result.put(
+                    "progress",
+                    minOf(99.0, maxOf(0.0, received.toDouble() * 100.0 / total.toDouble())),
+                )
                 result.put(
                     "message",
                     if (state == DownloadManager.STATUS_PAUSED) "下载已暂停,网络恢复后将自动继续。"
@@ -293,6 +308,7 @@ class AppUpdatePlugin : Plugin() {
         preferences.edit().putString("manifest", manifest.toString()).putLong("downloadId", id).remove("error").commit()
         verifiedId = -1
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(UPDATE_NOTIFICATION)
+        UpdateDownloadNotifications.cancel(context)
     }
 
     private fun saveAvailable(manifest: JSONObject) {
@@ -316,8 +332,8 @@ class AppUpdatePlugin : Plugin() {
         }
         val pending = PendingIntent.getActivity(context, UPDATE_NOTIFICATION, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         manager.notify(UPDATE_NOTIFICATION, NotificationCompat.Builder(context, "app-updates")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("OpenFic $version 可用")
+            .setSmallIcon(R.drawable.openfic_brand)
+            .setContentTitle("OpenFic v$version 可用")
             .setContentText("点击下载更新安装包")
             .setContentIntent(pending)
             .setAutoCancel(true)
@@ -370,6 +386,7 @@ class AppUpdatePlugin : Plugin() {
         preferences.edit().remove("downloadId").remove("manifest").commit()
         verifiedId = -1
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(UPDATE_NOTIFICATION)
+        UpdateDownloadNotifications.cancel(context)
     }
 
     private fun fail(message: String?) {

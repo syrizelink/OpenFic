@@ -7,14 +7,21 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.webkit.*
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebViewCompat
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.IOException
@@ -38,6 +45,8 @@ class InstanceActivity : AppCompatActivity() {
     private var pendingDownload: ByteArray? = null
     private var pendingDownloadUrl: String? = null
     private var pendingDownloadCookie: String? = null
+    private var notificationPermissionReply: JavaScriptReplyProxy? = null
+    private var notificationPermissionId: String? = null
 
     private val filePicker: ActivityResultLauncher<Intent> = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -136,12 +145,13 @@ class InstanceActivity : AppCompatActivity() {
             window.isStatusBarContrastEnforced = false
         }
         ViewCompat.setOnApplyWindowInsetsListener(layout) { view, insets ->
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            view.setPadding(0, 0, 0, ime.bottom)
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            val density = resources.displayMetrics.density
-            safeAreaScript = "document.documentElement.style.setProperty('--mobile-safe-top','${bars.top / density}px');document.documentElement.style.setProperty('--mobile-safe-bottom','${if (ime.bottom > 0) 0f else bars.bottom / density}px');document.documentElement.style.setProperty('--mobile-safe-left','${bars.left / density}px');document.documentElement.style.setProperty('--mobile-safe-right','${bars.right / density}px');"
-            webView.evaluateJavascript(safeAreaScript, null)
+            // Size the viewport itself so fixed panels and portals share the safe area.
+            val safeArea = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.ime()
+            )
+            view.setPadding(safeArea.left, safeArea.top, safeArea.right, safeArea.bottom)
             WindowInsetsCompat.CONSUMED
         }
 
@@ -194,7 +204,21 @@ class InstanceActivity : AppCompatActivity() {
                 if (!assetPaths.contains(asset)) return null
 
                 return try {
-                    response(mime(asset), applicationContext.assets.open("public/frontend/$asset"))
+                    if (asset == "index.html") {
+                        val html = applicationContext.assets.open("public/frontend/$asset")
+                            .bufferedReader(StandardCharsets.UTF_8)
+                            .use { it.readText() }
+                        val injected = html.replace(
+                            "</head>",
+                            "<script>$NOTIFICATION_BRIDGE_SCRIPT</script></head>",
+                        )
+                        response(
+                            "text/html",
+                            ByteArrayInputStream(injected.toByteArray(StandardCharsets.UTF_8)),
+                        )
+                    } else {
+                        response(mime(asset), applicationContext.assets.open("public/frontend/$asset"))
+                    }
                 } catch (error: Exception) {
                     null
                 }
@@ -212,7 +236,6 @@ class InstanceActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 CookieManager.getInstance().flush()
-                view.evaluateJavascript(safeAreaScript, null)
                 view.evaluateJavascript(BLOB_DOWNLOAD_SCRIPT, null)
             }
         }
@@ -275,6 +298,14 @@ class InstanceActivity : AppCompatActivity() {
                     showNotice("无法保存此文件", true)
                 }
             }
+            WebViewCompat.addWebMessageListener(
+                webView,
+                "OpenFicNotifications",
+                setOf(baseUrl),
+            ) { _, message, _, isMainFrame, replyProxy ->
+                if (!isMainFrame) return@addWebMessageListener
+                handleNotificationMessage(message.data, replyProxy)
+            }
         }
 
         webView.setDownloadListener { url, _, disposition, mimeType, _ ->
@@ -314,7 +345,20 @@ class InstanceActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(layout)
     }
 
-    private var safeAreaScript = ""
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != NOTIFICATION_PERMISSION_REQUEST) return
+        val permission = if (android.os.Build.VERSION.SDK_INT < 33 ||
+            (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
+        ) "granted" else "denied"
+        notificationPermissionReply?.postMessage(permissionReply(permission, notificationPermissionId))
+        notificationPermissionReply = null
+        notificationPermissionId = null
+    }
 
     private fun showNotice(message: String, error: Boolean = false) {
         if (isDestroyed || !::webView.isInitialized) return
@@ -324,6 +368,87 @@ class InstanceActivity : AppCompatActivity() {
             null,
         )
     }
+
+    private fun handleNotificationMessage(data: String?, replyProxy: JavaScriptReplyProxy) {
+        try {
+            val message = JSONObject(data ?: "{}")
+            when (message.optString("type")) {
+                "requestPermission" -> requestNotificationPermission(
+                    replyProxy,
+                    message.optString("id"),
+                )
+                "show" -> showSystemNotification(
+                    message.optString("title", "OpenFic"),
+                    message.optString("body"),
+                )
+            }
+        } catch (_: Exception) {
+            // Ignore malformed messages from the page.
+        }
+    }
+
+    private fun requestNotificationPermission(
+        replyProxy: JavaScriptReplyProxy,
+        requestId: String,
+    ) {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (android.os.Build.VERSION.SDK_INT < 33 || manager.areNotificationsEnabled()) {
+            replyProxy.postMessage(permissionReply("granted", requestId))
+            return
+        }
+        notificationPermissionReply = replyProxy
+        notificationPermissionId = requestId
+        requestPermissions(
+            arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+            NOTIFICATION_PERMISSION_REQUEST,
+        )
+    }
+
+    private fun showSystemNotification(title: String, body: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    WEB_NOTIFICATION_CHANNEL,
+                    "OpenFic 实例通知",
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ),
+            )
+        }
+        val openIntent = Intent(this, InstanceActivity::class.java).apply {
+            putExtra("url", baseUrl)
+            putExtra("name", intent.getStringExtra("name") ?: "OpenFic")
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val notificationId = nextNotificationId++
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            notificationId,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        manager.notify(
+            notificationId,
+            NotificationCompat.Builder(this, WEB_NOTIFICATION_CHANNEL)
+                .setSmallIcon(R.drawable.openfic_brand)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build(),
+        )
+    }
+
+    private fun permissionReply(permission: String, requestId: String?): String =
+        JSONObject()
+            .put("type", "permission")
+            .put("permission", permission)
+            .put("id", requestId ?: "")
+            .toString()
 
     private fun sameOrigin(uri: Uri): Boolean {
         val base = Uri.parse(baseUrl)
@@ -406,6 +531,54 @@ class InstanceActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val NOTIFICATION_PERMISSION_REQUEST = 2002
+        private const val WEB_NOTIFICATION_CHANNEL = "openfic-instance-notifications"
+        private var nextNotificationId = 3000
+        private const val NOTIFICATION_BRIDGE_SCRIPT = """
+(function(){
+  if (window.__openficNotificationBridge || window.Notification || !window.OpenFicNotifications) return;
+  window.__openficNotificationBridge = true;
+  const pending = new Map();
+  let requestId = 0;
+  const native = window.OpenFicNotifications;
+  const post = (message) => native.postMessage(JSON.stringify(message));
+  native.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      if (message.type !== 'permission') return;
+      const resolve = pending.get(message.id);
+      if (!resolve) return;
+      pending.delete(message.id);
+      NativeNotification.permission = message.permission;
+      resolve(message.permission);
+    } catch (_) {}
+  };
+  class NativeNotification extends EventTarget {
+    static permission = 'default';
+    static requestPermission(callback) {
+      const id = String(++requestId);
+      const result = new Promise((resolve) => {
+        pending.set(id, resolve);
+        post({ type: 'requestPermission', id: id });
+      });
+      return result.then((permission) => {
+        if (typeof callback === 'function') callback(permission);
+        return permission;
+      });
+    }
+    constructor(title, options) {
+      super();
+      const config = options || {};
+      this.title = title;
+      this.body = config.body || '';
+      this.icon = config.icon || '';
+      post({ type: 'show', title: title, body: this.body, icon: this.icon });
+    }
+    close() {}
+  }
+  window.Notification = NativeNotification;
+})();
+"""
         private const val BLOB_DOWNLOAD_SCRIPT = """(function(){if(window.__openficBlobDownloads)return;window.__openficBlobDownloads=true;const blobs=new Map();const create=URL.createObjectURL.bind(URL);const revoke=URL.revokeObjectURL.bind(URL);URL.createObjectURL=(blob)=>{const url=create(blob);blobs.set(url,blob);return url;};URL.revokeObjectURL=(url)=>{blobs.delete(url);revoke(url);};document.addEventListener('click',function(event){const a=event.target.closest&&event.target.closest('a');if(!a||!a.href.startsWith('blob:')||!window.OpenFicDownloads)return;const blob=blobs.get(a.href);if(!blob)return;event.preventDefault();const reader=new FileReader();reader.onload=()=>OpenFicDownloads.postMessage(JSON.stringify({filename:a.download||'OpenFic-export.txt',base64:reader.result.split(',')[1]}));reader.readAsDataURL(blob);},true);})();"""
     }
 }
