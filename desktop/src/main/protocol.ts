@@ -1,9 +1,12 @@
-import { app, net, protocol, session } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { app, net, protocol, session } from "electron";
+
 import type { RuntimeConfigResponse } from "../shared/config.js";
 import { configureSystemProxy } from "./proxy.js";
+import { isNgrokUrl } from "./remote-url.js";
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
 const registeredPartitions = new Map<string, Promise<void>>();
@@ -19,7 +22,7 @@ export function setRuntimeConfig(config: RuntimeConfigResponse): void {
 
 function getHeaderValues(headers: Record<string, string[]>, name: string): string[] {
   const headerName = Object.keys(headers).find((key) => key.toLowerCase() === name);
-  return headerName ? headers[headerName] ?? [] : [];
+  return headerName ? (headers[headerName] ?? []) : [];
 }
 
 function getAuthCookieFromSetCookie(headers: Record<string, string[]>): string | null {
@@ -40,7 +43,8 @@ function isBackendRequest(url: string): boolean {
 }
 
 function addAuthCookie(requestHeaders: Record<string, string>, authCookie: string): void {
-  const cookieHeaderName = Object.keys(requestHeaders).find((key) => key.toLowerCase() === "cookie") ?? "Cookie";
+  const cookieHeaderName =
+    Object.keys(requestHeaders).find((key) => key.toLowerCase() === "cookie") ?? "Cookie";
   const existingCookies = (requestHeaders[cookieHeaderName] ?? "")
     .split(";")
     .map((cookie) => cookie.trim())
@@ -64,6 +68,10 @@ function configureAuthSession(targetSession: Electron.Session): void {
     if (!isBackendRequest(details.url)) {
       callback({ requestHeaders: details.requestHeaders });
       return;
+    }
+
+    if (isNgrokUrl(runtimeConfig?.backendBaseUrl ?? "")) {
+      details.requestHeaders["ngrok-skip-browser-warning"] = "1";
     }
 
     void targetSession.cookies
@@ -97,17 +105,21 @@ function resolveStaticPath(rootDir: string, pathname: string): string {
   const relativePath = decodeURIComponent(pathname).replace(/^\/+/, "");
   const candidate = path.resolve(resolvedRoot, relativePath || "index.html");
   const relativeToRoot = path.relative(resolvedRoot, candidate);
-  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return path.join(resolvedRoot, "index.html");
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot))
+    return path.join(resolvedRoot, "index.html");
   if (existsSync(candidate)) return candidate;
   return path.join(resolvedRoot, "index.html");
 }
 
 function resolveSetupStaticPath(rootDir: string, pathname: string): string {
-  const normalizedPath = decodeURIComponent(pathname).replace(/^\/+/, "").replace(/^setup\//, "");
+  const normalizedPath = decodeURIComponent(pathname)
+    .replace(/^\/+/, "")
+    .replace(/^setup\//, "");
   const resolvedRoot = path.resolve(rootDir);
   const candidate = path.resolve(resolvedRoot, normalizedPath || "ui.html");
   const relativeToRoot = path.relative(resolvedRoot, candidate);
-  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return path.join(resolvedRoot, "ui.html");
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot))
+    return path.join(resolvedRoot, "ui.html");
   if (existsSync(candidate)) return candidate;
   return path.join(resolvedRoot, "ui.html");
 }
@@ -153,7 +165,10 @@ async function handleAppRequest(request: Request): Promise<Response> {
     });
   }
 
-  if (url.hostname === "setup" && (url.pathname === SHARED_FONT_CSS_PATH || url.pathname.startsWith(SHARED_FONT_PREFIX))) {
+  if (
+    url.hostname === "setup" &&
+    (url.pathname === SHARED_FONT_CSS_PATH || url.pathname.startsWith(SHARED_FONT_PREFIX))
+  ) {
     const sharedFontPath = resolveSharedFontPath(url.pathname);
     if (!sharedFontPath) return new Response("Not Found", { status: 404 });
     return net.fetch(pathToFileURL(sharedFontPath).toString());

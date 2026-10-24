@@ -1,10 +1,41 @@
 package com.openfic.mobile
 
+import java.net.HttpURLConnection
 import java.net.URI
 import java.util.Locale
 
 /** Validate at the native boundary as well as in the connection form. */
 object InstanceUrl {
+    private val ngrokDomains = listOf(
+        "ngrok.app", "ngrok.dev", "ngrok.pizza",
+        "ngrok-free.app", "ngrok-free.dev", "ngrok.io",
+    )
+
+    fun isNgrok(input: String): Boolean {
+        val uri = try {
+            URI.create(input)
+        } catch (_: IllegalArgumentException) {
+            return false
+        }
+        if (!(uri.scheme.equals("https", ignoreCase = true) ||
+                uri.scheme.equals("http", ignoreCase = true)) || uri.userInfo != null) return false
+        val host = uri.host?.lowercase(Locale.ROOT) ?: return false
+        return ngrokDomains.any { host == it || host.endsWith(".$it") }
+    }
+
+    fun applyNgrokHeaders(connection: HttpURLConnection) {
+        if (isNgrok(connection.url.toString())) {
+            connection.setRequestProperty("ngrok-skip-browser-warning", "1")
+        }
+    }
+
+    fun webViewUserAgent(input: String, defaultUserAgent: String): String {
+        if (!isNgrok(input)) return defaultUserAgent
+        // Preserve Android detection used by the editor's input-method handling.
+        val platform = Regex("Android [0-9.]+").find(defaultUserAgent)?.value ?: "Android"
+        return "OpenFic-Android/${BuildConfig.VERSION_NAME} ($platform)"
+    }
+
     @JvmStatic
     fun normalize(input: String): String {
         val uri = URI.create(input.trim())

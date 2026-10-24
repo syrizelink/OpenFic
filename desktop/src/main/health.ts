@@ -1,5 +1,8 @@
-import { net } from "electron";
 import type { ChildProcess } from "node:child_process";
+
+import { net } from "electron";
+
+import { isNgrokUrl } from "./remote-url.js";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -29,15 +32,27 @@ export function parseBackendHealth(value: unknown): BackendHealth | null {
   return { status: "healthy", version: candidate.version ?? null };
 }
 
-function createBackendExitError(healthUrl: string, code: number | null, signal: NodeJS.Signals | null): Error {
-  if (signal) return new Error(`backend process exited before health check: ${healthUrl} (signal ${signal})`);
-  return new Error(`backend process exited before health check: ${healthUrl} (code ${code ?? "unknown"})`);
+function createBackendExitError(
+  healthUrl: string,
+  code: number | null,
+  signal: NodeJS.Signals | null,
+): Error {
+  if (signal)
+    return new Error(`backend process exited before health check: ${healthUrl} (signal ${signal})`);
+  return new Error(
+    `backend process exited before health check: ${healthUrl} (code ${code ?? "unknown"})`,
+  );
 }
 
 function isLoopbackUrl(url: string): boolean {
   try {
     const { hostname } = new URL(url);
-    return hostname === "localhost" || hostname === "::1" || hostname === "[::1]" || hostname.startsWith("127.");
+    return (
+      hostname === "localhost" ||
+      hostname === "::1" ||
+      hostname === "[::1]" ||
+      hostname.startsWith("127.")
+    );
   } catch {
     return false;
   }
@@ -49,8 +64,10 @@ export async function waitForBackend(
 ): Promise<BackendHealth> {
   const timeoutMs =
     typeof options === "number" ? options : (options?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const backendProcess = typeof options === "number" || options === null ? undefined : options.process;
-  const externalSignal = typeof options === "number" || options === null ? undefined : options.signal;
+  const backendProcess =
+    typeof options === "number" || options === null ? undefined : options.process;
+  const externalSignal =
+    typeof options === "number" || options === null ? undefined : options.signal;
   const healthUrl = `${baseUrl.replace(/\/+$/, "")}/api/v1/health`;
   const controller = new AbortController();
   let processError: Error | null = null;
@@ -60,7 +77,9 @@ export async function waitForBackend(
     controller.abort();
   };
   const onError = (error: Error) => {
-    processError = new Error(`backend process failed before health check: ${healthUrl} (${error.message})`);
+    processError = new Error(
+      `backend process failed before health check: ${healthUrl} (${error.message})`,
+    );
     controller.abort();
   };
 
@@ -82,7 +101,12 @@ export async function waitForBackend(
         // health checks never depend on Chromium's system proxy configuration.
         const response = isLoopbackUrl(healthUrl)
           ? await fetch(healthUrl, { signal: controller.signal })
-          : await net.fetch(healthUrl, { signal: controller.signal });
+          : await net.fetch(healthUrl, {
+              signal: controller.signal,
+              ...(isNgrokUrl(baseUrl)
+                ? { headers: { "ngrok-skip-browser-warning": "1" }, redirect: "error" }
+                : {}),
+            });
         const health = parseBackendHealth(await response.json().catch(() => null));
         if (response.ok && health) return health;
       } catch {
@@ -114,4 +138,3 @@ export async function waitForBackend(
     backendProcess?.off("error", onError);
   }
 }
-

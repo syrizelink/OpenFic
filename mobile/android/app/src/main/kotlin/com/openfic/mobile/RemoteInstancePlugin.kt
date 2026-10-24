@@ -66,6 +66,7 @@ class RemoteInstancePlugin : Plugin() {
                 connection.readTimeout = 10000
                 connection.instanceFollowRedirects = false
                 connection.setRequestProperty("Accept", "application/json")
+                InstanceUrl.applyNgrokHeaders(connection)
                 
                 val status = connection.responseCode
                 if (status != 200) {

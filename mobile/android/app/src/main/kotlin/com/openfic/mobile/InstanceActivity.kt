@@ -82,6 +82,7 @@ class InstanceActivity : AppCompatActivity() {
                         connection.connectTimeout = 15000
                         connection.readTimeout = 120000
                         connection.instanceFollowRedirects = false
+                        InstanceUrl.applyNgrokHeaders(connection)
                         if (cookie != null) {
                             connection.setRequestProperty("Cookie", cookie)
                         }
@@ -162,6 +163,7 @@ class InstanceActivity : AppCompatActivity() {
             allowContentAccess = true
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             mediaPlaybackRequiresUserGesture = true
+            userAgentString = InstanceUrl.webViewUserAgent(baseUrl, userAgentString)
         }
 
         CookieManager.getInstance().apply {
