@@ -133,8 +133,24 @@ jobs:
           # 顺序无关：AtomGit 上传顺序由 FC 侧统一排序
           for file in "${assets[@]}"; do
             file_name=$(basename "$file")
-            "$ossutil" cp -f --checksum "$file" "oss://${OSS_BUCKET}/${prefix}/${file_name}"
-            jq --arg tag "$TAG" --arg key "${prefix}/${file_name}" --arg name "$file_name" \
+            object_key="${prefix}/${file_name}"
+            local_crc=$("$ossutil" hash crc64 "$file" --quiet)
+            local_crc="${local_crc%% *}"
+            local_size=$(stat --printf='%s' "$file")
+            remote_crc="" remote_size=""
+            if object_meta=$("$ossutil" api head-object --bucket "$OSS_BUCKET" \
+              --key "$object_key" --output-format json --quiet); then
+              remote_crc=$(jq -r '.Header["X-Oss-Hash-Crc64ecma"][0] // empty' <<< "$object_meta")
+              remote_size=$(jq -r '.Header["Content-Length"][0] // empty' <<< "$object_meta")
+            else
+              echo "Unable to read OSS metadata for $file_name; uploading" >&2
+            fi
+            if [[ "$local_crc" =~ ^[0-9]+$ && "$local_crc" == "$remote_crc" && "$local_size" == "$remote_size" ]]; then
+              echo "Skipping unchanged OSS object: $file_name"
+            else
+              "$ossutil" cp -f "$file" "oss://${OSS_BUCKET}/${object_key}"
+            fi
+            jq --arg tag "$TAG" --arg key "$object_key" --arg name "$file_name" \
               '.tag = $tag | .assets += [{key: $key, file_name: $name}]' \
               "$manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest"
           done
