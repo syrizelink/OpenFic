@@ -12,6 +12,16 @@ on:
     secrets:
       ATOMGIT_TOKEN:
         required: true
+      OSS_ACCESS_KEY_ID:
+        required: true
+      OSS_ACCESS_KEY_SECRET:
+        required: true
+      OSS_BUCKET:
+        required: true
+      FC_URL:
+        required: true
+      FC_TOKEN:
+        required: true
   workflow_dispatch:
     inputs:
       tag:
@@ -51,7 +61,7 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
         run: gh release download "$TAG" --dir "$RUNNER_TEMP/assets"
 
-      - name: Sync release metadata and assets to AtomGit
+      - name: Sync release metadata to AtomGit
         env:
           ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
           ATOMGIT_REPO: Syrize/OpenFic
@@ -85,6 +95,32 @@ jobs:
             exit 1
           fi
 
+          echo "AtomGit Release sync completed for $TAG"
+
+      - name: Install ossutil
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sSL --connect-timeout 30 --max-time 120 \
+            "https://gosspublic.alicdn.com/ossutil/v2/2.2.0/ossutil-2.2.0-linux-amd64.zip" \
+            -o "$RUNNER_TEMP/ossutil.zip"
+          unzip -o "$RUNNER_TEMP/ossutil.zip" -d "$RUNNER_TEMP"
+          mv "$RUNNER_TEMP/ossutil-2.2.0-linux-amd64/ossutil" "$RUNNER_TEMP/ossutil"
+          chmod +x "$RUNNER_TEMP/ossutil"
+          "$RUNNER_TEMP/ossutil" version
+
+      - name: Upload assets to OSS
+        id: oss
+        env:
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_REGION: cn-hongkong
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ossutil="$RUNNER_TEMP/ossutil"
+          prefix="openfic-releases/${TAG}"
+
           shopt -s nullglob
           assets=("$RUNNER_TEMP"/assets/*)
           if ((${#assets[@]} == 0)); then
@@ -92,48 +128,29 @@ jobs:
             exit 1
           fi
 
-          upload_file() {
-            local file="$1" file_name file_size_bytes file_size_mib upload_url put_url
-            local attempt started_at elapsed_seconds speed_mib
-
+          manifest="$RUNNER_TEMP/manifest.json"
+          echo '{"tag": "", "assets": []}' > "$manifest"
+          # 顺序无关：AtomGit 上传顺序由 FC 侧统一排序
+          for file in "${assets[@]}"; do
             file_name=$(basename "$file")
-            file_size_bytes=$(stat --printf='%s' "$file")
-            file_size_mib=$(awk -v bytes="$file_size_bytes" 'BEGIN { printf "%.2f", bytes / 1024 / 1024 }')
-
-            for attempt in 1 2 3; do
-              echo "Uploading $file_name (${file_size_mib} MiB, attempt $attempt/3)"
-              started_at=$(date +%s)
-              if upload_url=$(curl --fail-with-body -sS --connect-timeout 30 --max-time 60 \
-                -H "Authorization: Bearer ${ATOMGIT_TOKEN}" --get \
-                --data-urlencode "file_name=${file_name}" "${api}/${TAG}/upload_url") &&
-                put_url=$(jq -er '.url' <<< "$upload_url"); then
-                put_args=()
-                while IFS= read -r header; do
-                  put_args+=(-H "$header")
-                done < <(jq -r '.headers | to_entries[] | "\(.key): \(.value)"' <<< "$upload_url")
-                if curl --fail-with-body --progress-bar --connect-timeout 30 --max-time 3600 -X PUT \
-                  "${put_args[@]}" --upload-file "$file" "$put_url"; then
-                  elapsed_seconds=$(( $(date +%s) - started_at ))
-                  if (( elapsed_seconds == 0 )); then elapsed_seconds=1; fi
-                  speed_mib=$(awk -v bytes="$file_size_bytes" -v seconds="$elapsed_seconds" \
-                    'BEGIN { printf "%.2f", bytes / 1024 / 1024 / seconds }')
-                  echo "Uploaded $file_name in ${elapsed_seconds}s (${speed_mib} MiB/s)"
-                  return 0
-                fi
-              fi
-              if (( attempt < 3 )); then sleep 3; fi
-            done
-
-            echo "Failed to upload $file_name after 3 attempts" >&2
-            return 1
-          }
-
-          for file in "${assets[@]}"; do
-            case "$file" in *.yml|*.yaml|*.json) continue ;; esac
-            upload_file "$file"
-          done
-          for file in "${assets[@]}"; do
-            case "$file" in *.yml|*.yaml|*.json) upload_file "$file" ;; esac
+            "$ossutil" cp -f "$file" "oss://${OSS_BUCKET}/${prefix}/${file_name}"
+            jq --arg tag "$TAG" --arg key "${prefix}/${file_name}" --arg name "$file_name" \
+              '.tag = $tag | .assets += [{key: $key, file_name: $name}]' \
+              "$manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest"
           done
 
-          echo "AtomGit Release sync completed for $TAG"
+          cat "$manifest"
+          echo "manifest=$manifest" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger FC asset sync to AtomGit
+        env:
+          FC_URL: ${{ secrets.FC_URL }}
+          FC_TOKEN: ${{ secrets.FC_TOKEN }}
+          MANIFEST: ${{ steps.oss.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS --connect-timeout 30 --max-time 7200 -X POST \
+            -H "Authorization: Bearer ${FC_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d @"$MANIFEST" \
+            "$FC_URL"
