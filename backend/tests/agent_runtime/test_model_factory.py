@@ -333,7 +333,7 @@ def test_create_chat_model_routes_opencode_zen_gemini_to_native_v1_endpoint() ->
     assert model.max_retries == 0
 
 
-def test_create_chat_model_does_not_route_opencode_go_gemini_to_native_client() -> None:
+def test_create_chat_model_routes_opencode_go_gemini_to_native_client() -> None:
     model = create_chat_model(
         ModelConfig(
             provider_type="opencode-go",
@@ -345,7 +345,9 @@ def test_create_chat_model_does_not_route_opencode_go_gemini_to_native_client() 
 
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    assert not isinstance(model, ChatGoogleGenerativeAI)
+    assert isinstance(model, ChatGoogleGenerativeAI)
+    assert model.base_url == {"api_endpoint": "https://opencode.ai/inference/go/google"}
+    assert model.api_version == "v1beta"
 
 
 @pytest.mark.parametrize(

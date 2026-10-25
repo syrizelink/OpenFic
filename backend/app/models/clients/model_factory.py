@@ -9,6 +9,7 @@ from langchain_core.runnables import Runnable
 from app.core.ids import generate_id
 from app.core.utils.tiktoken import seed_bundled_encodings
 from app.models.adapters.anthropic_compatible import ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+from app.models.clients.catalog_routing import resolve_chat_model_route
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_params import (
     DEFAULT_FREQUENCY_PENALTY,
@@ -132,38 +133,6 @@ def _is_opencode_provider(config: ModelConfig) -> bool:
     return (urlparse(config.base_url).hostname or "").lower() == "opencode.ai"
 
 
-# OpenCode Zen / Go serve different models over different wire protocols, so the
-# protocol has to be chosen per model instead of once per provider.
-_OPENCODE_PROVIDER_TYPES = frozenset({"opencode", "opencode-go"})
-_OPENCODE_ANTHROPIC_MODEL_PREFIXES = ("claude-",)
-_OPENCODE_RESPONSES_MODEL_PREFIXES = ("gpt-", "grok-", "muse-spark-")
-_OPENCODE_GEMINI_MODEL_PREFIXES = ("gemini-",)
-
-
-def _is_opencode_model(
-    config: ModelConfig,
-    prefixes: tuple[str, ...],
-    *,
-    provider_types: frozenset[str] = _OPENCODE_PROVIDER_TYPES,
-) -> bool:
-    return (
-        config.provider_type.lower() in provider_types
-        and config.model_id.lower().startswith(prefixes)
-    )
-
-
-def _is_opencode_gemini_model(config: ModelConfig) -> bool:
-    # Gemini is only served natively on Zen (/zen/v1/models/<id>), not on Go.
-    return _is_opencode_model(
-        config, _OPENCODE_GEMINI_MODEL_PREFIXES, provider_types=frozenset({"opencode"})
-    )
-
-
-def _opencode_root_url(base_url: str) -> str:
-    # The Anthropic and Google clients append /v1 themselves.
-    return base_url.rstrip("/").removesuffix("/v1")
-
-
 def _model_request_headers(config: ModelConfig) -> dict[str, str]:
     headers = dict(config.custom_headers or {})
     if config.provider_type == "requesty":
@@ -184,11 +153,13 @@ def _update_http_client_headers(client: Any, headers: dict[str, str]) -> None:
         client_headers.update(headers)
 
 
-def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
+def _openai_compatible_kwargs(
+    config: ModelConfig, *, base_url: str | None = None
+) -> dict[str, Any]:
     kwargs = _compact_kwargs(
         model=config.model_id,
         api_key=config.api_key,
-        base_url=config.base_url or None,
+        base_url=(config.base_url if base_url is None else base_url) or None,
         default_headers=_model_request_headers(config),
         temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
         top_p=_non_default(config.top_p, DEFAULT_TOP_P),
@@ -220,27 +191,22 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
 
 def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseMessage]:
     seed_bundled_encodings()
-    provider = config.provider_type
+    route = resolve_chat_model_route(config.provider_type, config.model_id, config.base_url)
+    provider = route.provider_type
+    base_url = route.base_url
     reasoning_effort = _enabled_reasoning_effort(config)
 
-    is_opencode_anthropic = _is_opencode_model(
-        config, _OPENCODE_ANTHROPIC_MODEL_PREFIXES
-    )
     if (
         provider == "anthropic"
         or provider == "anthropic-compatible"
         or provider in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
-        or is_opencode_anthropic
     ):
         from langchain_anthropic import ChatAnthropic
 
-        anthropic_base_url = config.base_url
-        if is_opencode_anthropic:
-            anthropic_base_url = _opencode_root_url(anthropic_base_url)
         return ChatAnthropic(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=anthropic_base_url or None,
+            base_url=base_url or None,
             default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
@@ -265,12 +231,11 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             additional_headers=_model_request_headers(config),
             max_retries=1,
         )
-        if config.base_url:
-            google_kwargs["client_options"] = {"api_endpoint": config.base_url}
+        if base_url:
+            google_kwargs["client_options"] = {"api_endpoint": base_url}
         return ChatGoogleGenerativeAI(**google_kwargs)
 
-    is_opencode_gemini = _is_opencode_gemini_model(config)
-    if provider == "gemini-compatible" or is_opencode_gemini:
+    if provider == "gemini-compatible":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         gemini_kwargs = _compact_kwargs(
@@ -283,15 +248,11 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             thinking_level=_three_level_reasoning_effort(reasoning_effort),
             additional_headers=_model_request_headers(config),
             max_retries=0,
-            api_version="v1" if is_opencode_gemini else "v1beta",
+            api_version=route.google_api_version,
         )
-        if config.base_url:
+        if base_url:
             gemini_kwargs["client_options"] = {
-                "api_endpoint": (
-                    _opencode_root_url(config.base_url)
-                    if is_opencode_gemini
-                    else _gemini_compatible_base_url(config.base_url)
-                )
+                "api_endpoint": _gemini_compatible_base_url(base_url)
             }
         return ChatGoogleGenerativeAI(**gemini_kwargs)
 
@@ -313,7 +274,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         return ChatDeepSeekWithReasoningPayload(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             default_headers=_model_request_headers(config),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             max_tokens=config.max_tokens,
@@ -330,7 +291,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         mistral_kwargs = _compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,
@@ -351,7 +312,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         model = ChatOpenRouter(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             app_url=OPENROUTER_APP_URL,
             app_title=OPENROUTER_APP_TITLE,
             app_categories=list(OPENROUTER_APP_CATEGORIES),
@@ -379,7 +340,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         groq_kwargs = _compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             max_tokens=config.max_tokens,
             reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
@@ -415,7 +376,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             model=config.model_id,
             cohere_api_key=config.api_key,
             user_agent=_application_user_agent(),
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
         )
         if config.max_tokens is not None:
@@ -428,7 +389,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         model = ChatAmazonNova(**_compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,
@@ -440,15 +401,14 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         _update_http_client_headers(model.async_client, headers)
         return model
 
-    if provider == "openai-compatible-responses" or _is_opencode_model(
-        config, _OPENCODE_RESPONSES_MODEL_PREFIXES
-    ):
+    if provider == "openai-compatible-responses":
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(
-            **_openai_compatible_kwargs(config),
-            use_responses_api=True,
-        )
+        kwargs = _openai_compatible_kwargs(config, base_url=base_url)
+        # The Responses SDK rejects Chat Completions penalty parameters locally.
+        kwargs.pop("frequency_penalty", None)
+        kwargs.pop("presence_penalty", None)
+        return ChatOpenAI(**kwargs, use_responses_api=True)
 
     if provider == "openai-codex":
         from app.models.clients.openai_codex import OpenAICodexChatModel
@@ -457,7 +417,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             model=config.model_id,
             api_key=config.api_key,
             provider_id=config.provider_id,
-            base_url=config.base_url or "https://api.openai.com/v1",
+            base_url=base_url or "https://api.openai.com/v1",
             reasoning_effort=reasoning_effort,
             default_headers=_model_request_headers(config),
         )
@@ -468,7 +428,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         nvidia_kwargs = _compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
-            base_url=config.base_url or None,
+            base_url=base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_completion_tokens=config.max_tokens,
@@ -514,4 +474,4 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
                 )
             return generation_chunk
 
-    return ChatOpenAI(**_openai_compatible_kwargs(config))
+    return ChatOpenAI(**_openai_compatible_kwargs(config, base_url=base_url))

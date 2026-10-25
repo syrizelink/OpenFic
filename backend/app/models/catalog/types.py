@@ -8,6 +8,9 @@ class CatalogProviderModelSummary(BaseModel):
     model_id: str = Field(description="Catalog model id")
     display_name: str = Field(description="Catalog model display name")
     task_type: str = Field(description="llm, embedding, or rerank")
+    provider: dict[str, str] | None = Field(
+        default=None, description="Optional Models.dev model API, SDK, and shape overrides"
+    )
     metadata: dict | None = Field(
         default=None, description="Catalog display metadata"
     )
@@ -16,6 +19,7 @@ class CatalogProviderModelSummary(BaseModel):
 class CatalogProviderSummary(BaseModel):
     provider_type: str = Field(description="OpenFic provider type")
     display_name: str = Field(description="Provider display name")
+    npm: str | None = Field(default=None, description="Default Models.dev SDK package")
     default_url: str | None = Field(
         default=None, description="Suggested default base URL for this provider"
     )

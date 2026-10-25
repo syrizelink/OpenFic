@@ -141,6 +141,29 @@ class ModelProviderCatalogService:
             raise KeyError(provider_type)
         return self._provider_summary_from_payload(provider, resolve_static_url=True)
 
+    def get_model_provider_config(self, provider_type: str, model_id: str) -> dict[str, str]:
+        """Read runtime overrides locally; old snapshots need no migration or refresh."""
+        snapshot, _, _ = self._load_current_snapshot()
+        provider = self._find_provider(snapshot, provider_type)
+        if provider is None:
+            return {}
+        for model in provider.get("models", []):
+            if model.get("model_id") == model_id:
+                overrides = self._normalize_provider_config(model.get("provider"))
+                if not overrides and (
+                    provider_type in _REGISTERED_PROVIDER_TYPES
+                    or provider_type in {"opencode", "opencode-go"}
+                ):
+                    # Keep dedicated clients and legacy per-model routing when
+                    # an older catalog has only a provider-wide SDK default.
+                    return {}
+                # A model may override only its URL or shape and inherit the SDK.
+                npm = provider.get("npm")
+                if isinstance(npm, str) and npm.strip():
+                    overrides.setdefault("npm", npm.strip())
+                return overrides
+        return {}
+
     async def get_provider_models(
         self, provider_type: str, task_type: str
     ) -> CatalogProviderModelsResponse:
@@ -361,6 +384,7 @@ class ModelProviderCatalogService:
         return CatalogProviderSummary(
             provider_type=provider_type,
             display_name=str(provider_payload.get("display_name") or provider_type),
+            npm=provider_payload.get("npm"),
             default_url=api_url,
             api=api_url,
             icon_path=(
@@ -414,6 +438,7 @@ class ModelProviderCatalogService:
                 "display_name": display_name,
                 "default_url": api_url,
                 "api": api_url,
+                "npm": raw_provider.get("npm"),
                 "icon_path": self._icon_path_for(models_dev_provider_id),
                 "models_dev_provider_id": models_dev_provider_id,
                 "supported_task_types": self._supported_task_types_for(
@@ -467,6 +492,17 @@ class ModelProviderCatalogService:
             "display_name": display_name,
             "task_type": task_type,
             "metadata": metadata,
+            "provider": self._normalize_provider_config(raw_model.get("provider")) or None,
+        }
+
+    @staticmethod
+    def _normalize_provider_config(value: Any) -> dict[str, str]:
+        if not isinstance(value, dict):
+            return {}
+        return {
+            key: item.strip()
+            for key in ("api", "npm", "shape")
+            if isinstance(item := value.get(key), str) and item.strip()
         }
 
     def _classify_model(self, name: str, family: str) -> str:
