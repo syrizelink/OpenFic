@@ -4,7 +4,7 @@ Dashboard Service - LLM API 仪表盘查询编排。
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,10 +77,19 @@ def build_filters(
         status=status,
         task_id=task_id,
         session_id=session_id,
-        start_at=start_at,
-        end_at=end_at,
+        # Older SQLModel versions strip offsets when binding SQLite datetimes.
+        # Normalize first so offset-bearing clients also filter the correct UTC range.
+        start_at=_as_utc(start_at),
+        end_at=_as_utc(end_at),
         search=search.strip() if search else None,
     )
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Normalize boundaries; internal legacy naive values represent UTC."""
+    if value is None:
+        return None
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 async def get_stats_dashboard(

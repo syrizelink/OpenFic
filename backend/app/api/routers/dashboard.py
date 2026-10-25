@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import AwareDatetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.dashboard import (
@@ -124,8 +125,8 @@ async def get_llm_api_stats_dashboard(
     category: str | None = Query(default=None),
     operation: str | None = Query(default=None),
     status: str | None = Query(default=None),
-    start_at: datetime | None = Query(default=None),
-    end_at: datetime | None = Query(default=None),
+    start_at: AwareDatetime | None = Query(default=None),
+    end_at: AwareDatetime | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardStatsResponse:
     """获取 LLM API 仪表盘统计。"""
@@ -159,8 +160,8 @@ async def get_llm_api_records_dashboard(
     status: str | None = Query(default=None),
     task_id: str | None = Query(default=None),
     session_id: str | None = Query(default=None),
-    start_at: datetime | None = Query(default=None),
-    end_at: datetime | None = Query(default=None),
+    start_at: AwareDatetime | None = Query(default=None),
+    end_at: AwareDatetime | None = Query(default=None),
     search: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=5, le=100),

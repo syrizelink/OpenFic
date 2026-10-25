@@ -66,5 +66,6 @@ export function toIsoDateTime(
 ): string | undefined {
   if (!value) return undefined;
   const suffix = boundary === "start" ? "T00:00:00" : "T23:59:59";
-  return `${value}${suffix}`;
+  // Interpret the selected calendar day in the user's timezone before sending UTC.
+  return new Date(`${value}${suffix}`).toISOString();
 }
