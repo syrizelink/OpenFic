@@ -10,6 +10,9 @@ import respx
 from app.models.catalog.service import ModelProviderCatalogService
 from app.models.clients.catalog_routing import resolve_chat_model_route
 from app.models.clients.model_factory import ModelConfig, create_chat_model
+from app.core.encryption import EncryptionService
+from app.models.entities.model_provider import ModelProvider
+from app.models.services.model_provider_service import ModelProviderService
 
 
 @pytest.fixture
@@ -336,3 +339,87 @@ async def test_catalog_overrides_are_exposed_and_survive_failed_refresh(catalog)
     assert (
         service.get_model_provider_config("opencode-go", "gemini-custom") == overrides
     )
+
+
+@pytest.mark.parametrize(
+    ("provider_type", "base_url", "models_url"),
+    [
+        (
+            "opencode",
+            "https://opencode.ai/inference/openai/v1",
+            "https://opencode.ai/inference/v1/models",
+        ),
+        (
+            "opencode",
+            "https://opencode.ai/inference/anthropic/v1/",
+            "https://opencode.ai/inference/v1/models",
+        ),
+        (
+            "opencode",
+            "https://opencode.ai/inference/google/v1beta",
+            "https://opencode.ai/inference/v1/models",
+        ),
+        (
+            "opencode-go",
+            "https://opencode.ai/inference/go/openai/v1",
+            "https://opencode.ai/inference/go/v1/models",
+        ),
+        (
+            "opencode-go",
+            "https://opencode.ai/inference/go/anthropic/v1",
+            "https://opencode.ai/inference/go/v1/models",
+        ),
+        (
+            "opencode-go",
+            "https://opencode.ai/inference/go/google/v1beta",
+            "https://opencode.ai/inference/go/v1/models",
+        ),
+        ("opencode", "https://opencode.ai/zen/v1", "https://opencode.ai/zen/v1/models"),
+        (
+            "opencode-go",
+            "https://opencode.ai/zen/go/v1",
+            "https://opencode.ai/zen/go/v1/models",
+        ),
+        (
+            "opencode",
+            "https://proxy.example/inference/openai/v1",
+            "https://proxy.example/inference/openai/v1/models",
+        ),
+        (
+            "openai-compatible",
+            "https://opencode.ai/inference/openai/v1",
+            "https://opencode.ai/inference/openai/v1/models",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_model_discovery_uses_shared_endpoint(
+    catalog, provider_type, base_url, models_url
+):
+    payload = _payload(provider_type, "test-model")
+    payload[provider_type]["api"] = base_url
+    catalog_service = catalog(payload)
+    encryption = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption, catalog_service=catalog_service)
+    provider = ModelProvider(
+        name="Test",
+        provider_type=provider_type,
+        url=base_url,
+        api_key_encrypted=encryption.encrypt("test-key"),
+    )
+    with respx.mock as router:
+        route = router.get(models_url).mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": [{"id": "test-model"}]},
+            )
+        )
+        expected = [{"id": "test-model", "name": "test-model"}]
+        assert (
+            await service.validate_and_get_models(provider_type, base_url, "test-key")
+            == expected
+        )
+        assert await service.get_available_models(provider, "llm") == expected
+        assert route.call_count == 2
+        assert route.calls[0].request.headers["Authorization"] == "Bearer test-key"
+    assert provider.url == base_url
