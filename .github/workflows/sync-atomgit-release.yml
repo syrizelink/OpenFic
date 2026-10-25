@@ -133,7 +133,7 @@ jobs:
           # 顺序无关：AtomGit 上传顺序由 FC 侧统一排序
           for file in "${assets[@]}"; do
             file_name=$(basename "$file")
-            "$ossutil" cp -f "$file" "oss://${OSS_BUCKET}/${prefix}/${file_name}"
+            "$ossutil" cp -f --checksum "$file" "oss://${OSS_BUCKET}/${prefix}/${file_name}"
             jq --arg tag "$TAG" --arg key "${prefix}/${file_name}" --arg name "$file_name" \
               '.tag = $tag | .assets += [{key: $key, file_name: $name}]' \
               "$manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest"
