@@ -8,7 +8,7 @@ export interface PythonAsset {
 const PYTHON_VERSION = "3.13.14";
 const RELEASE_TAG = "20260623";
 const GITHUB_BASE_URL = `https://github.com/astral-sh/python-build-standalone/releases/download/${RELEASE_TAG}`;
-const MIRROR_PREFIX = "https://gh-proxy.com/";
+const MIRROR_BASE_URL = `https://mirrors.aliyun.com/github/releases/astral-sh/python-build-standalone/${RELEASE_TAG}`;
 
 function buildGithubUrl(target: string): string {
   const filename = `cpython-${PYTHON_VERSION}+${RELEASE_TAG}-${target}-install_only.tar.gz`;
@@ -21,7 +21,7 @@ function buildAsset(target: string): PythonAsset {
     version: PYTHON_VERSION,
     tag: RELEASE_TAG,
     target,
-    urls: [githubUrl, `${MIRROR_PREFIX}${githubUrl}`],
+    urls: [githubUrl, `${MIRROR_BASE_URL}/${githubUrl.split("/").at(-1)}`],
   };
 }
 

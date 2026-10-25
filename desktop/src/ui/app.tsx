@@ -613,6 +613,7 @@ export function App() {
       };
       setShellAppearance(getShellAppearance(previousConfig, instance.id));
       const nextConfig: DesktopConfig = {
+        ...previousConfig,
         activeInstanceId: previousConfig?.activeInstanceId ?? null,
         instances: existingInstance ? (previousConfig?.instances ?? [instance]) : [...(previousConfig?.instances ?? []), instance],
       };

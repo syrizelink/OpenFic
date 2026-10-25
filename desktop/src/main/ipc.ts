@@ -60,7 +60,7 @@ import { createStartupProgressTracker, getStartupProgress } from "./startup-prog
 import { appendLog, exportLogs } from "./logging.js";
 import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
-import { isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
+import { isDesktopInstanceAppearance, isDownloadSourcePreference, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 
 const PROJECT_HOME_URL = "https://github.com/syrizelink/OpenFic";
 const BUG_REPORT_URL = `${PROJECT_HOME_URL}/issues/new?template=bug-report.yml`;
@@ -274,6 +274,9 @@ export function registerIpc(context: IpcContext): void {
 
   ipcMain.handle(IpcChannels.saveConfig, (_event, request: SaveConfigRequest) =>
     enqueueConfigMutation(async () => {
+      if (request.config.downloadSource !== undefined && !isDownloadSourcePreference(request.config.downloadSource)) {
+        throw new Error("无效的下载源设置");
+      }
       const previousConfig = await readDesktopConfig();
       const instances = request.config.instances.map(({ hasAccessKey: _hasAccessKey, ...instance }) => {
         const storedInstance = previousConfig?.instances.find((candidate) => candidate.id === instance.id);
@@ -286,6 +289,7 @@ export function registerIpc(context: IpcContext): void {
         ...request.config,
         instances,
         zoomFactor: previousConfig?.zoomFactor,
+        downloadSource: request.config.downloadSource ?? previousConfig?.downloadSource ?? "auto",
       };
       await writeDesktopConfig(nextConfig);
       context.onConfigSaved(nextConfig);
@@ -699,6 +703,7 @@ export function registerIpc(context: IpcContext): void {
             instance,
           ],
           zoomFactor: previousConfig?.zoomFactor,
+          downloadSource: previousConfig?.downloadSource,
         };
         await writeDesktopConfig(nextConfig);
         context.onConfigSaved(nextConfig);

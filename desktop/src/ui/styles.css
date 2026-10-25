@@ -609,6 +609,38 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.desktop-source-menu {
+  position: relative;
+}
+
+.desktop-source-trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.desktop-source-submenu {
+  top: -6px;
+  left: 100%;
+  width: 190px;
+}
+
+.desktop-source-option {
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.desktop-source-check {
+  display: inline-flex;
+  width: 14px;
+}
+
+.desktop-source-error {
+  padding: 6px 8px;
+  color: var(--red-11);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .desktop-menu-item-shortcut {
   margin-left: auto;
   color: var(--gray-11);

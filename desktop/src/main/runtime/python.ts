@@ -6,6 +6,7 @@ import { appendLog } from "../logging.js";
 import { downloadFile, extractTarGz } from "./archive.js";
 import { resolvePythonAsset } from "./python-assets.js";
 import { matchesPortablePythonVersion } from "./python-version.js";
+import { getDownloadSourcePreference, orderDownloadSources, probeDownloadUrl } from "../download-sources.js";
 
 export interface PortablePython {
   pythonPath: string;
@@ -126,8 +127,13 @@ export async function ensurePortablePython(
 
   onPhase("download", `下载 Python ${asset.version}`);
   appendLog("runtime", `开始下载 Python ${asset.version}`);
+  const sources = await orderDownloadSources(
+    asset.urls.map((url, index) => ({ url, kind: index === 0 ? "default" as const : "mirror" as const })),
+    await getDownloadSourcePreference(),
+    ({ url }) => probeDownloadUrl(url),
+  );
   await downloadFile(
-    asset.urls,
+    sources.map(({ url }) => url),
     archivePath,
     (received, total) => onDownload({ received, total }),
     (message) => appendLog("runtime", message),

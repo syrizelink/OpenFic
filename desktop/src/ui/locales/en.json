@@ -32,6 +32,12 @@
     "addInstance": "Add instance",
     "manageInstances": "Manage instances",
     "dataManagement": "Data management",
+    "downloadSource": "Download source",
+    "downloadSources": {
+      "auto": "Auto detect",
+      "default": "Prefer default source",
+      "mirror": "Prefer mirror source"
+    },
     "helpMenu": "Help (H)",
     "projectHome": "Project home",
     "reportBug": "Report a bug",

@@ -32,6 +32,12 @@
     "addInstance": "添加实例",
     "manageInstances": "管理实例",
     "dataManagement": "数据管理",
+    "downloadSource": "下载源",
+    "downloadSources": {
+      "auto": "自动探测",
+      "default": "优先使用默认源",
+      "mirror": "优先使用镜像源"
+    },
     "helpMenu": "帮助(H)",
     "projectHome": "项目主页",
     "reportBug": "反馈 Bug",

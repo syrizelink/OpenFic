@@ -1,7 +1,7 @@
 import { app, safeStorage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { defaultDesktopConfig, isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
+import { defaultDesktopConfig, isDesktopInstanceAppearance, isDownloadSourcePreference, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 import {
   DEV_INSTANCE_ID,
   createDevInstance,
@@ -47,6 +47,7 @@ function isDesktopConfig(value: unknown): value is StoredDesktopConfig {
     (typeof candidate.activeInstanceId === "string" || candidate.activeInstanceId === null) &&
     Array.isArray(candidate.instances) &&
     candidate.instances.every(isDesktopInstance) &&
+    (candidate.downloadSource === undefined || isDownloadSourcePreference(candidate.downloadSource)) &&
     (candidate.zoomFactor === undefined || (typeof candidate.zoomFactor === "number" && Number.isFinite(candidate.zoomFactor)))
   );
 }

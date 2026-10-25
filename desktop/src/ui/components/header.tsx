@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type CSSProperties, type MouseEvent } from "react";
-import { ArrowLeft, ArrowRight, Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { DesktopConfig, DesktopInstance } from "../../shared/config";
+import { defaultDesktopConfig, type DesktopConfig, type DesktopInstance, type DownloadSourcePreference } from "../../shared/config";
 import type { UpdateState } from "../../shared/ipc";
 
 interface DesktopHeaderProps {
@@ -127,6 +127,9 @@ export function DesktopHeader({
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const [visibleMenu, setVisibleMenu] = useState<MenuName | null>(null);
   const [zoomFactor, setZoomFactor] = useState(1);
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const [savingSource, setSavingSource] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
   const instances = sortInstances(config?.instances ?? []);
   const hasUsableRuntime = instances.some((instance) => pingStates[instance.id]?.status === "ok") || Boolean(activeInstanceId);
@@ -175,6 +178,10 @@ export function DesktopHeader({
         });
     }
   };
+
+  useEffect(() => {
+    setSourceMenuOpen(false);
+  }, [openMenu]);
 
   useEffect(() => {
     if (instancePanelOpen) refreshPings();
@@ -502,6 +509,83 @@ export function DesktopHeader({
                 >
                   {t("desktop.header.dataManagement")}
                 </button>
+                <span className="desktop-menu-separator" role="separator" />
+                <div
+                  className="desktop-source-menu"
+                  onMouseEnter={() => setSourceMenuOpen(true)}
+                  onMouseLeave={() => setSourceMenuOpen(false)}
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) setSourceMenuOpen(false);
+                  }}
+                >
+                  <button
+                    className="desktop-menu-item desktop-source-trigger"
+                    type="button"
+                    role="menuitem"
+                    aria-haspopup="menu"
+                    aria-expanded={sourceMenuOpen && openMenu === "instance"}
+                    onClick={() => setSourceMenuOpen((open) => !open)}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                        event.preventDefault();
+                        setSourceMenuOpen(true);
+                        const menu = event.currentTarget.parentElement;
+                        requestAnimationFrame(() => menu?.querySelector<HTMLButtonElement>("[role=menuitemradio]")?.focus());
+                      }
+                    }}
+                  >
+                    <span>{t("desktop.header.downloadSource")}</span>
+                    <ChevronRight size={14} />
+                  </button>
+                  {sourceMenuOpen && openMenu === "instance" ? (
+                    <div
+                      className="desktop-menu-panel desktop-source-submenu"
+                      data-state="open"
+                      role="menu"
+                      aria-label={t("desktop.header.downloadSource")}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowLeft" || event.key === "Escape") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setSourceMenuOpen(false);
+                          event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(".desktop-source-trigger")?.focus();
+                        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                          event.preventDefault();
+                          const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitemradio]")];
+                          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+                          items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+                        }
+                      }}
+                    >
+                      {(["auto", "default", "mirror"] as const).map((source: DownloadSourcePreference) => (
+                        <button
+                          className="desktop-menu-item desktop-source-option"
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={(config?.downloadSource ?? "auto") === source}
+                          disabled={savingSource}
+                          key={source}
+                          onClick={async () => {
+                            setSavingSource(true);
+                            setSourceError(null);
+                            try {
+                              await onSaveConfig({ ...(config ?? defaultDesktopConfig), downloadSource: source });
+                              setOpenMenu(null);
+                            } catch (error) {
+                              setSourceError(error instanceof Error ? error.message : String(error));
+                            } finally {
+                              setSavingSource(false);
+                            }
+                          }}
+                        >
+                          <span className="desktop-source-check">{(config?.downloadSource ?? "auto") === source ? <Check size={14} /> : null}</span>
+                          <span>{t(`desktop.header.downloadSources.${source}`)}</span>
+                        </button>
+                      ))}
+                      {sourceError ? <span className="desktop-source-error" role="alert">{sourceError}</span> : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
