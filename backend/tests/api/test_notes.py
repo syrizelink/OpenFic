@@ -503,6 +503,28 @@ def _zip_bytes(files: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
+_APPLE_DOUBLE_CONTENT = b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        "
+
+
+class _LegacyNameZipInfo(zipfile.ZipInfo):
+    """以指定编码写入文件名且不设置 UTF-8 标志位，模拟系统自带压缩工具生成的条目。"""
+
+    def __init__(self, filename: str, name_encoding: str) -> None:
+        super().__init__(filename)
+        self.name_encoding = name_encoding
+
+    def _encodeFilenameFlags(self) -> tuple[bytes, int]:
+        return self.filename.encode(self.name_encoding), self.flag_bits
+
+
+def _legacy_name_zip_bytes(files: dict[str, bytes], name_encoding: str) -> bytes:
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        for filename, content in files.items():
+            archive.writestr(_LegacyNameZipInfo(filename, name_encoding), content)
+    return output.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_preview_note_import_reads_markdown_file(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
@@ -597,6 +619,43 @@ async def test_import_notes_rebuilds_zip_categories_from_project_root(
     assert tree["categories"][0]["title"] == "设定"
     assert tree["categories"][0]["notes"][0]["title"] == "角色"
     assert tree["categories"][0]["categories"][0]["title"] == "子分类"
+
+
+@pytest.mark.asyncio
+async def test_import_notes_zip_created_by_macos_keeps_names_and_skips_metadata(
+    client: AsyncClient,
+) -> None:
+    # macOS 系统压缩以 UTF-8 写入文件名但不设置标志位，并附带 __MACOSX 元数据文件
+    project_id, _ = await _create_project(client)
+    archive = _legacy_name_zip_bytes(
+        {
+            "设定/角色.md": "角色内容".encode("utf-8"),
+            "__MACOSX/设定/._角色.md": _APPLE_DOUBLE_CONTENT,
+            "设定/子分类/地点.md": "地点内容".encode("utf-8"),
+            "__MACOSX/设定/子分类/._地点.md": _APPLE_DOUBLE_CONTENT,
+        },
+        "utf-8",
+    )
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import",
+        files={"file": ("notes.zip", archive, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "file_type": "zip",
+        "imported_note_count": 2,
+        "imported_category_count": 2,
+        "ignored_file_count": 0,
+    }
+
+    tree = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
+    assert tree["total_notes"] == 2
+    assert [category["title"] for category in tree["categories"]] == ["设定"]
+    assert tree["categories"][0]["notes"][0]["title"] == "角色"
+    assert tree["categories"][0]["categories"][0]["title"] == "子分类"
+    assert tree["categories"][0]["categories"][0]["notes"][0]["title"] == "地点"
 
 
 @pytest.mark.asyncio
