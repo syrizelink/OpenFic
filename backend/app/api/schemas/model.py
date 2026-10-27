@@ -58,6 +58,15 @@ class ModelResponse(BaseModel):
     updated_at: str = Field(description="更新时间")
 
 
+class EmbeddingDimensionsRequest(BaseModel):
+    provider_id: str = Field(min_length=1)
+    model_id: str = Field(min_length=1)
+
+
+class EmbeddingDimensionsResponse(BaseModel):
+    dimensions: int = Field(ge=1)
+
+
 class ModelValidationResponse(BaseModel):
     """模型连接验证响应。"""
 
@@ -100,7 +109,7 @@ class ModelCreateRequest(BaseModel):
     cache_read_price: float = Field(default=0.0, ge=0.0)
     cache_write_price: float = Field(default=0.0, ge=0.0)
     dimensions: int | None = Field(
-        default=None, description="Embedding 维度（Embedding 专用）"
+        default=None, ge=1, description="Embedding 维度（Embedding 专用）"
     )
 
 
@@ -131,5 +140,5 @@ class ModelUpdateRequest(BaseModel):
     cache_read_price: float | None = Field(default=None, ge=0.0)
     cache_write_price: float | None = Field(default=None, ge=0.0)
     dimensions: int | None = Field(
-        default=None, description="Embedding 维度（Embedding 专用）"
+        default=None, ge=1, description="Embedding 维度（Embedding 专用）"
     )

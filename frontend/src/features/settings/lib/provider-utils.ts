@@ -4,19 +4,9 @@
  * 提供商相关的工具函数。
  */
 
-import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
+import type { ModelProvider, ModelProviderCatalogProvider } from "@/lib/model.types";
 
 export const OPENAI_ICON_PATH = "/icons/model/catalog/openai.svg";
-
-const EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES = new Set<ProviderType>([
-  "openai",
-  "openrouter",
-  "requesty",
-  "openai-compatible",
-  "ollama",
-  "nvidia-ai-endpoints",
-  "infistar",
-]);
 
 const CUSTOM_PROVIDER_TYPES = new Set([
   "openai-compatible",
@@ -24,10 +14,6 @@ const CUSTOM_PROVIDER_TYPES = new Set([
   "anthropic-compatible",
   "gemini-compatible",
 ]);
-
-export function supportsEmbeddingDimensions(providerType: string): boolean {
-  return EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES.has(providerType);
-}
 
 export function isSelectableModelProvider(provider: Pick<ModelProvider, "isBuiltin">): boolean {
   return !provider.isBuiltin;

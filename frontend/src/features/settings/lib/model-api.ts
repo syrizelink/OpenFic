@@ -4,6 +4,8 @@
  * 模型和提供商 API 客户端。
  */
 
+import { isAxiosError } from "axios";
+
 import { apiClient } from "@/lib/api-client";
 import type {
   AvailableModel,
@@ -61,6 +63,27 @@ interface ModelProviderValidateApiResponse {
   success: boolean;
   message: string;
   models: ModelProviderAvailableModelApiResponse[];
+}
+
+export async function detectEmbeddingDimensions(
+  providerId: string,
+  modelId: string,
+): Promise<number> {
+  try {
+    const response = await apiClient.post<{ dimensions: number }>("/models/embedding-dimensions", {
+      provider_id: providerId,
+      model_id: modelId,
+    });
+    return response.data.dimensions;
+  } catch (error) {
+    if (
+      isAxiosError<{ detail?: string }>(error) &&
+      typeof error.response?.data.detail === "string"
+    ) {
+      throw new Error(error.response.data.detail);
+    }
+    throw error;
+  }
 }
 
 export interface ModelValidationResponse {

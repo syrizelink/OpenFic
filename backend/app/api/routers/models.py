@@ -10,6 +10,8 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.model import (
+    EmbeddingDimensionsRequest,
+    EmbeddingDimensionsResponse,
     ModelCreateRequest,
     ModelResponse,
     ModelUpdateRequest,
@@ -100,6 +102,32 @@ async def get_models(
             models = all_models
 
     return [_to_response(m) for m in models]
+
+
+@router.post(
+    "/embedding-dimensions",
+    response_model=EmbeddingDimensionsResponse,
+    summary="自动获取嵌入模型维度",
+)
+async def detect_embedding_dimensions(
+    request: EmbeddingDimensionsRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> EmbeddingDimensionsResponse:
+    from app.models.services.embedding_service import probe_provider_embedding_dimensions
+
+    await require_agent_settings_unlocked(session)
+    try:
+        dimensions = await probe_provider_embedding_dimensions(
+            session, request.provider_id, request.model_id
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"自动获取维度失败: {format_validation_error(exc)}",
+        ) from exc
+    return EmbeddingDimensionsResponse(dimensions=dimensions)
 
 
 @router.post(
@@ -251,6 +279,7 @@ async def update_model(
             remark=request.remark,
             provider_id=request.provider_id,
             model_identifier=request.model_id,
+            clear_dimensions="dimensions" in request.model_fields_set and request.dimensions is None,
             task_type=request.task_type,
             temperature=request.temperature,
             top_p=request.top_p,

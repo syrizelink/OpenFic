@@ -218,6 +218,7 @@ class ModelService:
         cache_read_price: float | None = None,
         cache_write_price: float | None = None,
         dimensions: int | None = None,
+        clear_dimensions: bool = False,
     ) -> Model:
         """
         更新模型。
@@ -261,7 +262,9 @@ class ModelService:
                 protected_changes.append("provider_id")
             if model_identifier is not None and model_identifier != existing.model_id:
                 protected_changes.append("model_id")
-            if dimensions is not None and dimensions != existing.dimensions:
+            if (dimensions is not None and dimensions != existing.dimensions) or (
+                clear_dimensions and existing.dimensions is not None
+            ):
                 protected_changes.append("dimensions")
             if protected_changes:
                 raise ValueError(
@@ -276,6 +279,7 @@ class ModelService:
             remark=remark,
             provider_id=provider_id,
             model_identifier=model_identifier,
+            clear_dimensions=clear_dimensions,
             task_type=task_type,
             temperature=temperature,
             top_p=top_p,

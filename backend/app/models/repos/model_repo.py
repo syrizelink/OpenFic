@@ -201,6 +201,7 @@ async def update(
     cache_read_price: float | None = None,
     cache_write_price: float | None = None,
     dimensions: int | None = None,
+    clear_dimensions: bool = False,
 ) -> Model | None:
     """
     更新模型。
@@ -268,7 +269,7 @@ async def update(
         model.cache_read_price = cache_read_price
     if cache_write_price is not None:
         model.cache_write_price = cache_write_price
-    if dimensions is not None:
+    if dimensions is not None or clear_dimensions:
         model.dimensions = dimensions
 
     model.updated_at = datetime.now(UTC)

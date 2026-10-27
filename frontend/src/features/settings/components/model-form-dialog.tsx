@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Dialog, Flex, Button, Text, TextField, TextArea, Separator } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import type {
 } from "@/lib/model.types";
 
 import {
+  detectEmbeddingDimensions,
   fetchModelProviderCatalogModels,
   fetchProviders,
   fetchProviderModels,
@@ -28,7 +29,6 @@ import {
   isCustomProviderType,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
-  supportsEmbeddingDimensions,
 } from "../lib/provider-utils";
 import { AdvancedParamsSection } from "./advanced-params-section";
 import { ModelMetadataSection } from "./model-metadata-section";
@@ -54,7 +54,7 @@ const modelSchema = z.object({
   outputPrice: z.number().min(0),
   cacheReadPrice: z.number().min(0),
   cacheWritePrice: z.number().min(0),
-  dimensions: z.number().min(1).max(4096).nullable().optional(),
+  dimensions: z.number().int("dimensionsRange").min(1, "dimensionsRange").nullable().optional(),
 });
 
 type ModelFormData = z.infer<typeof modelSchema>;
@@ -85,6 +85,9 @@ export function ModelFormDialog({
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string>("");
   const [modelOptionsSource, setModelOptionsSource] = useState<"catalog" | "remote" | null>(null);
+  const [isDetectingDimensions, setIsDetectingDimensions] = useState(false);
+  const [dimensionsError, setDimensionsError] = useState("");
+  const dimensionsRequestId = useRef(0);
 
   const {
     control,
@@ -121,6 +124,11 @@ export function ModelFormDialog({
 
   // 当对话框打开或模型改变时，重置表单值
   useEffect(() => {
+    dimensionsRequestId.current += 1;
+    queueMicrotask(() => {
+      setIsDetectingDimensions(false);
+      setDimensionsError("");
+    });
     if (open) {
       if (model) {
         // 编辑模式：回填所有值
@@ -184,6 +192,7 @@ export function ModelFormDialog({
 
   const providerId = useWatch({ control, name: "providerId" });
   const taskType = useWatch({ control, name: "taskType" });
+  const modelId = useWatch({ control, name: "modelId" });
   const name = useWatch({ control, name: "name" });
   const hasDuplicateName = models.some((entry) => entry.id !== model?.id && entry.name === name);
   // 获取提供商列表
@@ -202,10 +211,6 @@ export function ModelFormDialog({
   const selectedProvider = useMemo(
     () => providers?.find((p) => p.id === providerId),
     [providers, providerId],
-  );
-  const selectedProviderSupportsEmbeddingDimensions = useMemo(
-    () => (selectedProvider ? supportsEmbeddingDimensions(selectedProvider.providerType) : false),
-    [selectedProvider],
   );
   const isModelSelectionDisabled = !providerId;
 
@@ -305,31 +310,62 @@ export function ModelFormDialog({
     }
   }, [isEditing, providerId, setValue]);
 
+  const invalidateDimensionsDetection = useCallback(() => {
+    dimensionsRequestId.current += 1;
+    setIsDetectingDimensions(false);
+    setDimensionsError("");
+  }, []);
+
+  const handleDetectDimensions = useCallback(async () => {
+    const currentProviderId = getValues("providerId");
+    const currentModelId = getValues("modelId");
+    if (!currentProviderId || !currentModelId.trim() || isAgentSettingsLocked) return;
+
+    const requestId = ++dimensionsRequestId.current;
+    setIsDetectingDimensions(true);
+    setDimensionsError("");
+    try {
+      const dimensions = await detectEmbeddingDimensions(currentProviderId, currentModelId);
+      if (requestId !== dimensionsRequestId.current) return;
+      setValue("dimensions", dimensions, { shouldValidate: true });
+    } catch (error) {
+      if (requestId === dimensionsRequestId.current) {
+        setDimensionsError(
+          error instanceof Error ? error.message : t("models.detectDimensionsFailed"),
+        );
+      }
+    } finally {
+      if (requestId === dimensionsRequestId.current) setIsDetectingDimensions(false);
+    }
+  }, [getValues, isAgentSettingsLocked, setValue, t]);
+
   const handleProviderChange = useCallback(
     (nextProviderId: string) => {
+      invalidateDimensionsDetection();
+      setValue("dimensions", null);
       setValue("providerId", nextProviderId);
       setValue("modelId", "");
     },
-    [setValue],
+    [invalidateDimensionsDetection, setValue],
   );
 
   const handleTaskTypeChange = useCallback(
     (nextTaskType: string) => {
+      invalidateDimensionsDetection();
       setValue("taskType", nextTaskType as TaskType);
       setValue("modelId", "");
+      if (nextTaskType !== "embedding") {
+        setValue("dimensions", null);
+      }
     },
-    [setValue],
+    [invalidateDimensionsDetection, setValue],
   );
-
-  useEffect(() => {
-    if (taskType !== "embedding" || !selectedProviderSupportsEmbeddingDimensions) {
-      setValue("dimensions", null);
-    }
-  }, [selectedProviderSupportsEmbeddingDimensions, setValue, taskType]);
 
   // 处理模型ID选择
   const handleModelIdChange = useCallback(
     (modelId: string, modelName?: string) => {
+      invalidateDimensionsDetection();
+      setValue("dimensions", null);
       setValue("modelId", modelId);
       if (modelName && !getValues("name")) {
         setValue("name", modelName);
@@ -357,7 +393,7 @@ export function ModelFormDialog({
         catalogModel?.cacheWritePricePerMillion ?? getValues("cacheWritePrice"),
       );
     },
-    [availableModels, getValues, setValue],
+    [availableModels, getValues, invalidateDimensionsDetection, setValue],
   );
 
   // 提交表单
@@ -384,10 +420,7 @@ export function ModelFormDialog({
         output_price: data.taskType === "llm" ? data.outputPrice : 0,
         cache_read_price: data.taskType === "llm" ? data.cacheReadPrice : 0,
         cache_write_price: data.taskType === "llm" ? data.cacheWritePrice : 0,
-        dimensions:
-          data.taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions
-            ? data.dimensions
-            : null,
+        dimensions: data.taskType === "embedding" ? data.dimensions : null,
       };
 
       try {
@@ -398,12 +431,13 @@ export function ModelFormDialog({
         throw error;
       }
     },
-    [onSubmit, reset, selectedProviderSupportsEmbeddingDimensions],
+    [onSubmit, reset],
   );
 
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
       if (!newOpen) {
+        dimensionsRequestId.current += 1;
         reset();
       }
       onOpenChange(newOpen);
@@ -663,7 +697,7 @@ export function ModelFormDialog({
                   )}
               </Flex>
 
-              {taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions && (
+              {taskType === "embedding" && (
                 <Flex
                   direction="column"
                   gap="2"
@@ -675,24 +709,57 @@ export function ModelFormDialog({
                   >
                     {t("models.dimensions")}
                   </Text>
-                  <Controller
-                    name="dimensions"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField.Root
-                        type="number"
-                        min={1}
-                        max={4096}
-                        value={field.value?.toString() || ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          field.onChange(val === "" ? null : Number(val));
-                        }}
-                        placeholder={t("models.dimensionsPlaceholder")}
-                        disabled={isAgentSettingsLocked}
-                      />
-                    )}
-                  />
+                  <Flex
+                    gap="2"
+                    align="center"
+                  >
+                    <Controller
+                      name="dimensions"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField.Root
+                          type="number"
+                          min={1}
+                          value={field.value?.toString() || ""}
+                          onChange={(e) => {
+                            dimensionsRequestId.current += 1;
+                            setIsDetectingDimensions(false);
+                            setDimensionsError("");
+                            const val = e.target.value;
+                            field.onChange(val === "" ? null : Number(val));
+                          }}
+                          placeholder={t("models.dimensionsPlaceholder")}
+                          disabled={isAgentSettingsLocked || isDetectingDimensions}
+                          style={{ flex: 1, minWidth: 0 }}
+                        />
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="soft"
+                      disabled={
+                        isAgentSettingsLocked ||
+                        isSubmitting ||
+                        isDetectingDimensions ||
+                        !providerId ||
+                        !modelId.trim()
+                      }
+                      onClick={() => void handleDetectDimensions()}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {isDetectingDimensions ? <Spinner size={18} /> : null}
+                      {t("models.detectDimensions")}
+                    </Button>
+                  </Flex>
+                  {dimensionsError && (
+                    <Text
+                      size="1"
+                      color="red"
+                      role="alert"
+                    >
+                      {dimensionsError}
+                    </Text>
+                  )}
                   {errors.dimensions && (
                     <Text
                       size="1"
@@ -772,7 +839,12 @@ export function ModelFormDialog({
                 </Dialog.Close>
                 <Button
                   type="submit"
-                  disabled={isAgentSettingsLocked || isSubmitting || hasDuplicateName}
+                  disabled={
+                    isAgentSettingsLocked ||
+                    isSubmitting ||
+                    isDetectingDimensions ||
+                    hasDuplicateName
+                  }
                 >
                   {isSubmitting ? <Spinner size={18} /> : null}
                   {isEditing ? t("common.save") : t("common.create")}
