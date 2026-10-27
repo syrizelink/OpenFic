@@ -172,6 +172,9 @@ class SettingsResponse(BaseModel):
         default=False,
         description="输入半角标点符号时是否自动转换为全角",
     )
+    llm_connect_timeout: float = 10
+    llm_chunk_timeout: float = 120
+    llm_request_timeout: float = 600
     auto_compact_context: bool = _context_defaults.auto_compact_context
     compaction_model: str = "__session_model__"
     compaction_model_reasoning_effort: ReasoningEffort = Field(
@@ -226,6 +229,9 @@ class SettingsUpdateRequest(BaseModel):
         default=None,
         description="指定摘要模型时的推理强度",
     )
+    llm_connect_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
+    llm_chunk_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
+    llm_request_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
     auto_compact_context: bool | None = None
     compaction_model: str | None = Field(default=None, min_length=1)
     compaction_model_reasoning_effort: ReasoningEffortInput | None = Field(

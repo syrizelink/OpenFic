@@ -28,6 +28,7 @@ from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.storage.models.chapter import Chapter
 from app.storage.models.project import Project
+from app.storage.models.setting import Setting
 from app.storage.models.task import Task
 from app.storage.models.volume import Volume
 
@@ -47,6 +48,7 @@ def _table(model: Any) -> Any:
 
 
 _TABLES = [
+    _table(Setting),
     _table(Project),
     _table(Volume),
     _table(Chapter),

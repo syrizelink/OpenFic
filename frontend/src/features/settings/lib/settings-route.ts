@@ -8,6 +8,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "tunnels",
   "models",
   "index",
+  "session",
   "context",
   "summary",
   "agent-tools",

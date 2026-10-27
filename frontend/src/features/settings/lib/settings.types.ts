@@ -68,6 +68,9 @@ export interface Settings {
   agentToolPermissions: AgentToolPermission[];
   auditPersistDetails: boolean;
   compressSystemPrompts: boolean;
+  llmConnectTimeout: number;
+  llmChunkTimeout: number;
+  llmRequestTimeout: number;
   autoCompactContext: boolean;
   compactionModel: string;
   compactionModelReasoningEffort: ReasoningEffort;
@@ -131,6 +134,9 @@ export interface SettingsResponse {
   }>;
   audit_persist_details: boolean;
   compress_system_prompts: boolean;
+  llm_connect_timeout: number;
+  llm_chunk_timeout: number;
+  llm_request_timeout: number;
   auto_compact_context: boolean;
   compaction_model: string;
   compaction_model_reasoning_effort: ReasoningEffort;
@@ -195,6 +201,9 @@ export interface SettingsUpdateRequest {
   }>;
   audit_persist_details?: boolean;
   compress_system_prompts?: boolean;
+  llm_connect_timeout?: number;
+  llm_chunk_timeout?: number;
+  llm_request_timeout?: number;
   auto_compact_context?: boolean;
   compaction_model?: string;
   compaction_model_reasoning_effort?: ReasoningEffort;

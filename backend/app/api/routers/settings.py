@@ -69,6 +69,7 @@ from app.memory.summary_config import (
     parse_summary_settings,
 )
 from app.agent_runtime.context.settings import parse_context_settings
+from app.agent_runtime.timeout_settings import parse_agent_timeout_settings
 from app.models.clients.model_params import (
     DEFAULT_REASONING_EFFORT,
     ReasoningEffort,
@@ -343,6 +344,7 @@ async def get_settings(
     settings_dict = {s.key: s.value for s in settings_list}
     summary_settings = parse_summary_settings(settings_dict)
     context_settings = parse_context_settings(settings_dict)
+    timeout_settings = parse_agent_timeout_settings(settings_dict)
     agent_tool_permissions = _merge_default_agent_tool_permissions(
         _parse_agent_tool_permissions(
             settings_dict.get(
@@ -533,6 +535,7 @@ code_font_family=settings_dict.get(
             ),
             default=True,
         ),
+        **{key: getattr(timeout_settings, key) for key in timeout_settings.__dataclass_fields__},
         **{
             key: getattr(context_settings, key)
             for key in context_settings.__dataclass_fields__
@@ -813,6 +816,7 @@ async def update_settings(
             ensure_ascii=False,
         )
     for key in (
+        "llm_connect_timeout", "llm_chunk_timeout", "llm_request_timeout",
         "auto_compact_context", "compaction_model", "compaction_model_reasoning_effort",
         "compaction_trigger_ratio",
         "compaction_tail_token_budget", "compaction_tail_window_ratio",

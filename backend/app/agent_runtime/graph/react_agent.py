@@ -1021,11 +1021,17 @@ def create_react_agent(
                 if isinstance(runtime_state, Mapping)
                 else None
             )
+            from dataclasses import replace
+            from app.agent_runtime.timeout_settings import load_agent_timeout_settings
+            invoke_settings = load_llm_invoke_settings()
+            if db_session is not None:
+                timeout_settings = await load_agent_timeout_settings(cast("AsyncSession", db_session))
+                invoke_settings = replace(invoke_settings, chunk_timeout=timeout_settings.llm_chunk_timeout)
             response = await invoke_model_with_retry(
                 bound_model or model,
                 messages,
                 invoke=_invoke_model,
-                settings=load_llm_invoke_settings(),
+                settings=invoke_settings,
                 session_id=session_id if isinstance(session_id, str) else None,
                 node=react_config.name,
                 retry_event_sink=_get_retry_event_sink(config),

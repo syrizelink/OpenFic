@@ -41,6 +41,8 @@ class OpenAICodexChatModel(BaseChatModel):
     base_url: str = OPENAI_CODEX_API_BASE_URL
     reasoning_effort: str | None = None
     default_headers: dict[str, str] = Field(default_factory=dict)
+    connect_timeout: float | None = None
+    request_timeout: float | None = None
 
     @property
     def _llm_type(self) -> str:
@@ -163,8 +165,8 @@ class OpenAICodexChatModel(BaseChatModel):
         from app.settings import settings
 
         timeout = httpx.Timeout(
-            timeout=settings.llm_request_timeout,
-            connect=settings.llm_connect_timeout,
+            timeout=self.request_timeout if self.request_timeout is not None else settings.llm_request_timeout,
+            connect=self.connect_timeout if self.connect_timeout is not None else settings.llm_connect_timeout,
         )
         completed = False
         tool_calls: dict[str, dict[str, Any]] = {}

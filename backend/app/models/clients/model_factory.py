@@ -54,6 +54,9 @@ class ModelConfig:
     presence_penalty: float | None = DEFAULT_PRESENCE_PENALTY
     repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY
     reasoning_effort: ReasoningEffortInput | None = None
+    llm_connect_timeout: float | None = None
+    llm_chunk_timeout: float | None = None
+    llm_request_timeout: float | None = None
 
     def __post_init__(self) -> None:
         if self.reasoning_effort == "off":
@@ -97,16 +100,19 @@ def _three_level_reasoning_effort(
     return "high" if reasoning_effort in {"xhigh", "max"} else reasoning_effort
 
 
-def _request_timeout() -> tuple[float, float]:
+def _request_timeout(config: ModelConfig | None = None) -> tuple[float, float]:
     from app.settings import settings
 
-    return (settings.llm_connect_timeout, settings.llm_request_timeout)
+    return (
+        config.llm_connect_timeout if config and config.llm_connect_timeout is not None else settings.llm_connect_timeout,
+        config.llm_request_timeout if config and config.llm_request_timeout is not None else settings.llm_request_timeout,
+    )
 
 
-def _stream_chunk_timeout() -> float | None:
+def _stream_chunk_timeout(config: ModelConfig | None = None) -> float | None:
     from app.settings import settings
 
-    return settings.llm_chunk_timeout
+    return config.llm_chunk_timeout if config and config.llm_chunk_timeout is not None else settings.llm_chunk_timeout
 
 
 def _gemini_compatible_base_url(base_url: str) -> str:
@@ -171,8 +177,8 @@ def _openai_compatible_kwargs(
         reasoning_effort=_enabled_reasoning_effort(config),
         max_retries=0,
         stream_usage=True,
-        stream_chunk_timeout=_stream_chunk_timeout(),
-        timeout=_request_timeout(),
+        stream_chunk_timeout=_stream_chunk_timeout(config),
+        timeout=_request_timeout(config),
     )
     extra_body = {
         name: value
@@ -214,7 +220,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             max_tokens=config.max_tokens or 4096,
             effort=reasoning_effort,
             max_retries=0,
-            timeout=_request_timeout()[1],
+            timeout=_request_timeout(config)[1],
         ))
 
     if provider == "google-genai":
@@ -281,8 +287,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             reasoning_effort=reasoning_effort,
             max_retries=0,
             stream_usage=True,
-            stream_chunk_timeout=_stream_chunk_timeout(),
-            timeout=_request_timeout(),
+            stream_chunk_timeout=_stream_chunk_timeout(config),
+            timeout=_request_timeout(config),
         ))
 
     if provider == "mistral":
@@ -296,7 +302,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,
             max_retries=0,
-            timeout=_request_timeout()[1],
+            timeout=_request_timeout(config)[1],
         )
         if reasoning_effort:
             mistral_kwargs["model_kwargs"] = {"reasoning_effort": reasoning_effort}
@@ -327,7 +333,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             ),
             reasoning={"effort": reasoning_effort} if reasoning_effort else None,
             max_retries=0,
-            timeout=int(_request_timeout()[1] * 1000),
+            timeout=int(_request_timeout(config)[1] * 1000),
         ))
         headers = _model_request_headers(config)
         _update_http_client_headers(model.client.sdk_configuration.client, headers)
@@ -345,7 +351,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             max_tokens=config.max_tokens,
             reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
             max_retries=0,
-            timeout=_request_timeout(),
+            timeout=_request_timeout(config),
             default_headers=_model_request_headers(config),
         )
         if config.top_p is not None:
@@ -420,6 +426,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             base_url=base_url or "https://api.openai.com/v1",
             reasoning_effort=reasoning_effort,
             default_headers=_model_request_headers(config),
+            connect_timeout=_request_timeout(config)[0],
+            request_timeout=_request_timeout(config)[1],
         )
 
     if provider == "nvidia-ai-endpoints":

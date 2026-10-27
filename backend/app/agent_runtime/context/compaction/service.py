@@ -214,7 +214,10 @@ async def compact_window(
             effective_model_config["reasoning_effort"] = normalize_reasoning_effort(
                 effort_setting.value if effort_setting else None
             )
+        from dataclasses import asdict
+        from app.agent_runtime.timeout_settings import load_agent_timeout_settings
         client_model_config = to_client_model_config(effective_model_config)
+        client_model_config.update(asdict(await load_agent_timeout_settings(db_session)))
         client_model_config["session_id"] = state["session_id"]
         model = create_chat_model(ModelConfig(**client_model_config))
         response = await model.ainvoke(

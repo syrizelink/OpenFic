@@ -26,6 +26,7 @@ import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
 import { AgentToolsSettings } from "../components/agent-tools-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
+import { SessionSettings } from "../components/session-settings";
 import { ContextSettings } from "../components/context-settings";
 import { EditorSettings } from "../components/editor-settings";
 import { GeneralSettings } from "../components/general-settings";
@@ -88,6 +89,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   tunnels: "settings.tunnels",
   models: "settings.models",
   index: "settings.index",
+  session: "settings.session",
   context: "settings.context",
   summary: "settings.summary",
   "agent-tools": "settings.agentTools",
@@ -287,6 +289,7 @@ export function SettingsContent({
     activeCategory === "tunnels" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
+    activeCategory === "session" ||
     activeCategory === "context" ||
     activeCategory === "summary" ||
     activeCategory === "agent-tools" ||
@@ -483,6 +486,7 @@ export function SettingsContent({
                 isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
+            {activeCategory === "session" ? <SessionSettings /> : null}
             {activeCategory === "context" ? <ContextSettings /> : null}
             {activeCategory === "summary" ? (
               <SummarySettings

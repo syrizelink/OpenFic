@@ -525,6 +525,9 @@ class SubagentRunner:
         model_config = dict(self.model_config)
         session = await _open_session(self.session_factory)
         try:
+            from dataclasses import asdict
+            from app.agent_runtime.timeout_settings import load_agent_timeout_settings
+            timeout_settings = await load_agent_timeout_settings(session)
             model_config = await _resolve_agent_model_config(
                 session,
                 configured_model_id=definition.model_id,
@@ -540,6 +543,7 @@ class SubagentRunner:
             termination=TerminationCondition(mode="no_tool_call"),
         )
         client_model_config = to_client_model_config(model_config)
+        client_model_config.update(asdict(timeout_settings))
         session_id = runtime_state.get("session_id") or getattr(row, "child_thread_id", None)
         if session_id:
             client_model_config["session_id"] = session_id
