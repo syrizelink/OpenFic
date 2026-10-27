@@ -41,9 +41,18 @@ async def list_by_revision(
     session: AsyncSession,
     revision_id: str,
 ) -> list[RevisionChapterSnapshot]:
+    return await list_by_revisions(session, [revision_id])
+
+
+async def list_by_revisions(
+    session: AsyncSession,
+    revision_ids: list[str],
+) -> list[RevisionChapterSnapshot]:
+    if not revision_ids:
+        return []
     result = await session.execute(
         select(RevisionChapterSnapshot)
-        .where(col(RevisionChapterSnapshot.revision_id) == revision_id)
+        .where(col(RevisionChapterSnapshot.revision_id).in_(revision_ids))
         .order_by(col(RevisionChapterSnapshot.chapter_order).asc())
     )
     snapshots = list(result.scalars().all())

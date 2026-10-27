@@ -201,8 +201,15 @@ def _build_diff_lines(before: str, after: str) -> list[dict[str, Any]]:
 
     for tag, before_start, before_end, after_start, after_end in matcher.get_opcodes():
         if tag == "equal":
-            before_line_number += before_end - before_start
-            after_line_number += after_end - after_start
+            for line in before_lines[before_start:before_end]:
+                lines.append({
+                    "type": "context",
+                    "before_line_number": before_line_number,
+                    "after_line_number": after_line_number,
+                    "text": line,
+                })
+                before_line_number += 1
+                after_line_number += 1
             continue
 
         if tag in {"delete", "replace"}:

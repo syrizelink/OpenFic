@@ -23,6 +23,8 @@ from app.agent_runtime.persistence.model import (
     AgentChildRunRequest,
 )
 from app.storage.models.revision import Revision
+from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
+from app.storage.repos import revision_chapter_snapshot_repo
 
 
 ChangeKind = Literal["chapter", "note", "world_entry", "character"]
@@ -891,6 +893,7 @@ def build_agent_changes(
     child_requests: Sequence[AgentChildRunRequest],
     child_messages: Sequence[object],
     revisions: Sequence[Revision],
+    chapter_snapshots: Sequence[RevisionChapterSnapshot] = (),
     include_details: bool = True,
 ) -> AgentSessionChanges:
     """Build a hierarchical change projection from persisted agent messages."""
@@ -965,6 +968,35 @@ def build_agent_changes(
         for candidate in all_candidates
         if (item := _build_item(candidate, include_details=include_details)) is not None
     }
+    chapter_states = {
+        (snapshot.revision_id, f"chapter:{snapshot.chapter_id}"): (
+            (snapshot.content or "").splitlines() if snapshot.exists else []
+        )
+        for snapshot in chapter_snapshots
+    }
+    for candidate in all_candidates:
+        item = item_cache.get(id(candidate))
+        if item is None or item.kind != "chapter" or candidate.revision_id is None:
+            continue
+        state_key = (candidate.revision_id, item.key)
+        before = chapter_states.get(state_key)
+        if before is None:
+            continue
+        if item.operation == "delete":
+            after = []
+        elif item.operation == "create":
+            after = item._content_after
+        else:
+            after = _apply_content_patch(before, item.sections)
+        if after is None:
+            chapter_states.pop(state_key)
+            continue
+        item._content_before = list(before)
+        item._content_after = list(after)
+        item.sections = _content_sections_from_state(before, after)
+        item.added = sum(line.type == "added" for section in item.sections for line in section.lines)
+        item.removed = sum(line.type == "removed" for section in item.sections for line in section.lines)
+        chapter_states[state_key] = after
     candidates_by_revision: dict[str, list[_ChangeCandidate]] = defaultdict(list)
     for candidate in all_candidates:
         if candidate.revision_id is not None:
@@ -1165,6 +1197,9 @@ async def load_agent_session_changes(
         for message in message_by_session.get(child_run.child_thread_id, [])
     ]
 
+    chapter_snapshots = await revision_chapter_snapshot_repo.list_by_revisions(
+        session, [revision.id for revision in revisions]
+    )
     return build_agent_changes(
         session_id,
         parent_messages=parent_messages,
@@ -1172,5 +1207,6 @@ async def load_agent_session_changes(
         child_requests=child_requests,
         child_messages=child_messages,
         revisions=revisions,
+        chapter_snapshots=chapter_snapshots,
         include_details=include_details,
     )
