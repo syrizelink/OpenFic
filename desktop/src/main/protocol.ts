@@ -5,13 +5,14 @@ import { pathToFileURL } from "node:url";
 import { app, net, protocol, session } from "electron";
 
 import type { RuntimeConfigResponse } from "../shared/config.js";
+import { appendLog } from "./logging.js";
 import { configureSystemProxy } from "./proxy.js";
 import { isNgrokUrl } from "./remote-url.js";
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
 const registeredPartitions = new Map<string, Promise<void>>();
 const configuredAuthSessions = new WeakSet<Electron.Session>();
-const capturedAuthCookies = new WeakMap<Electron.Session, string>();
+const capturedAuthCookies = new WeakMap<Electron.Session, { origin: string; value: string; expiresAt?: number }>();
 const SHARED_FONT_CSS_PATH = "/frontend-fonts.css";
 const SHARED_FONT_PREFIX = "/frontend-fonts/";
 const AUTH_COOKIE_NAME = "openfic_auth";
@@ -28,9 +29,47 @@ function getHeaderValues(headers: Record<string, string[]>, name: string): strin
 function getAuthCookieFromSetCookie(headers: Record<string, string[]>): string | null {
   for (const header of getHeaderValues(headers, "set-cookie")) {
     const match = header.match(new RegExp(`^(${AUTH_COOKIE_NAME}=[^;]*)`, "i"));
-    if (match) return match[1] ?? null;
+    if (match) return header;
   }
   return null;
+}
+
+async function saveAuthCookie(targetSession: Electron.Session, url: string, header: string): Promise<void> {
+  const parts = header.split(";").map((part) => part.trim());
+  const value = parts[0].slice(parts[0].indexOf("=") + 1);
+  const maxAgePart = parts.slice(1).find((part) => /^max-age=/i.test(part));
+  const maxAgeText = maxAgePart?.slice(maxAgePart.indexOf("=") + 1);
+  const maxAge = maxAgeText && /^-?\d+$/.test(maxAgeText) ? Number(maxAgeText) : undefined;
+  const expiresAt = maxAge !== undefined && Number.isFinite(maxAge) ? Date.now() / 1000 + maxAge : undefined;
+  const origin = new URL(url).origin;
+
+  if (!value || (expiresAt !== undefined && expiresAt <= Date.now() / 1000)) {
+    capturedAuthCookies.delete(targetSession);
+    await targetSession.cookies.remove(origin, AUTH_COOKIE_NAME);
+  } else {
+    capturedAuthCookies.set(targetSession, { origin, value, expiresAt });
+    await targetSession.cookies.set({
+      url: origin,
+      name: AUTH_COOKIE_NAME,
+      value,
+      path: "/",
+      httpOnly: true,
+      secure: parts.some((part) => /^secure$/i.test(part)),
+      sameSite: "lax",
+      ...(expiresAt !== undefined ? { expirationDate: expiresAt } : {}),
+    });
+  }
+  await targetSession.cookies.flushStore();
+}
+
+function getCapturedAuthCookie(targetSession: Electron.Session, url: string): string | undefined {
+  const cookie = capturedAuthCookies.get(targetSession);
+  if (!cookie || cookie.origin !== new URL(url).origin) return undefined;
+  if (cookie.expiresAt !== undefined && cookie.expiresAt <= Date.now() / 1000) {
+    capturedAuthCookies.delete(targetSession);
+    return undefined;
+  }
+  return `${AUTH_COOKIE_NAME}=${cookie.value}`;
 }
 
 function isBackendRequest(url: string): boolean {
@@ -59,7 +98,16 @@ function configureAuthSession(targetSession: Electron.Session): void {
   targetSession.webRequest.onHeadersReceived((details, callback) => {
     if (isBackendRequest(details.url)) {
       const authCookie = getAuthCookieFromSetCookie(details.responseHeaders ?? {});
-      if (authCookie) capturedAuthCookies.set(targetSession, authCookie);
+      if (authCookie) {
+        // The app:// frontend is cross-site, so Chromium may reject the backend's
+        // SameSite=Lax cookie. Store it in this instance's session explicitly.
+        void saveAuthCookie(targetSession, details.url, authCookie)
+          .catch((error: unknown) => {
+            appendLog("auth", `保存认证 Cookie 失败：${error instanceof Error ? error.message : String(error)}`);
+          })
+          .finally(() => callback({ responseHeaders: details.responseHeaders }));
+        return;
+      }
     }
     callback({ responseHeaders: details.responseHeaders });
   });
@@ -79,12 +127,12 @@ function configureAuthSession(targetSession: Electron.Session): void {
       .then((cookies) => {
         const authCookie = cookies[0]
           ? `${AUTH_COOKIE_NAME}=${cookies[0].value}`
-          : capturedAuthCookies.get(targetSession);
+          : getCapturedAuthCookie(targetSession, details.url);
         if (authCookie) addAuthCookie(details.requestHeaders, authCookie);
         callback({ requestHeaders: details.requestHeaders });
       })
       .catch(() => {
-        const authCookie = capturedAuthCookies.get(targetSession);
+        const authCookie = getCapturedAuthCookie(targetSession, details.url);
         if (authCookie) addAuthCookie(details.requestHeaders, authCookie);
         callback({ requestHeaders: details.requestHeaders });
       });
