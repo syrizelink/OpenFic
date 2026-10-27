@@ -1005,3 +1005,56 @@ async def test_loads_parent_and_descendant_messages_before_projecting_changes():
     assert result.turns[0].subagent_runs[0].child_run_id == "child-1"
     assert list_messages_batch.call_count == 1
     list_children_batch.assert_awaited_once_with(db_session, "parent-session")
+
+
+@pytest.mark.parametrize("rename_before_recreation", [False, True])
+def test_deleted_chapter_recreated_at_same_path_has_one_net_diff(rename_before_recreation):
+    def chapter_diff(chapter_id, title, operation, before, after, *, old_title=None, path="第一卷"):
+        lines = [
+            {"type": "removed", "before_line_number": index, "text": text}
+            for index, text in enumerate(before, 1)
+        ] + [
+            {"type": "added", "after_line_number": index, "text": text}
+            for index, text in enumerate(after, 1)
+        ]
+        sections = [{"type": "content", "lines": lines}] if lines else []
+        if old_title:
+            sections.append({"type": "title", "lines": [
+                {"type": "removed", "text": old_title},
+                {"type": "added", "text": title},
+            ]})
+        return json.dumps({"success": True, "metadata": {"chapter_diff": {
+            "chapter_id": chapter_id, "chapter_title": title, "path": [path],
+            "operation": operation, "sections": sections,
+        }}}, ensure_ascii=False)
+
+    created_title = "临时标题" if rename_before_recreation else "章节"
+    payloads = [
+        chapter_diff("old", "章节", "delete", ["旧内容"], []),
+        chapter_diff("new", created_title, "create", [], ["新内容"]),
+    ]
+    if rename_before_recreation:
+        payloads.append(chapter_diff("new", "章节", "update", [], [], old_title=created_title))
+    else:
+        payloads.append(chapter_diff("new", "新标题", "update", [], [], old_title="章节"))
+    payloads.append(chapter_diff("other", "章节", "create", [], ["另一卷"], path="第二卷"))
+    messages = [_message(message_id="user-1", session_id="parent-session", role="user", seq=0)]
+    messages.extend(
+        _message(message_id=f"tool-{index}", session_id="parent-session", role="tool", seq=index,
+                 content=payload, tool_name="edit_chapter")
+        for index, payload in enumerate(payloads, 1)
+    )
+    kwargs = dict(parent_messages=messages, child_runs=[], child_requests=[], child_messages=[],
+                  revisions=[_revision("revision-1", "user-1", 0)])
+    details = build_agent_changes("parent-session", **kwargs)
+    summary = build_agent_changes("parent-session", **kwargs, include_details=False)
+    for result in (details, summary):
+        for changes in (result.turns[0].changes, result.session_changes):
+            assert changes.item_count == 2
+            item = next(item for item in changes.items if item.path == ["第一卷"])
+            assert item.title == ("章节" if rename_before_recreation else "新标题")
+            assert (item.added, item.removed) == (1, 1)
+    item = details.session_changes.items[0]
+    assert [(line.type, line.text) for line in item.sections[0].lines] == [
+        ("removed", "旧内容"), ("added", "新内容")
+    ]

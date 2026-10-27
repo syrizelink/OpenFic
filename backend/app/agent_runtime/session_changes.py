@@ -686,10 +686,13 @@ def _merge_item(existing: AgentChangeItem, item: AgentChangeItem) -> None:
     )
     if item.operation == "delete":
         existing.operation = "delete"
+    elif existing.operation == "delete" and item.operation == "create":
+        existing.operation = "update"
     elif existing.operation != "create":
         existing.operation = item.operation
     if item.path or item.operation == "move":
         existing.path = item.path
+    existing.title = item.title
     existing.source_message_id = item.source_message_id
     existing.source = item.source
     existing.child_run_id = item.child_run_id
@@ -721,6 +724,78 @@ def _merge_summary_item(existing: AgentChangeItem, item: AgentChangeItem) -> Non
     existing.revision_id = item.revision_id
 
 
+def _aggregate_items(
+    items: Sequence[AgentChangeItem], *, include_details: bool
+) -> AgentChangeSummary:
+    items_by_key: dict[str, AgentChangeItem] = {}
+    first_operations: dict[str, str] = {}
+    entity_keys: dict[str, str] = {}
+    path_keys: dict[tuple[str, tuple[str, ...], str], str] = {}
+    for item in items:
+        path_key = (item.kind, tuple(item.path), item.title)
+        key = entity_keys.get(item.key)
+        path_match = path_keys.get(path_key)
+        # Legacy records can omit paths. Only join those by name when an item
+        # was deleted and recreated; distinct live entities may share a name.
+        if (
+            key is None
+            and path_match is not None
+            and (
+                item.path
+                or (
+                    item.operation == "create"
+                    and items_by_key[path_match].operation == "delete"
+                )
+            )
+        ):
+            key = path_match
+        elif key is not None and path_match is not None and key != path_match:
+            # A newly created entity can be renamed onto a deleted path. Join
+            # both histories before applying the rename, preserving the old
+            # path's original content as the start of the net diff.
+            if items_by_key[path_match].operation == "delete":
+                previous = items_by_key.pop(key)
+                old_path = (previous.kind, tuple(previous.path), previous.title)
+                if path_keys.get(old_path) == key:
+                    del path_keys[old_path]
+                if include_details:
+                    _merge_item(items_by_key[path_match], previous)
+                else:
+                    _merge_summary_item(items_by_key[path_match], previous)
+                for entity_key, group_key in entity_keys.items():
+                    if group_key == key:
+                        entity_keys[entity_key] = path_match
+                first_operations.pop(key)
+                key = path_match
+        if key is None:
+            key = item.key
+            items_by_key[key] = _copy_item(item)
+            first_operations[key] = item.operation
+        else:
+            existing = items_by_key[key]
+            old_path = (existing.kind, tuple(existing.path), existing.title)
+            if path_keys.get(old_path) == key:
+                del path_keys[old_path]
+            if include_details:
+                _merge_item(existing, item)
+            else:
+                _merge_summary_item(existing, item)
+        entity_keys[item.key] = key
+        merged = items_by_key[key]
+        path_keys[(merged.kind, tuple(merged.path), merged.title)] = key
+    return AgentChangeSummary(
+        items=[
+            item
+            for key, item in items_by_key.items()
+            if not (
+                first_operations[key] == "create"
+                and item.operation == "delete"
+                and not item.sections
+            )
+        ]
+    )
+
+
 def _summary_from_candidates(
     candidates: Sequence[_ChangeCandidate],
     *,
@@ -728,8 +803,7 @@ def _summary_from_candidates(
     item_cache: dict[int, AgentChangeItem] | None = None,
     include_details: bool = True,
 ) -> AgentChangeSummary:
-    items_by_key: dict[str, AgentChangeItem] = {}
-    first_operations: dict[str, str] = {}
+    items: list[AgentChangeItem] = []
     for candidate in candidates:
         item = item_cache.get(id(candidate)) if item_cache is not None else None
         if item is None:
@@ -738,26 +812,8 @@ def _summary_from_candidates(
             continue
         if source is not None:
             item = replace(item, source=source)
-        existing = items_by_key.get(item.key)
-        if existing is None:
-            items_by_key[item.key] = _copy_item(item)
-            first_operations[item.key] = item.operation
-        else:
-            if include_details:
-                _merge_item(existing, item)
-            else:
-                _merge_summary_item(existing, item)
-    return AgentChangeSummary(
-        items=[
-            item
-            for key, item in items_by_key.items()
-            if not (
-                first_operations.get(key) == "create"
-                and item.operation == "delete"
-                and not item.sections
-            )
-        ]
-    )
+        items.append(item)
+    return _aggregate_items(items, include_details=include_details)
 
 
 def _combine_summaries(
@@ -765,29 +821,9 @@ def _combine_summaries(
     *,
     include_details: bool = True,
 ) -> AgentChangeSummary:
-    items_by_key: dict[str, AgentChangeItem] = {}
-    first_operations: dict[str, str] = {}
-    for summary in summaries:
-        for item in summary.items:
-            existing = items_by_key.get(item.key)
-            if existing is None:
-                items_by_key[item.key] = _copy_item(item)
-                first_operations[item.key] = item.operation
-            else:
-                if include_details:
-                    _merge_item(existing, item)
-                else:
-                    _merge_summary_item(existing, item)
-    return AgentChangeSummary(
-        items=[
-            item
-            for key, item in items_by_key.items()
-            if not (
-                first_operations.get(key) == "create"
-                and item.operation == "delete"
-                and not item.sections
-            )
-        ]
+    return _aggregate_items(
+        [item for summary in summaries for item in summary.items],
+        include_details=include_details,
     )
 
 
@@ -858,11 +894,14 @@ def build_agent_changes(
     include_details: bool = True,
 ) -> AgentSessionChanges:
     """Build a hierarchical change projection from persisted agent messages."""
+    # Summary counts must describe the same net diff as the detail endpoint.
+    # Keep the line data during aggregation, then omit it from summary results.
+    return_details = include_details
+    include_details = True
     valid_revisions = {
         revision.id
         for revision in revisions
-        if revision.revision_type == "agent"
-        and revision.status != "rolled_back"
+        if revision.revision_type == "agent" and revision.status != "rolled_back"
     }
     has_revision_rows = bool(revisions)
     parent_boundaries = _parent_revision_boundaries(parent_messages, revisions)
@@ -915,7 +954,8 @@ def build_agent_changes(
             candidates = [
                 candidate
                 for candidate in candidates
-                if candidate.revision_id is None or candidate.revision_id in valid_revisions
+                if candidate.revision_id is None
+                or candidate.revision_id in valid_revisions
             ]
         child_candidates.extend(candidates)
 
@@ -931,13 +971,11 @@ def build_agent_changes(
             candidates_by_revision[candidate.revision_id].append(candidate)
 
     ordered_revisions = sorted(
-        (
-            revision
-            for revision in revisions
-            if revision.id in valid_revisions
-        ),
+        (revision for revision in revisions if revision.id in valid_revisions),
         key=lambda revision: (
-            revision.user_message_seq if revision.user_message_seq is not None else 2**31,
+            revision.user_message_seq
+            if revision.user_message_seq is not None
+            else 2**31,
             revision.created_at,
         ),
     )
@@ -945,12 +983,18 @@ def build_agent_changes(
     for revision in ordered_revisions:
         revision_candidates = candidates_by_revision.get(revision.id, [])
         primary_candidates = [
-            candidate for candidate in revision_candidates if candidate.child_run is None
+            candidate
+            for candidate in revision_candidates
+            if candidate.child_run is None
         ]
-        child_groups: dict[tuple[str, str | None], list[_ChangeCandidate]] = defaultdict(list)
+        child_groups: dict[tuple[str, str | None], list[_ChangeCandidate]] = (
+            defaultdict(list)
+        )
         for candidate in revision_candidates:
             if candidate.child_run is not None:
-                child_groups[(candidate.child_run.id, candidate.request_id)].append(candidate)
+                child_groups[(candidate.child_run.id, candidate.request_id)].append(
+                    candidate
+                )
 
         subagent_runs: list[AgentSubagentRunChanges] = []
         child_summaries: list[AgentChangeSummary] = []
@@ -1014,7 +1058,7 @@ def build_agent_changes(
             )
         )
 
-    return AgentSessionChanges(
+    result = AgentSessionChanges(
         session_id=session_id,
         turns=turns,
         session_changes=_summary_from_candidates(
@@ -1024,6 +1068,15 @@ def build_agent_changes(
             include_details=include_details,
         ),
     )
+    if not return_details:
+        summaries = [result.session_changes]
+        for turn in result.turns:
+            summaries.append(turn.changes)
+            summaries.extend(run.changes for run in turn.subagent_runs)
+        for summary in summaries:
+            for item in summary.items:
+                item.sections = []
+    return result
 
 
 async def _list_descendant_child_runs(
