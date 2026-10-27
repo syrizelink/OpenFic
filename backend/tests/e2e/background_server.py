@@ -1,7 +1,8 @@
 """Real OpenFic server with a scripted OpenAI-compatible HTTP provider.
 
-Only run through playwright.background.config.ts. No runtime/model factory,
-database, tools, approvals, socket events, or persistence methods are mocked.
+Run through the isolated Playwright configs. Runtime/model factory,
+database, tools, approvals, socket events, and persistence use real implementations.
+The reliability suite can inject a failure at the board-notice query boundary.
 All control endpoints live exclusively in this test executable.
 """
 
@@ -44,6 +45,7 @@ from sqlalchemy import select  # noqa: E402
 import uvicorn  # noqa: E402
 
 from app.main import app, fastapi_app  # noqa: E402
+from app.agent_runtime import agent_board  # noqa: E402
 from app.agent_runtime.persistence.model import (  # noqa: E402
     AgentChildRun,
     AgentChildRunRequest,
@@ -79,6 +81,24 @@ def record_checkpoint_error(message):
 
 logger.add(record_checkpoint_error, level="ERROR")
 router = APIRouter(prefix="/api/v1/__e2e__")
+board_notice_unavailable = False
+original_board_notice = agent_board.board_notice
+
+
+async def faultable_board_notice(session, scope):
+    if board_notice_unavailable:
+        raise RuntimeError("Injected board-notice query failure")
+    return await original_board_notice(session, scope)
+
+
+agent_board.board_notice = faultable_board_notice
+
+
+@router.post("/board-notice-failure")
+async def board_notice_failure(body: dict):
+    global board_notice_unavailable
+    board_notice_unavailable = body.get("enabled") is True
+    return {"enabled": board_notice_unavailable}
 
 
 @router.get("/health")

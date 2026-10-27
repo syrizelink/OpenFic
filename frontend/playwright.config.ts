@@ -3,7 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   // The isolated suite manages its own backend/model and has a separate config.
-  testIgnore: ["**/background-subagents.spec.ts", "**/agent-board.spec.ts"],
+  testIgnore: [
+    "**/background-subagents.spec.ts",
+    "**/agent-board.spec.ts",
+    "**/subagent-reliability.spec.ts",
+  ],
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

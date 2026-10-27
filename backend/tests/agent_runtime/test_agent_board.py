@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import pytest_asyncio
@@ -267,6 +268,103 @@ async def test_retraction_and_cancelled_authors(db):
         await post(db, source="retired")
     with pytest.raises(ToolExecutionError, match="Reply"):
         await post(db, "child-b", reply_to=view["messages"][0]["id"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["open", "read", "close"])
+async def test_board_context_degrades_once_and_recovers(db, monkeypatch, failure):
+    from app.agent_runtime.tools.impls.orchestration import common
+
+    context = board.AgentBoardContext("child-b", "p", db)
+    logger = Mock()
+    logger.bind.return_value = logger
+    monkeypatch.setattr(board, "logger", logger)
+    original_close = common.close_session
+
+    async def failing_close(session):
+        await original_close(session)
+        raise RuntimeError("private failure details")
+
+    for _ in range(2):
+        with monkeypatch.context() as fault:
+            if failure == "open":
+                fault.setattr(
+                    common,
+                    "open_session",
+                    AsyncMock(side_effect=RuntimeError("private failure details")),
+                )
+            elif failure == "read":
+                fault.setattr(
+                    board,
+                    "board_notice",
+                    AsyncMock(side_effect=RuntimeError("private failure details")),
+                )
+            else:
+                fault.setattr(common, "close_session", failing_close)
+            assert await context.prompt() == board.BOARD_UNAVAILABLE_NOTICE
+    logger.warning.assert_called_once()
+    restored = await context.prompt()
+    assert "你的看板身份：b" in restored
+    assert board.BOARD_UNAVAILABLE_NOTICE not in restored
+    with monkeypatch.context() as fault:
+        fault.setattr(
+            board,
+            "board_notice",
+            AsyncMock(side_effect=RuntimeError("another failure")),
+        )
+        assert await context.prompt() == board.BOARD_UNAVAILABLE_NOTICE
+    assert logger.warning.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_board_context_cancellation_propagates_and_closes_session(
+    db, monkeypatch
+):
+    from app.agent_runtime.tools.impls.orchestration import common
+
+    close = AsyncMock(wraps=common.close_session)
+    monkeypatch.setattr(common, "close_session", close)
+    monkeypatch.setattr(
+        board, "board_notice", AsyncMock(side_effect=asyncio.CancelledError)
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await board.AgentBoardContext("child-b", "p", db).prompt()
+    close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_board_notice_failure_does_not_prevent_model_inference(db, monkeypatch):
+    from langchain_core.messages import AIMessage, HumanMessage
+    from app.agent_runtime.graph.react_agent import create_react_agent
+    from app.agent_runtime.tools.impls.board import BoardReadTool
+    from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+
+    monkeypatch.setattr(
+        board, "board_notice", AsyncMock(side_effect=RuntimeError("unavailable"))
+    )
+    invoke = AsyncMock(return_value=AIMessage(content="normal response"))
+    monkeypatch.setattr("app.agent_runtime.graph.react_agent._invoke_model", invoke)
+    model = Mock()
+    model.bind_tools.return_value = model
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="explore",
+            tools=[BoardReadTool(_state={"session_id": "child-b", "project_id": "p"})],
+            termination=TerminationCondition(mode="no_tool_call"),
+        ),
+        model=model,
+    )
+    result = await graph.ainvoke(
+        {"messages": [HumanMessage(content="continue")], "iteration_count": 0},
+        config={
+            "configurable": {"agent_board": board.AgentBoardContext("child-b", "p", db)}
+        },
+    )
+    assert result["messages"][-1].content == "normal response"
+    assert any(
+        message.content == board.BOARD_UNAVAILABLE_NOTICE
+        for message in invoke.call_args.args[1]
+    )
 
 
 @pytest.mark.asyncio

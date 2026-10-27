@@ -17,7 +17,11 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
     get_child_run_for_parent,
 )
-from app.agent_runtime.persistence.model import AgentChildRun, AgentChildRunRequest
+from app.agent_runtime.persistence.model import (
+    AgentChildRun,
+    AgentChildRunRequest,
+    AgentRunMessage,
+)
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -204,6 +208,13 @@ async def persist_child_user_message(
     finally:
         await close_session(session)
 
+    await publish_child_user_message(child_thread_id, message)
+    return message
+
+
+async def publish_child_user_message(
+    child_thread_id: str, message: PersistedMessage | AgentRunMessage
+) -> None:
     payload = {
         "session_id": child_thread_id,
         "message_id": message.id,
@@ -225,7 +236,6 @@ async def persist_child_user_message(
             payload,
             room=agent_subagent_session_room(child_thread_id),
         )
-    return message
 
 
 async def resolve_child_run(

@@ -29,6 +29,8 @@ OPENFIC_E2E_CHROMIUM_PATH=/usr/bin/chromium pnpm test:e2e:background
 
 ## 覆盖范围
 
+可靠性修复专项通过 `pnpm test:e2e:reliability` 单独运行，覆盖同一通知调用跨轮次重放、跨轮次共享十个并发名额、释放名额后接纳替补、空闲通知的容量检查，以及看板提醒查询故障与恢复。其报告位于 `frontend/playwright-report/reliability/`。
+
 | 范围 | 检查内容 |
 | --- | --- |
 | 非阻塞与兼容 | 后台派发立即返回，父代理继续执行独立工具；省略 `background` 或传 `false` 保持同步等待 |
@@ -102,3 +104,31 @@ PLAYWRIGHT_JUNIT_OUTPUT_FILE=test-results/background-races/results.xml pnpm test
 cd backend
 .venv/bin/pytest -q tests/agent_runtime tests/api/test_agent.py tests/api/test_agent_resume_transactions.py tests/storage/test_background_subagents_migration.py
 ```
+
+## 可靠性修复验证记录（2026-10-27）
+
+未使用真实模型 API key，浏览器环境为 Chromium，数据库为 SQLite。
+
+| 检查 | 结果 |
+| --- | --- |
+| 新增可靠性后端专项 | 19 通过，覆盖重复与不同通知并发、提交前后故障恢复、混合派发/唤醒争用名额、审批与取消清理占用 |
+| 新增可靠性浏览器专项 | 4 通过，零自动重试，约 1.7 分钟 |
+| Agent Board 浏览器完整套件 | 8 通过，零自动重试，约 3.5 分钟 |
+| 后端整库首次运行 | 2392 通过、7 失败、19 跳过，约 246 秒 |
+| 后端失败项复测 | 7 通过，约 59 秒；更新了工具权限清单与迁移头版本断言，并将 UV 缓存放到可写临时目录 |
+| 原后台 Subagent 浏览器完整套件 | 43 通过、1 失败；失败为取消与完成同时发生的竞态 |
+| 取消/完成竞态单独重复 | 14 次通过；其中 10 次附加临时事务跟踪，未重现首次锁异常 |
+| Ruff、后端类型检查、前端格式与类型检查、E2E/Node TypeScript、差异空白检查 | 通过 |
+
+后端整库首次运行的四项子进程失败来自只读的默认 UV 缓存目录；另外三项是此前新增工具与迁移之后未更新的测试断言。修正后对这七项逐一重测通过。整库其余 2392 项没有在这次复测中重复运行。
+
+取消/完成竞态仍有一次未定位的 SQLite `database is locked` 异常，导致子请求进入 `error`，不能将该场景报告为稳定通过。后续 14 次通过不构成对首次异常的修复证明。失败 trace 保存在 `frontend/test-results/background/` 对应的取消/完成场景目录中。
+
+复测子进程测试时，受限环境可使用：
+
+```bash
+cd backend
+UV_CACHE_DIR=/tmp/openfic-uv-cache UV_NO_SYNC=1 .venv/bin/pytest -q --lf
+```
+
+`UV_NO_SYNC=1` 使用已经安装好的项目环境；正常开发环境应先完成依赖安装。19 个跳过项的具体条件由测试自身定义，不表示 PostgreSQL 或其他可选环境已经得到验证。

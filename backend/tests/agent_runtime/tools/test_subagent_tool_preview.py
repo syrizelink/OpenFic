@@ -179,17 +179,19 @@ async def test_notify_subagent_emits_preview_after_request_is_queued(
     async def noop(*_args, **_kwargs) -> None:
         return None
 
+    async def get_message(*_args, **_kwargs):
+        return None
+
     async def open_session(*_args, **_kwargs) -> object:
-        return object()
+        return SimpleNamespace(get=get_message)
 
     async def resolve_child_run(*_args, **_kwargs):
         return row
 
     async def enqueue_child_run_request(*_args, **_kwargs):
-        return SimpleNamespace(id="request-1")
-
-    async def persist_child_user_message(*_args, **_kwargs):
-        return SimpleNamespace(id="message-1", seq=1)
+        return SimpleNamespace(
+            id="request-1", child_user_message_id="message-1", status="pending"
+        )
 
     async def wait_for_assistant_content(*_args, **_kwargs) -> str:
         raise ToolExecutionError("subagent request was cancelled")
@@ -209,12 +211,11 @@ async def test_notify_subagent_emits_preview_after_request_is_queued(
     )
     monkeypatch.setattr(
         notify_module,
-        "persist_child_user_message",
-        persist_child_user_message,
+        "publish_child_user_message",
+        noop,
     )
     monkeypatch.setattr(notify_module, "open_session", open_session)
     monkeypatch.setattr(notify_module, "close_session", noop)
-    monkeypatch.setattr(notify_module, "update_child_run_request_boundaries", noop)
     monkeypatch.setattr(
         notify_module, "make_subagent_runner", lambda **_kwargs: Runner()
     )

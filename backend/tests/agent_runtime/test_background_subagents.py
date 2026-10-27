@@ -223,11 +223,14 @@ async def test_dispatch_and_notify_background_return_without_waiting(
     monkeypatch.setattr(
         module, "latest_checkpoint_id_for_thread", AsyncMock(return_value=None)
     )
-    monkeypatch.setattr(
-        module,
-        "persist_child_user_message",
-        AsyncMock(return_value=SimpleNamespace(id="user-message", seq=0)),
-    )
+    if tool_kind == "dispatch":
+        monkeypatch.setattr(
+            module,
+            "persist_child_user_message",
+            AsyncMock(return_value=SimpleNamespace(id="user-message", seq=0)),
+        )
+    else:
+        monkeypatch.setattr(module, "publish_child_user_message", AsyncMock())
     runner = Mock()
     runner.publish_parent_subagent_status = AsyncMock()
     monkeypatch.setattr(module, "make_subagent_runner", lambda **_kwargs: runner)

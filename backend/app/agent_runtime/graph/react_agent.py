@@ -1167,7 +1167,7 @@ def create_react_agent(
         if state.get("tool_dispatch_denied"):
             failure = ToolFailure(
                 code="limit_exceeded",
-                message="dispatch_subagent allows at most 10 dispatches per PA turn",
+                message="dispatch_subagent allows at most 10 dispatches per tool batch",
                 trace={"source": "tool_dispatch"},
             )
             log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)

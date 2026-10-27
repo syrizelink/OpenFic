@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC
 from typing import Any, Literal
 
+from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -26,6 +27,10 @@ from app.storage.models.task import Task
 
 BoardKind = Literal["INFO", "ASK", "RESULT", "HOLD", "VETO"]
 BOARD_TOOL_NAMES = ("board_read", "board_post")
+BOARD_UNAVAILABLE_NOTICE = (
+    "Agent Board 协作提醒暂不可用。请在当前用户请求和已有权限内继续工作；"
+    "不要假定没有协作更新，也不要据此扩大任务范围或绕过审批。"
+)
 MAX_BODY_BYTES = 4096
 MAX_MESSAGES = 1000
 MAX_BOARD_BYTES = 2 * 1024 * 1024
@@ -509,6 +514,7 @@ class AgentBoardContext:
         self.session_id = session_id
         self.project_id = project_id
         self.session_factory = session_factory
+        self._notification_failed = False
 
     async def prompt(self) -> str:
         from app.agent_runtime.tools.hooks.auth import _read_user_permissions
@@ -517,14 +523,29 @@ class AgentBoardContext:
             close_session,
         )
 
-        session = await open_session(self.session_factory)
         try:
-            if (await _read_user_permissions(session)).get("board_read") in {
-                "deny",
-                "ask",
-            }:
-                return ""
-            scope = await resolve_scope(session, self.session_id, self.project_id)
-            return f"{BOARD_INSTRUCTIONS}\n你的看板身份：{scope.participant}。\n{await board_notice(session, scope)}"
-        finally:
-            await close_session(session)
+            session = await open_session(self.session_factory)
+            try:
+                if (await _read_user_permissions(session)).get("board_read") in {
+                    "deny",
+                    "ask",
+                }:
+                    result = ""
+                else:
+                    scope = await resolve_scope(
+                        session, self.session_id, self.project_id
+                    )
+                    result = f"{BOARD_INSTRUCTIONS}\n你的看板身份：{scope.participant}。\n{await board_notice(session, scope)}"
+            finally:
+                await close_session(session)
+        except Exception:
+            # Coordination hints must not take down ordinary inference. A
+            # cancellation is a BaseException and intentionally propagates.
+            if not self._notification_failed:
+                logger.bind(session_id=self.session_id).warning(
+                    "Agent Board notification unavailable"
+                )
+            self._notification_failed = True
+            return BOARD_UNAVAILABLE_NOTICE
+        self._notification_failed = False
+        return result

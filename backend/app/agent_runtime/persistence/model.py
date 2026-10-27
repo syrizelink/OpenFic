@@ -289,6 +289,9 @@ class AgentChildRunRequest(SQLModel, table=True):
 
     __tablename__ = "agent_child_run_requests"
     __table_args__ = (
+        UniqueConstraint(
+            "parent_session_id", "source_call", name="uq_child_request_source_call"
+        ),
         Index(
             "ix_agent_child_run_requests_child_run_id_seq",
             "child_run_id",
@@ -301,6 +304,7 @@ class AgentChildRunRequest(SQLModel, table=True):
     parent_session_id: str = Field(index=True, max_length=64)
     parent_task_id: str = Field(index=True, foreign_key="tasks.id", max_length=64)
     request_kind: str = Field(index=True, max_length=50)
+    source_call: str | None = Field(default=None, max_length=200)
     content: str = Field(default="", sa_column=Column(Text, nullable=False, default=""))
     status: str = Field(default="pending", index=True, max_length=20)
     background: bool = Field(default=False)

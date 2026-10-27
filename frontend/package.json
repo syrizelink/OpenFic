@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:background": "playwright test --config playwright.background.config.ts",
     "test:e2e:board": "playwright test --config playwright.board.config.ts",
+    "test:e2e:reliability": "playwright test --config playwright.reliability.config.ts",
     "type-check": "oxlint . --type-aware --type-check"
   },
   "dependencies": {

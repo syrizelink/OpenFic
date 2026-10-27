@@ -169,10 +169,8 @@ export class Scenario {
     );
   }
 
-  async until(predicate: (state: State) => boolean, message = "scenario state") {
-    await expect
-      .poll(async () => predicate(await this.state()), { message, timeout: 20_000 })
-      .toBe(true);
+  async until(predicate: (state: State) => boolean, message = "scenario state", timeout = 20_000) {
+    await expect.poll(async () => predicate(await this.state()), { message, timeout }).toBe(true);
     return this.state();
   }
 

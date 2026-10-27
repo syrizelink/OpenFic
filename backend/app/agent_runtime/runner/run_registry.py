@@ -132,6 +132,15 @@ class AgentRunRegistry:
             task = (self._tasks.get(session_id) or {}).get(child_run_id)
             return task is not None and not task.done()
 
+    async def active_child_ids(self, session_id: str) -> set[str]:
+        """Include cancelling tasks until their cleanup has actually finished."""
+        async with self._lock:
+            return {
+                child_id
+                for child_id, task in self._tasks.get(session_id, {}).items()
+                if child_id != "__parent__" and not task.done()
+            }
+
     async def cancel_child(self, session_id: str, child_run_id: str) -> bool:
         async with self._lock:
             task = (self._tasks.get(session_id) or {}).get(child_run_id)

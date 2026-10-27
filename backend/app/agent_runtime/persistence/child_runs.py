@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, literal, or_, select
+from sqlalchemy import and_, func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -16,7 +16,73 @@ from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.model import (
     AgentChildRun,
     AgentChildRunRequest,
+    AgentRunMessage,
 )
+from app.storage.models.task import Task
+
+MAX_ACTIVE_SUBAGENTS = 10
+
+
+class ChildRunCapacityError(ValueError):
+    pass
+
+
+class ChildRunReplayConflict(ValueError):
+    pass
+
+
+async def _lock_parent_task(session: AsyncSession, task_id: str) -> Task:
+    # Serialize admission and queue allocation across sessions/processes. The
+    # no-op UPDATE acquires SQLite's writer lock and PostgreSQL's row lock.
+    task = (
+        await session.execute(
+            update(Task)
+            .where(col(Task.id) == task_id)
+            .values(id=col(Task.id))
+            .returning(Task)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if task is None:
+        raise ValueError(f"parent task not found: {task_id}")
+    return task
+
+
+async def _check_child_capacity(
+    session: AsyncSession,
+    task_id: str,
+    maximum: int,
+    *,
+    parent_session_id: str,
+    existing_child_id: str | None = None,
+) -> None:
+    from app.agent_runtime.runner.run_registry import get_agent_run_registry
+
+    active = set(
+        (
+            await session.execute(
+                select(col(AgentChildRun.id)).where(
+                    col(AgentChildRun.parent_task_id) == task_id,
+                    col(AgentChildRun.is_active).is_(True),
+                    col(AgentChildRun.status).in_(
+                        ("queued", "running", "waiting_user")
+                    ),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    active.update(await get_agent_run_registry().active_child_ids(parent_session_id))
+    # Continuing the same still-running child does not need another slot.
+    if existing_child_id is not None:
+        active.discard(existing_child_id)
+    if len(active) >= maximum:
+        raise ChildRunCapacityError(
+            f"Task tree allows at most {maximum} active subagents; "
+            "wait for a child to finish or cancel/recycle one before starting more"
+        )
+
 
 CHILD_RUN_STATUSES = {
     "queued",
@@ -117,6 +183,7 @@ async def create_child_run(
     child_user_message_id: str | None = None,
     child_user_message_seq: int | None = None,
     pre_request_checkpoint_id: str | None = None,
+    max_active_children: int | None = None,
 ) -> AgentChildRun:
     _ensure_status(status, CHILD_RUN_STATUSES, "child run status")
     now = datetime.now(UTC)
@@ -128,6 +195,14 @@ async def create_child_run(
     if parent_number_lock is not None:
         await parent_number_lock.acquire()
     try:
+        if max_active_children is not None:
+            await _lock_parent_task(session, parent_task_id)
+            await _check_child_capacity(
+                session,
+                parent_task_id,
+                max_active_children,
+                parent_session_id=parent_session_id,
+            )
         if parent_number_lock is not None:
             metadata_payload["agent_number"] = await _allocate_child_run_agent_number(
                 session,
@@ -542,19 +617,83 @@ async def enqueue_child_run_request(
     child_user_message_id: str | None = None,
     child_user_message_seq: int | None = None,
     pre_request_checkpoint_id: str | None = None,
+    source_call: str | None = None,
+    background: bool = False,
+    persist_user_message: bool = False,
+    max_active_children: int | None = None,
 ) -> AgentChildRunRequest:
     row = await session.get(AgentChildRun, child_run_id)
     if row is None:
         raise ValueError(f"child run not found: {child_run_id}")
+    task = await _lock_parent_task(session, row.parent_task_id)
+    await session.refresh(row)
     if not row.is_active:
         raise ValueError(f"child run is inactive: {child_run_id}")
 
+    if source_call is not None:
+        if not source_call or len(source_call) > 200:
+            raise ValueError("invalid subagent notification tool-call identity")
+        existing = (
+            await session.execute(
+                select(AgentChildRunRequest).where(
+                    col(AgentChildRunRequest.parent_session_id)
+                    == row.parent_session_id,
+                    col(AgentChildRunRequest.source_call) == source_call,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            if (
+                existing.child_run_id != row.id
+                or existing.request_kind != request_kind
+                or existing.content != content
+                or existing.parent_revision_id != parent_revision_id
+                or existing.background != background
+            ):
+                raise ChildRunReplayConflict(
+                    "A replayed notification cannot change its original request"
+                )
+            await session.commit()
+            return existing
+
+    if max_active_children is not None and row.status not in {
+        "queued",
+        "running",
+        "waiting_user",
+    }:
+        await _check_child_capacity(
+            session,
+            row.parent_task_id,
+            max_active_children,
+            parent_session_id=row.parent_session_id,
+            existing_child_id=row.id,
+        )
+
     now = datetime.now(UTC)
+    if persist_user_message:
+        message = AgentRunMessage(
+            session_id=row.child_thread_id,
+            task_id=row.parent_task_id,
+            project_id=task.project_id,
+            role="user",
+            status="sent",
+            content=content,
+            agent_id="primary",
+            message_type="user_request",
+            seq=await message_repo.next_seq(session, row.child_thread_id),
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(message)
+        child_user_message_id = message.id
+        child_user_message_seq = message.seq
     request_row = AgentChildRunRequest(
         child_run_id=row.id,
         parent_session_id=row.parent_session_id,
         parent_task_id=row.parent_task_id,
         request_kind=request_kind,
+        source_call=source_call,
+        background=background,
         content=content,
         status="pending",
         parent_revision_id=parent_revision_id,

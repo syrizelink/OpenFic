@@ -11,6 +11,8 @@ from app.agent_runtime.agents.definitions import (
     load_agent_definition,
 )
 from app.agent_runtime.persistence.child_runs import (
+    MAX_ACTIVE_SUBAGENTS,
+    ChildRunCapacityError,
     create_child_run,
     get_child_run_for_parent_tool_call,
     get_child_run_request_by_seq,
@@ -32,9 +34,6 @@ from app.agent_runtime.tools.impls.orchestration.common import (
 )
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.core.ids import generate_id
-
-
-MAX_DISPATCHES_PER_TURN = 10
 
 
 class DispatchSubagentInput(BaseModel):
@@ -89,6 +88,7 @@ class DispatchSubagentTool(AgentTool):
         - 尽可能并发启动多个Agent处理任务以提高效率，为此只需在一轮消息多次调用工具即可
         - 无需立即取得结果的独立任务可设 background=true，工具会立即返回 dispatch_id 和 request_id，主代理可继续工作
         - 后台结果会自动回传；需要显式等待时使用 wait_subagents，不要循环查询状态或重复执行同一任务
+        - 同一任务树最多有10个待运行、运行中或等待审批的子代理；跨轮次共同计数，任务退出运行后释放名额，达到上限时先等待已有工作
         - 在收齐所需后台结果前，不要给出最终结论；并行任务应避免修改同一章节、设定或笔记
         - Agent完成后会在工具结果中返回，你应默认Agent的执行结果对用户不可见，如要向用户展示执行结果，你应输出一段简短的总结
         - Agent的执行结果包含dispatch_id，可在后续通过notify_subagent复用以继续同一Agent会话
@@ -164,10 +164,13 @@ class DispatchSubagentTool(AgentTool):
                 dispatch_id=dispatch_id,
                 tool_call_id=tool_call_id,
                 request={"description": description, "task": task},
+                max_active_children=MAX_ACTIVE_SUBAGENTS,
                 parent_revision_id=self._state.get("current_revision_id")
                 if isinstance(self._state.get("current_revision_id"), str)
                 else None,
             )
+        except ChildRunCapacityError as exc:
+            raise ToolExecutionError(str(exc), code="limit_exceeded") from exc
         finally:
             await close_session(session)
 
