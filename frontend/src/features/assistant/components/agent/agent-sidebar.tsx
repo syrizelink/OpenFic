@@ -163,6 +163,7 @@ export function useAgentSidebar({
 
       const attachmentsToSend = attachments;
 
+      scrollToBottomFnRef?.current?.();
       const sendPromise = agentSessionId
         ? sendAgentMessage(messageToSend, attachmentsToSend)
         : startAgentSession(messageToSend, attachmentsToSend);
@@ -182,6 +183,7 @@ export function useAgentSidebar({
       pendingMessage,
       attachments,
       onClearAttachments,
+      scrollToBottomFnRef,
     ],
   );
 

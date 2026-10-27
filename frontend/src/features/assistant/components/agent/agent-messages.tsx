@@ -39,7 +39,6 @@ import {
   getPrependedBlockCount,
   shouldAutoScrollOnFrameChange,
   shouldFollowBottom,
-  shouldTrackStreamingFollowBottom,
 } from "./agent-messages-scroll";
 import { getAgentRunningStatus } from "./agent-running-status";
 import { AgentStatusMessage } from "./agent-status-message";
@@ -655,7 +654,7 @@ export function AgentMessages({
     container.scrollTop = container.scrollHeight;
   }, []);
 
-  const scheduleStreamingScrollToBottom = useCallback(() => {
+  const scheduleFollowBottomScroll = useCallback(() => {
     const container = getScrollContainer();
     if (!(container instanceof HTMLElement)) return;
     if (!shouldFollowBottomRef.current) return;
@@ -794,11 +793,9 @@ export function AgentMessages({
         isAtBottomRef.current = atBottom;
         onAtBottomChange?.(atBottom);
       }
-      if (!shouldTrackStreamingFollowBottom(isRunning)) {
-        return;
-      }
+      // A tool can keep expanding after the agent has stopped running.
       if (shouldAutoScrollOnFrameChange(previousFrame, nextFrame, shouldFollowBottomRef.current)) {
-        scheduleStreamingScrollToBottom();
+        scheduleFollowBottomScroll();
       }
     };
 
@@ -835,7 +832,7 @@ export function AgentMessages({
     onAtBottomChange,
     scheduleLoadedSessionBottomRestore,
     syncHistoryPresentation,
-    scheduleStreamingScrollToBottom,
+    scheduleFollowBottomScroll,
     captureHistoryAnchor,
     handleLoadEarlier,
     isLoadingEarlier,
@@ -843,9 +840,9 @@ export function AgentMessages({
   ]);
 
   useEffect(() => {
-    if (!shouldTrackStreamingFollowBottom(isRunning)) return;
-    scheduleStreamingScrollToBottom();
-  }, [currentStage, isRunning, scheduleStreamingScrollToBottom, streamFollowSignal]);
+    if (!isRunning) return;
+    scheduleFollowBottomScroll();
+  }, [currentStage, isRunning, scheduleFollowBottomScroll, streamFollowSignal]);
 
   useEffect(() => {
     onAtBottomChange?.(isAtBottomRef.current);

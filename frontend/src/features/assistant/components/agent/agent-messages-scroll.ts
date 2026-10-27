@@ -52,10 +52,6 @@ export function shouldFollowBottom(metrics: ScrollViewportMetrics): boolean {
   return getDistanceFromBottom(metrics) < FOLLOW_BOTTOM_THRESHOLD_PX;
 }
 
-export function shouldTrackStreamingFollowBottom(isRunning: boolean): boolean {
-  return isRunning;
-}
-
 export function shouldAutoScrollOnFrameChange(
   previous: ScrollFrameMetrics | null,
   next: ScrollFrameMetrics,
