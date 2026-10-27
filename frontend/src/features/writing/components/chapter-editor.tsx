@@ -271,13 +271,14 @@ function ChapterEditorContent({
     [isAgentLocked, openFind, openReplace, showLockedToast, t],
   );
   const initialContentRef = useRef(
-    initialDraft.content ? newlinesToHtml(initialDraft.content) : "",
+    initialDraft.content ? newlinesToHtml(initialDraft.content, true) : "",
   );
 
   const editor = useEditor({
     extensions: editorExtensions,
     editable: !isAgentLocked,
     content: initialContentRef.current,
+    parseOptions: { preserveWhitespace: "full" },
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
@@ -420,7 +421,7 @@ function ChapterEditorContent({
     }
 
     const nextTitle = chapter.title;
-    const nextContent = chapter.content ? newlinesToHtml(chapter.content) : "";
+    const nextContent = chapter.content ? newlinesToHtml(chapter.content, true) : "";
     const currentContent = editor.getHTML();
     lastSavedDraftRef.current = createChapterEditorDraft({
       title: nextTitle,
@@ -439,7 +440,10 @@ function ChapterEditorContent({
     }
 
     if (currentContent !== nextContent) {
-      editor.commands.setContent(nextContent, { emitUpdate: false });
+      editor.commands.setContent(nextContent, {
+        emitUpdate: false,
+        parseOptions: { preserveWhitespace: "full" },
+      });
       setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       queueMicrotask(() => {
         setWordCount(wordsCount(editor.getText()));

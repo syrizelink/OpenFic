@@ -33,8 +33,10 @@ export function htmlToNewlines(html: string): string {
   // 4. 将 HTML 实体反转义
   result = decodeHtmlEntities(result);
 
-  // 5. 移除开头和结尾的空白字符
-  result = result.trim();
+  // 5. 只移除最后一个段落标签产生的换行，保留正文中的空白和空段落
+  if (/<\/p\b>$/i.test(html)) {
+    result = result.slice(0, -1);
+  }
 
   return result;
 }
