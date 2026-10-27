@@ -1047,7 +1047,6 @@
     "backToHome": "Back to Home",
     "index": "Index",
     "session": "Session",
-    "sessionTimeoutIntro": "These settings apply to Agent model calls, in seconds. Changes apply to new runs. Support depends on the model provider; retries can extend the total wait.",
     "sessionConnectTimeout": "Model connection timeout",
     "sessionConnectTimeoutHint": "Maximum time to establish a connection to the model service.",
     "sessionChunkTimeout": "Stream idle timeout",

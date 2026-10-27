@@ -1047,7 +1047,6 @@
     "backToHome": "返回首页",
     "index": "索引",
     "session": "会话",
-    "sessionTimeoutIntro": "以下设置适用于 Agent 的模型调用，单位为秒；修改后对新运行生效。具体支持情况取决于模型提供商，重试可能延长总等待时间。",
     "sessionConnectTimeout": "模型连接超时",
     "sessionConnectTimeoutHint": "等待与模型服务建立连接的最长时间。",
     "sessionChunkTimeout": "流式输出空闲超时",

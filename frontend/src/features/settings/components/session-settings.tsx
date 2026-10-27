@@ -54,12 +54,6 @@ export function SessionSettings() {
         direction="column"
         gap="5"
       >
-        <Text
-          size="1"
-          color="gray"
-        >
-          {t("settings.sessionTimeoutIntro")}
-        </Text>
         {fields.map(([key, , label]) => (
           <Flex
             key={key}
