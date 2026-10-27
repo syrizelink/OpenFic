@@ -23,6 +23,16 @@ class AsyncFakeChatModel(FakeMessagesListChatModel):
         return self._generate(messages, stop=stop, **kwargs)
 
 
+@pytest.fixture(autouse=True)
+def mock_agent_timeout_settings(monkeypatch):
+    from app.agent_runtime.timeout_settings import parse_agent_timeout_settings
+
+    monkeypatch.setattr(
+        "app.agent_runtime.timeout_settings.load_agent_timeout_settings",
+        AsyncMock(return_value=parse_agent_timeout_settings({})),
+    )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("is_child", [False, True])
 async def test_compaction_callbacks_do_not_duplicate_usage_or_persist_summary(

@@ -99,6 +99,16 @@ def test_react_state_is_valid_typed_dict():
     assert state["iteration_count"] == 0
 
 
+@pytest.fixture(autouse=True)
+def mock_agent_timeout_settings(monkeypatch):
+    from app.agent_runtime.timeout_settings import parse_agent_timeout_settings
+
+    monkeypatch.setattr(
+        "app.agent_runtime.timeout_settings.load_agent_timeout_settings",
+        AsyncMock(return_value=parse_agent_timeout_settings({})),
+    )
+
+
 @pytest.mark.asyncio
 async def test_invoke_model_normalizes_recoverable_invalid_tool_calls_to_ai_message() -> (
     None

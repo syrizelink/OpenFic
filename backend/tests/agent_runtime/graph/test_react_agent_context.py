@@ -18,6 +18,16 @@ from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 
 
 @pytest.fixture(autouse=True)
+def mock_agent_timeout_settings(monkeypatch):
+    from app.agent_runtime.timeout_settings import parse_agent_timeout_settings
+
+    monkeypatch.setattr(
+        "app.agent_runtime.timeout_settings.load_agent_timeout_settings",
+        AsyncMock(return_value=parse_agent_timeout_settings({})),
+    )
+
+
+@pytest.fixture(autouse=True)
 def mock_context_settings():
     with patch(
         "app.agent_runtime.graph.react_agent.load_context_settings",

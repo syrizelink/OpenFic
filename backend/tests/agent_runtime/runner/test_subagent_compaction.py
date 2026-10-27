@@ -69,6 +69,16 @@ def test_sequence_annotation_keeps_uncommitted_results_and_pruned_content():
     assert "seq" not in messages[3]["metadata"]
 
 
+@pytest.fixture(autouse=True)
+def mock_agent_timeout_settings(monkeypatch):
+    from app.agent_runtime.timeout_settings import parse_agent_timeout_settings
+
+    monkeypatch.setattr(
+        "app.agent_runtime.timeout_settings.load_agent_timeout_settings",
+        AsyncMock(return_value=parse_agent_timeout_settings({})),
+    )
+
+
 @pytest.mark.asyncio
 async def test_sequenced_child_history_compacts_and_keeps_live_tail():
     messages = [
