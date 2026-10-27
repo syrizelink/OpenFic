@@ -1,7 +1,7 @@
 import { Extension, type JSONContent } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
-import { TaskList, TaskItem } from "@tiptap/extension-list";
+import { OrderedList, TaskList, TaskItem } from "@tiptap/extension-list";
 import Placeholder from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import { Markdown } from "@tiptap/markdown";
@@ -13,6 +13,26 @@ import { serializeClipboardMarkdown } from "./editor-clipboard";
 import { createEditorShortcuts, type EditorShortcutCallbacks } from "./editor-shortcuts";
 
 export type { EditorShortcutCallbacks } from "./editor-shortcuts";
+
+const MarkdownOrderedList = OrderedList.extend({
+  parseMarkdown(token, helpers) {
+    const parsed = OrderedList.config.parseMarkdown!(token, helpers);
+    if (Array.isArray(parsed)) return parsed;
+
+    return {
+      ...parsed,
+      // Empty items need a paragraph to satisfy the listItem schema. Otherwise
+      // they are discarded when the saved Markdown is loaded back into Tiptap.
+      content: parsed.content?.map((item) => ({
+        ...item,
+        content:
+          item.content?.[0]?.type === "paragraph"
+            ? item.content
+            : [{ type: "paragraph" }, ...(item.content ?? [])],
+      })),
+    };
+  },
+});
 
 function normalizeMarkExclusions(content: JSONContent | JSONContent[]): JSONContent[] {
   const nodes = Array.isArray(content) ? content : [content];
@@ -114,10 +134,12 @@ export function createMarkdownEditorExtensions(options: MarkdownEditorExtensions
   const extensions = [
     StarterKit.configure({
       codeBlock: false,
+      orderedList: false,
       link: {
         openOnClick: false,
       },
     }),
+    MarkdownOrderedList,
     TableKit,
     TaskList,
     TaskItem.configure({ nested: true }),

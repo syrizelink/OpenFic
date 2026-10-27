@@ -771,9 +771,10 @@ export function ChapterEditor({
     );
   }
 
+  // Background refetches must not remount the editor with an older draft snapshot.
   return (
     <ChapterEditorWorkingCopy
-      key={`${data.entity.id}:${data.draftUpdatedAt.getTime()}`}
+      key={data.entity.id}
       chapter={data.entity}
       scrollTop={scrollTop}
       initialDraft={data.draft}
@@ -807,7 +808,6 @@ function ChapterEditorWorkingCopy({
 
   return (
     <ChapterEditorContent
-      key={`${chapter.id}:${initialDraftUpdatedAt.getTime()}`}
       chapter={chapter}
       scrollTop={scrollTop}
       initialDraft={initialDraft}

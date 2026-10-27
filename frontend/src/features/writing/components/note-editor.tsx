@@ -337,9 +337,10 @@ export function NoteEditor(props: NoteEditorProps) {
     );
   }
 
+  // Background refetches must not remount the editor with an older draft snapshot.
   return (
     <NoteEditorWorkingCopy
-      key={`${data.entity.id}:${data.draftUpdatedAt.getTime()}`}
+      key={data.entity.id}
       note={data.entity}
       scrollTop={props.scrollTop ?? 0}
       initialDraft={data.draft}
@@ -365,7 +366,6 @@ function NoteEditorWorkingCopy({
 
   return (
     <NoteEditorContent
-      key={`${note.id}:${initialDraftUpdatedAt.getTime()}`}
       note={note}
       scrollTop={scrollTop}
       initialDraft={initialDraft}
