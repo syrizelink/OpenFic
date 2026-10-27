@@ -63,6 +63,14 @@ function getApprovalSummary(toolName: string, toolArgs: Record<string, unknown>)
       return `${i18n.t("assistant.tools.content")} ${chapterLabel}`;
     case "apply_chapter_operations":
       return i18n.t("assistant.batchEditChapters");
+    case "create_skill":
+      return `${i18n.t("assistant.tools.createSkill")} ${title ?? ""}`.trim();
+    case "edit_skill":
+      return `${i18n.t("assistant.tools.editSkill")} ${getStringArg(toolArgs, "skill_id") ?? ""}`.trim();
+    case "create_skill_reference_doc":
+      return `${i18n.t("assistant.tools.createSkillReferenceDoc")} ${title ?? ""}`.trim();
+    case "edit_skill_reference_doc":
+      return `${i18n.t("assistant.tools.editSkillReferenceDoc")} ${getStringArg(toolArgs, "doc_id") ?? ""}`.trim();
     default:
       return toolName
         ? i18n.t("assistant.executeTool", { toolName })

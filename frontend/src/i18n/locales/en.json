@@ -959,6 +959,23 @@
         "name": "Reference Skill",
         "description": "Read a specified reference document for a skill."
       },
+      "listSkills": {
+        "name": "List Skills",
+        "description": "List all skills and read disabled custom skills and their references."
+      },
+      "createSkill": {
+        "name": "Create Skill",
+        "description": "Create a disabled custom skill without reference documents."
+      },
+      "editSkill": { "name": "Edit Skill", "description": "Edit a disabled custom skill." },
+      "createSkillReferenceDoc": {
+        "name": "Create Skill Reference",
+        "description": "Create a reference document for a disabled custom skill."
+      },
+      "editSkillReferenceDoc": {
+        "name": "Edit Skill Reference",
+        "description": "Edit a reference document for a disabled custom skill."
+      },
       "webFetch": {
         "name": "Read Web Page",
         "description": "Read the static HTML content of a public web page."
@@ -2173,7 +2190,8 @@
       "noteRead": "Reading notes",
       "noteWrite": "Writing notes",
       "chapterWrite": "Writing chapters",
-      "callingSkill": "Calling a skill"
+      "callingSkill": "Calling a skill",
+      "managingSkill": "Managing skills"
     },
     "applyingChanges": "Applying changes...",
     "waitingForApproval": "Waiting for approval...",
@@ -2266,6 +2284,15 @@
       "askUser": "Ask",
       "activateSkill": "Skill",
       "referenceSkill": "Skill Reference",
+      "listSkills": "List Skills",
+      "createSkill": "Create Skill",
+      "editSkill": "Edit Skill",
+      "createSkillReferenceDoc": "Create Skill Reference",
+      "editSkillReferenceDoc": "Edit Skill Reference",
+      "skillReferenceId": "Reference document ID",
+      "skillName": "Name",
+      "skillReferenceTitle": "Title",
+      "skillSummary": "Summary",
       "skillNotFound": "Unknown skill",
       "questionCount": "{{count}} questions",
       "toolError": "Tool call failed",

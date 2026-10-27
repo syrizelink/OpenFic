@@ -33,6 +33,7 @@ from app.agent_runtime.tools.hooks.dispatch_description import (
     build_dispatch_subagent_description_hook,
 )
 from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
+from app.agent_runtime.tools.hooks.skill_refresh import skill_refresh_post_hook
 from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 from app.models.clients.model_factory import ModelConfig, create_chat_model
@@ -41,6 +42,7 @@ DEFAULT_PRIMARY_TOOL_CATEGORIES = (
     "orchestration",
     "interaction",
     "plan",
+    "skill_management",
     "file_read",
     "chapter_read",
     "summary_read",
@@ -184,6 +186,7 @@ async def primary_node(
                 post_hooks=[
                     chapter_refresh_post_hook,
                     note_refresh_post_hook,
+                    skill_refresh_post_hook,
                     world_entry_refresh_post_hook,
                     character_refresh_post_hook,
                 ],

@@ -15,6 +15,13 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
         "web_search": ("web_search",),
         "web_fetch": ("web_fetch",),
         "plan": ("write_plan",),
+        "skill_management": (
+            "list_skills",
+            "create_skill",
+            "create_skill_reference_doc",
+            "edit_skill",
+            "edit_skill_reference_doc",
+        ),
         "file_read": ("list_file", "read_file"),
         "chapter_read": (
             "list_volumes",
@@ -77,6 +84,7 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "web_search": "联网搜索",
         "web_fetch": "网页读取",
         "plan": "计划",
+        "skill_management": "Skill 管理",
         "file_read": "附件读取",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",

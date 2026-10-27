@@ -48,6 +48,7 @@ from app.agent_runtime.tools.hooks import (
     character_refresh_post_hook,
     chapter_refresh_post_hook,
     note_refresh_post_hook,
+    skill_refresh_post_hook,
     world_entry_refresh_post_hook,
 )
 from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
@@ -480,6 +481,7 @@ class SubagentRunner:
             post_hooks=[
                 chapter_refresh_post_hook,
                 note_refresh_post_hook,
+                skill_refresh_post_hook,
                 world_entry_refresh_post_hook,
                 character_refresh_post_hook,
             ],

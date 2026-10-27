@@ -959,6 +959,23 @@
         "name": "引用技能参考文档",
         "description": "读取指定技能的某个参考文档内容"
       },
+      "listSkills": {
+        "name": "列出 Skill",
+        "description": "查看全部 Skill，并读取关闭的自定义 Skill 及其参考文档。"
+      },
+      "createSkill": {
+        "name": "创建 Skill",
+        "description": "创建默认关闭且没有参考文档的自定义 Skill。"
+      },
+      "editSkill": { "name": "编辑 Skill", "description": "修改关闭的自定义 Skill。" },
+      "createSkillReferenceDoc": {
+        "name": "创建 Skill 参考文档",
+        "description": "为关闭的自定义 Skill 创建参考文档。"
+      },
+      "editSkillReferenceDoc": {
+        "name": "编辑 Skill 参考文档",
+        "description": "修改关闭的自定义 Skill 的参考文档。"
+      },
       "webFetch": {
         "name": "网页读取",
         "description": "读取指定公开网页的静态 HTML 正文"
@@ -2236,7 +2253,8 @@
       "noteRead": "正在笔记读取",
       "noteWrite": "正在笔记写入",
       "chapterWrite": "正在章节写入",
-      "callingSkill": "正在调用技能"
+      "callingSkill": "正在调用技能",
+      "managingSkill": "正在管理技能"
     },
     "applyingChanges": "正在应用修改...",
     "waitingForApproval": "正在等待审批...",
@@ -2329,6 +2347,15 @@
       "askUser": "询问",
       "activateSkill": "技能",
       "referenceSkill": "技能参考",
+      "listSkills": "列出 Skill",
+      "createSkill": "创建 Skill",
+      "editSkill": "编辑 Skill",
+      "createSkillReferenceDoc": "创建 Skill 参考文档",
+      "editSkillReferenceDoc": "编辑 Skill 参考文档",
+      "skillReferenceId": "参考文档 ID",
+      "skillName": "名称",
+      "skillReferenceTitle": "标题",
+      "skillSummary": "简述",
       "skillNotFound": "未知技能",
       "questionCount": "{{count}} 个问题",
       "toolError": "工具调用失败",

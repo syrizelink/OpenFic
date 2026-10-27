@@ -1204,6 +1204,12 @@ export function useAgentSession({
         return;
       }
 
+      if (message?.type === "skill_refresh") {
+        void queryClient.invalidateQueries({ queryKey: ["skills"] });
+        void queryClient.invalidateQueries({ queryKey: ["skill-reference-docs"] });
+        return;
+      }
+
       if (message?.type === "error") {
         ignoredApprovalIdsRef.current.clear();
         toast.error(message.content || i18n.t("assistant.agentRunFailed"));

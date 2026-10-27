@@ -18,6 +18,7 @@ export const AGENT_RUNNING_STATUS = {
   noteWrite: "noteWrite",
   chapterWrite: "chapterWrite",
   callingSkill: "callingSkill",
+  managingSkill: "managingSkill",
 } as const;
 
 export type AgentRunningStatus = (typeof AGENT_RUNNING_STATUS)[keyof typeof AGENT_RUNNING_STATUS];
@@ -70,6 +71,11 @@ const TOOL_RUNNING_STATUS: Record<string, AgentRunningStatus> = {
   move_chapter_to_volume: AGENT_RUNNING_STATUS.chapterWrite,
   activate_skill: AGENT_RUNNING_STATUS.callingSkill,
   reference_skill: AGENT_RUNNING_STATUS.callingSkill,
+  list_skills: AGENT_RUNNING_STATUS.managingSkill,
+  create_skill: AGENT_RUNNING_STATUS.managingSkill,
+  edit_skill: AGENT_RUNNING_STATUS.managingSkill,
+  create_skill_reference_doc: AGENT_RUNNING_STATUS.managingSkill,
+  edit_skill_reference_doc: AGENT_RUNNING_STATUS.managingSkill,
 };
 
 function isRunningMessage(message: AgentMessage): boolean {

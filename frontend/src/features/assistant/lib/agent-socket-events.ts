@@ -21,6 +21,7 @@ export const AGENT_SOCKET_EVENTS = [
   "agent:task_title_updated",
   "agent:chapter_refresh",
   "agent:note_refresh",
+  "agent:skill_refresh",
   "agent:world_entry_refresh",
   "agent:character_refresh",
   "agent:attachment_status",
@@ -333,6 +334,20 @@ export function toAgentEvent(
         project_id: getString(data.project_id),
         note_id: getString(data.note_id),
         operation: getString(data.operation),
+      },
+    };
+  }
+
+  if (eventName === "agent:skill_refresh") {
+    return {
+      type: "skill_refresh",
+      role: "system",
+      status: "completed",
+      display: "hidden",
+      created_at: getString(data.created_at),
+      payload: {
+        session_id: getString(data.session_id),
+        skill_id: getString(data.skill_id),
       },
     };
   }

@@ -211,6 +211,26 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.referenceSkill.name",
     description: "settings.agentTool.referenceSkill.description",
   },
+  list_skills: {
+    name: "settings.agentTool.listSkills.name",
+    description: "settings.agentTool.listSkills.description",
+  },
+  create_skill: {
+    name: "settings.agentTool.createSkill.name",
+    description: "settings.agentTool.createSkill.description",
+  },
+  edit_skill: {
+    name: "settings.agentTool.editSkill.name",
+    description: "settings.agentTool.editSkill.description",
+  },
+  create_skill_reference_doc: {
+    name: "settings.agentTool.createSkillReferenceDoc.name",
+    description: "settings.agentTool.createSkillReferenceDoc.description",
+  },
+  edit_skill_reference_doc: {
+    name: "settings.agentTool.editSkillReferenceDoc.name",
+    description: "settings.agentTool.editSkillReferenceDoc.description",
+  },
   web_fetch: {
     name: "settings.agentTool.webFetch.name",
     description: "settings.agentTool.webFetch.description",

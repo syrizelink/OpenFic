@@ -59,6 +59,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "web_search",
                 "web_fetch",
                 "plan",
+                "skill_management",
                 "file_read",
                 "chapter_read",
                 "chapter_write",

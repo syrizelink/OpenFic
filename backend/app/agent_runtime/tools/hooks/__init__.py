@@ -5,6 +5,7 @@ from app.agent_runtime.tools.hooks.dispatch_description import (
     build_dispatch_subagent_description_hook,
 )
 from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
+from app.agent_runtime.tools.hooks.skill_refresh import skill_refresh_post_hook
 from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "chapter_refresh_post_hook",
     "build_dispatch_subagent_description_hook",
     "note_refresh_post_hook",
+    "skill_refresh_post_hook",
     "world_entry_refresh_post_hook",
 ]
