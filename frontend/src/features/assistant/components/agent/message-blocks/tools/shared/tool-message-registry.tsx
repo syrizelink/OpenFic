@@ -34,7 +34,7 @@ import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import { AskUserToolMessage } from "../ask-user/ask-user-tool-message";
-import { ChapterToolMessage } from "../chapter/chapter-tool-message";
+import { ChapterDiffCard, ChapterToolMessage } from "../chapter/chapter-tool-message";
 import {
   CharacterRelationshipToolMessage,
   CharacterToolMessage,
@@ -89,6 +89,8 @@ import {
   getRangeSummaryList,
   getReadChapterDetail,
   getReadFileDetail,
+  getSkillDiffCards,
+  getSkillDisplayName,
   getStreamingData,
   getSubagentList,
   getToolRef,
@@ -127,6 +129,20 @@ function getSkillArg(message: AgentMessage, key: string): string | undefined {
 }
 
 function SkillManagementToolMessage({ message }: { message: AgentMessage }) {
+  const cards = getSkillDiffCards(message);
+  if (cards) {
+    return (
+      <ToolBody>
+        {cards.map((card, index) => (
+          <ChapterDiffCard
+            key={`${index}-${card.title}`}
+            title={card.title ?? i18n.t("assistant.tools.skill")}
+            section={card.section}
+          />
+        ))}
+      </ToolBody>
+    );
+  }
   return (
     <ToolBody>
       <ToolTextBlock
@@ -853,7 +869,7 @@ const TOOL_REGISTRY = {
     contentMode: "hidden",
     icon: Sparkles,
     getTitle: () => i18n.t("assistant.tools.getSkill"),
-    getDetail: (message) => getSkillArg(message, "skill_id"),
+    getDetail: getSkillDisplayName,
   },
   get_skill_reference_doc: {
     toolName: "get_skill_reference_doc",
@@ -863,7 +879,7 @@ const TOOL_REGISTRY = {
     contentMode: "hidden",
     icon: BookMarked,
     getTitle: () => i18n.t("assistant.tools.getSkillReferenceDoc"),
-    getDetail: (message) => getSkillArg(message, "doc_id"),
+    getDetail: getSkillDisplayName,
   },
   create_skill: {
     toolName: "create_skill",
@@ -873,7 +889,7 @@ const TOOL_REGISTRY = {
     contentMode: "expandable",
     icon: Sparkles,
     getTitle: () => i18n.t("assistant.tools.createSkill"),
-    getDetail: (message) => getSkillArg(message, "name"),
+    getDetail: getSkillDisplayName,
     render: (message) => <SkillManagementToolMessage message={message} />,
   },
   edit_skill: {
@@ -884,7 +900,7 @@ const TOOL_REGISTRY = {
     contentMode: "expandable",
     icon: PenLine,
     getTitle: () => i18n.t("assistant.tools.editSkill"),
-    getDetail: (message) => getSkillArg(message, "skill_id"),
+    getDetail: getSkillDisplayName,
     render: (message) => <SkillManagementToolMessage message={message} />,
   },
   create_skill_reference_doc: {
@@ -895,7 +911,7 @@ const TOOL_REGISTRY = {
     contentMode: "expandable",
     icon: BookMarked,
     getTitle: () => i18n.t("assistant.tools.createSkillReferenceDoc"),
-    getDetail: (message) => getSkillArg(message, "title"),
+    getDetail: getSkillDisplayName,
     render: (message) => <SkillManagementToolMessage message={message} />,
   },
   edit_skill_reference_doc: {
@@ -906,7 +922,7 @@ const TOOL_REGISTRY = {
     contentMode: "expandable",
     icon: FilePenLine,
     getTitle: () => i18n.t("assistant.tools.editSkillReferenceDoc"),
-    getDetail: (message) => getSkillArg(message, "doc_id"),
+    getDetail: getSkillDisplayName,
     render: (message) => <SkillManagementToolMessage message={message} />,
   },
   delete_skill: {
@@ -914,20 +930,22 @@ const TOOL_REGISTRY = {
     group: "skill",
     tag: "delete",
     isExplore: false,
-    contentMode: "hidden",
+    contentMode: "expandable",
     icon: Trash2,
     getTitle: () => i18n.t("assistant.tools.deleteSkill"),
-    getDetail: (message) => getSkillArg(message, "skill_id"),
+    getDetail: getSkillDisplayName,
+    render: (message) => <SkillManagementToolMessage message={message} />,
   },
   delete_skill_reference_doc: {
     toolName: "delete_skill_reference_doc",
     group: "skill",
     tag: "delete-reference",
     isExplore: false,
-    contentMode: "hidden",
+    contentMode: "expandable",
     icon: Trash2,
     getTitle: () => i18n.t("assistant.tools.deleteSkillReferenceDoc"),
-    getDetail: (message) => getSkillArg(message, "doc_id"),
+    getDetail: getSkillDisplayName,
+    render: (message) => <SkillManagementToolMessage message={message} />,
   },
 } satisfies Record<RegisteredToolName, ToolDescriptor>;
 

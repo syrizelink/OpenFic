@@ -6,7 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.agents.definitions import get_default_agent_definition
-from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
+from app.agent_runtime.agents.tool_categories import (
+    get_tool_names_for_categories,
+    list_tool_categories,
+)
 from app.agent_runtime.persistence.model import AgentDefinitionRecord
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.base import HookContext
@@ -53,6 +56,10 @@ async def test_create_edit_and_list_skill_and_reference(session, tools_with_data
     skill = created["skill"]
     skill_id = skill["id"]
     assert created["success"] is True
+    assert created["metadata"]["skill_diff"]["skill_name"] == "Draft"
+    assert {
+        section["type"] for section in created["metadata"]["skill_diff"]["sections"]
+    } == {"name", "summary", "content"}
     assert skill["is_enabled"] is False
     assert skill["reference_docs"] == []
     assert not (await session.execute(select(SkillReferenceDoc))).scalars().all()
@@ -67,11 +74,25 @@ async def test_create_edit_and_list_skill_and_reference(session, tools_with_data
     )
     doc_id = ref["reference_doc"]["id"]
     assert ref["reference_doc"]["tokens"] > 0
+    assert ref["metadata"]["skill_diff"]["reference_doc_title"] == "Guide"
+    assert {
+        section["type"] for section in ref["metadata"]["skill_diff"]["sections"]
+    } == {"title", "content"}
     edited = await tools_with_database(
         "edit_skill", skill_id=skill_id, name="Updated", content="Updated content"
     )
     assert edited["skill"]["is_enabled"] is False
     assert edited["skill"]["summary"] == "Summary"
+    assert edited["metadata"]["skill_diff"]["skill_name"] == "Updated"
+    sections = {
+        section["type"]: section
+        for section in edited["metadata"]["skill_diff"]["sections"]
+    }
+    assert set(sections) == {"name", "content"}
+    assert [(line["type"], line["text"]) for line in sections["content"]["lines"]] == [
+        ("removed", "Original content"),
+        ("added", "Updated content"),
+    ]
     updated_ref = await tools_with_database(
         "edit_skill_reference_doc",
         skill_id=skill_id,
@@ -80,6 +101,12 @@ async def test_create_edit_and_list_skill_and_reference(session, tools_with_data
         content="Updated reference",
     )
     assert updated_ref["reference_doc"]["content"] == "Updated reference"
+    assert (
+        updated_ref["metadata"]["skill_diff"]["reference_doc_title"] == "Updated guide"
+    )
+    assert {
+        section["type"] for section in updated_ref["metadata"]["skill_diff"]["sections"]
+    } == {"title", "content"}
     listed = await tools_with_database("list_skills")
     item = next(item for item in listed["skills"] if item["id"] == skill_id)
     assert item["name"] == "Updated"
@@ -87,6 +114,31 @@ async def test_create_edit_and_list_skill_and_reference(session, tools_with_data
     assert item["reference_docs"][0]["id"] == doc_id
     assert item["reference_docs"][0]["content"] == "Updated reference"
     assert any(item["source"] == "builtin" for item in listed["skills"])
+
+
+async def test_skill_diff_uses_persisted_values_and_omits_unchanged_fields(
+    session,
+    tools_with_database,
+):
+    skill = Skill(name="Original", summary="Old summary", content="Content")
+    session.add(skill)
+    await session.flush()
+    skill_id = skill.id
+    unchanged = await tools_with_database(
+        "edit_skill", skill_id=skill_id, name=" Original "
+    )
+    assert unchanged["metadata"]["skill_diff"]["sections"] == []
+
+    changed = await tools_with_database(
+        "edit_skill", skill_id=skill_id, summary=" New summary "
+    )
+    sections = changed["metadata"]["skill_diff"]["sections"]
+    assert len(sections) == 1
+    assert sections[0]["type"] == "summary"
+    assert [(line["type"], line["text"]) for line in sections[0]["lines"]] == [
+        ("removed", "Old summary"),
+        ("added", "New summary"),
+    ]
 
 
 async def test_create_and_rename_ignore_invalid_legacy_skill_names(
@@ -127,12 +179,34 @@ async def test_delete_skill_and_reference_doc(session, tools_with_database):
     )
 
     deleted_doc = await tools_with_database(
-        "delete_skill_reference_doc", skill_id=skill_id, doc_id=reference["reference_doc"]["id"]
+        "delete_skill_reference_doc",
+        skill_id=skill_id,
+        doc_id=reference["reference_doc"]["id"],
     )
     assert deleted_doc["success"] is True
+    assert deleted_doc["metadata"]["skill_diff"]["reference_doc_title"] == "Guide"
+    assert deleted_doc["metadata"]["skill_diff"]["operation"] == "delete"
+    assert all(
+        line["type"] == "removed"
+        for section in deleted_doc["metadata"]["skill_diff"]["sections"]
+        for line in section["lines"]
+    )
+
+    await tools_with_database(
+        "create_skill_reference_doc",
+        skill_id=skill_id,
+        title="Other",
+        content="Other reference",
+    )
 
     deleted_skill = await tools_with_database("delete_skill", skill_id=skill_id)
-    assert deleted_skill == {"success": True, "skill_id": skill_id}
+    assert deleted_skill["success"] is True
+    assert deleted_skill["metadata"]["skill_diff"]["skill_name"] == "To delete"
+    sections = deleted_skill["metadata"]["skill_diff"]["sections"]
+    assert any(section.get("reference_doc_title") == "Other" for section in sections)
+    assert all(
+        line["type"] == "removed" for section in sections for line in section["lines"]
+    )
 
 
 async def test_skill_tools_reject_internal_tabs_without_persisting(
@@ -305,6 +379,7 @@ async def test_edit_rechecks_enabled_status_when_locking_row(
 
 
 def test_skill_management_available_to_default_build_and_registered():
+    assert next(name for key, name, _ in list_tool_categories() if key == "skill_management") == "技能管理"
     names = set(get_tool_names_for_categories(["skill_management"]))
     assert names == {
         "list_skills",

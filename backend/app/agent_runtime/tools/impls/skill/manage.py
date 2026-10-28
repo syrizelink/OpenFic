@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from difflib import SequenceMatcher
 from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -107,6 +108,51 @@ def _reference_data(doc: skill_service.SkillReferenceData) -> dict:
     }
 
 
+def _diff_sections(before: dict, after: dict, fields: tuple[str, ...]) -> list[dict]:
+    sections = []
+    for field in fields:
+        old, new = before.get(field, ""), after.get(field, "")
+        if old == new:
+            continue
+        old_lines, new_lines = old.splitlines(), new.splitlines()
+        lines = []
+        for tag, i1, i2, j1, j2 in SequenceMatcher(
+            a=old_lines, b=new_lines, autojunk=False
+        ).get_opcodes():
+            if tag in {"delete", "replace"}:
+                lines.extend(
+                    {
+                        "type": "removed",
+                        "before_line_number": i + 1,
+                        "after_line_number": None,
+                        "text": old_lines[i],
+                    }
+                    for i in range(i1, i2)
+                )
+            if tag in {"insert", "replace"}:
+                lines.extend(
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": i + 1,
+                        "text": new_lines[i],
+                    }
+                    for i in range(j1, j2)
+                )
+        sections.append({"type": field, "lines": lines})
+    return sections
+
+
+async def _get_reference_data(
+    session: AsyncSession, skill_id: str, doc_id: str
+) -> dict:
+    docs = await skill_service.list_reference_docs(session, skill_id)
+    doc = next((doc for doc in docs if doc.id == doc_id), None)
+    if doc is None:
+        raise NotFoundError(f"指定 Skill 中不存在参考文档: {doc_id}")
+    return _reference_data(doc)
+
+
 async def _require_editable_skill(session: AsyncSession, skill_id: str) -> None:
     skill = await skill_service.get_skill(session, skill_id)
     if skill_service.is_builtin_skill(skill):
@@ -206,9 +252,7 @@ class ListSkillsTool(AgentTool):
 @ToolRegistry.register
 class GetSkillTool(AgentTool):
     name: str = "get_skill"
-    description: str = (
-        "查看指定 Skill 的完整信息和参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
-    )
+    description: str = "查看指定 Skill 的完整信息和参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = GetSkillInput
 
@@ -229,9 +273,7 @@ class GetSkillTool(AgentTool):
 @ToolRegistry.register
 class GetSkillReferenceDocTool(AgentTool):
     name: str = "get_skill_reference_doc"
-    description: str = (
-        "查看指定 Skill 的完整参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
-    )
+    description: str = "查看指定 Skill 的完整参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = GetSkillReferenceDocInput
 
@@ -255,7 +297,7 @@ class GetSkillReferenceDocTool(AgentTool):
 class CreateSkillTool(AgentTool):
     name: str = "create_skill"
     description: str = (
-        "创建自定义 Skill；新 Skill 默认关闭，且不含参考文档，也不会关联到任何 Agent。"
+        "创建自定义 Skill；新 Skill 默认关闭，且不含参考文档，也不会关联到任何 Agent，如需启用，请提醒用户在设置面板中开启并挂载到所需 Agent。"
     )
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateSkillInput
@@ -267,7 +309,23 @@ class CreateSkillTool(AgentTool):
             )
             result = _skill_data(skill)
             result["reference_docs"] = []
-        return json.dumps({"success": True, "skill": result}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "skill": result,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "create",
+                        "skill_id": result["id"],
+                        "skill_name": result["name"],
+                        "sections": _diff_sections(
+                            {}, result, ("name", "summary", "content")
+                        ),
+                    }
+                },
+            },
+            ensure_ascii=False,
+        )
 
 
 @ToolRegistry.register
@@ -288,11 +346,28 @@ class EditSkillTool(AgentTool):
     ) -> str:
         async with _write_session() as session:
             await _require_editable_skill(session, skill_id)
+            before = _skill_data(await skill_service.get_skill(session, skill_id))
             skill = await skill_service.update_skill(
                 session, skill_id, name=name, summary=summary, content=content
             )
             result = _skill_data(skill)
-        return json.dumps({"success": True, "skill": result}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "skill": result,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "update",
+                        "skill_id": skill_id,
+                        "skill_name": result["name"],
+                        "sections": _diff_sections(
+                            before, result, ("name", "summary", "content")
+                        ),
+                    }
+                },
+            },
+            ensure_ascii=False,
+        )
 
 
 @ToolRegistry.register
@@ -310,7 +385,20 @@ class CreateSkillReferenceDocTool(AgentTool):
             )
             result = _reference_data(doc)
         return json.dumps(
-            {"success": True, "skill_id": skill_id, "reference_doc": result},
+            {
+                "success": True,
+                "skill_id": skill_id,
+                "reference_doc": result,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "create",
+                        "skill_id": skill_id,
+                        "doc_id": result["id"],
+                        "reference_doc_title": result["title"],
+                        "sections": _diff_sections({}, result, ("title", "content")),
+                    }
+                },
+            },
             ensure_ascii=False,
         )
 
@@ -331,12 +419,28 @@ class EditSkillReferenceDocTool(AgentTool):
     ) -> str:
         async with _write_session() as session:
             await _require_editable_skill(session, skill_id)
+            before = await _get_reference_data(session, skill_id, doc_id)
             doc = await skill_reference_doc_service.update_reference_doc(
                 session, skill_id, doc_id, title=title, content=content
             )
             result = _reference_data(doc)
         return json.dumps(
-            {"success": True, "skill_id": skill_id, "reference_doc": result},
+            {
+                "success": True,
+                "skill_id": skill_id,
+                "reference_doc": result,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "update",
+                        "skill_id": skill_id,
+                        "doc_id": doc_id,
+                        "reference_doc_title": result["title"],
+                        "sections": _diff_sections(
+                            before, result, ("title", "content")
+                        ),
+                    }
+                },
+            },
             ensure_ascii=False,
         )
 
@@ -344,29 +448,75 @@ class EditSkillReferenceDocTool(AgentTool):
 @ToolRegistry.register
 class DeleteSkillTool(AgentTool):
     name: str = "delete_skill"
-    description: str = "删除关闭的自定义 Skill 及其全部参考文档；不能删除内置或已启用 Skill。"
+    description: str = (
+        "删除关闭的自定义 Skill 及其全部参考文档；不能删除内置或已启用 Skill。"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteSkillInput
 
     async def _execute(self, skill_id: str) -> str:
         async with _write_session() as session:
             await _require_editable_skill(session, skill_id)
+            before = _skill_data(await skill_service.get_skill(session, skill_id))
+            docs = [
+                _reference_data(doc)
+                for doc in await skill_service.list_reference_docs(session, skill_id)
+            ]
             await skill_service.delete_skill(session, skill_id)
-        return json.dumps({"success": True, "skill_id": skill_id}, ensure_ascii=False)
+            sections = _diff_sections(before, {}, ("name", "summary", "content"))
+            for doc in docs:
+                for section in _diff_sections(doc, {}, ("title", "content")):
+                    section.update(
+                        reference_doc_id=doc["id"], reference_doc_title=doc["title"]
+                    )
+                    sections.append(section)
+        return json.dumps(
+            {
+                "success": True,
+                "skill_id": skill_id,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "delete",
+                        "skill_id": skill_id,
+                        "skill_name": before["name"],
+                        "sections": sections,
+                    }
+                },
+            },
+            ensure_ascii=False,
+        )
 
 
 @ToolRegistry.register
 class DeleteSkillReferenceDocTool(AgentTool):
     name: str = "delete_skill_reference_doc"
-    description: str = "删除关闭的自定义 Skill 的参考文档；不能删除内置或已启用 Skill 的参考文档。"
+    description: str = (
+        "删除关闭的自定义 Skill 的参考文档；不能删除内置或已启用 Skill 的参考文档。"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteSkillReferenceDocInput
 
     async def _execute(self, skill_id: str, doc_id: str) -> str:
         async with _write_session() as session:
             await _require_editable_skill(session, skill_id)
-            await skill_reference_doc_service.delete_reference_doc(session, skill_id, doc_id)
+            before = await _get_reference_data(session, skill_id, doc_id)
+            await skill_reference_doc_service.delete_reference_doc(
+                session, skill_id, doc_id
+            )
         return json.dumps(
-            {"success": True, "skill_id": skill_id, "doc_id": doc_id},
+            {
+                "success": True,
+                "skill_id": skill_id,
+                "doc_id": doc_id,
+                "metadata": {
+                    "skill_diff": {
+                        "operation": "delete",
+                        "skill_id": skill_id,
+                        "doc_id": doc_id,
+                        "reference_doc_title": before["title"],
+                        "sections": _diff_sections(before, {}, ("title", "content")),
+                    }
+                },
+            },
             ensure_ascii=False,
         )

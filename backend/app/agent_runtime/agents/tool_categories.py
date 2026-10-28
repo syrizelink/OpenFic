@@ -88,7 +88,7 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "web_search": "联网搜索",
         "web_fetch": "网页读取",
         "plan": "计划",
-        "skill_management": "Skill 管理",
+        "skill_management": "技能管理",
         "file_read": "附件读取",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",

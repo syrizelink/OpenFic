@@ -1,4 +1,8 @@
-import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
+import {
+  formatChapterDisplayName,
+  getChapterDiffPreview,
+  type ChapterDiffSection,
+} from "@/features/assistant/lib/chapter-tool-preview";
 import i18n from "@/i18n";
 import type {
   AgentMessage,
@@ -222,6 +226,60 @@ export function getToolData(message: AgentMessage): Record<string, unknown> {
 
 export function getToolResultData(message: AgentMessage): unknown {
   return message.toolResult?.data ?? message.toolResult;
+}
+
+export function getSkillDisplayName(message: AgentMessage): string | undefined {
+  const result = getToolResultData(message);
+  const data = isRecord(result) ? result : {};
+  const metadata = isRecord(data.metadata) ? data.metadata : {};
+  const diff = isRecord(metadata.skill_diff) ? metadata.skill_diff : {};
+  const isReference = message.toolName?.includes("reference_doc");
+  const object = isReference ? data.reference_doc : data.skill;
+  const field = isReference ? "title" : "name";
+  const nameSection = Array.isArray(diff.sections)
+    ? diff.sections
+        .filter(isRecord)
+        .find((section) => section.type === field && !section.reference_doc_id)
+    : undefined;
+  const nameLines =
+    nameSection && Array.isArray(nameSection.lines) ? nameSection.lines.filter(isRecord) : [];
+  const nameLine =
+    nameLines.find((line) => line.type === "added") ??
+    nameLines.find((line) => line.type === "removed");
+  return (
+    asString(diff[isReference ? "reference_doc_title" : "skill_name"]) ??
+    (isRecord(object) ? asString(object[field]) : undefined) ??
+    (nameLine ? asString(nameLine.text) : undefined) ??
+    asString(getStreamingData(message)[field])
+  );
+}
+
+export function getSkillDiffCards(
+  message: AgentMessage,
+): { title?: string; section: ChapterDiffSection | null }[] | null {
+  const result = getToolResultData(message);
+  const metadata = isRecord(result) && isRecord(result.metadata) ? result.metadata : null;
+  const diff = metadata && isRecord(metadata.skill_diff) ? metadata.skill_diff : null;
+  if (!diff || !Array.isArray(diff.sections)) return null;
+  const sections = diff.sections.filter(isRecord);
+  const groups = new Map<string, { title?: string; sections: Record<string, unknown>[] }>();
+  groups.set("", { title: getSkillDisplayName(message), sections: [] });
+  for (const section of sections) {
+    const id = asString(section.reference_doc_id) ?? "";
+    if (!groups.has(id))
+      groups.set(id, { title: asString(section.reference_doc_title), sections: [] });
+    groups.get(id)!.sections.push(section);
+  }
+  return Array.from(groups.values(), ({ title, sections: groupSections }) => {
+    const preview = getChapterDiffPreview({
+      ...message,
+      toolResult: { metadata: { chapter_diff: { sections: groupSections } } },
+    });
+    return {
+      title,
+      section: preview?.sections.find((section) => section.type === "content") ?? null,
+    };
+  });
 }
 
 function parseToolResultData(value: unknown): unknown {
