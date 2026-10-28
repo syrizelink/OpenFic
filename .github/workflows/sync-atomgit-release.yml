@@ -1,8 +1,7 @@
 name: Sync AtomGit Release
 
 on:
-  release:
-    types: [published]
+  # Package calls this workflow after all GitHub Release assets are uploaded.
   workflow_call:
     inputs:
       tag:
@@ -33,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sync-atomgit-release-${{ github.event.release.tag_name || inputs.tag }}
+  group: sync-atomgit-release-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -44,10 +43,9 @@ jobs:
         id: release
         env:
           INPUT_TAG: ${{ inputs.tag }}
-          EVENT_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          tag="${EVENT_TAG:-${INPUT_TAG:-}}"
+          tag="${INPUT_TAG:-}"
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Invalid release tag: $tag" >&2
             exit 1
@@ -85,13 +83,19 @@ jobs:
             jq -n --arg tag "$TAG" --arg name "$release_name" --arg body "$release_body" \
               '{tag_name: $tag, name: $name, body: $body, release_status: "latest"}' \
               > "$RUNNER_TEMP/release.json"
-            curl --fail-with-body -sS --connect-timeout 30 --max-time 60 -X POST \
+            create_status=$(curl -sS --connect-timeout 30 --max-time 60 -X POST \
               -H "Authorization: Bearer ${ATOMGIT_TOKEN}" -H 'Content-Type: application/json' \
               -d @"$RUNNER_TEMP/release.json" \
-              "$api" > /dev/null
+              -o "$RUNNER_TEMP/atomgit-release.json" -w '%{http_code}' "$api")
+            if [[ "$create_status" != 200 && "$create_status" != 201 ]]; then
+              echo "AtomGit Release creation failed with HTTP $create_status" >&2
+              cat "$RUNNER_TEMP/atomgit-release.json" >&2
+              exit 1
+            fi
             echo "Created AtomGit Release $TAG"
           else
             echo "AtomGit Release lookup failed with HTTP $release_status" >&2
+            cat "$RUNNER_TEMP/atomgit-release.json" >&2
             exit 1
           fi
 
