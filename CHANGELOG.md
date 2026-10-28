@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.13.0](https://github.com/syrizelink/OpenFic/compare/v0.12.1...v0.13.0) (2026-10-28)
+
+
+### ✨ 新功能
+
+* **agent:** 新增 Skill 管理工具 ([#478](https://github.com/syrizelink/OpenFic/issues/478)) ([8a5478d](https://github.com/syrizelink/OpenFic/commit/8a5478d74f0c57255ce419cf6dfe492c729d5709))
+* **asr:** 支持基于本地模型与云服务商的语音转写 ([#455](https://github.com/syrizelink/OpenFic/issues/455)) ([7a14cca](https://github.com/syrizelink/OpenFic/commit/7a14ccaee7c7d002259d8e8f0c30ff6cfe80b8e6))
+* **backend:** 支持 PostgreSQL 数据库后端 ([#452](https://github.com/syrizelink/OpenFic/issues/452)) ([8ce5cb8](https://github.com/syrizelink/OpenFic/commit/8ce5cb8c1dbbd8947c314460f795dfcd629bf9eb))
+* **mobile:** 新增 Android 远程连接客户端 ([#460](https://github.com/syrizelink/OpenFic/issues/460)) ([37e95a9](https://github.com/syrizelink/OpenFic/commit/37e95a93ed0800eeccad0561e2906d8f16ba5527))
+* **tunnels:** 支持设置基于提供商的隧道以启用远程连接 ([#453](https://github.com/syrizelink/OpenFic/issues/453)) ([1035d1e](https://github.com/syrizelink/OpenFic/commit/1035d1e4a5b9a152350f71e6fcebe6e4d107b2ff))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复变更汇总和轮次 Diff 详情不准确的问题 ([#477](https://github.com/syrizelink/OpenFic/issues/477)) ([a48f336](https://github.com/syrizelink/OpenFic/commit/a48f336b89c3dcb0fe9a83cbdfb8ba4ce5d5cf24))
+* **agent:** 修复模型以 JSON 字符串格式传递工具对象参数时解析失败的问题 ([#450](https://github.com/syrizelink/OpenFic/issues/450)) ([cc98518](https://github.com/syrizelink/OpenFic/commit/cc985187950f125702ab2c5bf1163ae7caf2e5f3))
+* **agent:** 修复流式传输在特定情况下导致工具名重复拼接的问题 ([#456](https://github.com/syrizelink/OpenFic/issues/456)) ([a8b138c](https://github.com/syrizelink/OpenFic/commit/a8b138ccd61ca5098192146f4fa34bf22092ec4b))
+* **agent:** 按模型协议路由 OpenCode Zen/Go 请求 ([#427](https://github.com/syrizelink/OpenFic/issues/427)) ([03549b5](https://github.com/syrizelink/OpenFic/commit/03549b5eba2a173be06e11ea9a55301e95d05491))
+* **desktop:** 修复因仪表盘日期时区错误与日志读取的性能问题导致的无响应 ([#466](https://github.com/syrizelink/OpenFic/issues/466)) ([41397ef](https://github.com/syrizelink/OpenFic/commit/41397efa2ee575c98d48a99ddf3e036ed115495c))
+* **desktop:** 修复认证状态未持久化导致重启后要求重新输入密码的问题 ([#470](https://github.com/syrizelink/OpenFic/issues/470)) ([568605b](https://github.com/syrizelink/OpenFic/commit/568605b3172805e7d9dcef43566be15f55bccf59))
+* **frontend:** 修复 Agent 消息自动滚动跟随在某些场景下失效的问题 ([#475](https://github.com/syrizelink/OpenFic/issues/475)) ([76ebea9](https://github.com/syrizelink/OpenFic/commit/76ebea90bbc7d864dee4ad694cc8aac3a736d01e))
+* **frontend:** 修复单美元行内 LaTeX 公式未渲染的问题 ([#469](https://github.com/syrizelink/OpenFic/issues/469)) ([d510408](https://github.com/syrizelink/OpenFic/commit/d5104082132f17b326f05e155a728d6d49bc2c36))
+* **frontend:** 修复窗口恢复时编辑内容和空列表项丢失的问题 ([#471](https://github.com/syrizelink/OpenFic/issues/471)) ([7c5eb95](https://github.com/syrizelink/OpenFic/commit/7c5eb95f2ce47d698d38c12a6c7c0b35ce439115))
+* **frontend:** 修复部分提供商无法配置嵌入维度的问题并支持自动获取维度 ([#472](https://github.com/syrizelink/OpenFic/issues/472)) ([1fc72e2](https://github.com/syrizelink/OpenFic/commit/1fc72e25dd8b68cd4d5d56f3b00243bdb844d0b7))
+* **frontend:** 修复章节首行缩进在保存重载时丢失的问题 ([#476](https://github.com/syrizelink/OpenFic/issues/476)) ([216d66a](https://github.com/syrizelink/OpenFic/commit/216d66aad5687e96544c30534d7d300fb7c9738f))
+* **mobile:** 修复 Android 麦克风权限未转发导致语音撰写不可用的问题 ([#481](https://github.com/syrizelink/OpenFic/issues/481)) ([c343ba4](https://github.com/syrizelink/OpenFic/commit/c343ba4d99c255edeff97e858ec41f49cdf51d7a))
+
+
+### 🔧 杂项
+
+* **agent:** 支持 DeepSeek 联网搜索 ([#454](https://github.com/syrizelink/OpenFic/issues/454)) ([e0db008](https://github.com/syrizelink/OpenFic/commit/e0db008d9c1b4a33289185933aed052e67d264f9))
+* **agent:** 添加会话模型超时设置 ([#474](https://github.com/syrizelink/OpenFic/issues/474)) ([8e56e5a](https://github.com/syrizelink/OpenFic/commit/8e56e5a34f982b911cd3783553b512081fc303e0))
+* **agent:** 添加内置的 Skill 创建与小说文风蒸馏实验性技能 ([#479](https://github.com/syrizelink/OpenFic/issues/479)) ([7007a30](https://github.com/syrizelink/OpenFic/commit/7007a3042e1eb0ffd4f790cac355fe5b8d160fcc))
+* **backend:** 适配 Models.dev 目录中的模型级路由配置 ([#467](https://github.com/syrizelink/OpenFic/issues/467)) ([34d7bf6](https://github.com/syrizelink/OpenFic/commit/34d7bf6ed57bd043e03a145ea25ee54d29b9928b))
+* **desktop:** 优化桌面端的镜像源选用逻辑以支持无外网环境使用 ([#468](https://github.com/syrizelink/OpenFic/issues/468)) ([da013c8](https://github.com/syrizelink/OpenFic/commit/da013c8861fb688da3d118fa23964e5ae98a889a))
+* **frontend:** 修复部分前端样式和布局错误 ([#480](https://github.com/syrizelink/OpenFic/issues/480)) ([7f27e0d](https://github.com/syrizelink/OpenFic/commit/7f27e0d445a2bf799a89c22cd317bc5d5164f70a))
+* **provider:** 添加 Requesty 提供商 ([#420](https://github.com/syrizelink/OpenFic/issues/420)) ([d578743](https://github.com/syrizelink/OpenFic/commit/d578743fda02024f42c191bfdf73388e3f78469a))
+
 ## [0.12.1](https://github.com/syrizelink/OpenFic/compare/v0.12.0...v0.12.1) (2026-10-11)
 
 
