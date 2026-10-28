@@ -47,6 +47,23 @@ class InstanceActivity : AppCompatActivity() {
     private var pendingDownloadCookie: String? = null
     private var notificationPermissionReply: JavaScriptReplyProxy? = null
     private var notificationPermissionId: String? = null
+    private var microphoneRequest: PermissionRequest? = null
+    private var microphonePermissionInFlight = false
+
+    private val microphonePermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        microphonePermissionInFlight = false
+        val request = microphoneRequest ?: return@registerForActivityResult
+        microphoneRequest = null
+        if (granted && !isFinishing && !isDestroyed && sameOrigin(request.origin) &&
+            webView.url?.let { sameOrigin(Uri.parse(it)) } == true
+        ) {
+            request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+        } else {
+            request.deny()
+        }
+    }
 
     private val filePicker: ActivityResultLauncher<Intent> = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -172,6 +189,11 @@ class InstanceActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                microphoneRequest?.deny()
+                microphoneRequest = null
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest
@@ -243,6 +265,30 @@ class InstanceActivity : AppCompatActivity() {
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                if (!sameOrigin(request.origin) ||
+                    !request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) ||
+                    microphonePermissionInFlight || isFinishing || isDestroyed
+                ) {
+                    request.deny()
+                    return
+                }
+                if (ContextCompat.checkSelfPermission(
+                        this@InstanceActivity, android.Manifest.permission.RECORD_AUDIO
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    return
+                }
+                microphoneRequest = request
+                microphonePermissionInFlight = true
+                microphonePermission.launch(android.Manifest.permission.RECORD_AUDIO)
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (microphoneRequest === request) microphoneRequest = null
+            }
+
             override fun onShowFileChooser(
                 webView: WebView,
                 filePathCallback: ValueCallback<Array<Uri>>,
@@ -526,6 +572,8 @@ class InstanceActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        microphoneRequest?.deny()
+        microphoneRequest = null
         fileCallback?.onReceiveValue(null)
         webView.stopLoading()
         webView.destroy()
