@@ -1,6 +1,6 @@
 import { Box, Dialog, Flex } from "@radix-ui/themes";
 import clsx from "clsx";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   CSSProperties,
   AnimationEvent as ReactAnimationEvent,
@@ -43,6 +43,14 @@ export function MobileSelectSheet({
   const [isSwipeClosing, setIsSwipeClosing] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
   const dragStateRef = useRef<DragState | null>(null);
+
+  useEffect(() => {
+    if (!open || !isSwipeClosing) return;
+
+    // Interrupted transitions do not emit transitionend, but must still release the modal.
+    const closeTimeout = window.setTimeout(() => onOpenChange(false), 250);
+    return () => window.clearTimeout(closeTimeout);
+  }, [isSwipeClosing, onOpenChange, open]);
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {

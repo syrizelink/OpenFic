@@ -1,3 +1,24 @@
+.model-id-select-content {
+  min-height: 0;
+  max-height: min(400px, calc(100dvh - 104px));
+  overflow: hidden;
+}
+
+.mobile-select-sheet-body .model-id-select-content {
+  max-height: min(400px, calc(82dvh - 60px - env(safe-area-inset-bottom)));
+}
+
+.model-id-select-header {
+  flex-shrink: 0;
+}
+
+.model-id-select-list {
+  min-height: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .model-id-select-trigger {
   color: var(--gray-12) !important;
 }

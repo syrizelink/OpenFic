@@ -1,14 +1,4 @@
-import {
-  Box,
-  Button,
-  Flex,
-  IconButton,
-  Popover,
-  ScrollArea,
-  Text,
-  TextField,
-  Tooltip,
-} from "@radix-ui/themes";
+import { Box, Button, Flex, IconButton, Popover, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { AlertCircle, ChevronDown, Component, RefreshCw, Search } from "lucide-react";
 import { motion } from "motion/react";
 /* oxlint-disable react-refresh/only-export-components */
@@ -181,11 +171,6 @@ export function ModelIdSelect({
   const modelNameSize = compact ? "1" : "2";
   const labelSize = compact ? "1" : "2";
   const showSearchBox = !compact || models.length >= 8;
-  const scrollAreaHeight = compact
-    ? "min(300px, calc(100dvh - 104px))"
-    : isMobile
-      ? "min(400px, calc(64dvh - 96px))"
-      : 300;
   const placeholderHeight = compact ? "auto" : 200;
 
   const selectedModel = useMemo(
@@ -369,9 +354,15 @@ export function ModelIdSelect({
   }
 
   const selectContent = (
-    <Box style={{ maxHeight: 400, overflow: "hidden" }}>
+    <Flex
+      direction="column"
+      className="model-id-select-content"
+    >
       {showSearchBox || showRefreshButton ? (
-        <Box p={headerPad}>
+        <Box
+          p={headerPad}
+          className="model-id-select-header"
+        >
           <Flex
             align="center"
             gap={compact ? "1" : "2"}
@@ -408,10 +399,7 @@ export function ModelIdSelect({
         </Box>
       ) : null}
 
-      <ScrollArea
-        scrollbars="vertical"
-        style={{ height: scrollAreaHeight }}
-      >
+      <Box className="model-id-select-list">
         {isLoading || (open && !isListReady) ? (
           <Flex
             align="center"
@@ -687,8 +675,8 @@ export function ModelIdSelect({
             ) : null}
           </Flex>
         )}
-      </ScrollArea>
-    </Box>
+      </Box>
+    </Flex>
   );
 
   if (isMobile) {

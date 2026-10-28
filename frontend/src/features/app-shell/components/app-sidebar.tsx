@@ -305,7 +305,7 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
           left="0"
           bottom="var(--app-status-bar-height)"
           initial={false}
-          animate={!isMobile ? { x: 0, width: sidebarWidth } : undefined}
+          animate={!isMobile ? { width: sidebarWidth } : undefined}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           style={{
             width: isMobile ? SIDEBAR_EXPANDED_WIDTH : undefined,

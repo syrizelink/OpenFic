@@ -184,10 +184,8 @@ export function AgentInput({
   const [composerActions, setComposerActions] = useState<AgentComposerActions | null>(null);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const toolbarCompressionLevelRef = useRef(0);
   const previousToolbarContentKeyRef = useRef<string | null>(null);
   const previousToolbarWidthRef = useRef<number | null>(null);
-  const toolbarCompressionResetFrameRef = useRef<number | null>(null);
   const [toolbarCompressionLevel, setToolbarCompressionLevel] = useState(0);
   const addMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -347,7 +345,6 @@ export function AgentInput({
 
   const updateToolbarCompressionLevel = useCallback((nextLevel: number) => {
     const normalizedLevel = Math.max(0, Math.min(nextLevel, MAX_TOOLBAR_COMPRESSION_LEVEL));
-    toolbarCompressionLevelRef.current = normalizedLevel;
     setToolbarCompressionLevel((currentLevel) =>
       currentLevel === normalizedLevel ? currentLevel : normalizedLevel,
     );
@@ -358,23 +355,11 @@ export function AgentInput({
     if (!toolbar || voice.active) return;
 
     const syncOverflow = (allowExpand: boolean) => {
-      if (toolbarCompressionResetFrameRef.current !== null) return;
-
-      const currentLevel = toolbarCompressionLevelRef.current;
+      const currentLevel = toolbarCompressionLevel;
       const contentChanged =
         previousToolbarContentKeyRef.current !== null &&
         previousToolbarContentKeyRef.current !== toolbarContentKey;
       previousToolbarContentKeyRef.current = toolbarContentKey;
-
-      if (contentChanged && currentLevel > 0) {
-        if (toolbarCompressionResetFrameRef.current === null) {
-          toolbarCompressionResetFrameRef.current = requestAnimationFrame(() => {
-            toolbarCompressionResetFrameRef.current = null;
-            updateToolbarCompressionLevel(0);
-          });
-        }
-        return;
-      }
 
       const currentWidth = toolbar.clientWidth;
       const previousWidth = previousToolbarWidthRef.current;
@@ -394,14 +379,7 @@ export function AgentInput({
 
     syncOverflow(false);
 
-    if (typeof ResizeObserver === "undefined") {
-      return () => {
-        if (toolbarCompressionResetFrameRef.current !== null) {
-          cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
-          toolbarCompressionResetFrameRef.current = null;
-        }
-      };
-    }
+    if (typeof ResizeObserver === "undefined") return;
 
     let resizeFrame: number | null = null;
     const resizeObserver = new ResizeObserver(() => {
@@ -413,13 +391,10 @@ export function AgentInput({
       });
     });
     resizeObserver.observe(toolbar);
+    for (const child of toolbar.children) resizeObserver.observe(child);
     return () => {
       resizeObserver.disconnect();
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
-      if (toolbarCompressionResetFrameRef.current !== null) {
-        cancelAnimationFrame(toolbarCompressionResetFrameRef.current);
-        toolbarCompressionResetFrameRef.current = null;
-      }
     };
   }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel, voice.active]);
 
