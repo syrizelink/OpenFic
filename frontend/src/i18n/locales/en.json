@@ -963,6 +963,14 @@
         "name": "List Skills",
         "description": "List all skills and read disabled custom skills and their references."
       },
+      "getSkill": {
+        "name": "View Skill",
+        "description": "View a skill's complete information and references regardless of the current agent's enabled skills."
+      },
+      "getSkillReferenceDoc": {
+        "name": "View Skill Reference",
+        "description": "View a skill's complete reference document regardless of the current agent's enabled skills."
+      },
       "createSkill": {
         "name": "Create Skill",
         "description": "Create a disabled custom skill without reference documents."
@@ -975,6 +983,14 @@
       "editSkillReferenceDoc": {
         "name": "Edit Skill Reference",
         "description": "Edit a reference document for a disabled custom skill."
+      },
+      "deleteSkill": {
+        "name": "Delete Skill",
+        "description": "Delete a disabled custom skill and all of its reference documents."
+      },
+      "deleteSkillReferenceDoc": {
+        "name": "Delete Skill Reference",
+        "description": "Delete a reference document from a disabled custom skill."
       },
       "webFetch": {
         "name": "Read Web Page",
@@ -2285,10 +2301,14 @@
       "activateSkill": "Skill",
       "referenceSkill": "Skill Reference",
       "listSkills": "List Skills",
+      "getSkill": "View Skill",
+      "getSkillReferenceDoc": "View Skill Reference",
       "createSkill": "Create Skill",
       "editSkill": "Edit Skill",
       "createSkillReferenceDoc": "Create Skill Reference",
       "editSkillReferenceDoc": "Edit Skill Reference",
+      "deleteSkill": "Delete Skill",
+      "deleteSkillReferenceDoc": "Delete Skill Reference",
       "skillReferenceId": "Reference document ID",
       "skillName": "Name",
       "skillReferenceTitle": "Title",

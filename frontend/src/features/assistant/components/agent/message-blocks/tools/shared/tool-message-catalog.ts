@@ -49,10 +49,14 @@ export const REGISTERED_TOOL_NAMES = [
   "activate_skill",
   "reference_skill",
   "list_skills",
+  "get_skill",
+  "get_skill_reference_doc",
   "create_skill",
   "edit_skill",
   "create_skill_reference_doc",
   "edit_skill_reference_doc",
+  "delete_skill",
+  "delete_skill_reference_doc",
 ] as const;
 
 export type RegisteredToolName = (typeof REGISTERED_TOOL_NAMES)[number];
@@ -429,6 +433,20 @@ export const TOOL_DESCRIPTOR_META = {
     isExplore: true,
     contentMode: "hidden",
   },
+  get_skill: {
+    toolName: "get_skill",
+    group: "skill",
+    tag: "get",
+    isExplore: true,
+    contentMode: "hidden",
+  },
+  get_skill_reference_doc: {
+    toolName: "get_skill_reference_doc",
+    group: "skill",
+    tag: "get-reference",
+    isExplore: true,
+    contentMode: "hidden",
+  },
   create_skill: {
     toolName: "create_skill",
     group: "skill",
@@ -456,6 +474,20 @@ export const TOOL_DESCRIPTOR_META = {
     tag: "edit-reference",
     isExplore: false,
     contentMode: "expandable",
+  },
+  delete_skill: {
+    toolName: "delete_skill",
+    group: "skill",
+    tag: "delete",
+    isExplore: false,
+    contentMode: "hidden",
+  },
+  delete_skill_reference_doc: {
+    toolName: "delete_skill_reference_doc",
+    group: "skill",
+    tag: "delete-reference",
+    isExplore: false,
+    contentMode: "hidden",
   },
 } satisfies Record<RegisteredToolName, ToolDescriptorMeta>;
 

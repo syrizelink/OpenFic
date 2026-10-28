@@ -78,7 +78,7 @@ async def test_builtin_skill_cannot_be_updated_or_deleted(client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_create_skill_with_empty_name(client: AsyncClient) -> None:
+async def test_create_skill_rejects_empty_required_fields(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",
         json={
@@ -87,11 +87,19 @@ async def test_create_skill_with_empty_name(client: AsyncClient) -> None:
             "content": "",
         },
     )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["name"] == ""
-    assert data["is_complete"] is False
-    assert data["is_enabled"] is False
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["name", "summary", "content"])
+async def test_create_skill_rejects_whitespace_required_fields(
+    client: AsyncClient, field: str
+) -> None:
+    body = {"name": "技能", "summary": "简述", "content": "内容"}
+    body[field] = " \n\t "
+    response = await client.post("/api/v1/skills", json=body)
+
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -107,6 +115,72 @@ async def test_create_skill_strips_name_whitespace(client: AsyncClient) -> None:
 
     assert response.status_code == 201
     assert response.json()["name"] == "可引用技能"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["测试v2", "测试v2尾随空格 ", " 测试v2前导空格"])
+async def test_create_skill_accepts_legal_names(client: AsyncClient, name: str) -> None:
+    response = await client.post(
+        "/api/v1/skills",
+        json={"name": name, "summary": "简述", "content": "内容"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == name.strip()
+
+
+@pytest.mark.asyncio
+async def test_edit_skill_accepts_renaming(client: AsyncClient) -> None:
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "旧名称", "summary": "简述", "content": "内容"},
+    )
+    skill_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/skills/{skill_id}",
+        json={"name": " 新名称 "},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "新名称"
+
+
+@pytest.mark.asyncio
+async def test_create_skill_rejects_newline_in_name(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/skills",
+        json={"name": "第一行\n第二行", "summary": "简述", "content": "内容"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_skill_rejects_tab_in_name(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/skills",
+        json={"name": "制表\t符", "summary": "简述", "content": "内容"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_skill_name_conflict_ignores_outer_whitespace(client: AsyncClient) -> None:
+    first = await client.post(
+        "/api/v1/skills",
+        json={"name": "同名技能", "summary": "简述", "content": "内容"},
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        "/api/v1/skills",
+        json={"name": " 同名技能 ", "summary": "简述", "content": "内容"},
+    )
+
+    assert second.status_code == 201
+    assert second.json()["name"] == "同名技能 (2)"
 
 
 @pytest.mark.asyncio
@@ -144,21 +218,21 @@ async def test_toggle_skill(client: AsyncClient) -> None:
 async def test_create_skill_dedupes_duplicate_name(client: AsyncClient) -> None:
     first = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "新建技能", "summary": "简述", "content": "内容"},
     )
     assert first.status_code == 201
     assert first.json()["name"] == "新建技能"
 
     second = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "新建技能", "summary": "简述", "content": "内容"},
     )
     assert second.status_code == 201
     assert second.json()["name"] == "新建技能 (2)"
 
     third = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "新建技能", "summary": "简述", "content": "内容"},
     )
     assert third.status_code == 201
     assert third.json()["name"] == "新建技能 (3)"
@@ -244,11 +318,11 @@ async def test_fork_skill_copies_builtin_skill_and_reference_docs(client: AsyncC
 async def test_update_skill_name_conflict(client: AsyncClient) -> None:
     await client.post(
         "/api/v1/skills",
-        json={"name": "技能一", "summary": "", "content": ""},
+        json={"name": "技能一", "summary": "简述", "content": "内容"},
     )
     create_b = await client.post(
         "/api/v1/skills",
-        json={"name": "技能二", "summary": "", "content": ""},
+        json={"name": "技能二", "summary": "简述", "content": "内容"},
     )
     skill_b_id = create_b.json()["id"]
 
@@ -263,7 +337,7 @@ async def test_update_skill_name_conflict(client: AsyncClient) -> None:
 async def test_update_skill_keeps_same_name(client: AsyncClient) -> None:
     create_response = await client.post(
         "/api/v1/skills",
-        json={"name": "技能", "summary": "", "content": ""},
+        json={"name": "技能", "summary": "简述", "content": "内容"},
     )
     skill_id = create_response.json()["id"]
 

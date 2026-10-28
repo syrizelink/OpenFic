@@ -89,6 +89,81 @@ async def test_create_edit_and_list_skill_and_reference(session, tools_with_data
     assert any(item["source"] == "builtin" for item in listed["skills"])
 
 
+async def test_create_and_rename_ignore_invalid_legacy_skill_names(
+    session, tools_with_database
+):
+    session.add(
+        Skill(
+            id="legacy-invalid-name",
+            name="legacy\nname",
+            summary="Old summary",
+            content="Old content",
+        )
+    )
+    await session.flush()
+
+    created = await tools_with_database(
+        "create_skill", name="Valid name", summary="Summary", content="Content"
+    )
+    assert created["success"] is True
+
+    renamed = await tools_with_database(
+        "edit_skill", skill_id="legacy-invalid-name", name="Renamed"
+    )
+    assert renamed["success"] is True
+    assert renamed["skill"]["name"] == "Renamed"
+
+
+async def test_delete_skill_and_reference_doc(session, tools_with_database):
+    created = await tools_with_database(
+        "create_skill", name="To delete", summary="Summary", content="Content"
+    )
+    skill_id = created["skill"]["id"]
+    reference = await tools_with_database(
+        "create_skill_reference_doc",
+        skill_id=skill_id,
+        title="Guide",
+        content="Reference",
+    )
+
+    deleted_doc = await tools_with_database(
+        "delete_skill_reference_doc", skill_id=skill_id, doc_id=reference["reference_doc"]["id"]
+    )
+    assert deleted_doc["success"] is True
+
+    deleted_skill = await tools_with_database("delete_skill", skill_id=skill_id)
+    assert deleted_skill == {"success": True, "skill_id": skill_id}
+
+
+async def test_skill_tools_reject_internal_tabs_without_persisting(
+    session, tools_with_database
+):
+    created = await tools_with_database(
+        "create_skill", name="制表\t符名", summary="Summary", content="Content"
+    )
+    assert created["success"] is False
+    assert created["code"] == "validation_error"
+    assert created["message"] == "Skill 名称不能包含换行符或制表符。"
+    assert not (await session.execute(select(Skill))).scalars().all()
+
+    skill = Skill(
+        id="tab-rename-skill",
+        name="Original",
+        summary="Summary",
+        content="Content",
+    )
+    session.add(skill)
+    await session.flush()
+    renamed = await tools_with_database(
+        "edit_skill", skill_id=skill.id, name="改名带\t制表"
+    )
+    assert renamed["success"] is False
+    assert renamed["code"] == "validation_error"
+    assert renamed["message"] == "Skill 名称不能包含换行符或制表符。"
+    await session.refresh(skill)
+    assert skill.name == "Original"
+
+
 async def test_list_includes_all_pages_and_enabled_and_disabled_skills(
     session, tools_with_database
 ):
@@ -237,6 +312,10 @@ def test_skill_management_available_to_default_build_and_registered():
         "edit_skill",
         "create_skill_reference_doc",
         "edit_skill_reference_doc",
+        "delete_skill",
+        "delete_skill_reference_doc",
+        "get_skill",
+        "get_skill_reference_doc",
     }
     assert names <= set(ToolRegistry.list_names())
     assert (

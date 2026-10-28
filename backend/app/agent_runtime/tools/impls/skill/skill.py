@@ -108,8 +108,8 @@ async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_na
 class ActivateSkillTool(AgentTool):
     name: str = "activate_skill"
     description: str = dedent("""\
-        获取指定技能的完整内容与参考文档列表。
-        <available_skills>中给出了可用的技能列表，当指定了不在列表中的技能时将被拒绝。
+        获取当前 Agent 已授权或当前会话已挂载的指定技能的完整内容与参考文档列表。
+        仅可读取<available_skills>中列出的技能；未启用或未挂载的技能会被拒绝。
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ActivateSkillInput
@@ -134,8 +134,8 @@ class ActivateSkillTool(AgentTool):
 class ReferenceSkillTool(AgentTool):
     name: str = "reference_skill"
     description: str = dedent("""\
-        读取技能的指定参考文档内容。
-        在使用该工具前，应先activate_skill得到对应的reference_name。
+        读取当前 Agent 已授权或当前会话已挂载技能的指定参考文档内容。
+        仅可读取<available_skills>中列出的技能；使用前应先activate_skill获取reference_name。
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReferenceSkillInput

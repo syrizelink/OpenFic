@@ -186,6 +186,7 @@ async def import_skill(
         summary=parsed.summary,
         content=parsed.content,
         is_enabled=False,
+        allow_incomplete=not parsed.recognized,
     )
     docs: list[SkillReferenceDoc] = []
     for title, content in ref_texts:

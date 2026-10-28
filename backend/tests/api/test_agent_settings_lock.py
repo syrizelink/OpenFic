@@ -150,7 +150,7 @@ async def test_agent_settings_lock_rejects_restricted_writes(
     )
     skill_response = await client.post(
         "/api/v1/skills",
-        json={"name": "Locked skill", "summary": "", "content": ""},
+        json={"name": "Locked skill", "summary": "简述", "content": "内容"},
     )
     definition_response = await client.post(
         "/api/v1/agent-definitions",

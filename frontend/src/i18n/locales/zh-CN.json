@@ -963,6 +963,14 @@
         "name": "列出 Skill",
         "description": "查看全部 Skill，并读取关闭的自定义 Skill 及其参考文档。"
       },
+      "getSkill": {
+        "name": "查看 Skill",
+        "description": "查看指定 Skill 的完整信息和参考文档，不受当前 Agent 技能启用状态限制。"
+      },
+      "getSkillReferenceDoc": {
+        "name": "查看 Skill 参考文档",
+        "description": "查看指定 Skill 的完整参考文档，不受当前 Agent 技能启用状态限制。"
+      },
       "createSkill": {
         "name": "创建 Skill",
         "description": "创建默认关闭且没有参考文档的自定义 Skill。"
@@ -975,6 +983,14 @@
       "editSkillReferenceDoc": {
         "name": "编辑 Skill 参考文档",
         "description": "修改关闭的自定义 Skill 的参考文档。"
+      },
+      "deleteSkill": {
+        "name": "删除 Skill",
+        "description": "删除关闭的自定义 Skill 及其全部参考文档。"
+      },
+      "deleteSkillReferenceDoc": {
+        "name": "删除 Skill 参考文档",
+        "description": "删除关闭的自定义 Skill 的参考文档。"
       },
       "webFetch": {
         "name": "网页读取",
@@ -2348,10 +2364,14 @@
       "activateSkill": "技能",
       "referenceSkill": "技能参考",
       "listSkills": "列出 Skill",
+      "getSkill": "查看 Skill",
+      "getSkillReferenceDoc": "查看 Skill 参考文档",
       "createSkill": "创建 Skill",
       "editSkill": "编辑 Skill",
       "createSkillReferenceDoc": "创建 Skill 参考文档",
       "editSkillReferenceDoc": "编辑 Skill 参考文档",
+      "deleteSkill": "删除 Skill",
+      "deleteSkillReferenceDoc": "删除 Skill 参考文档",
       "skillReferenceId": "参考文档 ID",
       "skillName": "名称",
       "skillReferenceTitle": "标题",

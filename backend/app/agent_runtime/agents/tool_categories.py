@@ -17,10 +17,14 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
         "plan": ("write_plan",),
         "skill_management": (
             "list_skills",
+            "get_skill",
+            "get_skill_reference_doc",
             "create_skill",
             "create_skill_reference_doc",
             "edit_skill",
             "edit_skill_reference_doc",
+            "delete_skill",
+            "delete_skill_reference_doc",
         ),
         "file_read": ("list_file", "read_file"),
         "chapter_read": (

@@ -48,6 +48,22 @@ class SkillValidationError(Exception):
     """Skill 数据校验失败。"""
 
 
+def _normalize_skill_name(name: str) -> str:
+    normalized = name.strip()
+    if not normalized:
+        raise SkillValidationError("Skill 名称不能为空。")
+    if any(char in normalized for char in "\r\n\t"):
+        raise SkillValidationError("Skill 名称不能包含换行符或制表符。")
+    return normalized
+
+
+def _validate_required_fields(*, name: str, summary: str, content: str) -> None:
+    if not summary.strip():
+        raise SkillValidationError("Skill 简述不能为空。")
+    if not content.strip():
+        raise SkillValidationError("Skill 内容不能为空。")
+
+
 @dataclass
 class SkillListResult:
     items: list[SkillData]
@@ -118,8 +134,11 @@ async def _load_builtin_skill_with_setting(
 
 
 async def _ensure_unique_name(session: AsyncSession, name: str) -> str:
-    builtin_names = {skill.name for skill in load_builtin_skills()}
-    existing_names = set(await skill_repo.get_all_names(session)) | builtin_names
+    existing_names = {
+        existing_name.strip()
+        for existing_name in await skill_repo.get_all_names(session)
+    }
+    existing_names.update(skill.name.strip() for skill in load_builtin_skills())
     if name not in existing_names:
         return name
     base = name
@@ -136,8 +155,12 @@ async def create_skill(
     summary: str = "",
     content: str = "",
     is_enabled: bool = False,
+    allow_incomplete: bool = False,
 ) -> Skill:
-    unique_name = await _ensure_unique_name(session, name.strip())
+    normalized_name = _normalize_skill_name(name)
+    if not allow_incomplete:
+        _validate_required_fields(name=normalized_name, summary=summary, content=content)
+    unique_name = await _ensure_unique_name(session, normalized_name)
     skill = Skill(
         name=unique_name,
         summary=summary,
@@ -308,23 +331,29 @@ async def update_skill(
 
     assert isinstance(skill, Skill)
 
-    normalized_name = name.strip() if name is not None else None
+    normalized_name = _normalize_skill_name(name) if name is not None else None
     if normalized_name is not None and normalized_name != skill.name:
-        if normalized_name in {builtin_skill.name for builtin_skill in load_builtin_skills()}:
+        if normalized_name in {
+            _normalize_skill_name(builtin_skill.name)
+            for builtin_skill in load_builtin_skills()
+        }:
             raise ConflictError(f"技能名称已存在: {normalized_name}")
-        matches = await skill_repo.list_by_names(session, [normalized_name])
-        if any(other.id != skill.id for other in matches):
+        existing_names = {
+            existing_name.strip()
+            for existing_name in await skill_repo.get_all_names(session)
+            if existing_name != skill.name
+        }
+        if normalized_name in existing_names:
             raise ConflictError(f"技能名称已存在: {normalized_name}")
         skill.name = normalized_name
     if summary is not None:
-        skill.summary = summary
+        skill.summary = summary.strip()
     if content is not None:
-        skill.content = content
+        skill.content = content.strip()
     if is_enabled is not None:
         skill.is_enabled = is_enabled
 
-    if skill.is_enabled and not is_skill_complete(skill):
-        raise SkillValidationError("Skill 信息未完整填写，无法启用。")
+    _validate_required_fields(name=skill.name, summary=skill.summary, content=skill.content)
 
     skill.updated_at = datetime.now(UTC)
     return await skill_repo.update(session, skill)

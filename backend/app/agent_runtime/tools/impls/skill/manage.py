@@ -30,6 +30,15 @@ class ListSkillsInput(SkillManagementInput):
     pass
 
 
+class GetSkillInput(SkillManagementInput):
+    skill_id: str = Field(description="要查看的 Skill ID")
+
+
+class GetSkillReferenceDocInput(SkillManagementInput):
+    skill_id: str = Field(description="所属 Skill ID")
+    doc_id: str = Field(description="参考文档 ID")
+
+
 class CreateSkillInput(SkillManagementInput):
     name: str = Field(description="技能名称", max_length=200)
     summary: str = Field(description="技能简述")
@@ -66,6 +75,15 @@ class EditSkillReferenceDocInput(SkillManagementInput):
         if self.title is None and self.content is None:
             raise ValueError("至少提供一个要修改的字段")
         return self
+
+
+class DeleteSkillInput(SkillManagementInput):
+    skill_id: str = Field(description="要删除的 Skill ID，必须为关闭的自定义 Skill")
+
+
+class DeleteSkillReferenceDocInput(SkillManagementInput):
+    skill_id: str = Field(description="所属 Skill ID，必须为关闭的自定义 Skill")
+    doc_id: str = Field(description="要删除的参考文档 ID")
 
 
 def _skill_data(skill: skill_service.SkillData) -> dict:
@@ -186,6 +204,54 @@ class ListSkillsTool(AgentTool):
 
 
 @ToolRegistry.register
+class GetSkillTool(AgentTool):
+    name: str = "get_skill"
+    description: str = (
+        "查看指定 Skill 的完整信息和参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
+    )
+    access_level: str = "readonly"
+    args_schema: type[BaseModel] = GetSkillInput
+
+    async def _execute(self, skill_id: str) -> str:
+        session = await create_session()
+        try:
+            skill = await skill_service.get_skill(session, skill_id)
+            result = _skill_data(skill)
+            result["reference_docs"] = [
+                _reference_data(doc)
+                for doc in await skill_service.list_reference_docs(session, skill.id)
+            ]
+        finally:
+            await session.close()
+        return json.dumps({"skill": result}, ensure_ascii=False)
+
+
+@ToolRegistry.register
+class GetSkillReferenceDocTool(AgentTool):
+    name: str = "get_skill_reference_doc"
+    description: str = (
+        "查看指定 Skill 的完整参考文档；这是 Skill 管理工具，不受当前 Agent 的启用/挂载范围限制。"
+    )
+    access_level: str = "readonly"
+    args_schema: type[BaseModel] = GetSkillReferenceDocInput
+
+    async def _execute(self, skill_id: str, doc_id: str) -> str:
+        session = await create_session()
+        try:
+            await skill_service.get_skill(session, skill_id)
+            docs = await skill_service.list_reference_docs(session, skill_id)
+            doc = next((item for item in docs if item.id == doc_id), None)
+            if doc is None:
+                raise NotFoundError(f"指定 Skill 中不存在参考文档: {doc_id}")
+            result = _reference_data(doc)
+        finally:
+            await session.close()
+        return json.dumps(
+            {"skill_id": skill_id, "reference_doc": result}, ensure_ascii=False
+        )
+
+
+@ToolRegistry.register
 class CreateSkillTool(AgentTool):
     name: str = "create_skill"
     description: str = (
@@ -271,5 +337,36 @@ class EditSkillReferenceDocTool(AgentTool):
             result = _reference_data(doc)
         return json.dumps(
             {"success": True, "skill_id": skill_id, "reference_doc": result},
+            ensure_ascii=False,
+        )
+
+
+@ToolRegistry.register
+class DeleteSkillTool(AgentTool):
+    name: str = "delete_skill"
+    description: str = "删除关闭的自定义 Skill 及其全部参考文档；不能删除内置或已启用 Skill。"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = DeleteSkillInput
+
+    async def _execute(self, skill_id: str) -> str:
+        async with _write_session() as session:
+            await _require_editable_skill(session, skill_id)
+            await skill_service.delete_skill(session, skill_id)
+        return json.dumps({"success": True, "skill_id": skill_id}, ensure_ascii=False)
+
+
+@ToolRegistry.register
+class DeleteSkillReferenceDocTool(AgentTool):
+    name: str = "delete_skill_reference_doc"
+    description: str = "删除关闭的自定义 Skill 的参考文档；不能删除内置或已启用 Skill 的参考文档。"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = DeleteSkillReferenceDocInput
+
+    async def _execute(self, skill_id: str, doc_id: str) -> str:
+        async with _write_session() as session:
+            await _require_editable_skill(session, skill_id)
+            await skill_reference_doc_service.delete_reference_doc(session, skill_id, doc_id)
+        return json.dumps(
+            {"success": True, "skill_id": skill_id, "doc_id": doc_id},
             ensure_ascii=False,
         )

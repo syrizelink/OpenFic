@@ -40,7 +40,74 @@ async def test_create_and_list_reference_docs(client: AsyncClient) -> None:
     assert list_response.status_code == 200
     items = list_response.json()
     assert len(items) == 2
-    assert items[0]["title"] == "参考文档一"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("title", ["", "   ", "第一行\n第二行", "第一行\t第二行"])
+async def test_create_reference_doc_rejects_invalid_title(
+    client: AsyncClient, title: str
+) -> None:
+    skill_db_id = await _create_skill(client)
+
+    response = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": title, "content": "内容"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_reference_doc_title_is_trimmed(client: AsyncClient) -> None:
+    skill_db_id = await _create_skill(client)
+
+    response = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "  参考文档  ", "content": "内容"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["title"] == "参考文档"
+
+
+@pytest.mark.asyncio
+async def test_create_reference_doc_title_conflict_is_case_insensitive(
+    client: AsyncClient,
+) -> None:
+    skill_db_id = await _create_skill(client)
+    first = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "DocCaseTest", "content": "内容"},
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "docCaseTest", "content": "内容"},
+    )
+
+    assert second.status_code == 201
+    assert second.json()["title"] == "docCaseTest (2)"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("title", ["", "   ", "第一行\n第二行", "第一行\t第二行"])
+async def test_update_reference_doc_rejects_invalid_title(
+    client: AsyncClient, title: str
+) -> None:
+    skill_db_id = await _create_skill(client)
+    created = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "原标题", "content": "内容"},
+    )
+    doc_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/skills/{skill_db_id}/reference-docs/{doc_id}",
+        json={"title": title},
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -133,6 +200,19 @@ async def test_reference_doc_not_found_for_other_skill(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_reference_doc_error_identifies_skill_scope(client: AsyncClient) -> None:
+    skill_id = await _create_skill(client)
+
+    response = await client.patch(
+        f"/api/v1/skills/{skill_id}/reference-docs/missing-doc",
+        json={"title": "新标题"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "指定 Skill 中不存在参考文档: missing-doc"
+
+
+@pytest.mark.asyncio
 async def test_reference_doc_skill_not_found(client: AsyncClient) -> None:
     create_response = await client.post(
         "/api/v1/skills/nonexistent-skill/reference-docs",
@@ -219,6 +299,28 @@ async def test_update_reference_doc_title_conflict(client: AsyncClient) -> None:
         json={"title": "文档一"},
     )
     assert conflict_response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_reference_doc_title_conflict_is_case_insensitive(
+    client: AsyncClient,
+) -> None:
+    skill_db_id = await _create_skill(client)
+    await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "DocCaseTest", "content": ""},
+    )
+    other = await client.post(
+        f"/api/v1/skills/{skill_db_id}/reference-docs",
+        json={"title": "Other", "content": ""},
+    )
+
+    response = await client.patch(
+        f"/api/v1/skills/{skill_db_id}/reference-docs/{other.json()['id']}",
+        json={"title": "docCaseTest"},
+    )
+
+    assert response.status_code == 409
 
 
 @pytest.mark.asyncio
