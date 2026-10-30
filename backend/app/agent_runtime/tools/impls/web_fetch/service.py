@@ -26,6 +26,14 @@ MAX_RAW_HTML_BYTES = 5 * 1024 * 1024
 MAX_REDIRECTS = 5
 ALLOWED_CONTENT_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 TEREDO_NETWORK = ipaddress.ip_network("2001::/32")
+# RFC 2544 基准测试保留段，被 Clash/mihomo 等 TUN 代理广泛用作 fake-ip 池
+# （mihomo 默认 198.18.0.1/16，可配置更宽，取 /15 以覆盖各类配置）。
+# 此类环境下系统解析器对公网域名返回该段地址，由本地代理按域名转发至真实目标。
+# 仅放行「域名解析得到」的该段地址，且需先探测确认本机确实处于 fake-ip 环境；
+# IP 字面量形式不经 DNS，不可能是代理分配的 fake-ip，仍按保留段拒绝。
+FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+# 探测域名：长期稳定的知名站点
+FAKE_IP_PROBE_HOST = "www.baidu.com"
 INLINE_ELEMENTS = frozenset(
     {"a", "abbr", "b", "code", "em", "i", "kbd", "mark", "q", "s", "small", "span", "strong"}
 )
@@ -90,6 +98,60 @@ def _is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -
     )
 
 
+_fake_ip_environment_cache: bool | None = None
+
+
+async def _is_fake_ip_environment() -> bool:
+    """探测本机 DNS 是否呈现 fake-ip 行为（进程级缓存，单次探测）。
+
+    解析固定知名域名，若结果落在保留段则说明本机 DNS 被代理接管；
+    探测失败或结果不确定时一律视为非 fake-ip 环境，不启用豁免。
+    """
+    global _fake_ip_environment_cache
+    if _fake_ip_environment_cache is not None:
+        return _fake_ip_environment_cache
+    try:
+        probe_addresses = await resolve_public_addresses(FAKE_IP_PROBE_HOST)
+    except ToolExecutionError:
+        _fake_ip_environment_cache = False
+        return False
+    _fake_ip_environment_cache = any(
+        address in FAKE_IP_NETWORK for address in probe_addresses
+    )
+    return _fake_ip_environment_cache
+
+
+def _parse_numeric_ipv4(hostname: str) -> ipaddress.IPv4Address | None:
+    """识别数字形式 IPv4（含缺段/整数/十六进制等 inet_aton 写法），不经 DNS。
+
+    如 ``198.18.102``、``3323068518``、``0xc6120066`` 等形式不是合法点分
+    字面量，但系统解析器会按 inet_aton 语义直接转换而不查询 DNS——
+    它们必须按字面量处理，不得进入 fake-ip 域名豁免路径。
+    """
+    try:
+        packed = socket.inet_aton(hostname)
+    except OSError:
+        return None
+    try:
+        return ipaddress.IPv4Address(packed)
+    except ValueError:
+        return None
+
+
+def _idna_to_ascii(hostname: str) -> str:
+    """按 IDNA 规则将 hostname 规范化为 ASCII 形式。
+
+    系统解析器接受 Unicode 变体分隔符（U+3002/U+FF0E/U+FF61 等，如
+    ``198.18.0.102``）并将其当作数字地址直接转换，若不先规范化，
+    这些写法会绕过字面量分类进入域名豁免路径。规范化失败时返回
+    原值，交由后续解析流程按域名处理（畸形输入最终解析失败被拒）。
+    """
+    try:
+        return hostname.encode("idna").decode("ascii")
+    except (UnicodeError, ValueError):
+        return hostname
+
+
 async def resolve_public_addresses(
     hostname: str,
 ) -> tuple[ipaddress.IPv4Address | ipaddress.IPv6Address, ...]:
@@ -127,16 +189,37 @@ async def _assert_public_url(url: str) -> None:
     if not hostname:
         raise ToolExecutionError("URL 缺少主机名", code="validation_error")
 
+    # 先做 IDNA 规范化：Unicode 分隔符变体与解析器实际处理的 ASCII 形式
+    # 保持一致，避免变体写法绕过字面量分类
+    hostname = _idna_to_ascii(hostname)
+
     try:
         literal_address = ipaddress.ip_address(hostname)
     except ValueError:
         literal_address = None
 
-    addresses = (
-        (literal_address,)
-        if literal_address is not None
-        else await resolve_public_addresses(hostname)
-    )
+    if literal_address is None:
+        # 非标准数字形式（缺段/整数/十六进制）：inet_aton 语义，不经 DNS，
+        # 同样按字面量处理，不适用 fake-ip 豁免
+        literal_address = _parse_numeric_ipv4(hostname)
+
+    if literal_address is not None:
+        addresses = (literal_address,)
+    else:
+        addresses = await resolve_public_addresses(hostname)
+        # fake-ip 环境兼容：域名经 DNS 解析出保留段地址时，若探测确认本机
+        # 处于 fake-ip 代理环境，将这些地址视为「由代理按域名转发的目标」，
+        # 从校验中剔除；余下地址（如混合结果中的真实私网地址）照常校验。
+        # 混合出现 fake-ip 与私网地址时仍会拒绝。
+        if any(address in FAKE_IP_NETWORK for address in addresses) and (
+            await _is_fake_ip_environment()
+        ):
+            addresses = tuple(
+                address for address in addresses if address not in FAKE_IP_NETWORK
+            )
+            if not addresses:
+                return
+
     if not all(_is_public_address(address) for address in addresses):
         raise ToolExecutionError(
             "目标地址被安全策略阻止",
