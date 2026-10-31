@@ -10,6 +10,7 @@ from langgraph.types import Command
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
+from app.agent_runtime.tool_call_recovery import TRUNCATED_TOOL_CALL_MESSAGE
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.types import TerminationCondition, ReactAgentConfig
 from app.agent_runtime.graph.react_agent import (
@@ -1040,6 +1041,54 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
         "success": False,
         "code": "malformed_tool_call",
         "message": "工具参数 JSON 无法解析，未执行工具调用",
+    }
+
+
+@pytest.mark.asyncio
+async def test_react_agent_does_not_execute_tool_calls_truncated_by_max_tokens():
+    executed_calls: list[dict[str, object]] = []
+    config = ReactAgentConfig(
+        name="composer",
+        tools=[_write_plan_tool(executed_calls)],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    graph = create_react_agent(config)
+
+    async def _mock_invoke(*args, **kwargs):
+        # json_repair 补全后的参数看起来合法，但最后一个字段已经被截断
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "id": "call_1",
+                    "name": "write_plan",
+                    "args": {"todos": [{"content": "写到一半", "status": "pending"}]},
+                }
+            ],
+            response_metadata={"stop_reason": "max_tokens"},
+        )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Create a plan")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    assert executed_calls == []
+    assert isinstance(result["messages"][-1], ToolMessage)
+    assert result["messages"][-1].tool_call_id == "call_1"
+    assert json.loads(result["messages"][-1].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "malformed_tool_call",
+        "message": TRUNCATED_TOOL_CALL_MESSAGE,
     }
 
 

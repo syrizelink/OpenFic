@@ -219,6 +219,7 @@ class ModelService:
         cache_write_price: float | None = None,
         dimensions: int | None = None,
         clear_dimensions: bool = False,
+        clear_max_tokens: bool = False,
     ) -> Model:
         """
         更新模型。
@@ -280,6 +281,7 @@ class ModelService:
             provider_id=provider_id,
             model_identifier=model_identifier,
             clear_dimensions=clear_dimensions,
+            clear_max_tokens=clear_max_tokens,
             task_type=task_type,
             temperature=temperature,
             top_p=top_p,

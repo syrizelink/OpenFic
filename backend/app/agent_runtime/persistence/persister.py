@@ -31,6 +31,8 @@ from app.agent_runtime.tools.errors import (
 )
 from app.agent_runtime.tool_call_recovery import (
     is_malformed_tool_call,
+    is_output_truncated,
+    malformed_tool_call_failure,
     reconcile_tool_call_chunks,
     recover_message_tool_calls,
 )
@@ -204,7 +206,11 @@ class MessagePersister:
             output
         )
         reasoning_duration_ms = self._get_reasoning_duration_ms(buf)
-        tool_calls = self._reconcile_tool_calls(buf.tool_call_chunks, run_id=run_id)
+        tool_calls = self._reconcile_tool_calls(
+            buf.tool_call_chunks,
+            run_id=run_id,
+            truncated=is_output_truncated(output),
+        )
         if not tool_calls:
             tool_calls = self._extract_output_tool_calls(output, run_id=run_id)
 
@@ -225,13 +231,7 @@ class MessagePersister:
         for tool_call in tool_calls:
             if not is_malformed_tool_call(tool_call):
                 continue
-            content = serialize_tool_failure(
-                ToolFailure(
-                    code="malformed_tool_call",
-                    message="工具参数 JSON 无法解析，未执行工具调用",
-                    trace={"source": "tool_call_recovery"},
-                )
-            )
+            content = serialize_tool_failure(malformed_tool_call_failure(tool_call))
             await self._write(
                 role="tool",
                 status="complete",
@@ -358,8 +358,9 @@ class MessagePersister:
         chunks: dict[int, dict],
         *,
         run_id: str | None = None,
+        truncated: bool = False,
     ) -> list[dict]:
-        return reconcile_tool_call_chunks(chunks, id_seed=run_id)
+        return reconcile_tool_call_chunks(chunks, id_seed=run_id, truncated=truncated)
 
     @staticmethod
     def _extract_output_content(output: object | None) -> str:

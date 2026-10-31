@@ -4,11 +4,11 @@
  * 模型高级参数面板，包含温度、Top-P、Top-K 等参数。
  */
 
-import { Box, Button, Flex, Grid, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Grid, Text, TextField } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
-import type { Control, FieldValues, Path } from "react-hook-form";
+import { Controller, type Control, type FieldValues, type Path } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { InfoTooltip } from "@/components";
@@ -102,6 +102,73 @@ const PARAM_CONFIGS = [
     inputStep: 0.01,
   },
 ] as const;
+
+// 空值表示不传 max_tokens，由后端按模型默认输出上限处理，因此不能用带默认值的滑块
+function MaxTokensField<T extends FieldValues>({
+  control,
+  inputId,
+}: {
+  control: Control<T>;
+  inputId: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Flex
+      direction="column"
+      gap="2"
+    >
+      <Flex
+        justify="between"
+        align="center"
+        gap="2"
+      >
+        <Text
+          as="label"
+          htmlFor={inputId}
+          size="2"
+          weight="medium"
+          color="gray"
+        >
+          {t("models.maxTokens")}
+        </Text>
+        <Controller
+          name={"maxTokens" as Path<T>}
+          control={control}
+          render={({ field }) => (
+            <TextField.Root
+              id={inputId}
+              type="number"
+              min={1}
+              step={1}
+              value={field.value ?? ""}
+              placeholder={t("models.maxTokensPlaceholder")}
+              onChange={(event) => {
+                const value = event.target.value;
+                field.onChange(value === "" ? null : Number(value));
+              }}
+              onBlur={(event) => {
+                const value = Number(event.currentTarget.value);
+                const normalizedValue = Number.isFinite(value) && value >= 1 ? Math.round(value) : null;
+                if (normalizedValue !== field.value) {
+                  field.onChange(normalizedValue);
+                }
+                field.onBlur();
+              }}
+              style={{ width: 120 }}
+            />
+          )}
+        />
+      </Flex>
+      <Text
+        size="1"
+        color="gray"
+      >
+        {t("models.maxTokensDesc")}
+      </Text>
+    </Flex>
+  );
+}
 
 export function AdvancedParamsSection<T extends FieldValues>({
   control,
@@ -197,6 +264,10 @@ export function AdvancedParamsSection<T extends FieldValues>({
                     inputKey={`${config.name}-${modelId || "new"}`}
                   />
                 ))}
+                <MaxTokensField
+                  control={control}
+                  inputId={`max-tokens-${modelId || "new"}`}
+                />
               </Grid>
             </Box>
           </motion.div>

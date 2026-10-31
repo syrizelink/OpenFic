@@ -422,6 +422,38 @@ async def test_update_model(client: AsyncClient, session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_update_model_omitting_max_tokens_preserves_value_and_null_clears_it(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="anthropic",
+    )
+    model = await model_repo.create(
+        session=session,
+        name="Claude",
+        provider_id=provider.id,
+        model_id="claude-opus-4-6",
+        max_tokens=8192,
+    )
+    await session.commit()
+
+    response = await client.put(f"/api/v1/models/{model.id}", json={"name": "Renamed"})
+    assert response.status_code == 200
+    assert response.json()["max_tokens"] == 8192
+
+    response = await client.put(f"/api/v1/models/{model.id}", json={"max_tokens": None})
+    assert response.status_code == 200
+    assert response.json()["max_tokens"] is None
+
+
+@pytest.mark.asyncio
 async def test_update_model_rejects_duplicate_name(
     client: AsyncClient, session: AsyncSession
 ):
