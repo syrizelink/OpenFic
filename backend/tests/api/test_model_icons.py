@@ -39,6 +39,17 @@ async def test_infistar_icon_is_served_locally(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_runcrate_icon_is_served_locally(client: AsyncClient) -> None:
+    response = await client.get("/icons/model/catalog/runcrate.svg")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
+    assert 'fill="currentColor"' in response.text
+    assert len(respx.calls) == 0
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_catalog_icon_route_prefers_jsdelivr_without_probing_models_dev(
     client: AsyncClient,
 ) -> None:

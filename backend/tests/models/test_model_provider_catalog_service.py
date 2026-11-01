@@ -222,6 +222,7 @@ async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Pat
         "ollama",
         "openai",
         "openrouter",
+        "runcrate",
         "upstage",
     ]
     assert (await service.get_provider("openai")).icon_path == _OPENAI_ICON_URL
