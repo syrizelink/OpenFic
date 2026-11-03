@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from langchain_core.language_models import LanguageModelInput
@@ -446,7 +446,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         return model.with_thinking_mode(enabled=True) if reasoning_effort else model
 
     # OpenAI-compatible fallback (openai, huggingface, openai-compatible, unknown)
-    from langchain_core.outputs import ChatGenerationChunk
+    from langchain_core.messages import AIMessage as _AIMessage
+    from langchain_core.outputs import ChatGenerationChunk, ChatResult
     from langchain_openai import ChatOpenAI as _ChatOpenAI
 
     class ChatOpenAI(_ChatOpenAI):
@@ -480,6 +481,100 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
                 generation_chunk.message.additional_kwargs["reasoning_content"] = (
                     reasoning_content
                 )
+            self._stash_tool_call_extra_content(
+                generation_chunk.message.additional_kwargs,
+                delta.get("tool_calls") if isinstance(delta, dict) else None,
+            )
             return generation_chunk
+
+        def _create_chat_result(
+            self,
+            response: dict | Any,
+            generation_info: dict | None = None,
+        ) -> ChatResult:
+            result = super()._create_chat_result(response, generation_info)
+            response_dict = (
+                response
+                if isinstance(response, dict)
+                else response.model_dump()
+            )
+            choices = response_dict.get("choices")
+            if not isinstance(choices, list):
+                return result
+            for choice, generation in zip(choices, result.generations, strict=False):
+                message = choice.get("message") if isinstance(choice, dict) else None
+                self._stash_tool_call_extra_content(
+                    generation.message.additional_kwargs,
+                    message.get("tool_calls") if isinstance(message, dict) else None,
+                )
+            return result
+
+        def _get_request_payload(
+            self,
+            input_: Any,
+            *,
+            stop: list[str] | None = None,
+            **kwargs: Any,
+        ) -> dict[str, Any]:
+            payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+            if isinstance(input_, list):
+                source_messages = input_
+            elif hasattr(input_, "to_messages"):
+                source_messages = input_.to_messages()
+            else:
+                return payload
+
+            payload_messages = payload.get("messages")
+            if not isinstance(payload_messages, list):
+                return payload
+
+            for source, target in zip(source_messages, payload_messages, strict=False):
+                if not isinstance(source, _AIMessage) or not isinstance(target, dict):
+                    continue
+                extra_by_id = source.additional_kwargs.get("tool_call_extra_content")
+                if not isinstance(extra_by_id, dict) or not extra_by_id:
+                    continue
+                target_tool_calls = target.get("tool_calls")
+                if not isinstance(target_tool_calls, list):
+                    continue
+                for target_tool_call in target_tool_calls:
+                    if not isinstance(target_tool_call, dict):
+                        continue
+                    extra_content = extra_by_id.get(target_tool_call.get("id"))
+                    if isinstance(extra_content, dict) and extra_content:
+                        cast(dict[str, Any], target_tool_call)["extra_content"] = (
+                            extra_content
+                        )
+            return payload
+
+        @staticmethod
+        def _stash_tool_call_extra_content(
+            additional_kwargs: dict,
+            raw_tool_calls: Any,
+        ) -> None:
+            """Keep per-tool-call `extra_content` (e.g. Gemini thought signatures).
+
+            langchain-openai drops `extra_content` when converting responses,
+            but OpenAI-compatible Gemini 3 endpoints reject the follow-up
+            request when a required thought signature is not sent back.
+            Stash it by tool call id so `_get_request_payload` can restore it.
+            """
+            if not isinstance(raw_tool_calls, list):
+                return
+            extra_by_id: dict[str, Any] = {}
+            for raw_tool_call in raw_tool_calls:
+                if not isinstance(raw_tool_call, dict):
+                    continue
+                extra_content = raw_tool_call.get("extra_content")
+                if not isinstance(extra_content, dict) or not extra_content:
+                    continue
+                tool_call_id = raw_tool_call.get("id")
+                if isinstance(tool_call_id, str) and tool_call_id:
+                    extra_by_id[tool_call_id] = extra_content
+            if not extra_by_id:
+                return
+            stored = additional_kwargs.setdefault("tool_call_extra_content", {})
+            if isinstance(stored, dict):
+                stored.update(extra_by_id)
 
     return ChatOpenAI(**_openai_compatible_kwargs(config, base_url=base_url))

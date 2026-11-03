@@ -894,3 +894,225 @@ def test_create_chat_model_deepseek_uses_bundled_tiktoken_encoding(
     )
 
     assert model.get_token_ids("OpenFic 离线 token 测试")
+
+
+def _openai_compatible_model():
+    return create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+
+
+_THOUGHT_SIGNATURE = {"google": {"thought_signature": "sig-abc-123"}}
+
+
+def _payload_assistant_tool_calls(model, ai_message, tool_call_id):
+    from langchain_core.messages import HumanMessage, ToolMessage
+
+    payload = model._get_request_payload(
+        [
+            HumanMessage(content="weather in Paris?"),
+            ai_message,
+            ToolMessage(content="sunny", tool_call_id=tool_call_id),
+        ]
+    )
+    return payload["messages"][1]["tool_calls"]
+
+
+def test_openai_compatible_streaming_tool_call_extra_content_round_trips() -> None:
+    from langchain_core.messages import AIMessage, AIMessageChunk
+
+    model = _openai_compatible_model()
+    first = model._convert_chunk_to_generation_chunk(
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "function-call-1",
+                                "type": "function",
+                                "function": {"name": "get_weather", "arguments": ""},
+                                "extra_content": _THOUGHT_SIGNATURE,
+                            }
+                        ],
+                    },
+                    "finish_reason": None,
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        },
+        AIMessageChunk,
+        None,
+    )
+    second = model._convert_chunk_to_generation_chunk(
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "function": {
+                                    "name": None,
+                                    "arguments": '{"city": "Paris"}',
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        },
+        AIMessageChunk,
+        None,
+    )
+    assert first is not None and second is not None
+    merged = first.message + second.message
+    ai_message = AIMessage(
+        content=merged.content,
+        additional_kwargs=dict(merged.additional_kwargs),
+        tool_calls=merged.tool_calls,
+    )
+
+    assert ai_message.additional_kwargs["tool_call_extra_content"] == {
+        "function-call-1": _THOUGHT_SIGNATURE
+    }
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "function-call-1")
+    assert tool_calls[0]["extra_content"] == _THOUGHT_SIGNATURE
+
+
+def test_openai_compatible_non_streaming_tool_call_extra_content_round_trips() -> None:
+    model = _openai_compatible_model()
+    result = model._create_chat_result(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "function-call-9",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_weather",
+                                    "arguments": '{"city": "Paris"}',
+                                },
+                                "extra_content": _THOUGHT_SIGNATURE,
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        }
+    )
+
+    ai_message = result.generations[0].message
+    assert ai_message.additional_kwargs["tool_call_extra_content"] == {
+        "function-call-9": _THOUGHT_SIGNATURE
+    }
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "function-call-9")
+    assert tool_calls[0]["extra_content"] == _THOUGHT_SIGNATURE
+
+
+def test_openai_compatible_multiple_tool_calls_keep_their_own_extra_content() -> None:
+    model = _openai_compatible_model()
+    result = model._create_chat_result(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "call-a",
+                                "type": "function",
+                                "function": {"name": "get_weather", "arguments": "{}"},
+                                "extra_content": {"google": {"thought_signature": "a"}},
+                            },
+                            {
+                                "id": "call-b",
+                                "type": "function",
+                                "function": {"name": "get_time", "arguments": "{}"},
+                            },
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        }
+    )
+
+    ai_message = result.generations[0].message
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-a")
+    assert tool_calls[0]["extra_content"] == {"google": {"thought_signature": "a"}}
+    assert "extra_content" not in tool_calls[1]
+
+
+def test_openai_compatible_tool_call_without_extra_content_is_unchanged() -> None:
+    from langchain_core.messages import AIMessageChunk
+
+    model = _openai_compatible_model()
+    generation = model._convert_chunk_to_generation_chunk(
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "call-plain",
+                                "type": "function",
+                                "function": {"name": "get_weather", "arguments": "{}"},
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gpt-4o",
+        },
+        AIMessageChunk,
+        None,
+    )
+    assert generation is not None
+    assert "tool_call_extra_content" not in generation.message.additional_kwargs
+
+    from langchain_core.messages import AIMessage
+
+    ai_message = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "get_weather",
+                "args": {},
+                "id": "call-plain",
+                "type": "tool_call",
+            }
+        ],
+    )
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-plain")
+    assert tool_calls == [
+        {
+            "type": "function",
+            "id": "call-plain",
+            "function": {"name": "get_weather", "arguments": "{}"},
+        }
+    ]
