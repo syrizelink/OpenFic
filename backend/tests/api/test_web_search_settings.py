@@ -34,6 +34,7 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
         "deepseek": False,
         "exa": False,
         "jina": False,
+        "keenable": False,
         "perplexity": False,
         "searxng": False,
         "serper": False,
@@ -61,6 +62,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
         "deepseek",
         "exa",
         "jina",
+        "keenable",
         "perplexity",
         "searxng",
         "serper",
@@ -69,6 +71,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
     ]
     by_name = {item["name"]: item for item in data}
     assert by_name["ddgs"]["requires_api_key"] is False
+    assert by_name["keenable"]["requires_api_key"] is False
     assert by_name["searxng"]["requires_api_key"] is False
     assert by_name["tavily"]["requires_api_key"] is True
 

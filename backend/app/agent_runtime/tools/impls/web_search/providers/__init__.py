@@ -8,6 +8,7 @@ from app.agent_runtime.tools.impls.web_search.providers.ddgs import DdgsProvider
 from app.agent_runtime.tools.impls.web_search.providers.deepseek import DeepSeekProvider
 from app.agent_runtime.tools.impls.web_search.providers.exa import ExaProvider
 from app.agent_runtime.tools.impls.web_search.providers.jina import JinaProvider
+from app.agent_runtime.tools.impls.web_search.providers.keenable import KeenableProvider
 from app.agent_runtime.tools.impls.web_search.providers.perplexity import (
     PerplexityProvider,
 )
@@ -24,6 +25,7 @@ PROVIDERS: dict[str, type[WebSearchProvider]] = {
         DeepSeekProvider,
         ExaProvider,
         JinaProvider,
+        KeenableProvider,
         PerplexityProvider,
         SearxngProvider,
         SerperProvider,
@@ -49,7 +51,7 @@ ZHIPU_SEARCH_ENGINES = (
 )
 
 PROVIDER_REQUIRES_API_KEY: frozenset[str] = frozenset(
-    name for name in PROVIDERS if name not in {"ddgs", "searxng"}
+    name for name in PROVIDERS if name not in {"ddgs", "keenable", "searxng"}
 )
 
 DDGS_BACKENDS = (
@@ -69,6 +71,7 @@ _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], .
     "deepseek": (),
     "exa": (),
     "jina": (("jina_base_url", "text", False, ()),),
+    "keenable": (),
     "perplexity": (),
     "searxng": (("searxng_base_url", "text", True, ()),),
     "serper": (),

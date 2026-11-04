@@ -75,6 +75,7 @@ class TestProviderRegistry:
             "deepseek",
             "exa",
             "jina",
+            "keenable",
             "perplexity",
             "searxng",
             "serper",
@@ -119,6 +120,8 @@ class TestProviderRegistry:
             "search_pro_sogou",
             "search_pro_quark",
         ]
+        assert by_name["keenable"]["requires_api_key"] is False
+        assert by_name["keenable"]["fields"] == []
         assert by_name["searxng"]["requires_api_key"] is False
         assert by_name["zhipu"]["requires_api_key"] is True
 
@@ -497,6 +500,51 @@ class TestHttpProviders:
         assert route.called
         assert route.calls[0].request.headers["authorization"] == "Bearer test-key"
         assert response.results[1].snippet == "c2"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_keenable_keyless_uses_public_endpoint(self) -> None:
+        provider = get_provider("keenable")()
+        route = respx.post("https://api.keenable.ai/v1/search/public").mock(
+            return_value=Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "title": "t",
+                            "url": "https://u",
+                            "description": "",
+                            "snippet": "line one\n\nline   two " + "x" * 400,
+                        }
+                    ]
+                },
+            )
+        )
+        response = await provider.search(
+            "q", _provider_config(api_key="", max_results=5)
+        )
+        assert route.called
+        request = route.calls[0].request
+        assert request.headers["x-keenable-title"] == "OpenFic"
+        assert "x-api-key" not in request.headers
+        assert json.loads(request.content) == {"query": "q", "max_results": 5}
+        assert response.results[0].url == "https://u"
+        assert response.results[0].snippet.startswith("line one line two x")
+        assert len(response.results[0].snippet) == 300
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_keenable_with_api_key_uses_keyed_endpoint(self) -> None:
+        provider = get_provider("keenable")()
+        route = respx.post("https://api.keenable.ai/v1/search").mock(
+            return_value=Response(200, json={"results": []})
+        )
+        response = await provider.search("q", _provider_config())
+        assert route.called
+        request = route.calls[0].request
+        assert request.headers["x-api-key"] == "test-key"
+        assert request.headers["x-keenable-title"] == "OpenFic"
+        assert response.results == []
 
     @pytest.mark.asyncio
     @respx.mock
