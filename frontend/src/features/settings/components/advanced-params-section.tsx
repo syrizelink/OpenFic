@@ -149,7 +149,8 @@ function MaxTokensField<T extends FieldValues>({
               }}
               onBlur={(event) => {
                 const value = Number(event.currentTarget.value);
-                const normalizedValue = Number.isFinite(value) && value >= 1 ? Math.round(value) : null;
+                const normalizedValue =
+                  Number.isFinite(value) && value >= 1 ? Math.round(value) : null;
                 if (normalizedValue !== field.value) {
                   field.onChange(normalizedValue);
                 }
