@@ -16,6 +16,7 @@ from app.core.txt_parser import (
     decode_text_content,
     parse_txt_content,
 )
+from app.core.zip_archive import decode_member_name, is_macos_metadata_path
 from app.retrieval.internal.indexing.chunking import RecursiveCharacterChunker
 
 ImportSplitMode = Literal["auto", "manual"]
@@ -106,7 +107,9 @@ def _parse_zip_archive(content: bytes) -> ParseResult:
                 if total_uncompressed_size > MAX_IMPORT_FILE_SIZE:
                     raise ValueError("压缩包解压后的文本总大小超过限制（最大 50MB）")
 
-                path = _normalize_archive_path(info.filename)
+                path = _normalize_archive_path(decode_member_name(info))
+                if is_macos_metadata_path(path):
+                    continue
                 suffix = get_import_suffix(path)
                 if suffix not in SUPPORTED_TEXT_SUFFIXES:
                     continue

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.core.txt_parser import decode_text_content
+from app.core.zip_archive import decode_member_name, is_macos_metadata_path
 from app.storage.models.note import Note, NoteCategory
 from app.storage.models.project import Project
 from app.storage.repos import note_category_repo, note_repo, project_repo
@@ -209,7 +210,9 @@ def _parse_zip_archive(content: bytes) -> NoteImportPreview:
                 if total_uncompressed_size > MAX_NOTE_IMPORT_FILE_SIZE:
                     raise ValueError("压缩包解压后的文件总大小超过限制（最大 50MB）")
 
-                path = _normalize_archive_path(info.filename)
+                path = _normalize_archive_path(decode_member_name(info))
+                if is_macos_metadata_path(path):
+                    continue
                 if not path.lower().endswith(".md"):
                     ignored_file_count += 1
                     continue
