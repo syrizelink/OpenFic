@@ -4,7 +4,7 @@
 
 ## 前置要求
 
-- macOS + Xcode 16+（App Store 免费安装），iOS 部署目标 14.0
+- macOS + Xcode 16+（App Store 免费安装），iOS 部署目标 15.0（Xcode 27 的 iOS SDK 最低要求 15.0）
 - Node.js 22+、pnpm 11（`corepack enable` 或 `npm i -g pnpm@11`）
 - **必需**：CocoaPods（`brew install cocoapods` 或 `sudo gem install cocoapods`）
   - `npx cap sync ios` 会自动执行 `pod install`
