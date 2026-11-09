@@ -52,5 +52,9 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>OpenFic 需要访问本地网络，以连接您自建的 OpenFic 服务器。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OpenFic 需要使用麦克风，以在写作助手中使用语音输入。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>OpenFic 需要使用相机，以扫描实例二维码。</string>
 </dict>
 </plist>

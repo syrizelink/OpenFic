@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@capacitor/core':
-        specifier: ^7.4.3
+        specifier: ^7.6.9
         version: 7.6.9
       '@radix-ui/themes':
         specifier: ^3.3.0
