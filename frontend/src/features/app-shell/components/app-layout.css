@@ -58,6 +58,10 @@
   pointer-events: auto;
 }
 
+.app-layout-assistant-sidebar[hidden] {
+  display: none;
+}
+
 .app-layout-assistant-sidebar[data-mobile-overlay="true"] {
   inset: 0;
   z-index: 60;

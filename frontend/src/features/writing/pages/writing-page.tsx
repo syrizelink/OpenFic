@@ -10,6 +10,7 @@ import "./writing-page.css";
 
 import { PanelLayoutLoading } from "@/components";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
@@ -453,15 +454,7 @@ export function WritingPage() {
               </div>
             </Panel>
 
-            <Separator className="resize-handle writing-page-separator" />
-
-            <Panel
-              id="right-sidebar"
-              defaultSize={500}
-              minSize={300}
-              maxSize={600}
-              collapsible={false}
-            >
+            <RightSidebarPanel id="right-sidebar">
               <Box className="writing-page-sidebar writing-page-sidebar--right">
                 <AssistantSidebarHost
                   projectId={projectId}
@@ -470,7 +463,7 @@ export function WritingPage() {
                   isMobileOverlay={false}
                 />
               </Box>
-            </Panel>
+            </RightSidebarPanel>
           </Group>
         ) : isMobile ? (
           <Flex className="writing-page-mobile-layout">

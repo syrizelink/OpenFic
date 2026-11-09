@@ -18,7 +18,7 @@ import {
 } from "@radix-ui/themes";
 import clsx from "clsx";
 import { Check, ChevronDown, Search } from "lucide-react";
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FocusEventHandler, ReactNode, ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +29,41 @@ import { MobileSelectSheet } from "./mobile-select-sheet";
 import "./select.css";
 
 type TextColor = ComponentProps<typeof Text>["color"];
+
+function preventFocusRestore(event: Event, actionClosed: boolean) {
+  const focused = document.activeElement;
+  if (
+    actionClosed ||
+    (focused instanceof HTMLElement &&
+      focused !== document.body &&
+      event.target instanceof HTMLElement &&
+      !event.target.contains(focused))
+  )
+    event.preventDefault();
+}
+
+function useExclusiveSelect(onDismiss?: () => void) {
+  const [open, setOpen] = useState(false);
+  const instanceId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    document.dispatchEvent(new CustomEvent("context-menu:opened", { detail: { id: instanceId } }));
+  }, [open, instanceId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOpened = (event: Event) => {
+      if ((event as CustomEvent<{ id: string }>).detail.id === instanceId) return;
+      setOpen(false);
+      onDismiss?.();
+    };
+    document.addEventListener("context-menu:opened", handleOpened);
+    return () => document.removeEventListener("context-menu:opened", handleOpened);
+  }, [instanceId, onDismiss, open]);
+
+  return [open, setOpen] as const;
+}
 
 export interface SelectOption {
   value: string;
@@ -298,9 +333,8 @@ export function LabeledSelect({
 }: LabeledSelectProps) {
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useExclusiveSelect();
   const actionCloseRef = useRef(false);
-  const hasActions = options.some((option) => Boolean(option.actions));
   const triggerPointerTypeRef = useRef<string | null>(null);
   const shouldKeepFocusOnTouch = keepFocusOnTouch && Boolean(onTouchTrigger);
   const selectedOption = options.find((opt) => opt.value === value);
@@ -337,7 +371,7 @@ export function LabeledSelect({
       onTouchTrigger?.();
       setIsOpen((open) => !open);
     },
-    [onTouchTrigger, shouldKeepFocusOnTouch],
+    [onTouchTrigger, shouldKeepFocusOnTouch, setIsOpen],
   );
 
   const handleContentRef = useCallback(
@@ -355,15 +389,11 @@ export function LabeledSelect({
       value={value || undefined}
       onValueChange={onChange}
       disabled={disabled}
-      open={shouldKeepFocusOnTouch || hasActions ? isOpen : undefined}
-      onOpenChange={
-        shouldKeepFocusOnTouch || hasActions
-          ? (open) => {
-              if (open) actionCloseRef.current = false;
-              setIsOpen(open);
-            }
-          : undefined
-      }
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (open) actionCloseRef.current = false;
+        setIsOpen(open);
+      }}
       size={size}
     >
       <Select.Trigger
@@ -412,7 +442,7 @@ export function LabeledSelect({
         onFocusCapture={onContentFocusCapture}
         onCloseAutoFocus={(event) => {
           onContentCloseAutoFocus?.(event);
-          if (actionCloseRef.current) event.preventDefault();
+          preventFocusRestore(event, actionCloseRef.current);
         }}
       >
         {options.map((option) => (
@@ -595,9 +625,8 @@ export function SimpleSelect({
 >) {
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useExclusiveSelect();
   const actionCloseRef = useRef(false);
-  const hasActions = options.some((option) => Boolean(option.actions));
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
   const isIconVariant = variant === "icon";
@@ -609,15 +638,11 @@ export function SimpleSelect({
       onValueChange={onChange}
       disabled={disabled}
       size={size}
-      open={hasActions ? isOpen : undefined}
-      onOpenChange={
-        hasActions
-          ? (open) => {
-              if (open) actionCloseRef.current = false;
-              setIsOpen(open);
-            }
-          : undefined
-      }
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (open) actionCloseRef.current = false;
+        setIsOpen(open);
+      }}
     >
       <Select.Trigger
         className={clsx(
@@ -662,7 +687,7 @@ export function SimpleSelect({
         position={contentPosition}
         className={contentClassName}
         onCloseAutoFocus={(event) => {
-          if (actionCloseRef.current) event.preventDefault();
+          preventFocusRestore(event, actionCloseRef.current);
         }}
       >
         {options.map((option) => (
@@ -796,9 +821,10 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
-  const [open, setOpen] = useState(false);
   const actionCloseRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const resetSearch = useCallback(() => setSearchQuery(""), []);
+  const [open, setOpen] = useExclusiveSelect(resetSearch);
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("select.searchPlaceholder");
   const resolvedEmptyMessage = emptyMessage ?? t("select.noMatchingOptions");
   const selectedOption = options.find((opt) => opt.value === value);

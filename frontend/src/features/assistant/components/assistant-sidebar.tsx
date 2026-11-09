@@ -90,6 +90,7 @@ import { RecentTasksCard } from "./tasks/recent-tasks-card";
 
 interface AssistantSidebarProps {
   projectId: string;
+  initialTaskId?: string | null;
   onStateChange?: (state: AssistantSidebarState) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onClose?: () => void;
@@ -317,6 +318,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
   function AssistantSidebar(
     {
       projectId,
+      initialTaskId,
       onStateChange,
       onOpenMentionChapter,
       onClose,
@@ -357,7 +359,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       },
       [],
     );
-    const [isLoadingTask, setIsLoadingTask] = useState(false);
+    const [isLoadingTask, setIsLoadingTask] = useState(Boolean(initialTaskId));
+    const initialTaskIdRef = useRef(initialTaskId);
     const [isMessagesLoading, setIsMessagesLoading] = useState(false);
     const [messageViewport, setMessageViewport] = useState<HTMLDivElement | null>(null);
     const [historyStatusHost, setHistoryStatusHost] = useState<HTMLDivElement | null>(null);
@@ -815,15 +818,20 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     });
 
     useEffect(() => {
-      if (!onStateChange) return;
+      if (!onStateChange || initialTaskIdRef.current || isLoadingTask) return;
       onStateChange({
         agentStatus: isViewingSubagent ? subagentSession.status : agentSidebar.status,
         isAgentRunning: isViewingSubagent ? subagentSession.isRunning : agentSidebar.isRunning,
         conversationDescriptor: currentConversation,
         activeSubagents,
+        taskTitle: currentTaskTitle,
+        taskId: currentTaskId,
       });
     }, [
       activeSubagents,
+      currentTaskTitle,
+      currentTaskId,
+      isLoadingTask,
       isViewingSubagent,
       agentSidebar.isRunning,
       agentSidebar.status,
@@ -1123,6 +1131,20 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       },
       [loadTaskById],
     );
+
+    useEffect(() => {
+      if (!initialTaskIdRef.current) return;
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (cancelled || !initialTaskIdRef.current) return;
+        const taskId = initialTaskIdRef.current;
+        initialTaskIdRef.current = undefined;
+        void loadTaskById(taskId);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [loadTaskById]);
 
     const handleToggleFavorite = useCallback(
       (taskId: string, isFavorited: boolean) => {

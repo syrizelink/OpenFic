@@ -318,6 +318,7 @@ async def get_entry(session: AsyncSession, entry_id: str) -> WorldInfoEntry:
 async def list_entries(
     session: AsyncSession,
     world_info_id: str,
+    query: str = "",
 ) -> list[WorldInfoEntry]:
     """
     获取世界书条目列表。
@@ -334,7 +335,7 @@ async def list_entries(
     # 检查世界书是否存在
     await get_world_info(session, world_info_id)
 
-    return await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
+    return await world_info_entry_repo.list_all_by_world_info(session, world_info_id, query)
 
 
 async def update_entry(

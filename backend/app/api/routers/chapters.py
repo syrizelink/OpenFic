@@ -78,6 +78,7 @@ async def create_chapter(
 async def list_chapters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
+    q: str = "",
 ) -> VolumeTreeResponse:
     """
     获取指定项目下的所有章节列表（精简版，不含正文）。
@@ -90,7 +91,7 @@ async def list_chapters(
         章节列表（精简版）。
     """
     try:
-        result = await chapter_service.list_chapters(session, project_id)
+        result = await chapter_service.list_chapters(session, project_id, q.strip())
         return VolumeTreeResponse(
             volumes=[
                 VolumeTreeItem(

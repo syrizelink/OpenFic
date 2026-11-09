@@ -1,4 +1,28 @@
 {
+  "rightSidebar": {
+    "tabs": "右侧栏标签页",
+    "newTab": "新建标签页",
+    "agent": "会话",
+    "chapter": "章节编辑",
+    "character": "角色编辑",
+    "world_info_entry": "世界书条目编辑",
+    "collapse": "收起右侧栏",
+    "expand": "展开右侧栏",
+    "closeTab": "关闭 {{title}} 标签页",
+    "closeRight": "关闭右侧标签页",
+    "runningTab": "请先停止会话，再关闭标签页",
+    "empty": "尚未打开标签页",
+    "emptyHint": "点击 + 选择要打开的内容",
+    "selectItem": "选择{{type}}的条目",
+    "selectHint": "从当前项目中选择要打开的内容。",
+    "search": "搜索标题",
+    "loading": "正在加载...",
+    "chapterCount": "{{count}} 章",
+    "wordCount": "{{count}} 字",
+    "tokenCount": "{{count}} Tokens",
+    "noResults": "没有找到匹配的条目",
+    "loadFailed": "内容加载失败，条目可能已被删除或暂时无法访问"
+  },
   "common": {
     "confirm": "确认",
     "cancel": "取消",

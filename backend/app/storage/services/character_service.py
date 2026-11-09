@@ -98,13 +98,14 @@ async def get_character(session: AsyncSession, character_id: str) -> Character:
 async def list_characters_by_project(
     session: AsyncSession,
     project_id: str,
+    query: str = "",
 ) -> list[Character]:
     """按项目获取角色列表。"""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         raise NotFoundError(f"项目不存在: {project_id}")
 
-    return await character_repo.list_all_by_project(session, project_id)
+    return await character_repo.list_all_by_project(session, project_id, query)
 
 
 async def search_characters(

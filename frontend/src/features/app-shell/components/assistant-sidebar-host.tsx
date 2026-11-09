@@ -38,7 +38,7 @@ export function AssistantSidebarHost({
       host: isMobileOverlay ? null : hostRef.current,
       projectId,
       isMobileOverlay,
-      isOpen: isMobileOverlay ? isAssistantSidebarOpen : true,
+      isOpen: isAssistantSidebarOpen,
       onStateChange: (state) => callbacksRef.current.onStateChange?.(state),
       onOpenMentionChapter: (chapterId, chapterTitle) =>
         callbacksRef.current.onOpenMentionChapter?.(chapterId, chapterTitle),

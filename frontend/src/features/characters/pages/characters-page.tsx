@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router";
 import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
@@ -487,15 +488,7 @@ export function CharactersPage() {
             <Box className="characters-panel characters-editor-shell">{editorContent}</Box>
           </Panel>
 
-          <Separator className="resize-handle characters-page-separator" />
-
-          <Panel
-            id="characters-right"
-            defaultSize={500}
-            minSize={300}
-            maxSize={600}
-            collapsible={false}
-          >
+          <RightSidebarPanel id="characters-right">
             <Box className="characters-panel">
               <AssistantSidebarHost
                 projectId={currentProjectId}
@@ -503,7 +496,7 @@ export function CharactersPage() {
                 isMobileOverlay={false}
               />
             </Box>
-          </Panel>
+          </RightSidebarPanel>
         </Group>
       ) : currentProjectId && isMobile ? (
         <Box className="characters-page-body characters-page-body--mobile">

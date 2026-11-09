@@ -388,8 +388,15 @@ export async function updateCharacterPosition(
   await apiClient.patch(`/projects/${projectId}/characters/${characterId}/position`, { x, y });
 }
 
-export async function fetchCharactersByProject(projectId: string): Promise<CharacterListResponse> {
-  const response = await apiClient.get(`/projects/${projectId}/characters`);
+export async function fetchCharactersByProject(
+  projectId: string,
+  query = "",
+  signal?: AbortSignal,
+): Promise<CharacterListResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/characters`, {
+    params: query ? { q: query } : undefined,
+    signal,
+  });
   const data = response.data;
   return {
     items: (data.items as Record<string, unknown>[]).map(transformCharacterListItem),
@@ -882,8 +889,15 @@ function transformCommandCandidate(raw: Record<string, unknown>): AssistantComma
 /**
  * 获取卷-章节树
  */
-export async function fetchChapters(projectId: string): Promise<VolumeTreeResponse> {
-  const response = await apiClient.get(`/projects/${projectId}/chapters`);
+export async function fetchChapters(
+  projectId: string,
+  query = "",
+  signal?: AbortSignal,
+): Promise<VolumeTreeResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/chapters`, {
+    params: query ? { q: query } : undefined,
+    signal,
+  });
   return transformVolumeTree(response.data);
 }
 
@@ -1617,8 +1631,13 @@ export async function deleteWorldInfo(worldInfoId: string): Promise<void> {
  */
 export async function fetchWorldInfoEntries(
   worldInfoId: string,
+  query = "",
+  signal?: AbortSignal,
 ): Promise<WorldInfoEntryBriefListResponse> {
-  const response = await apiClient.get(`/world-info/${worldInfoId}/entries`);
+  const response = await apiClient.get(`/world-info/${worldInfoId}/entries`, {
+    params: query ? { q: query } : undefined,
+    signal,
+  });
   const data = response.data;
   return {
     items: (data.items as Record<string, unknown>[]).map(transformWorldInfoEntryBrief),

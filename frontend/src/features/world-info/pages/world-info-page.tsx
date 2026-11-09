@@ -18,6 +18,7 @@ import "./world-info-page.css";
 import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
@@ -797,19 +798,11 @@ export function WorldInfoPage() {
                 </Box>
               </Panel>
 
-              <Separator className="resize-handle world-info-page-separator" />
-
-              <Panel
-                id="right-sidebar"
-                defaultSize={500}
-                minSize={300}
-                maxSize={600}
-                collapsible={false}
-              >
+              <RightSidebarPanel id="right-sidebar">
                 <Box className="world-info-page-sidebar world-info-page-sidebar--right">
                   {agentSidebarContent}
                 </Box>
-              </Panel>
+              </RightSidebarPanel>
             </Group>
           ) : currentProjectId && isMobile ? (
             <Flex className="world-info-page-mobile-layout">
