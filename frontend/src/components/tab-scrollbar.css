@@ -1,0 +1,42 @@
+.tab-scrollbar {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+  height: 7px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tab-scrollbar-thumb {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--gray-a7);
+}
+
+.editor-tabs-toolbar:hover .tab-scrollbar:not([hidden]),
+.editor-tabs-toolbar:focus-within .tab-scrollbar:not([hidden]),
+.right-sidebar-toolbar:hover .tab-scrollbar:not([hidden]),
+.right-sidebar-toolbar:focus-within .tab-scrollbar:not([hidden]) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.editor-tabs-toolbar .tab-scrollbar[data-dragging="true"]:not([hidden]),
+.right-sidebar-toolbar .tab-scrollbar[data-dragging="true"]:not([hidden]) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-scrollbar:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-scrollbar {
+    transition: none;
+  }
+}

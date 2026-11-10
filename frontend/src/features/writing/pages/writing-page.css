@@ -147,13 +147,6 @@
   pointer-events: auto;
 }
 
-.writing-page-loading-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  height: 100%;
-}
-
 .resize-handle[data-separator][data-resize-handle-state="drag"] {
   background-color: transparent !important;
 }
@@ -161,19 +154,4 @@
 .resize-handle[data-separator][data-resize-handle-state="drag"]::after {
   width: 4px;
   background: var(--accent-a5);
-}
-
-@media (max-width: 767px) {
-  .writing-page-loading-sidebar {
-    display: none;
-  }
-
-  .writing-page-loading-editor-tabs {
-    height: 44px !important;
-    background: var(--color-background) !important;
-  }
-
-  .writing-page-loading-editor-content {
-    padding: 32px 20px !important;
-  }
 }

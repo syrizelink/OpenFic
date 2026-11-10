@@ -252,6 +252,7 @@ async def create_entry(
 async def list_entries(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
+    q: str = "",
 ) -> WorldInfoEntryBriefListResponse:
     """
     获取世界书的条目列表（轻量，不含 content）。
@@ -266,7 +267,7 @@ async def list_entries(
         HTTPException: 世界书不存在。
     """
     try:
-        entries = await world_info_entry_service.list_entries(session, world_info_id)
+        entries = await world_info_entry_service.list_entries(session, world_info_id, q.strip())
         return WorldInfoEntryBriefListResponse(
             items=[_entry_to_brief_response(entry) for entry in entries],
             total=len(entries),

@@ -1,0 +1,21 @@
+.writing-page-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  height: 100%;
+}
+
+@media (max-width: 767px) {
+  .writing-page-loading-sidebar {
+    display: none;
+  }
+
+  .writing-page-loading-editor-tabs {
+    height: 44px !important;
+    background: var(--color-background) !important;
+  }
+
+  .writing-page-loading-editor-content {
+    padding: 32px 20px !important;
+  }
+}

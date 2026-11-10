@@ -241,6 +241,7 @@ async def get_chapter(session: AsyncSession, chapter_id: str) -> Chapter:
 async def list_chapters(
     session: AsyncSession,
     project_id: str,
+    query: str = "",
 ) -> VolumeTreeResult:
     """
     获取项目卷-章树（章节不含正文内容）。
@@ -261,7 +262,7 @@ async def list_chapters(
         raise NotFoundError(f"项目不存在: {project_id}")
 
     volumes = await volume_repo.list_by_project(session, project_id)
-    chapters = await chapter_repo.list_metadata_by_project(session, project_id)
+    chapters = await chapter_repo.list_metadata_by_project(session, project_id, query)
     chapters_by_volume: dict[str, list[Chapter]] = {volume.id: [] for volume in volumes}
     for chapter in chapters:
         chapters_by_volume.setdefault(chapter.volume_id, []).append(chapter)
@@ -271,6 +272,7 @@ async def list_chapters(
             chapters=chapters_by_volume.get(volume.id, []),
         )
         for volume in volumes
+        if not query or chapters_by_volume.get(volume.id)
     ]
     return VolumeTreeResult(volumes=groups, total_chapters=len(chapters))
 

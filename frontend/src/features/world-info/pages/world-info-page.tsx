@@ -18,7 +18,11 @@ import "./world-info-page.css";
 import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { EditorTabBar, EmptyEditorTabs } from "@/features/writing/components/editor-tabs";
+import { PageLoadingOverlay } from "@/features/writing/components/page-loading-overlay";
+import { useEntityTabs } from "@/features/writing/components/use-entity-tabs";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
@@ -122,7 +126,7 @@ export function WorldInfoPage() {
     }
   }, [searchParams, setFromWriting]);
 
-  const { data: projectsData } = useQuery({
+  const { data: projectsData, isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects", "world-info-page"],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
   });
@@ -153,7 +157,7 @@ export function WorldInfoPage() {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
   }, [currentProjectId]);
 
-  const { data: projectWorldInfo } = useQuery({
+  const { data: projectWorldInfo, isLoading: isWorldInfoLoading } = useQuery({
     queryKey: ["world-info-by-project", currentProjectId],
     queryFn: () => fetchWorldInfoByProject(currentProjectId!),
     enabled: !!currentProjectId,
@@ -197,10 +201,23 @@ export function WorldInfoPage() {
   });
 
   const entries = useMemo(() => entriesData?.items ?? [], [entriesData?.items]);
+  const entityTabs = useEntityTabs(
+    "world-info",
+    currentProjectId,
+    currentEntryId,
+    entries,
+    Boolean(entriesData && projectWorldInfo?.id === currentWorldInfoId),
+    (id) => {
+      if (!id) skipEntryRestoreWorldInfoIdRef.current = currentWorldInfoId;
+      setCurrentEntry(id);
+    },
+  );
 
   useEffect(() => {
     const restoreEntry = async () => {
       if (
+        !entityTabs.isLoaded ||
+        entityTabs.hasSaved ||
         !currentWorldInfoId ||
         currentEntryId ||
         entries.length === 0 ||
@@ -214,7 +231,14 @@ export function WorldInfoPage() {
     };
 
     void restoreEntry();
-  }, [currentEntryId, currentWorldInfoId, entries, setCurrentEntry]);
+  }, [
+    currentEntryId,
+    currentWorldInfoId,
+    entries,
+    entityTabs.isLoaded,
+    entityTabs.hasSaved,
+    setCurrentEntry,
+  ]);
 
   useEffect(() => {
     if (!currentEntryId || !entriesData) return;
@@ -725,26 +749,13 @@ export function WorldInfoPage() {
       </Flex>
     </Box>
   ) : (
-    <Flex
-      align="center"
-      justify="center"
-      height="100%"
-      direction="column"
-      gap="2"
-    >
-      <Text
-        size="3"
-        color="gray"
-      >
-        {t("worldInfo.selectEntry")}
-      </Text>
-    </Flex>
+    <EmptyEditorTabs />
   );
 
   return (
     <Flex
       {...mobileSidebarSwipeRef}
-      className="mobile-sidebar-swipe-surface"
+      className="world-info-page mobile-sidebar-swipe-surface"
       direction="column"
       style={{
         height: "100%",
@@ -752,6 +763,20 @@ export function WorldInfoPage() {
         overflow: "hidden",
       }}
     >
+      <PageLoadingOverlay
+        isLoading={
+          isProjectsLoading ||
+          Boolean(!currentProjectId && projects.length > 0) ||
+          Boolean(
+            currentProjectId &&
+            (!entityTabs.isLoaded ||
+              (!isMobile && !panelLayout.isLoaded) ||
+              isWorldInfoLoading ||
+              entriesLoading ||
+              (projectWorldInfo && projectWorldInfo.id !== currentWorldInfoId)),
+          )
+        }
+      />
       <Flex
         direction="column"
         style={{
@@ -776,6 +801,7 @@ export function WorldInfoPage() {
                 defaultSize={300}
                 minSize={250}
                 maxSize={400}
+                groupResizeBehavior="preserve-pixel-size"
                 collapsible={false}
               >
                 <Box className="world-info-page-sidebar world-info-page-sidebar--left">
@@ -793,23 +819,16 @@ export function WorldInfoPage() {
                   data-scroll-container
                   className="world-info-page-editor-shell"
                 >
-                  {editorContent}
+                  {entityTabs.isLoaded && <EditorTabBar {...entityTabs} />}
+                  <Box className="world-info-page-content-fill">{editorContent}</Box>
                 </Box>
               </Panel>
 
-              <Separator className="resize-handle world-info-page-separator" />
-
-              <Panel
-                id="right-sidebar"
-                defaultSize={500}
-                minSize={300}
-                maxSize={600}
-                collapsible={false}
-              >
+              <RightSidebarPanel id="right-sidebar">
                 <Box className="world-info-page-sidebar world-info-page-sidebar--right">
                   {agentSidebarContent}
                 </Box>
-              </Panel>
+              </RightSidebarPanel>
             </Group>
           ) : currentProjectId && isMobile ? (
             <Flex className="world-info-page-mobile-layout">

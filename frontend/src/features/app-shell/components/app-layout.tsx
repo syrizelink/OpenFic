@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Outlet } from "react-router";
 
-import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarHandle } from "@/features/assistant";
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
@@ -21,7 +20,10 @@ import {
 } from "./assistant-sidebar-position";
 
 import "./app-layout.css";
+import { RightSidebar } from "./right-sidebar";
 import { StatusBar } from "./status-bar";
+
+const ASSISTANT_SIDEBAR_OPEN_KEY = "openfic.assistant.sidebarOpen";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
@@ -48,10 +50,27 @@ export function AppLayout({
   const [settingsRoute, setSettingsRoute] = useState<SettingsDialogRoute | undefined>(undefined);
   const [assistantSidebarHost, setAssistantSidebarHost] =
     useState<AssistantSidebarHostState | null>(null);
-  const [isAssistantSidebarOpen, setIsAssistantSidebarOpen] = useState(false);
+  const [isAssistantSidebarOpen, setIsAssistantSidebarOpen] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(ASSISTANT_SIDEBAR_OPEN_KEY);
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+    } catch {
+      // Use the responsive default when browser storage is unavailable.
+    }
+    return window.innerWidth >= 768;
+  });
   const assistantSidebarRef = useRef<AssistantSidebarHandle | null>(null);
   const assistantSidebarContainerRef = useRef<HTMLDivElement | null>(null);
   const assistantSidebarProjectIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ASSISTANT_SIDEBAR_OPEN_KEY, String(isAssistantSidebarOpen));
+    } catch {
+      // The sidebar remains usable when browser storage is unavailable.
+    }
+  }, [isAssistantSidebarOpen]);
 
   useEffect(() => {
     function handleResize() {
@@ -61,12 +80,13 @@ export function AppLayout({
       if (!nextIsMobile) {
         setIsSidebarOpen(false);
       }
+      if (nextIsMobile && !isMobile) setIsAssistantSidebarOpen(false);
     }
 
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [isMobile]);
 
   const registerAssistantSidebarHost = useCallback(
     (registration: AssistantSidebarHostRegistration) => {
@@ -122,10 +142,10 @@ export function AppLayout({
   useLayoutEffect(() => {
     const projectId = assistantSidebarHost?.projectId;
     if (projectId && assistantSidebarProjectIdRef.current !== projectId) {
-      if (assistantSidebarProjectIdRef.current) setIsAssistantSidebarOpen(false);
+      if (assistantSidebarProjectIdRef.current && isMobile) setIsAssistantSidebarOpen(false);
       assistantSidebarProjectIdRef.current = projectId;
     }
-  }, [assistantSidebarHost?.projectId]);
+  }, [assistantSidebarHost?.projectId, isMobile]);
 
   const contextValue = useMemo(
     () => ({
@@ -179,11 +199,14 @@ export function AppLayout({
             <div
               ref={assistantSidebarContainerRef}
               className="app-layout-assistant-sidebar"
+              hidden={!isAssistantSidebarVisible}
+              inert={!isAssistantSidebarVisible || !assistantSidebarHost.isOpen}
               data-active={isAssistantSidebarVisible}
               data-mobile-overlay={String(assistantSidebarHost.isMobileOverlay)}
               data-open={String(assistantSidebarHost.isOpen)}
             >
-              <AssistantSidebar
+              <RightSidebar
+                key={assistantSidebarHost.projectId}
                 ref={assistantSidebarRef}
                 projectId={assistantSidebarHost.projectId}
                 onStateChange={
@@ -194,8 +217,6 @@ export function AppLayout({
                     ? assistantSidebarHost.onOpenMentionChapter
                     : undefined
                 }
-                onClose={assistantSidebarHost.isActive ? assistantSidebarHost.onClose : undefined}
-                isMobileOverlay={assistantSidebarHost.isMobileOverlay}
               />
             </div>
           ) : null}

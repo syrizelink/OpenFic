@@ -196,34 +196,6 @@ function enqueueWritingWorkingCopyOperation<T>(
 // ==================== 项目最后访问章节 ====================
 
 /**
- * 获取项目最后访问的章节 ID
- */
-export async function getLastChapterId(projectId: string): Promise<string | null> {
-  try {
-    const record = await db.projectLastChapters.get(projectId);
-    return record?.chapterId ?? null;
-  } catch {
-    console.error("获取最后访问章节失败");
-    return null;
-  }
-}
-
-/**
- * 保存项目最后访问的章节 ID
- */
-export async function setLastChapterId(projectId: string, chapterId: string): Promise<void> {
-  try {
-    await db.projectLastChapters.put({
-      projectId,
-      chapterId,
-      updatedAt: new Date(),
-    });
-  } catch {
-    console.error("保存最后访问章节失败");
-  }
-}
-
-/**
  * 删除项目的最后访问记录（项目删除时调用）
  */
 export async function deleteLastChapterId(projectId: string): Promise<void> {

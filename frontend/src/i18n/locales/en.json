@@ -1,4 +1,29 @@
 {
+  "rightSidebar": {
+    "tabs": "Right sidebar tabs",
+    "scrollTabs": "Scroll right sidebar tabs",
+    "newTab": "New tab",
+    "agent": "Session",
+    "chapter": "Chapter editor",
+    "character": "Character editor",
+    "world_info_entry": "World book entry editor",
+    "collapse": "Collapse right sidebar",
+    "expand": "Expand right sidebar",
+    "closeTab": "Close {{title}} tab",
+    "closeRight": "Close tabs to the right",
+    "runningTab": "Stop the session before closing this tab",
+    "empty": "No open tabs",
+    "emptyHint": "Click + to choose content to open",
+    "selectItem": "Select an item for {{type}}",
+    "selectHint": "Choose content from the current project.",
+    "search": "Search titles",
+    "loading": "Loading...",
+    "chapterCount": "{{count}} chapters",
+    "wordCount": "{{count}} words",
+    "tokenCount": "{{count}} Tokens",
+    "noResults": "No matching items",
+    "loadFailed": "Content could not be loaded. It may have been deleted or is temporarily unavailable."
+  },
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
@@ -1549,14 +1574,13 @@
     "builtin": "Builtin"
   },
   "tabs": {
+    "scrollTabs": "Scroll editor tabs",
     "close": "Close",
     "closeOthers": "Close Other Tabs",
     "closeAll": "Close All",
     "lock": "Lock",
     "unlock": "Unlock",
-    "createNewFile": "Create New File",
-    "closeFile": "Close File",
-    "emptyTab": "Empty Tab",
+    "emptyHint": "Select content to open from the list on the right",
     "addToConversation": "Add to Conversation"
   },
   "chapterMenu": {

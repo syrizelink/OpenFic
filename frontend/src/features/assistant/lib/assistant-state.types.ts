@@ -7,6 +7,8 @@ import type {
 export interface AssistantSidebarState {
   agentStatus: AgentSessionStatus;
   isAgentRunning: boolean;
+  taskTitle?: string;
+  taskId?: string | null;
   conversationDescriptor?: AgentConversationDescriptor | null;
   activeSubagents?: ActiveSubagentState[];
 }

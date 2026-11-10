@@ -142,6 +142,7 @@ async def list_by_project(
 async def list_metadata_by_project(
     session: AsyncSession,
     project_id: str,
+    query: str = "",
 ) -> list[Chapter]:
     """获取项目章节元数据，不加载正文。"""
     result = await session.execute(
@@ -149,6 +150,7 @@ async def list_metadata_by_project(
         .options(load_only(*_chapter_metadata_attributes()))
         .join(Volume, col(Chapter.volume_id) == col(Volume.id))
         .where(col(Chapter.project_id) == project_id)
+        .where(or_(col(Chapter.title).icontains(query, autoescape=True), col(Volume.title).icontains(query, autoescape=True)))
         .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
     )
     return list(result.scalars().all())

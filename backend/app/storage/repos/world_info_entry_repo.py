@@ -79,11 +79,13 @@ async def list_by_world_info(
 async def list_all_by_world_info(
     session: AsyncSession,
     world_info_id: str,
+    query: str = "",
 ) -> list[WorldInfoEntry]:
     """获取世界书的全部条目列表。"""
     result = await session.execute(
         select(WorldInfoEntry)
         .where(col(WorldInfoEntry.world_info_id) == world_info_id)
+        .where(col(WorldInfoEntry.name).icontains(query, autoescape=True))
         .order_by(col(WorldInfoEntry.order))
     )
     return list(result.scalars().all())

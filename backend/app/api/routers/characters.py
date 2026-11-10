@@ -89,10 +89,11 @@ def relationship_counts(relations: list[CharacterRelationship]) -> dict[str, int
 async def list_project_characters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
+    q: str = "",
 ) -> CharacterListResponse:
     """获取项目角色列表。"""
     try:
-        characters = await character_service.list_characters_by_project(session, project_id)
+        characters = await character_service.list_characters_by_project(session, project_id, q.strip())
         counts = relationship_counts(await character_relationship_service.list_for_project(session, project_id))
         return CharacterListResponse(
             items=[to_list_item_response(character, counts.get(character.id, 0)) for character in characters],
