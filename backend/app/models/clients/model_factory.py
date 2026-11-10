@@ -195,6 +195,15 @@ def _openai_compatible_kwargs(
     return kwargs
 
 
+def _has_google_thought_signature(extra_content: dict) -> bool:
+    """True when `extra_content` carries a non-empty Gemini thought signature."""
+    google = extra_content.get("google")
+    if not isinstance(google, dict):
+        return False
+    signature = google.get("thought_signature")
+    return isinstance(signature, str) and bool(signature)
+
+
 def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseMessage]:
     seed_bundled_encodings()
     route = resolve_chat_model_route(config.provider_type, config.model_id, config.base_url)
@@ -450,6 +459,13 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     from langchain_core.outputs import ChatGenerationChunk, ChatResult
     from langchain_openai import ChatOpenAI as _ChatOpenAI
 
+    # Only record thought signatures for the Gemini-via-OpenAI-compatible
+    # route: other provider types and endpoints must not see extra fields.
+    _record_tool_call_extra_content = provider == "openai-compatible" and (
+        isinstance(base_url, str)
+        and "generativelanguage.googleapis.com" in base_url
+    )
+
     class ChatOpenAI(_ChatOpenAI):
         def _convert_chunk_to_generation_chunk(
             self,
@@ -517,6 +533,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             **kwargs: Any,
         ) -> dict[str, Any]:
             payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+            if not _record_tool_call_extra_content:
+                return payload
             if isinstance(input_, list):
                 source_messages = input_
             elif hasattr(input_, "to_messages"):
@@ -558,7 +576,11 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             but OpenAI-compatible Gemini 3 endpoints reject the follow-up
             request when a required thought signature is not sent back.
             Stash it by tool call id so `_get_request_payload` can restore it.
+            Only entries carrying a non-empty
+            `extra_content.google.thought_signature` are kept.
             """
+            if not _record_tool_call_extra_content:
+                return
             if not isinstance(raw_tool_calls, list):
                 return
             extra_by_id: dict[str, Any] = {}
@@ -567,6 +589,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
                     continue
                 extra_content = raw_tool_call.get("extra_content")
                 if not isinstance(extra_content, dict) or not extra_content:
+                    continue
+                if not _has_google_thought_signature(extra_content):
                     continue
                 tool_call_id = raw_tool_call.get("id")
                 if isinstance(tool_call_id, str) and tool_call_id:

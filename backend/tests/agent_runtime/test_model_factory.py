@@ -1116,3 +1116,125 @@ def test_openai_compatible_tool_call_without_extra_content_is_unchanged() -> Non
             "function": {"name": "get_weather", "arguments": "{}"},
         }
     ]
+
+
+def _non_streaming_tool_call_message(model, extra_content):
+    result = model._create_chat_result(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "id": "call-gated",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_weather",
+                                    "arguments": '{"city": "Paris"}',
+                                },
+                                "extra_content": extra_content,
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        }
+    )
+    return result.generations[0].message
+
+
+def test_openai_compatible_non_google_base_url_does_not_record_extra_content() -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://api.example.com/v1",
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+    ai_message = _non_streaming_tool_call_message(model, _THOUGHT_SIGNATURE)
+    assert "tool_call_extra_content" not in ai_message.additional_kwargs
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-gated")
+    assert "extra_content" not in tool_calls[0]
+
+
+def test_openai_compatible_google_base_url_without_thought_signature_does_not_record() -> None:
+    model = _openai_compatible_model()
+    for extra_content in (
+        {},
+        {"google": {}},
+        {"google": {"thought_signature": ""}},
+        {"other": {"thought_signature": "sig-x"}},
+    ):
+        ai_message = _non_streaming_tool_call_message(model, extra_content)
+        assert "tool_call_extra_content" not in ai_message.additional_kwargs
+        tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-gated")
+        assert "extra_content" not in tool_calls[0]
+
+
+def test_openai_compatible_non_google_base_url_streaming_does_not_record_extra_content() -> None:
+    from langchain_core.messages import AIMessageChunk
+
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://api.example.com/v1",
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+    generation = model._convert_chunk_to_generation_chunk(
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "call-gated",
+                                "type": "function",
+                                "function": {"name": "get_weather", "arguments": "{}"},
+                                "extra_content": _THOUGHT_SIGNATURE,
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "model": "gemini-3.5-flash",
+        },
+        AIMessageChunk,
+        None,
+    )
+    assert generation is not None
+    assert "tool_call_extra_content" not in generation.message.additional_kwargs
+
+
+@pytest.mark.parametrize(
+    "provider_type,base_url,model_id",
+    [
+        ("openai", "https://api.openai.com/v1", "gpt-4o"),
+        ("huggingface", "https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-3.5-flash"),
+    ],
+)
+def test_non_openai_compatible_provider_does_not_record_extra_content(
+    provider_type, base_url, model_id
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url=base_url,
+            api_key="test-key",
+            model_id=model_id,
+        )
+    )
+    ai_message = _non_streaming_tool_call_message(model, _THOUGHT_SIGNATURE)
+    assert "tool_call_extra_content" not in ai_message.additional_kwargs
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-gated")
+    assert "extra_content" not in tool_calls[0]

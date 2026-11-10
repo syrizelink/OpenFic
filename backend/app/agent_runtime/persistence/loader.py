@@ -227,6 +227,13 @@ async def load_history(
             responses_output = _message_metadata(row).get("responses_output")
             if row.status == "complete" and isinstance(responses_output, list) and responses_output:
                 kwargs["responses_output"] = responses_output
+            extra_content = _message_metadata(row).get("tool_call_extra_content")
+            if (
+                row.status == "complete"
+                and isinstance(extra_content, dict)
+                and extra_content
+            ):
+                kwargs["tool_call_extra_content"] = extra_content
             if idx == last_assistant_with_reasoning_idx and row.reasoning:
                 kwargs["reasoning_content"] = row.reasoning
             ai_msg = AIMessage(
