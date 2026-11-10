@@ -1323,11 +1323,13 @@
   visibility: hidden;
 }
 
-.ai-sidebar-mobile-toolbar {
-  min-height: 44px;
-  padding: 4px 10px;
-  border-bottom: 1px solid var(--gray-a4);
-  background: var(--color-background);
+.rt-Box.ai-sidebar-mobile-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  border: 0;
+  background: transparent;
 }
 
 .ai-sidebar-task-header-row {

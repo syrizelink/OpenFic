@@ -23,6 +23,8 @@ import "./app-layout.css";
 import { RightSidebar } from "./right-sidebar";
 import { StatusBar } from "./status-bar";
 
+const ASSISTANT_SIDEBAR_OPEN_KEY = "openfic.assistant.sidebarOpen";
+
 interface AppLayoutProps {
   appearance: "light" | "dark";
   themeMode: ThemeMode;
@@ -48,12 +50,27 @@ export function AppLayout({
   const [settingsRoute, setSettingsRoute] = useState<SettingsDialogRoute | undefined>(undefined);
   const [assistantSidebarHost, setAssistantSidebarHost] =
     useState<AssistantSidebarHostState | null>(null);
-  const [isAssistantSidebarOpen, setIsAssistantSidebarOpen] = useState(
-    () => window.innerWidth >= 768,
-  );
+  const [isAssistantSidebarOpen, setIsAssistantSidebarOpen] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(ASSISTANT_SIDEBAR_OPEN_KEY);
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+    } catch {
+      // Use the responsive default when browser storage is unavailable.
+    }
+    return window.innerWidth >= 768;
+  });
   const assistantSidebarRef = useRef<AssistantSidebarHandle | null>(null);
   const assistantSidebarContainerRef = useRef<HTMLDivElement | null>(null);
   const assistantSidebarProjectIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ASSISTANT_SIDEBAR_OPEN_KEY, String(isAssistantSidebarOpen));
+    } catch {
+      // The sidebar remains usable when browser storage is unavailable.
+    }
+  }, [isAssistantSidebarOpen]);
 
   useEffect(() => {
     function handleResize() {
@@ -182,10 +199,7 @@ export function AppLayout({
             <div
               ref={assistantSidebarContainerRef}
               className="app-layout-assistant-sidebar"
-              hidden={
-                !isAssistantSidebarVisible ||
-                (assistantSidebarHost.isMobileOverlay && !assistantSidebarHost.isOpen)
-              }
+              hidden={!isAssistantSidebarVisible}
               inert={!isAssistantSidebarVisible || !assistantSidebarHost.isOpen}
               data-active={isAssistantSidebarVisible}
               data-mobile-overlay={String(assistantSidebarHost.isMobileOverlay)}

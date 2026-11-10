@@ -1,21 +1,71 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { getPreference, setPreference } from "@/lib/local-db";
 
 import type { EditorTab } from "../lib/tab.types";
 
+const EMPTY_TABS: EditorTab[] = [];
+
 export function useEntityTabs(
+  kind: "characters" | "world-info",
   projectId: string | null,
   selectedId: string | null,
   items: { id: string; name: string }[],
   isLoaded: boolean,
   select: (id: string | null) => void,
 ) {
-  const [state, setState] = useState<{ projectId: string | null; tabs: EditorTab[] }>({
+  const [state, setState] = useState<{
+    projectId: string | null;
+    tabs: EditorTab[];
+    isLoaded: boolean;
+    hasSaved: boolean;
+  }>({
     projectId,
     tabs: [],
+    isLoaded: false,
+    hasSaved: false,
   });
-  const tabs = state.projectId === projectId ? state.tabs : [];
+  const selectRef = useRef(select);
+  selectRef.current = select;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  const tabs = state.projectId === projectId ? state.tabs : EMPTY_TABS;
+  const isHydrated = state.projectId === projectId && state.isLoaded;
 
   useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    const initialSelection = selectedIdRef.current;
+    void getPreference(`editor-tabs.${kind}.${projectId}`).then((value) => {
+      if (cancelled) return;
+      let saved: { tabs: EditorTab[]; activeTabId: string | null } | null = null;
+      try {
+        const parsed = value ? JSON.parse(value) : null;
+        if (parsed && Array.isArray(parsed.tabs)) {
+          saved = {
+            tabs: parsed.tabs.filter(
+              (tab: EditorTab) => typeof tab?.id === "string" && typeof tab.title === "string",
+            ),
+            activeTabId: typeof parsed.activeTabId === "string" ? parsed.activeTabId : null,
+          };
+        }
+      } catch {
+        saved = null;
+      }
+      setState({ projectId, tabs: saved?.tabs ?? [], isLoaded: true, hasSaved: saved !== null });
+      if (saved && selectedIdRef.current === initialSelection) {
+        selectRef.current(
+          saved.tabs.some((tab) => tab.id === saved?.activeTabId) ? saved.activeTabId : null,
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, projectId]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     setState((previous) => {
       let next = previous.projectId === projectId ? previous.tabs : [];
       if (isLoaded) {
@@ -50,12 +100,22 @@ export function useEntityTabs(
         )
       )
         return previous;
-      return { projectId, tabs: next };
+      return { ...previous, projectId, tabs: next };
     });
-  }, [projectId, selectedId, items, isLoaded]);
+  }, [projectId, selectedId, items, isLoaded, isHydrated]);
+
+  useEffect(() => {
+    if (!projectId || !isHydrated || (selectedId && !tabs.some((tab) => tab.id === selectedId)))
+      return;
+    void setPreference(
+      `editor-tabs.${kind}.${projectId}`,
+      JSON.stringify({ tabs, activeTabId: selectedId }),
+    );
+  }, [kind, projectId, isHydrated, selectedId, tabs]);
 
   const update = (fn: (tabs: EditorTab[]) => EditorTab[]) =>
     setState((previous) => ({
+      ...previous,
       projectId,
       tabs: fn(previous.projectId === projectId ? previous.tabs : []),
     }));
@@ -68,6 +128,8 @@ export function useEntityTabs(
   };
   return {
     tabs,
+    isLoaded: isHydrated,
+    hasSaved: isHydrated && state.hasSaved,
     activeTabId: selectedId,
     setActiveTab: (id: string) => select(id),
     closeTab,

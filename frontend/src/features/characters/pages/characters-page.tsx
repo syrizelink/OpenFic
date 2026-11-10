@@ -13,6 +13,7 @@ import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/fe
 import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
 import { EditorTabBar, EmptyEditorTabs } from "@/features/writing/components/editor-tabs";
+import { PageLoadingOverlay } from "@/features/writing/components/page-loading-overlay";
 import { useEntityTabs } from "@/features/writing/components/use-entity-tabs";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
@@ -102,7 +103,7 @@ export function CharactersPage() {
   const isCreatingCharacterRef = useRef(false);
   const skipCharacterRestoreProjectIdRef = useRef<string | null>(null);
 
-  const { data: projectsData } = useQuery({
+  const { data: projectsData, isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects", "characters-page"],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
   });
@@ -148,6 +149,7 @@ export function CharactersPage() {
 
   const characters = useMemo(() => charactersData?.items ?? [], [charactersData?.items]);
   const entityTabs = useEntityTabs(
+    "characters",
     currentProjectId,
     currentCharacterId,
     characters,
@@ -167,6 +169,8 @@ export function CharactersPage() {
   useEffect(() => {
     const restoreCharacter = async () => {
       if (
+        !entityTabs.isLoaded ||
+        entityTabs.hasSaved ||
         !currentProjectId ||
         currentCharacterId ||
         characters.length === 0 ||
@@ -182,7 +186,14 @@ export function CharactersPage() {
     };
 
     void restoreCharacter();
-  }, [characters, currentCharacterId, currentProjectId, setCurrentCharacter]);
+  }, [
+    characters,
+    currentCharacterId,
+    currentProjectId,
+    entityTabs.isLoaded,
+    entityTabs.hasSaved,
+    setCurrentCharacter,
+  ]);
 
   useEffect(() => {
     if (currentCharacterId) void setPreference(LAST_CHARACTER_KEY, currentCharacterId);
@@ -434,7 +445,7 @@ export function CharactersPage() {
       direction="column"
       className="characters-main-view"
     >
-      {!isMobile && <EditorTabBar {...entityTabs} />}
+      {!isMobile && entityTabs.isLoaded && <EditorTabBar {...entityTabs} />}
       {view === "graph" && currentProjectId ? (
         <CharacterGraphView
           projectId={currentProjectId}
@@ -480,6 +491,16 @@ export function CharactersPage() {
       className="characters-page mobile-sidebar-swipe-surface"
       direction="column"
     >
+      <PageLoadingOverlay
+        isLoading={
+          isProjectsLoading ||
+          Boolean(!currentProjectId && projects.length > 0) ||
+          Boolean(
+            currentProjectId &&
+            (!entityTabs.isLoaded || isCharactersLoading || (!isMobile && !panelLayout.isLoaded)),
+          )
+        }
+      />
       {currentProjectId && !isMobile && panelLayout.isLoaded ? (
         <Group
           orientation="horizontal"

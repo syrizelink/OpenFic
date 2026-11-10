@@ -1,6 +1,6 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { Button, Dialog, Flex, Text, TextField } from "@radix-ui/themes";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
   ChevronDown,
@@ -31,10 +31,12 @@ import {
 import {
   fetchChapters,
   fetchCharactersByProject,
+  fetchTask,
   fetchWorldInfoByProject,
   fetchWorldInfoEntries,
   subscribeBackgroundEvents,
 } from "@/lib/api-client";
+import { getPreference, setPreference } from "@/lib/local-db";
 
 import { useAppShell } from "./app-shell-context";
 import { SidebarEntityEditor, type SidebarEntityKind } from "./right-sidebar-entity-editor";
@@ -55,20 +57,111 @@ const IDLE_STATE: AssistantSidebarState = { agentStatus: "idle", isAgentRunning:
 export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps>(
   function RightSidebar({ projectId, onStateChange, onOpenMentionChapter }, ref) {
     const { t } = useTranslation();
-    const { closeAssistantSidebar, openAssistantSidebar } = useAppShell();
+    const { isMobile, closeAssistantSidebar, openAssistantSidebar } = useAppShell();
     const [tabs, setTabs] = useState<SidebarTab[]>([INITIAL_TAB]);
     const [activeId, setActiveId] = useState(INITIAL_TAB.id);
     const [loadedTabIds, setLoadedTabIds] = useState<string[]>([INITIAL_TAB.id]);
     const [pickerKind, setPickerKind] = useState<SidebarEntityKind | null>(null);
     const [agentStates, setAgentStates] = useState<Record<string, AssistantSidebarState>>({});
+    const [isHydrated, setIsHydrated] = useState(false);
     const agentRefs = useRef(new Map<string, AssistantSidebarHandle>());
     const pendingMarkup = useRef<string[]>([]);
     const lastAgentId = useRef(INITIAL_TAB.id);
+    const tabsRef = useRef(tabs);
+    tabsRef.current = tabs;
     const prefix = useId();
-    const isAgentRunning = Object.values(agentStates).some((state) => state.isAgentRunning);
     const hasUnloadedAgents = tabs.some(
       (tab) => tab.kind === "agent" && !loadedTabIds.includes(tab.id),
     );
+    const unloadedAgentTabs = tabs.filter(
+      (tab) =>
+        tab.kind === "agent" &&
+        tab.taskId &&
+        !loadedTabIds.includes(tab.id) &&
+        !agentStates[tab.id],
+    );
+    const unloadedTaskIds = [...new Set(unloadedAgentTabs.map((tab) => tab.taskId!))];
+    const unloadedTaskQueries = useQueries({
+      queries: unloadedTaskIds.map((taskId) => ({
+        queryKey: ["task", taskId],
+        queryFn: () => fetchTask(taskId),
+        enabled: isHydrated,
+      })),
+    });
+    const runningTabIds = tabs
+      .filter((tab) => {
+        if (tab.kind !== "agent") return false;
+        const state = agentStates[tab.id];
+        if (state) return state.isAgentRunning;
+        const index = tab.taskId ? unloadedTaskIds.indexOf(tab.taskId) : -1;
+        return index >= 0 && unloadedTaskQueries[index].data?.isRunning === true;
+      })
+      .map((tab) => tab.id);
+    const isAgentRunning = runningTabIds.length > 0;
+    const mobileAgent =
+      tabs.find((tab) => tab.id === lastAgentId.current && tab.kind === "agent") ??
+      tabs.find((tab) => tab.kind === "agent");
+    const visibleTabId = isMobile ? (mobileAgent?.id ?? "") : activeId;
+
+    useEffect(() => {
+      let cancelled = false;
+      void getPreference(`right-sidebar.tabs.${projectId}`).then((value) => {
+        if (cancelled) return;
+        try {
+          const saved = value ? JSON.parse(value) : null;
+          if (saved && Array.isArray(saved.tabs)) {
+            const restored: SidebarTab[] = saved.tabs.filter(
+              (tab: SidebarTab) =>
+                typeof tab?.id === "string" &&
+                typeof tab.title === "string" &&
+                (tab.kind === "agent" ||
+                  ((tab.kind === "chapter" ||
+                    tab.kind === "character" ||
+                    tab.kind === "world_info_entry") &&
+                    typeof tab.entityId === "string")),
+            );
+            const active = restored.some((tab) => tab.id === saved.activeId)
+              ? saved.activeId
+              : (restored[0]?.id ?? "");
+            setTabs(restored);
+            setActiveId(active);
+            setLoadedTabIds([
+              ...restored
+                .filter((tab) => tab.kind === "agent" && tab.id !== active)
+                .slice(-(MAX_LOADED_TABS - 1))
+                .map((tab) => tab.id),
+              ...(active ? [active] : []),
+            ]);
+            lastAgentId.current =
+              restored.find((tab) => tab.id === saved.lastAgentId && tab.kind === "agent")?.id ??
+              restored.find((tab) => tab.kind === "agent")?.id ??
+              "";
+          }
+        } catch {
+          // Ignore invalid saved layout and keep the default tab.
+        }
+        setIsHydrated(true);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [projectId]);
+
+    useEffect(() => {
+      if (!isHydrated) return;
+      void setPreference(
+        `right-sidebar.tabs.${projectId}`,
+        JSON.stringify({ tabs, activeId, lastAgentId: lastAgentId.current }),
+      );
+    }, [projectId, isHydrated, tabs, activeId]);
+
+    useEffect(() => {
+      if (!isMobile || !isHydrated || mobileAgent) return;
+      lastAgentId.current = INITIAL_TAB.id;
+      setTabs((current) =>
+        current.some((tab) => tab.kind === "agent") ? current : [...current, INITIAL_TAB],
+      );
+    }, [isMobile, isHydrated, mobileAgent]);
     const activateTab = useCallback((id: string) => {
       setActiveId(id);
       if (!id) return;
@@ -84,10 +177,18 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
         const isRunning = event.is_running === true;
         setAgentStates((current) => {
           const next = { ...current };
-          for (const [id, state] of Object.entries(current)) {
-            if (state.taskId !== event.task_id || agentRefs.current.has(id)) continue;
-            next[id] = {
+          for (const tab of tabsRef.current) {
+            const state = current[tab.id];
+            if (
+              tab.kind !== "agent" ||
+              (state?.taskId ?? tab.taskId) !== event.task_id ||
+              agentRefs.current.has(tab.id)
+            )
+              continue;
+            next[tab.id] = {
+              ...IDLE_STATE,
               ...state,
+              taskId: event.task_id,
               isAgentRunning: isRunning,
               agentStatus: isRunning ? "running" : "idle",
             };
@@ -100,6 +201,13 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
 
     const handleAgentStateChange = useCallback((id: string, state: AssistantSidebarState) => {
       setAgentStates((current) => ({ ...current, [id]: state }));
+      setTabs((current) =>
+        current.map((tab) =>
+          tab.id === id && tab.kind === "agent" && tab.taskId !== (state.taskId ?? null)
+            ? { ...tab, taskId: state.taskId ?? null }
+            : tab,
+        ),
+      );
     }, []);
     const handleTitleChange = useCallback((id: string, title: string) => {
       setTabs((current) =>
@@ -116,28 +224,29 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
         const id = agentTab?.id ?? `agent:${crypto.randomUUID()}`;
         if (!agentTab) setTabs((current) => [...current, { id, kind: "agent", title: "" }]);
         lastAgentId.current = id;
-        activateTab(id);
+        if (!isMobile) activateTab(id);
         const agent = agentRefs.current.get(id);
         if (agent) agent.appendToComposer(markup);
         else pendingMarkup.current.push(markup);
       },
-      [activateTab, openAssistantSidebar, tabs],
+      [activateTab, isMobile, openAssistantSidebar, tabs],
     );
     useImperativeHandle(ref, () => ({ appendToComposer: handleAppend }), [handleAppend]);
 
     useEffect(() => {
-      const agent = agentRefs.current.get(activeId);
+      const agent = agentRefs.current.get(visibleTabId);
       if (!agent || pendingMarkup.current.length === 0) return;
       pendingMarkup.current.splice(0).forEach((markup) => agent.appendToComposer(markup));
-    }, [activeId]);
+    }, [visibleTabId]);
 
     useEffect(() => {
-      const state = agentStates[activeId] ?? agentStates[lastAgentId.current] ?? IDLE_STATE;
+      if (!isHydrated) return;
+      const state = agentStates[visibleTabId] ?? agentStates[lastAgentId.current] ?? IDLE_STATE;
       onStateChange?.({ ...state, isAgentRunning });
-    }, [activeId, agentStates, isAgentRunning, onStateChange]);
+    }, [visibleTabId, agentStates, isAgentRunning, onStateChange, isHydrated]);
 
     function handleCloseTabs(ids: string[]) {
-      const closedIds = new Set(ids.filter((id) => !agentStates[id]?.isAgentRunning));
+      const closedIds = new Set(ids.filter((id) => !runningTabIds.includes(id)));
       const index = tabs.findIndex((tab) => tab.id === activeId);
       const remaining = tabs.filter((tab) => !closedIds.has(tab.id));
       setTabs(remaining);
@@ -176,34 +285,37 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
       lastAgentId.current = id;
     }
 
+    if (!isHydrated) return null;
+
     return (
       <div className="right-sidebar">
-        <RightSidebarTabs
-          tabs={tabs}
-          activeId={activeId}
-          prefix={prefix}
-          runningTabIds={Object.entries(agentStates)
-            .filter(([, state]) => state.isAgentRunning)
-            .map(([id]) => id)}
-          onActivate={handleActivateTab}
-          onClose={handleCloseTabs}
-          onReorder={handleReorder}
-          onNewAgent={handleNewAgent}
-          onSelectKind={setPickerKind}
-          onCollapse={closeAssistantSidebar}
-        />
+        {!isMobile && (
+          <RightSidebarTabs
+            tabs={tabs}
+            activeId={activeId}
+            prefix={prefix}
+            runningTabIds={runningTabIds}
+            onActivate={handleActivateTab}
+            onClose={handleCloseTabs}
+            onReorder={handleReorder}
+            onNewAgent={handleNewAgent}
+            onSelectKind={setPickerKind}
+          />
+        )}
         <div className="right-sidebar-body">
           {tabs
-            .filter((tab) => loadedTabIds.includes(tab.id))
+            .filter((tab) => loadedTabIds.includes(tab.id) || (isMobile && tab.id === visibleTabId))
             .toSorted((a, b) => a.id.localeCompare(b.id))
             .map((tab) => (
               <SidebarTabPanel
                 key={tab.id}
                 tab={tab}
                 prefix={prefix}
-                isActive={activeId === tab.id}
-                initialTaskId={agentStates[tab.id]?.taskId}
+                isActive={visibleTabId === tab.id}
+                initialTaskId={agentStates[tab.id]?.taskId ?? tab.taskId}
                 projectId={projectId}
+                isMobile={isMobile}
+                onClose={closeAssistantSidebar}
                 isAgentLocked={isAgentRunning}
                 agentRefs={agentRefs.current}
                 onStateChange={handleAgentStateChange}
@@ -212,7 +324,7 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
                 onOpenMentionChapter={onOpenMentionChapter}
               />
             ))}
-          {tabs.length === 0 && (
+          {!isMobile && tabs.length === 0 && (
             <Flex
               className="right-sidebar-placeholder"
               direction="column"
@@ -235,7 +347,7 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
             </Flex>
           )}
         </div>
-        {pickerKind && (
+        {!isMobile && pickerKind && (
           <SidebarEntityPicker
             projectId={projectId}
             kind={pickerKind}
@@ -263,6 +375,8 @@ interface SidebarTabPanelProps {
   isActive: boolean;
   initialTaskId?: string | null;
   projectId: string;
+  isMobile: boolean;
+  onClose: () => void;
   isAgentLocked: boolean;
   agentRefs: Map<string, AssistantSidebarHandle>;
   onStateChange: (id: string, state: AssistantSidebarState) => void;
@@ -277,6 +391,8 @@ function SidebarTabPanel({
   isActive,
   initialTaskId,
   projectId,
+  isMobile,
+  onClose,
   isAgentLocked,
   agentRefs,
   onStateChange,
@@ -304,9 +420,9 @@ function SidebarTabPanel({
   );
   return (
     <div
-      role="tabpanel"
+      role={isMobile ? undefined : "tabpanel"}
       id={`${prefix}-panel-${tab.id}`}
-      aria-labelledby={`${prefix}-tab-${tab.id}`}
+      aria-labelledby={isMobile ? undefined : `${prefix}-tab-${tab.id}`}
       hidden={!isActive}
       className="right-sidebar-tab-panel"
       inert={!isActive}
@@ -315,6 +431,8 @@ function SidebarTabPanel({
         <AssistantSidebar
           ref={handleRef}
           projectId={projectId}
+          isMobileOverlay={isMobile}
+          onClose={onClose}
           initialTaskId={initialTaskId}
           onStateChange={handleStateChange}
           onOpenMentionChapter={onOpenMentionChapter}

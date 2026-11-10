@@ -1392,8 +1392,6 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
 
     const hasActiveTask = Boolean(parentConversationSessionId);
 
-    const shouldShowMobileToolbar = isMobileOverlay && view !== "allTasks" && !hasActiveTask;
-
     const isSendingMessage = agentSidebar.isRunning;
     const shouldShowSubagentConversation = isViewingSubagent;
     const shouldShowParentSubagentStrip =
@@ -1448,29 +1446,24 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         height="100%"
         className="ai-sidebar-shell"
       >
-        {shouldShowMobileToolbar && (
-          <Flex
-            align="center"
-            gap="2"
-            className="ai-sidebar-mobile-toolbar"
-          >
-            <IconButton
-              variant="ghost"
-              color="gray"
-              highContrast
-              size="2"
-              onClick={onClose}
-              aria-label={t("common.close")}
+        {isMobileOverlay && view !== "allTasks" && !hasActiveTask && (
+          <Box className="ai-sidebar-header ai-sidebar-mobile-back">
+            <Flex
+              align="center"
+              className="ai-sidebar-task-header-row"
             >
-              <ArrowLeft size={18} />
-            </IconButton>
-            <Text
-              size="2"
-              weight="medium"
-            >
-              {t("assistant.mobileTitle")}
-            </Text>
-          </Flex>
+              <IconButton
+                variant="ghost"
+                color="gray"
+                highContrast
+                size="1"
+                onClick={onClose}
+                aria-label={t("common.close")}
+              >
+                <ArrowLeft size={16} />
+              </IconButton>
+            </Flex>
+          </Box>
         )}
 
         {view !== "allTasks" && hasActiveTask && (

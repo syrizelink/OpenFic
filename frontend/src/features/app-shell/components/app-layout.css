@@ -63,6 +63,10 @@
   display: none;
 }
 
+.app-layout-assistant-sidebar[data-mobile-overlay="false"] > .right-sidebar {
+  width: var(--assistant-sidebar-content-width, 100%);
+}
+
 .app-layout-assistant-sidebar[data-mobile-overlay="true"] {
   inset: 0;
   z-index: 60;
@@ -74,4 +78,14 @@
 
 .app-layout-assistant-sidebar[data-mobile-overlay="true"][data-open="true"] {
   transform: translateX(0);
+}
+
+.app-layout-assistant-sidebar[data-mobile-overlay="true"][data-open="false"] {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-layout-assistant-sidebar[data-mobile-overlay="true"] {
+    transition: none;
+  }
 }

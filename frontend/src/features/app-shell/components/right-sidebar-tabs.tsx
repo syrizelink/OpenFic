@@ -14,17 +14,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
-import { Tooltip } from "@radix-ui/themes";
-import {
-  BookOpen,
-  Bot,
-  FileText,
-  PanelRightClose,
-  Plus,
-  UserRound,
-  X,
-  XCircle,
-} from "lucide-react";
+import { BookOpen, Bot, FileText, Plus, UserRound, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
 import {
   useCallback,
@@ -45,6 +35,7 @@ export interface SidebarTab {
   id: string;
   kind: "agent" | SidebarEntityKind;
   entityId?: string;
+  taskId?: string | null;
   title: string;
 }
 
@@ -58,7 +49,6 @@ interface RightSidebarTabsProps {
   onReorder: (activeId: string, overId: string) => void;
   onNewAgent: () => void;
   onSelectKind: (kind: SidebarEntityKind) => void;
-  onCollapse: () => void;
 }
 
 const TAB_ICONS = {
@@ -262,12 +252,15 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
                   <span className="right-sidebar-tab-title">
                     {draggedTab.title || t(`rightSidebar.${draggedTab.kind}`)}
                   </span>
-                  {props.runningTabIds.includes(draggedTab.id) && (
-                    <span className="right-sidebar-running" />
-                  )}
                 </span>
-                <span className="right-sidebar-tab-close">
-                  <X size={12} />
+                <span className="right-sidebar-tab-action">
+                  {draggedTab.kind === "agent" && props.runningTabIds.includes(draggedTab.id) ? (
+                    <span className="task-running-dot" />
+                  ) : (
+                    <span className="right-sidebar-tab-close">
+                      <X size={12} />
+                    </span>
+                  )}
                 </span>
               </div>
             )}
@@ -311,16 +304,6 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
         items={props.tabs}
         isDragging={draggedTab !== null}
       />
-      <Tooltip content={t("rightSidebar.collapse")}>
-        <button
-          type="button"
-          className="right-sidebar-toolbar-button"
-          aria-label={t("rightSidebar.collapse")}
-          onClick={props.onCollapse}
-        >
-          <PanelRightClose size={15} />
-        </button>
-      </Tooltip>
       <ContextMenu
         position={contextMenu}
         items={contextMenuItems}
@@ -373,6 +356,7 @@ function SortableSidebarTab({
       ref={setNodeRef}
       className="right-sidebar-tab"
       data-active={activeId === tab.id}
+      data-agent={tab.kind === "agent"}
       data-dragging={isDragging}
       data-exiting={!isPresent}
       data-width-animating={isWidthAnimating}
@@ -424,19 +408,28 @@ function SortableSidebarTab({
           aria-hidden="true"
         />
         <span className="right-sidebar-tab-title">{title}</span>
-        {isRunning && <span className="right-sidebar-running" />}
       </button>
-      <button
-        type="button"
-        className="right-sidebar-tab-close"
-        aria-label={t("rightSidebar.closeTab", { title })}
-        disabled={isRunning}
-        title={isRunning ? t("rightSidebar.runningTab") : t("common.close")}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={() => onClose([tab.id])}
-      >
-        <X size={12} />
-      </button>
+      <span className="right-sidebar-tab-action">
+        {isRunning && (
+          <span
+            role="img"
+            aria-label={t("writing.aiSidebar.taskRunning")}
+            title={t("writing.aiSidebar.taskRunning")}
+            className="task-running-dot right-sidebar-tab-status"
+          />
+        )}
+        <button
+          type="button"
+          className="right-sidebar-tab-close"
+          aria-label={t("rightSidebar.closeTab", { title })}
+          disabled={isRunning}
+          title={isRunning ? t("rightSidebar.runningTab") : t("common.close")}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => onClose([tab.id])}
+        >
+          <X size={12} />
+        </button>
+      </span>
     </motion.div>
   );
 }

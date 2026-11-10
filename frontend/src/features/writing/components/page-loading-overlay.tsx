@@ -6,6 +6,8 @@
 
 import { Box, Flex, Skeleton } from "@radix-ui/themes";
 
+import "./page-loading-overlay.css";
+
 interface PageLoadingOverlayProps {
   /** 是否显示 */
   isLoading: boolean;

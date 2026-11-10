@@ -147,6 +147,12 @@
   cursor: pointer;
 }
 
+.editor-tabs-add.editor-tabs-sidebar-open {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+}
+
 .editor-tabs-sidebar-open {
   margin-left: auto;
 }

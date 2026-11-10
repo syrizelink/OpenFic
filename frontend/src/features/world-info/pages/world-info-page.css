@@ -1,3 +1,7 @@
+.world-info-page {
+  position: relative;
+}
+
 .world-info-page-group {
   flex: 1;
   min-height: 0;

@@ -29,6 +29,7 @@ import {
   FileText,
   Lock,
   NotebookText,
+  PanelRightClose,
   PanelRightOpen,
   Unlock,
   X,
@@ -254,7 +255,7 @@ export function EditorTabBar({
   showMentionAction = false,
 }: EditorTabBarProps) {
   const { t } = useTranslation();
-  const { isAssistantSidebarOpen, openAssistantSidebar } = useAppShell();
+  const { isAssistantSidebarOpen, openAssistantSidebar, closeAssistantSidebar } = useAppShell();
   const listRef = useRef<HTMLDivElement>(null);
   const previousTabIdsRef = useRef(new Set(tabs.map((tab) => tab.id)));
   const previousActiveTabIdRef = useRef<string | null | undefined>(undefined);
@@ -508,17 +509,15 @@ export function EditorTabBar({
           items={tabs}
           isDragging={draggedTab !== null}
         />
-        {!isAssistantSidebarOpen && (
-          <button
-            type="button"
-            className="editor-tabs-add editor-tabs-sidebar-open"
-            aria-label={t("rightSidebar.expand")}
-            title={t("rightSidebar.expand")}
-            onClick={openAssistantSidebar}
-          >
-            <PanelRightOpen size={18} />
-          </button>
-        )}
+        <button
+          type="button"
+          className="editor-tabs-add editor-tabs-sidebar-open"
+          aria-label={t(isAssistantSidebarOpen ? "rightSidebar.collapse" : "rightSidebar.expand")}
+          title={t(isAssistantSidebarOpen ? "rightSidebar.collapse" : "rightSidebar.expand")}
+          onClick={isAssistantSidebarOpen ? closeAssistantSidebar : openAssistantSidebar}
+        >
+          {isAssistantSidebarOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+        </button>
       </div>
 
       {/* 标签页右键菜单 */}
