@@ -15,6 +15,7 @@
 
 .right-sidebar-toolbar {
   display: flex;
+  position: relative;
   align-items: center;
   flex: 0 0 34px;
   height: 34px;
@@ -95,8 +96,8 @@
   flex: 0 0 auto;
   position: relative;
   height: 26px;
-  min-width: 96px;
-  max-width: 180px;
+  min-width: 0;
+  max-width: min(180px, 100%);
   box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: var(--radius-3);
@@ -137,6 +138,12 @@
   opacity: 0;
 }
 
+.right-sidebar-tab[data-exiting="true"],
+.right-sidebar-tab[data-width-animating="true"] {
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .right-sidebar-tab-overlay {
   width: 100%;
   background: linear-gradient(var(--gray-a3), var(--gray-a3)), var(--color-background);
@@ -161,7 +168,7 @@
   flex: 1;
   height: 100%;
   gap: var(--space-1);
-  min-width: 0;
+  min-width: 73px;
   padding: 0 6px;
   font-size: var(--font-size-1);
   line-height: var(--line-height-1);

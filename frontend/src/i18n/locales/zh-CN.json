@@ -1,6 +1,7 @@
 {
   "rightSidebar": {
     "tabs": "右侧栏标签页",
+    "scrollTabs": "滚动右侧栏标签页",
     "newTab": "新建标签页",
     "agent": "会话",
     "chapter": "章节编辑",
@@ -1573,6 +1574,7 @@
     "builtin": "内置"
   },
   "tabs": {
+    "scrollTabs": "滚动编辑器标签页",
     "close": "关闭",
     "closeOthers": "关闭其它标签页",
     "closeAll": "全部关闭",

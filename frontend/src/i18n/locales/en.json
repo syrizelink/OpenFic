@@ -1,6 +1,7 @@
 {
   "rightSidebar": {
     "tabs": "Right sidebar tabs",
+    "scrollTabs": "Scroll right sidebar tabs",
     "newTab": "New tab",
     "agent": "Session",
     "chapter": "Chapter editor",
@@ -1573,6 +1574,7 @@
     "builtin": "Builtin"
   },
   "tabs": {
+    "scrollTabs": "Scroll editor tabs",
     "close": "Close",
     "closeOthers": "Close Other Tabs",
     "closeAll": "Close All",

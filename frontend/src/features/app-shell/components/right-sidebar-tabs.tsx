@@ -25,6 +25,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -36,6 +37,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu, SimpleSelect, type ContextMenuItem } from "@/components";
+import { TabScrollbar } from "@/components/tab-scrollbar";
 
 import type { SidebarEntityKind } from "./right-sidebar-entity-editor";
 
@@ -70,6 +72,8 @@ const ENTITY_KINDS: SidebarEntityKind[] = ["chapter", "character", "world_info_e
 export function RightSidebarTabs(props: RightSidebarTabsProps) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
+  const previousTabIdsRef = useRef(new Set(props.tabs.map((tab) => tab.id)));
+  const previousActiveIdRef = useRef<string | undefined>(undefined);
   const [draggedTab, setDraggedTab] = useState<SidebarTab | null>(null);
   const [contextMenu, setContextMenu] = useState<{ tabId: string; x: number; y: number } | null>(
     null,
@@ -124,11 +128,23 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
       ]
     : [];
 
-  useEffect(() => {
+  const revealActiveTab = useCallback(() => {
     listRef.current
       ?.querySelector('[aria-selected="true"]')
+      ?.closest(".right-sidebar-tab")
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [props.activeId]);
+  }, []);
+
+  useEffect(() => {
+    if (
+      props.activeId !== previousActiveIdRef.current &&
+      previousTabIdsRef.current.has(props.activeId)
+    ) {
+      revealActiveTab();
+    }
+    previousTabIdsRef.current = new Set(props.tabs.map((tab) => tab.id));
+    previousActiveIdRef.current = props.activeId;
+  }, [props.activeId, props.tabs, revealActiveTab]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -204,6 +220,7 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
         >
           <div
             ref={listRef}
+            id={`${props.prefix}-tabs`}
             className="right-sidebar-tabs"
             role="tablist"
             aria-label={t("rightSidebar.tabs")}
@@ -212,19 +229,22 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
               items={props.tabs.map((tab) => tab.id)}
               strategy={horizontalListSortingStrategy}
             >
-              {props.tabs.map((tab, index) => (
-                <SortableSidebarTab
-                  key={tab.id}
-                  tab={tab}
-                  index={index}
-                  {...props}
-                  onNavigate={handleTabKeyDown}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    setContextMenu({ tabId: tab.id, x: event.clientX, y: event.clientY });
-                  }}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {props.tabs.map((tab, index) => (
+                  <SortableSidebarTab
+                    key={tab.id}
+                    tab={tab}
+                    index={index}
+                    {...props}
+                    onReveal={revealActiveTab}
+                    onNavigate={handleTabKeyDown}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setContextMenu({ tabId: tab.id, x: event.clientX, y: event.clientY });
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
             </SortableContext>
           </div>
           <DragOverlay
@@ -284,6 +304,13 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
           size="1"
         />
       </div>
+      <TabScrollbar
+        listRef={listRef}
+        listId={`${props.prefix}-tabs`}
+        label={t("rightSidebar.scrollTabs")}
+        items={props.tabs}
+        isDragging={draggedTab !== null}
+      />
       <Tooltip content={t("rightSidebar.collapse")}>
         <button
           type="button"
@@ -306,6 +333,7 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
 interface SortableSidebarTabProps extends RightSidebarTabsProps {
   tab: SidebarTab;
   index: number;
+  onReveal: () => void;
   onNavigate: (event: KeyboardEvent<HTMLButtonElement>, index: number) => void;
   onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
 }
@@ -318,10 +346,14 @@ function SortableSidebarTab({
   runningTabIds,
   onActivate,
   onClose,
+  onReveal,
   onNavigate,
   onContextMenu,
 }: SortableSidebarTabProps) {
   const { t } = useTranslation();
+  const isPresent = useIsPresent();
+  const shouldReduceMotion = useReducedMotion();
+  const [isWidthAnimating, setIsWidthAnimating] = useState(false);
   const {
     attributes,
     listeners,
@@ -331,17 +363,29 @@ function SortableSidebarTab({
     transition,
     isDragging,
     isSorting,
-  } = useSortable({ id: tab.id });
+  } = useSortable({ id: tab.id, disabled: !isPresent });
   const title = tab.title || t(`rightSidebar.${tab.kind}`);
   const Icon = TAB_ICONS[tab.kind];
   const isRunning = runningTabIds.includes(tab.id);
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       className="right-sidebar-tab"
       data-active={activeId === tab.id}
       data-dragging={isDragging}
+      data-exiting={!isPresent}
+      data-width-animating={isWidthAnimating}
+      inert={!isPresent}
+      initial={shouldReduceMotion ? false : { width: 0 }}
+      animate={{ width: "auto" }}
+      exit={{ width: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: "easeOut" }}
+      onAnimationStart={() => setIsWidthAnimating(true)}
+      onAnimationComplete={() => {
+        setIsWidthAnimating(false);
+        if (activeId === tab.id && isPresent) onReveal();
+      }}
       onContextMenu={onContextMenu}
       style={{
         transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
@@ -393,6 +437,6 @@ function SortableSidebarTab({
       >
         <X size={12} />
       </button>
-    </div>
+    </motion.div>
   );
 }

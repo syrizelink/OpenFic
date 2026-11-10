@@ -8,6 +8,7 @@
 
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -15,15 +16,14 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { restrictToHorizontalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import { restrictToFirstScrollableAncestor, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Box, Flex, Text, IconButton, Button } from "@radix-ui/themes";
+import { Flex, Button } from "@radix-ui/themes";
 import {
   AtSign,
   FilePlus,
@@ -35,133 +35,152 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { memo, useCallback, useState, useMemo } from "react";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
+import { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu, type ContextMenuItem } from "@/components";
+import { TabScrollbar } from "@/components/tab-scrollbar";
 import { buildChapterMentionTag, buildNoteMentionTag } from "@/features/assistant/lib/mention-text";
 
 import { isEmptyTab } from "../lib/tab.types";
 import type { EditorTab } from "../lib/tab.types";
 import { useTabs, useActiveTabId, useTabsStore } from "../store/use-tabs-store";
 
-/** 标签页尺寸配置 */
-const TAB_MIN_WIDTH = 80;
-const TAB_MAX_WIDTH = 160;
+import "./editor-tabs.css";
 
 interface SortableTabItemProps {
   tab: EditorTab;
   isActive: boolean;
+  hasActiveBefore: boolean;
+  hasActiveAfter: boolean;
   displayTitle: string;
   onActivate: () => void;
+  onReveal: () => void;
   onClose: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+}
+
+function TabShape({
+  noLeftCurve = false,
+  noRightCurve = false,
+  isActive = false,
+}: {
+  noLeftCurve?: boolean;
+  noRightCurve?: boolean;
+  isActive?: boolean;
+}) {
+  const start = noLeftCurve ? 7.5 : 0;
+  const end = noRightCurve ? 166.5 : 174;
+  const outline = `M ${start} 29.5 ${noLeftCurve ? "" : "Q 7.5 29.5 7.5 22"} L 7.5 6.5 Q 7.5 0.5 13.5 0.5 H 160.5 Q 166.5 0.5 166.5 6.5 V 22 ${noRightCurve ? "L 166.5 29.5" : "Q 166.5 29.5 174 29.5"}`;
+  return (
+    <svg
+      className={isActive ? "editor-tab-shape" : "editor-tab-shape editor-tab-shape-hover"}
+      viewBox="0 0 174 30"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <path
+        className="editor-tab-shape-fill"
+        d={`${outline} L ${end} 30 H ${start} Z`}
+      />
+      {isActive && (
+        <path
+          className="editor-tab-shape-border"
+          d={outline}
+        />
+      )}
+    </svg>
+  );
 }
 
 /** 可排序的标签页项 */
 const SortableTabItem = memo(function SortableTabItem({
   tab,
   isActive,
+  hasActiveBefore,
+  hasActiveAfter,
   displayTitle,
   onActivate,
+  onReveal,
   onClose,
   onContextMenu,
 }: SortableTabItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tab.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
+  const { t } = useTranslation();
+  const isPresent = useIsPresent();
+  const shouldReduceMotion = useReducedMotion();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    flex: "1 1 auto",
-    minWidth: TAB_MIN_WIDTH,
-    maxWidth: TAB_MAX_WIDTH,
-  };
+    isDragging,
+  } = useSortable({ id: tab.id, disabled: !isPresent });
+  const Icon = tab.type === "chapter" ? FileText : NotebookText;
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
+      className="editor-tab"
+      data-active={isActive}
+      data-dragging={isDragging}
+      data-exiting={!isPresent}
+      inert={!isPresent}
+      initial={shouldReduceMotion ? false : { width: 0 }}
+      animate={{ width: 160 }}
+      exit={{ width: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: "easeOut" }}
+      onAnimationComplete={() => {
+        if (isActive && isPresent) onReveal();
+      }}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
+        transition,
+      }}
+      onContextMenu={onContextMenu}
+      onMouseDown={(event) => {
+        if (event.button === 1) event.preventDefault();
+      }}
+      onAuxClick={(event) => {
+        if (event.button === 1 && !tab.isLocked) onClose();
+      }}
     >
-      <Flex
-        align="center"
-        justify="between"
-        px="3"
+      <TabShape
+        isActive={isActive}
+        noLeftCurve={!isActive && hasActiveBefore}
+        noRightCurve={!isActive && hasActiveAfter}
+      />
+      <button
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        type="button"
+        role="tab"
+        aria-selected={isActive}
+        className="editor-tab-select"
+        title={displayTitle}
         onClick={onActivate}
-        onContextMenu={onContextMenu}
-        style={{
-          width: "100%",
-          height: isActive ? 33 : 30,
-          cursor: isDragging ? "grabbing" : "pointer",
-          background: isActive ? "var(--color-background)" : "var(--theme-editor-bar-background)",
-          borderTop: "1px solid var(--gray-a4)",
-          borderLeft: "1px solid var(--gray-a4)",
-          borderRight: "1px solid var(--gray-a4)",
-          borderBottom: isActive ? "1px solid var(--color-background)" : "none",
-          borderTopLeftRadius: "var(--radius-2)",
-          borderTopRightRadius: "var(--radius-2)",
-          userSelect: "none",
-          position: "relative",
-          zIndex: isActive ? 2 : 0,
-          marginBottom: isActive ? 0 : 1,
-        }}
       >
-        {/* 类型图标 */}
-        {tab.type === "chapter" ? (
-          <FileText
-            size={14}
-            style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
-          />
-        ) : (
-          <NotebookText
-            size={14}
-            style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
-          />
-        )}
-        {/* 标题 */}
-        <Text
-          size="2"
-          weight={isActive ? "medium" : "regular"}
-          style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flex: 1,
-            color: isActive ? "var(--gray-12)" : "var(--gray-11)",
-          }}
+        <Icon
+          size={14}
+          aria-hidden="true"
+        />
+        <span className="editor-tab-title">{displayTitle}</span>
+      </button>
+      {!tab.isLocked && (
+        <button
+          type="button"
+          className="editor-tab-close"
+          aria-label={t("rightSidebar.closeTab", { title: displayTitle })}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onClose}
         >
-          {displayTitle}
-        </Text>
-
-        {/* 关闭按钮（右侧） */}
-        {!tab.isLocked && (
-          <IconButton
-            variant="ghost"
-            color="gray"
-            highContrast
-            size="1"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            style={{
-              width: 18,
-              height: 18,
-              minWidth: 18,
-              minHeight: 18,
-              flexShrink: 0,
-              marginLeft: 4,
-            }}
-          >
-            <X size={12} />
-          </IconButton>
-        )}
-      </Flex>
-    </div>
+          <X size={12} />
+        </button>
+      )}
+    </motion.div>
   );
 });
 
@@ -214,6 +233,10 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
   const { t } = useTranslation();
   const tabs = useTabs();
   const activeTabId = useActiveTabId();
+  const listRef = useRef<HTMLDivElement>(null);
+  const previousTabIdsRef = useRef(new Set(tabs.map((tab) => tab.id)));
+  const previousActiveTabIdRef = useRef<string | null | undefined>(undefined);
+  const [draggedTab, setDraggedTab] = useState<EditorTab | null>(null);
   const { setActiveTab, closeTab, reorderTabs, closeOtherTabs, closeAllTabs, toggleLock } =
     useTabsStore();
 
@@ -221,7 +244,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 6,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -235,6 +258,41 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     y: number;
   } | null>(null);
   const [contextMenuTabId, setContextMenuTabId] = useState<string | null>(null);
+
+  const revealActiveTab = useCallback(() => {
+    listRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.closest(".editor-tab")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, []);
+
+  useEffect(() => {
+    if (
+      activeTabId !== previousActiveTabIdRef.current &&
+      activeTabId &&
+      previousTabIdsRef.current.has(activeTabId)
+    ) {
+      revealActiveTab();
+    }
+    previousTabIdsRef.current = new Set(tabs.map((tab) => tab.id));
+    previousActiveTabIdRef.current = activeTabId;
+  }, [activeTabId, revealActiveTab, tabs]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || list.scrollWidth <= list.clientWidth) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? list.clientWidth : 1;
+      event.preventDefault();
+      list.scrollLeft += delta * scale;
+    };
+    list.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      list.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
 
   // 激活标签页
   const handleActivate = useCallback(
@@ -278,6 +336,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
       if (over && active.id !== over.id) {
         reorderTabs(active.id as string, over.id as string);
       }
+      setDraggedTab(null);
     },
     [reorderTabs],
   );
@@ -356,92 +415,94 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
 
   return (
     <>
-      <Box
-        style={{
-          background: "var(--theme-editor-bar-background)",
-          position: "relative",
-        }}
+      <div
+        className="editor-tabs-toolbar"
+        data-dragging={draggedTab !== null}
       >
-        {/* 底部边框线 - 位于标签页下方 */}
-        <Box
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 1,
-            background: "var(--gray-a4)",
-            zIndex: 0,
-          }}
-        />
-        <Flex
-          align="end"
-          gap="0"
-          px="2"
-          style={{ height: 34, position: "relative", zIndex: 1 }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToHorizontalAxis, restrictToFirstScrollableAncestor]}
+          onDragStart={({ active }) =>
+            setDraggedTab(tabs.find((tab) => tab.id === active.id) ?? null)
+          }
+          onDragCancel={() => setDraggedTab(null)}
+          onDragEnd={handleDragEnd}
         >
-          {/* 标签页列表和添加按钮 */}
-          <Flex
-            gap="1"
-            align="end"
-            style={{
-              flex: 1,
-              overflow: "hidden",
-            }}
+          <div
+            ref={listRef}
+            className="editor-tabs-list"
+            id="editor-tabs-list"
+            role="tablist"
           >
-            {/* 标签页拖拽区域 - 使用 flex 布局自动压缩 */}
-            <Flex
-              gap="1"
-              align="end"
-              style={{
-                minWidth: 0,
-                overflow: "hidden",
-              }}
+            <SortableContext
+              items={tabs.map((t) => t.id)}
+              strategy={horizontalListSortingStrategy}
             >
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
-                onDragEnd={handleDragEnd}
+              <AnimatePresence initial={false}>
+                {tabs.map((tab, index) => (
+                  <SortableTabItem
+                    key={tab.id}
+                    tab={tab}
+                    isActive={tab.id === activeTabId}
+                    hasActiveBefore={tabs[index - 1]?.id === activeTabId}
+                    hasActiveAfter={tabs[index + 1]?.id === activeTabId}
+                    displayTitle={isEmptyTab(tab.id) ? t("tabs.emptyTab") : tab.title}
+                    onActivate={() => handleActivate(tab.id)}
+                    onReveal={revealActiveTab}
+                    onClose={() => handleClose(tab.id)}
+                    onContextMenu={(e) => handleContextMenu(tab.id, e)}
+                  />
+                ))}
+              </AnimatePresence>
+            </SortableContext>
+          </div>
+          <DragOverlay
+            dropAnimation={{ duration: 180, easing: "ease-out" }}
+            zIndex={70}
+          >
+            {draggedTab && (
+              <div
+                className="editor-tab editor-tab-overlay"
+                data-active={draggedTab.id === activeTabId}
+                aria-hidden="true"
               >
-                <SortableContext
-                  items={tabs.map((t) => t.id)}
-                  strategy={horizontalListSortingStrategy}
-                >
-                  {tabs.map((tab) => (
-                    <SortableTabItem
-                      key={tab.id}
-                      tab={tab}
-                      isActive={tab.id === activeTabId}
-                      displayTitle={isEmptyTab(tab.id) ? t("tabs.emptyTab") : tab.title}
-                      onActivate={() => handleActivate(tab.id)}
-                      onClose={() => handleClose(tab.id)}
-                      onContextMenu={(e) => handleContextMenu(tab.id, e)}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            </Flex>
-
-            {/* 添加按钮 - 紧跟在标签页后方 */}
-            <IconButton
-              variant="ghost"
-              color="gray"
-              highContrast
-              size="1"
-              onClick={handleAddTab}
-              style={{
-                width: 28,
-                height: 28,
-                marginBottom: 2,
-                flexShrink: 0,
-              }}
-            >
-              <Plus size={16} />
-            </IconButton>
-          </Flex>
-        </Flex>
-      </Box>
+                {draggedTab.id === activeTabId && <TabShape isActive />}
+                <span className="editor-tab-select">
+                  {draggedTab.type === "chapter" ? (
+                    <FileText size={14} />
+                  ) : (
+                    <NotebookText size={14} />
+                  )}
+                  <span className="editor-tab-title">
+                    {isEmptyTab(draggedTab.id) ? t("tabs.emptyTab") : draggedTab.title}
+                  </span>
+                </span>
+                {!draggedTab.isLocked && (
+                  <span className="editor-tab-close">
+                    <X size={12} />
+                  </span>
+                )}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+        <TabScrollbar
+          listRef={listRef}
+          listId="editor-tabs-list"
+          label={t("tabs.scrollTabs")}
+          items={tabs}
+          isDragging={draggedTab !== null}
+        />
+        <button
+          type="button"
+          className="editor-tabs-add"
+          aria-label={t("rightSidebar.newTab")}
+          onClick={handleAddTab}
+        >
+          <Plus size={16} />
+        </button>
+      </div>
 
       {/* 标签页右键菜单 */}
       <ContextMenu
