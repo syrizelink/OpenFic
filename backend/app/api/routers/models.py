@@ -280,6 +280,7 @@ async def update_model(
             provider_id=request.provider_id,
             model_identifier=request.model_id,
             clear_dimensions="dimensions" in request.model_fields_set and request.dimensions is None,
+            clear_max_tokens="max_tokens" in request.model_fields_set and request.max_tokens is None,
             task_type=request.task_type,
             temperature=request.temperature,
             top_p=request.top_p,

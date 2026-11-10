@@ -8,8 +8,8 @@ from app.agent_runtime.runner.event_scope import (
 )
 from app.agent_runtime.tools.errors import tool_failure_from_error
 from app.agent_runtime.tool_call_recovery import (
-    build_malformed_tool_call_error,
     is_malformed_tool_call,
+    malformed_tool_call_failure,
     recover_message_tool_calls,
     synthesize_tool_call_id,
     tool_call_input,
@@ -230,7 +230,7 @@ class EventTranslator:
                         "tool_call_id": tool_call.get("id"),
                         "tool": tool_call.get("name"),
                         "input": tool_call_input(tool_call),
-                        "output": build_malformed_tool_call_error(tool_call),
+                        "output": malformed_tool_call_failure(tool_call).to_result(),
                     },
                 }
             )

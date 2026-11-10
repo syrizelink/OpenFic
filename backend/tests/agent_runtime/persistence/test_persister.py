@@ -16,6 +16,7 @@ from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence import persister as persister_module
 from app.agent_runtime.persistence.persister import MessagePersister
 from app.agent_runtime.persistence.loader import load_history
+from app.agent_runtime.tool_call_recovery import TRUNCATED_TOOL_CALL_MESSAGE
 from app.models.clients.openai_codex import OpenAICodexChatModel
 
 
@@ -929,6 +930,73 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
         "success": False,
         "code": "malformed_tool_call",
         "message": "工具参数 JSON 无法解析，未执行工具调用",
+    }
+
+
+@pytest.mark.asyncio
+async def test_persister_persists_truncated_tool_call_as_failure(
+    db_session: AsyncSession, db_session_factory, sample_task
+):
+    sid = "child-session-truncated-tool-call"
+    run_id = "child-run-truncated-tool-call"
+    p = MessagePersister(
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+        allow_subagent_child_events=True,
+    )
+
+    await p.handle({
+        "event": "on_chain_start",
+        "name": "composer",
+        "tags": ["agent_node", "subagent_child"],
+        "data": {},
+    })
+    await p.handle({
+        "event": "on_chat_model_start",
+        "run_id": run_id,
+        "tags": ["subagent_child"],
+        "data": {},
+    })
+    await p.handle({
+        "event": "on_chat_model_stream",
+        "run_id": run_id,
+        "tags": ["subagent_child"],
+        "data": {
+            "chunk": AIMessageChunk(
+                content="",
+                tool_call_chunks=[
+                    {
+                        "index": 0,
+                        "id": "call_1",
+                        "name": "edit_note",
+                        "args": '{"old_content": "x", "new_content": "第一段',
+                    }
+                ],
+            )
+        },
+    })
+    await p.handle({
+        "event": "on_chat_model_end",
+        "run_id": run_id,
+        "tags": ["subagent_child"],
+        "data": {
+            "output": AIMessage(
+                content="",
+                response_metadata={"stop_reason": "max_tokens"},
+            )
+        },
+    })
+
+    items = await repo.list_by_session(db_session, sid)
+    assert [item.role for item in items] == ["assistant", "tool"]
+    assert items[1].tool_call_id == "call_1"
+    assert json.loads(items[1].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "malformed_tool_call",
+        "message": TRUNCATED_TOOL_CALL_MESSAGE,
     }
 
 

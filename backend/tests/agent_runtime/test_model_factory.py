@@ -93,6 +93,33 @@ def test_create_chat_model_anthropic_uses_native_client():
     assert isinstance(model, ChatAnthropic)
 
 
+def test_create_chat_model_anthropic_without_max_tokens_uses_model_profile_default():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="anthropic",
+            base_url="",
+            api_key="sk-ant-test",
+            model_id="claude-opus-4-6",
+        )
+    )
+
+    assert model.max_tokens == 128000  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_anthropic_respects_configured_max_tokens():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="anthropic",
+            base_url="",
+            api_key="sk-ant-test",
+            model_id="claude-opus-4-6",
+            max_tokens=2048,
+        )
+    )
+
+    assert model.max_tokens == 2048  # type: ignore[attr-defined]
+
+
 def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custom_url():
     config = ModelConfig(
         provider_type="anthropic-compatible",

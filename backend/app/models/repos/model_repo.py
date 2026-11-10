@@ -202,6 +202,7 @@ async def update(
     cache_write_price: float | None = None,
     dimensions: int | None = None,
     clear_dimensions: bool = False,
+    clear_max_tokens: bool = False,
 ) -> Model | None:
     """
     更新模型。
@@ -257,7 +258,7 @@ async def update(
         model.presence_penalty = presence_penalty
     if repetition_penalty is not None:
         model.repetition_penalty = repetition_penalty
-    if max_tokens is not None:
+    if max_tokens is not None or clear_max_tokens:
         model.max_tokens = max_tokens
     if context_length is not None:
         model.context_length = context_length

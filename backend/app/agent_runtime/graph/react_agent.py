@@ -74,8 +74,9 @@ from app.agent_runtime.tools.errors import (
     tool_failure_from_exception,
 )
 from app.agent_runtime.tool_call_recovery import (
-    build_malformed_tool_call_error,
     is_malformed_tool_call,
+    is_output_truncated,
+    malformed_tool_call_failure,
     merge_tool_call_chunks,
     normalize_tool_input_for_schema,
     reconcile_tool_call_chunks,
@@ -192,6 +193,7 @@ async def _invoke_model(
                 reconcile_tool_call_chunks(
                     streamed_tool_call_chunks,
                     id_seed=response.id,
+                    truncated=is_output_truncated(response),
                 )
                 or recover_message_tool_calls(response)
             ),
@@ -1177,12 +1179,7 @@ def create_react_agent(
             )
 
         if is_malformed_tool_call(tool_call):
-            malformed_payload = build_malformed_tool_call_error(tool_call)
-            failure = ToolFailure(
-                code="malformed_tool_call",
-                message=str(malformed_payload["message"]),
-                trace={"source": "tool_call_recovery"},
-            )
+            failure = malformed_tool_call_failure(tool_call)
             log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
             payload = failure.to_result()
             result = serialize_tool_failure(failure)

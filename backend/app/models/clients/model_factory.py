@@ -217,7 +217,8 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
-            max_tokens=config.max_tokens or 4096,
+            # Leave unset so langchain_anthropic picks the model profile's output limit.
+            max_tokens=config.max_tokens,
             effort=reasoning_effort,
             max_retries=0,
             timeout=_request_timeout(config)[1],
