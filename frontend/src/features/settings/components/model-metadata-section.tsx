@@ -204,6 +204,48 @@ export function ModelMetadataSection<T extends FieldValues>({
                   max={2000000}
                   step={1}
                 />
+                <Flex
+                  direction="column"
+                  gap="2"
+                >
+                  <Text
+                    as="label"
+                    htmlFor={`max-tokens-${modelId || "new"}`}
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                  >
+                    {t("models.maxTokens")}
+                  </Text>
+                  <Controller
+                    name={"maxTokens" as Path<T>}
+                    control={control}
+                    render={({ field }) => (
+                      <UnitTextField
+                        id={`max-tokens-${modelId || "new"}`}
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={field.value ?? ""}
+                        placeholder={t("models.maxTokensPlaceholder")}
+                        unit="tokens"
+                        unitSide="right"
+                        disabled={disabled}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          field.onChange(value === "" ? null : Number(value));
+                        }}
+                        onBlur={(event) => {
+                          const value = Number(event.currentTarget.value);
+                          const normalizedValue =
+                            Number.isFinite(value) && value >= 1 ? Math.round(value) : null;
+                          if (normalizedValue !== field.value) field.onChange(normalizedValue);
+                          field.onBlur();
+                        }}
+                      />
+                    )}
+                  />
+                </Flex>
                 {PRICE_FIELDS.map((field) => (
                   <MetadataNumberField
                     key={field.name}
