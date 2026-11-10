@@ -371,29 +371,31 @@ export function ModelFormDialog({
         setValue("name", modelName);
       }
       const catalogModel = availableModels.find((entry) => entry.id === modelId);
-      if (
-        catalogModel &&
-        (catalogModel.source === "catalog" ||
-          catalogModel.contextWindow !== null ||
-          catalogModel.cost !== null) &&
-        typeof catalogModel.contextWindow === "number" &&
-        catalogModel.contextWindow >= 0 &&
-        catalogModel.contextWindow <= 2000000
-      ) {
-        setValue("contextLength", catalogModel.contextWindow);
+      const outputLimit =
+        typeof catalogModel?.limit === "object" && catalogModel.limit !== null
+          ? catalogModel.limit.output
+          : null;
+      if (!isEditing && taskType === "llm") {
+        setValue(
+          "maxTokens",
+          typeof outputLimit === "number" && Number.isSafeInteger(outputLimit) && outputLimit > 0
+            ? outputLimit
+            : null,
+        );
       }
-      setValue("inputPrice", catalogModel?.inputPricePerMillion ?? getValues("inputPrice"));
-      setValue("outputPrice", catalogModel?.outputPricePerMillion ?? getValues("outputPrice"));
+      const contextWindow = catalogModel?.contextWindow;
       setValue(
-        "cacheReadPrice",
-        catalogModel?.cacheReadPricePerMillion ?? getValues("cacheReadPrice"),
+        "contextLength",
+        typeof contextWindow === "number" && contextWindow >= 0 && contextWindow <= 2000000
+          ? contextWindow
+          : 128000,
       );
-      setValue(
-        "cacheWritePrice",
-        catalogModel?.cacheWritePricePerMillion ?? getValues("cacheWritePrice"),
-      );
+      setValue("inputPrice", catalogModel?.inputPricePerMillion ?? 0);
+      setValue("outputPrice", catalogModel?.outputPricePerMillion ?? 0);
+      setValue("cacheReadPrice", catalogModel?.cacheReadPricePerMillion ?? 0);
+      setValue("cacheWritePrice", catalogModel?.cacheWritePricePerMillion ?? 0);
     },
-    [availableModels, getValues, invalidateDimensionsDetection, setValue],
+    [availableModels, getValues, invalidateDimensionsDetection, isEditing, setValue, taskType],
   );
 
   // 提交表单
