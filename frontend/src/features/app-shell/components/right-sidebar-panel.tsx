@@ -1,7 +1,4 @@
-import { IconButton, Tooltip } from "@radix-ui/themes";
-import { PanelRightOpen } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import { Panel, Separator, usePanelRef } from "react-resizable-panels";
 
 import { useAppShell } from "./app-shell-context";
@@ -11,11 +8,10 @@ interface RightSidebarPanelProps {
   children: ReactNode;
 }
 
-const COLLAPSED_WIDTH = 40;
+const COLLAPSED_WIDTH = 0;
 
 export function RightSidebarPanel({ id, children }: RightSidebarPanelProps) {
-  const { t } = useTranslation();
-  const { isAssistantSidebarOpen, openAssistantSidebar, closeAssistantSidebar } = useAppShell();
+  const { isAssistantSidebarOpen, closeAssistantSidebar } = useAppShell();
   const panelRef = usePanelRef();
   const expandedWidthRef = useRef(500);
 
@@ -35,6 +31,7 @@ export function RightSidebarPanel({ id, children }: RightSidebarPanelProps) {
       />
       <Panel
         id={id}
+        className="right-sidebar-resizable-panel"
         panelRef={panelRef}
         defaultSize={500}
         minSize={300}
@@ -54,20 +51,6 @@ export function RightSidebarPanel({ id, children }: RightSidebarPanelProps) {
           data-open={isAssistantSidebarOpen}
         >
           <div className="right-sidebar-panel-content">{children}</div>
-          {!isAssistantSidebarOpen && (
-            <div className="right-sidebar-expand">
-              <Tooltip content={t("rightSidebar.expand")}>
-                <IconButton
-                  variant="soft"
-                  color="gray"
-                  aria-label={t("rightSidebar.expand")}
-                  onClick={openAssistantSidebar}
-                >
-                  <PanelRightOpen size={18} />
-                </IconButton>
-              </Tooltip>
-            </div>
-          )}
         </div>
       </Panel>
     </>

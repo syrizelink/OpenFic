@@ -182,7 +182,10 @@ export function AppLayout({
             <div
               ref={assistantSidebarContainerRef}
               className="app-layout-assistant-sidebar"
-              hidden={!isAssistantSidebarVisible || !assistantSidebarHost.isOpen}
+              hidden={
+                !isAssistantSidebarVisible ||
+                (assistantSidebarHost.isMobileOverlay && !assistantSidebarHost.isOpen)
+              }
               inert={!isAssistantSidebarVisible || !assistantSidebarHost.isOpen}
               data-active={isAssistantSidebarVisible}
               data-mobile-overlay={String(assistantSidebarHost.isMobileOverlay)}

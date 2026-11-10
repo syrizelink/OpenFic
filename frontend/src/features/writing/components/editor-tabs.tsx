@@ -23,14 +23,13 @@ import {
   horizontalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
-import { Flex, Button } from "@radix-ui/themes";
+import { Flex, Text } from "@radix-ui/themes";
 import {
   AtSign,
-  FilePlus,
   FileText,
   Lock,
-  Plus,
   NotebookText,
+  PanelRightOpen,
   Unlock,
   X,
   XCircle,
@@ -41,9 +40,9 @@ import { useTranslation } from "react-i18next";
 
 import { ContextMenu, type ContextMenuItem } from "@/components";
 import { TabScrollbar } from "@/components/tab-scrollbar";
+import { useAppShell } from "@/features/app-shell";
 import { buildChapterMentionTag, buildNoteMentionTag } from "@/features/assistant/lib/mention-text";
 
-import { isEmptyTab } from "../lib/tab.types";
 import type { EditorTab } from "../lib/tab.types";
 import { useTabs, useActiveTabId, useTabsStore } from "../store/use-tabs-store";
 
@@ -184,13 +183,7 @@ const SortableTabItem = memo(function SortableTabItem({
   );
 });
 
-/** 空标签页内容 */
-interface EmptyTabContentProps {
-  onCreateNew: () => void;
-  onClose: () => void;
-}
-
-export function EmptyTabContent({ onCreateNew, onClose }: EmptyTabContentProps) {
+export function EmptyEditorTabs() {
   const { t } = useTranslation();
 
   return (
@@ -198,47 +191,74 @@ export function EmptyTabContent({ onCreateNew, onClose }: EmptyTabContentProps) 
       align="center"
       justify="center"
       direction="column"
-      gap="4"
-      style={{ height: "100%", minHeight: 400 }}
+      gap="2"
+      className="editor-tabs-empty"
     >
-      <Flex gap="3">
-        <Button
-          variant="soft"
-          size="2"
-          onClick={onCreateNew}
-        >
-          <FilePlus size={16} />
-          {t("tabs.createNewFile")}
-        </Button>
-        <Button
-          variant="soft"
-          color="gray"
-          size="2"
-          onClick={onClose}
-        >
-          <XCircle size={16} />
-          {t("tabs.closeFile")}
-        </Button>
-      </Flex>
+      <Text
+        size="2"
+        color="gray"
+      >
+        {t("rightSidebar.empty")}
+      </Text>
+      <Text
+        size="1"
+        color="gray"
+      >
+        {t("tabs.emptyHint")}
+      </Text>
     </Flex>
   );
 }
 
 interface EditorTabsProps {
-  onAddTab?: () => void;
   onAddToConversation?: (markup: string) => void;
 }
 
-export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
-  const { t } = useTranslation();
+export function EditorTabs({ onAddToConversation }: EditorTabsProps) {
   const tabs = useTabs();
   const activeTabId = useActiveTabId();
+  const actions = useTabsStore();
+  return (
+    <EditorTabBar
+      {...actions}
+      tabs={tabs}
+      activeTabId={activeTabId}
+      onAddToConversation={onAddToConversation}
+      showMentionAction
+    />
+  );
+}
+
+interface EditorTabBarProps extends EditorTabsProps {
+  showMentionAction?: boolean;
+  tabs: EditorTab[];
+  activeTabId: string | null;
+  setActiveTab: (id: string) => void;
+  closeTab: (id: string) => void;
+  reorderTabs: (activeId: string, overId: string) => void;
+  closeOtherTabs: (id: string) => void;
+  closeAllTabs: () => void;
+  toggleLock: (id: string) => void;
+}
+
+export function EditorTabBar({
+  tabs,
+  activeTabId,
+  setActiveTab,
+  closeTab,
+  reorderTabs,
+  closeOtherTabs,
+  closeAllTabs,
+  toggleLock,
+  onAddToConversation,
+  showMentionAction = false,
+}: EditorTabBarProps) {
+  const { t } = useTranslation();
+  const { isAssistantSidebarOpen, openAssistantSidebar } = useAppShell();
   const listRef = useRef<HTMLDivElement>(null);
   const previousTabIdsRef = useRef(new Set(tabs.map((tab) => tab.id)));
   const previousActiveTabIdRef = useRef<string | null | undefined>(undefined);
   const [draggedTab, setDraggedTab] = useState<EditorTab | null>(null);
-  const { setActiveTab, closeTab, reorderTabs, closeOtherTabs, closeAllTabs, toggleLock } =
-    useTabsStore();
 
   // 拖拽传感器
   const sensors = useSensors(
@@ -323,11 +343,6 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     setContextMenuTabId(null);
   }, []);
 
-  // 新建标签页
-  const handleAddTab = useCallback(() => {
-    onAddTab?.();
-  }, [onAddTab]);
-
   // 拖拽结束
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -347,7 +362,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     if (!targetTab) return [];
 
     const items: ContextMenuItem[] = [];
-    if (targetTab.refId) {
+    if (targetTab.refId && showMentionAction) {
       items.push({
         id: "addToConversation",
         label: t("tabs.addToConversation"),
@@ -408,6 +423,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     closeTab,
     contextMenuTabId,
     onAddToConversation,
+    showMentionAction,
     t,
     tabs,
     toggleLock,
@@ -447,7 +463,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
                     isActive={tab.id === activeTabId}
                     hasActiveBefore={tabs[index - 1]?.id === activeTabId}
                     hasActiveAfter={tabs[index + 1]?.id === activeTabId}
-                    displayTitle={isEmptyTab(tab.id) ? t("tabs.emptyTab") : tab.title}
+                    displayTitle={tab.title}
                     onActivate={() => handleActivate(tab.id)}
                     onReveal={revealActiveTab}
                     onClose={() => handleClose(tab.id)}
@@ -474,9 +490,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
                   ) : (
                     <NotebookText size={14} />
                   )}
-                  <span className="editor-tab-title">
-                    {isEmptyTab(draggedTab.id) ? t("tabs.emptyTab") : draggedTab.title}
-                  </span>
+                  <span className="editor-tab-title">{draggedTab.title}</span>
                 </span>
                 {!draggedTab.isLocked && (
                   <span className="editor-tab-close">
@@ -494,14 +508,17 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
           items={tabs}
           isDragging={draggedTab !== null}
         />
-        <button
-          type="button"
-          className="editor-tabs-add"
-          aria-label={t("rightSidebar.newTab")}
-          onClick={handleAddTab}
-        >
-          <Plus size={16} />
-        </button>
+        {!isAssistantSidebarOpen && (
+          <button
+            type="button"
+            className="editor-tabs-add editor-tabs-sidebar-open"
+            aria-label={t("rightSidebar.expand")}
+            title={t("rightSidebar.expand")}
+            onClick={openAssistantSidebar}
+          >
+            <PanelRightOpen size={18} />
+          </button>
+        )}
       </div>
 
       {/* 标签页右键菜单 */}

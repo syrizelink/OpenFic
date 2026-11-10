@@ -12,6 +12,8 @@ import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { EditorTabBar, EmptyEditorTabs } from "@/features/writing/components/editor-tabs";
+import { useEntityTabs } from "@/features/writing/components/use-entity-tabs";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
@@ -145,6 +147,17 @@ export function CharactersPage() {
   });
 
   const characters = useMemo(() => charactersData?.items ?? [], [charactersData?.items]);
+  const entityTabs = useEntityTabs(
+    currentProjectId,
+    currentCharacterId,
+    characters,
+    Boolean(charactersData),
+    (id) => {
+      if (!id) skipCharacterRestoreProjectIdRef.current = currentProjectId;
+      setCurrentCharacter(id);
+      setView("editor");
+    },
+  );
   const { data: graphData } = useQuery({
     queryKey: ["character-graph", currentProjectId],
     queryFn: () => fetchCharacterGraph(currentProjectId!),
@@ -421,6 +434,7 @@ export function CharactersPage() {
       direction="column"
       className="characters-main-view"
     >
+      {!isMobile && <EditorTabBar {...entityTabs} />}
       {view === "graph" && currentProjectId ? (
         <CharacterGraphView
           projectId={currentProjectId}
@@ -436,20 +450,24 @@ export function CharactersPage() {
           className="characters-main-editor"
         >
           <Box className="characters-editor-content">
-            <CharacterEditor
-              key={selectedCharacter?.id ?? "empty"}
-              character={selectedCharacter ?? null}
-              isLoading={shouldShowCharacterEditorLoading(
-                Boolean(selectedCharacter),
-                isCharacterLoading,
-              )}
-              isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
-              canSave={() => !assistantStateRef.current.isAgentRunning}
-              onSave={async (data) => {
-                if (!selectedCharacter) return null;
-                return updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
-              }}
-            />
+            {currentCharacterId ? (
+              <CharacterEditor
+                key={selectedCharacter?.id ?? "empty"}
+                character={selectedCharacter ?? null}
+                isLoading={shouldShowCharacterEditorLoading(
+                  Boolean(selectedCharacter),
+                  isCharacterLoading,
+                )}
+                isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
+                canSave={() => !assistantStateRef.current.isAgentRunning}
+                onSave={async (data) => {
+                  if (!selectedCharacter) return null;
+                  return updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
+                }}
+              />
+            ) : (
+              <EmptyEditorTabs />
+            )}
           </Box>
         </Flex>
       )}
@@ -474,6 +492,7 @@ export function CharactersPage() {
             defaultSize={300}
             minSize={250}
             maxSize={400}
+            groupResizeBehavior="preserve-pixel-size"
             collapsible={false}
           >
             <Box className="characters-panel characters-page-list-panel">{list}</Box>

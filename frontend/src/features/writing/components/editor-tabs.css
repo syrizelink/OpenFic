@@ -147,6 +147,15 @@
   cursor: pointer;
 }
 
+.editor-tabs-sidebar-open {
+  margin-left: auto;
+}
+
+.editor-tabs-empty {
+  height: 100%;
+  min-height: 0;
+}
+
 .editor-tab-select {
   display: flex;
   position: relative;

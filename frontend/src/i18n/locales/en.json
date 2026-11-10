@@ -1580,9 +1580,7 @@
     "closeAll": "Close All",
     "lock": "Lock",
     "unlock": "Unlock",
-    "createNewFile": "Create New File",
-    "closeFile": "Close File",
-    "emptyTab": "Empty Tab",
+    "emptyHint": "Select content to open from the list on the right",
     "addToConversation": "Add to Conversation"
   },
   "chapterMenu": {

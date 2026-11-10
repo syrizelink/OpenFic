@@ -1580,9 +1580,7 @@
     "closeAll": "全部关闭",
     "lock": "锁定",
     "unlock": "解锁",
-    "createNewFile": "创建新文件",
-    "closeFile": "关闭文件",
-    "emptyTab": "空标签页",
+    "emptyHint": "在右侧列表中选择要打开的内容",
     "addToConversation": "添加到对话"
   },
   "chapterMenu": {

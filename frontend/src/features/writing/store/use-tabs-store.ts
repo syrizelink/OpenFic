@@ -10,7 +10,7 @@ import { create } from "zustand";
 import { getProjectTabs, setProjectTabs, type EditorTabRecord } from "@/lib/local-db";
 
 import type { EditorTab } from "../lib/tab.types";
-import { MAX_TABS, isEmptyTab, generateEmptyTabId } from "../lib/tab.types";
+import { MAX_TABS } from "../lib/tab.types";
 
 interface TabsState {
   currentProjectId: string | null;
@@ -33,7 +33,6 @@ interface TabsActions {
   syncTabsWithChapters: (chapters: { id: string; title: string }[]) => void;
   syncTabs: (items: { id: string; title: string }[], type: "chapter" | "note") => void;
   removeTabsByReference: (type: "chapter" | "note", refId: string) => void;
-  showEmptyTab: () => void;
   reorderTabs: (activeId: string, overId: string) => void;
 }
 
@@ -109,12 +108,19 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
 
     const saved = await getProjectTabs(projectId);
     if (saved) {
+      const tabs = saved.tabs.map(fromRecord).filter((tab) => tab.refId !== null);
+      const activeTabId = tabs.some((tab) => tab.id === saved.activeTabId)
+        ? saved.activeTabId
+        : (tabs[0]?.id ?? null);
       set({
         currentProjectId: projectId,
-        tabs: saved.tabs.map(fromRecord),
-        activeTabId: saved.activeTabId,
+        tabs,
+        activeTabId,
         isLoaded: true,
       });
+      if (tabs.length !== saved.tabs.length || activeTabId !== saved.activeTabId) {
+        void persistTabs(projectId, tabs, activeTabId);
+      }
     } else {
       set({
         currentProjectId: projectId,
@@ -135,15 +141,14 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
       return;
     }
 
-    const nonEmptyTabs = tabs.filter((t) => !isEmptyTab(t.id));
     let newTabs = [...tabs];
 
-    if (nonEmptyTabs.length >= MAX_TABS) {
-      const unlockIndex = nonEmptyTabs.findIndex((t) => !t.isLocked);
+    if (tabs.length >= MAX_TABS) {
+      const unlockIndex = tabs.findIndex((t) => !t.isLocked);
       if (unlockIndex === -1) {
         return;
       }
-      const tabToRemove = nonEmptyTabs[unlockIndex];
+      const tabToRemove = tabs[unlockIndex];
       newTabs = tabs.filter((t) => t.id !== tabToRemove.id);
     }
 
@@ -193,31 +198,9 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     const tabIndex = tabs.findIndex((t) => t.id === tabId);
     const newTabs = tabs.filter((t) => t.id !== tabId);
 
-    if (newTabs.length === 0) {
-      const emptyTabId = generateEmptyTabId();
-      const emptyTab: EditorTab = {
-        id: emptyTabId,
-        type: "chapter",
-        refId: null,
-        title: "",
-        isLocked: false,
-        scrollTop: 0,
-      };
-      set({
-        tabs: [emptyTab],
-        activeTabId: emptyTabId,
-      });
-      persistTabs(currentProjectId, [emptyTab], emptyTabId);
-      return;
-    }
-
     let newActiveId = activeTabId;
     if (activeTabId === tabId) {
-      if (tabIndex >= newTabs.length) {
-        newActiveId = newTabs[newTabs.length - 1].id;
-      } else {
-        newActiveId = newTabs[tabIndex].id;
-      }
+      newActiveId = newTabs[Math.min(tabIndex, newTabs.length - 1)]?.id ?? null;
     }
 
     set({
@@ -239,57 +222,16 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
 
   closeAllTabs: () => {
     const { tabs, currentProjectId } = get();
-    const lockedTabs = tabs.filter((t) => t.isLocked && !isEmptyTab(t.id));
-
-    if (lockedTabs.length === 0) {
-      const emptyTabId = generateEmptyTabId();
-      const emptyTab: EditorTab = {
-        id: emptyTabId,
-        type: "chapter",
-        refId: null,
-        title: "",
-        isLocked: false,
-        scrollTop: 0,
-      };
-      set({
-        tabs: [emptyTab],
-        activeTabId: emptyTabId,
-      });
-      persistTabs(currentProjectId, [emptyTab], emptyTabId);
-    } else {
-      set({
-        tabs: lockedTabs,
-        activeTabId: lockedTabs[0].id,
-      });
-      persistTabs(currentProjectId, lockedTabs, lockedTabs[0].id);
-    }
+    const lockedTabs = tabs.filter((t) => t.isLocked);
+    const activeTabId = lockedTabs[0]?.id ?? null;
+    set({ tabs: lockedTabs, activeTabId });
+    persistTabs(currentProjectId, lockedTabs, activeTabId);
   },
 
   setActiveTab: (tabId) => {
     const { tabs, currentProjectId } = get();
     set({ activeTabId: tabId });
     persistTabs(currentProjectId, tabs, tabId);
-  },
-
-  showEmptyTab: () => {
-    const { tabs, currentProjectId } = get();
-
-    const emptyTabId = generateEmptyTabId();
-    const emptyTab: EditorTab = {
-      id: emptyTabId,
-      type: "chapter",
-      refId: null,
-      title: "",
-      isLocked: false,
-      scrollTop: 0,
-    };
-
-    const newTabs = [...tabs, emptyTab];
-    set({
-      tabs: newTabs,
-      activeTabId: emptyTabId,
-    });
-    persistTabs(currentProjectId, newTabs, emptyTabId);
   },
 
   toggleLock: (tabId) => {
@@ -329,7 +271,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     const { tabs, activeTabId, currentProjectId } = get();
     const titleMap = new Map(items.map((item) => [item.id, item.title]));
     const newTabs = tabs.flatMap((tab) => {
-      if (isEmptyTab(tab.id) || !tab.refId) return [tab];
+      if (!tab.refId) return [tab];
       if (tab.type !== type) return [tab];
 
       const latestTitle = titleMap.get(tab.refId);
@@ -340,7 +282,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     });
 
     let newActiveId = activeTabId;
-    if (activeTabId && !isEmptyTab(activeTabId)) {
+    if (activeTabId) {
       const activeTab = tabs.find((t) => t.id === activeTabId);
       if (activeTab?.type === type && activeTab.refId && !titleMap.has(activeTab.refId)) {
         newActiveId = newTabs.length > 0 ? newTabs[0].id : null;

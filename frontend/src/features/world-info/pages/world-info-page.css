@@ -20,10 +20,12 @@
   background: var(--color-background);
 }
 
-.world-info-page-editor-shell {
+.rt-Box.world-info-page-editor-shell {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .world-info-page-mobile-layout {

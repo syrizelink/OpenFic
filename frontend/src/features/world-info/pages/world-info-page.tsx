@@ -20,6 +20,8 @@ import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { EditorTabBar, EmptyEditorTabs } from "@/features/writing/components/editor-tabs";
+import { useEntityTabs } from "@/features/writing/components/use-entity-tabs";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
@@ -198,6 +200,16 @@ export function WorldInfoPage() {
   });
 
   const entries = useMemo(() => entriesData?.items ?? [], [entriesData?.items]);
+  const entityTabs = useEntityTabs(
+    currentProjectId,
+    currentEntryId,
+    entries,
+    Boolean(entriesData),
+    (id) => {
+      if (!id) skipEntryRestoreWorldInfoIdRef.current = currentWorldInfoId;
+      setCurrentEntry(id);
+    },
+  );
 
   useEffect(() => {
     const restoreEntry = async () => {
@@ -726,20 +738,7 @@ export function WorldInfoPage() {
       </Flex>
     </Box>
   ) : (
-    <Flex
-      align="center"
-      justify="center"
-      height="100%"
-      direction="column"
-      gap="2"
-    >
-      <Text
-        size="3"
-        color="gray"
-      >
-        {t("worldInfo.selectEntry")}
-      </Text>
-    </Flex>
+    <EmptyEditorTabs />
   );
 
   return (
@@ -777,6 +776,7 @@ export function WorldInfoPage() {
                 defaultSize={300}
                 minSize={250}
                 maxSize={400}
+                groupResizeBehavior="preserve-pixel-size"
                 collapsible={false}
               >
                 <Box className="world-info-page-sidebar world-info-page-sidebar--left">
@@ -794,7 +794,8 @@ export function WorldInfoPage() {
                   data-scroll-container
                   className="world-info-page-editor-shell"
                 >
-                  {editorContent}
+                  <EditorTabBar {...entityTabs} />
+                  <Box className="world-info-page-content-fill">{editorContent}</Box>
                 </Box>
               </Panel>
 

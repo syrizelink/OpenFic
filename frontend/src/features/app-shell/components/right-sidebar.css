@@ -277,14 +277,6 @@
   pointer-events: none;
 }
 
-.right-sidebar-expand {
-  position: absolute;
-  top: var(--space-2);
-  inset-inline: 0;
-  display: flex;
-  justify-content: center;
-}
-
 .right-sidebar-separator {
   position: relative;
   width: 1px;
@@ -319,6 +311,17 @@
 
 .right-sidebar-separator[aria-disabled="true"] {
   cursor: default;
+  width: 0;
+}
+
+.right-sidebar-resizable-panel {
+  transition: flex-grow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .right-sidebar-resizable-panel {
+    transition: none;
+  }
 }
 
 .right-sidebar-picker-title {
