@@ -11,22 +11,25 @@
     "dev": "vite --host 127.0.0.1",
     "dev:android": "node scripts/dev-android.mjs",
     "format:check": "node ../frontend/node_modules/oxfmt/bin/oxfmt --config ../frontend/.oxfmtrc.json src scripts tests package.json --check",
+    "ios": "cap open ios",
     "lint": "node ../frontend/node_modules/oxlint/bin/oxlint --config ../frontend/.oxlintrc.json src scripts tests",
     "sync": "pnpm build && cap sync android",
+    "sync:ios": "pnpm build && cap sync ios",
     "test": "node --test tests/*.test.mjs",
     "type-check": "tsc --noEmit",
     "update:test": "node scripts/update-test-server.mjs"
   },
   "dependencies": {
-    "@capacitor/core": "^7.4.3",
+    "@capacitor/core": "^7.6.9",
     "@radix-ui/themes": "^3.3.0",
     "lucide-react": "^1.25.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/ios": "7.6.9",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
