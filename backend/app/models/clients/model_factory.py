@@ -461,9 +461,12 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
 
     # Only record thought signatures for the Gemini-via-OpenAI-compatible
     # route: other provider types and endpoints must not see extra fields.
+    # Match on the URL hostname, not the whole URL string, so the host
+    # appearing in a path or as a suffix of another domain cannot misfire.
     _record_tool_call_extra_content = provider == "openai-compatible" and (
         isinstance(base_url, str)
-        and "generativelanguage.googleapis.com" in base_url
+        and (urlparse(base_url).hostname or "").lower()
+        == "generativelanguage.googleapis.com"
     )
 
     class ChatOpenAI(_ChatOpenAI):
@@ -509,10 +512,17 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             generation_info: dict | None = None,
         ) -> ChatResult:
             result = super()._create_chat_result(response, generation_info)
+            if not _record_tool_call_extra_content:
+                return result
             response_dict = (
                 response
                 if isinstance(response, dict)
-                else response.model_dump()
+                # `parsed` may hold arbitrary Pydantic models from structured
+                # output; mirror the upstream exclusion so this second dump
+                # does not serialize it.
+                else response.model_dump(
+                    exclude={"choices": {"__all__": {"message": {"parsed"}}}}
+                )
             )
             choices = response_dict.get("choices")
             if not isinstance(choices, list):

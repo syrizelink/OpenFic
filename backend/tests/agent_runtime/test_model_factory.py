@@ -1238,3 +1238,135 @@ def test_non_openai_compatible_provider_does_not_record_extra_content(
     assert "tool_call_extra_content" not in ai_message.additional_kwargs
     tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-gated")
     assert "extra_content" not in tool_calls[0]
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        # Host appears only in the path: substring matching would misfire.
+        "https://api.example.com/generativelanguage.googleapis.com/v1",
+        # Host is a suffix of an unrelated domain.
+        "https://generativelanguage.googleapis.com.evil.com/v1",
+    ],
+)
+def test_openai_compatible_google_host_not_in_hostname_does_not_record_extra_content(
+    base_url,
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url=base_url,
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+    ai_message = _non_streaming_tool_call_message(model, _THOUGHT_SIGNATURE)
+    assert "tool_call_extra_content" not in ai_message.additional_kwargs
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-gated")
+    assert "extra_content" not in tool_calls[0]
+
+
+def test_openai_compatible_uppercase_google_hostname_still_records_extra_content() -> (
+    None
+):
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://GENERATIVELANGUAGE.GOOGLEAPIS.COM/v1beta/openai/",
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+    ai_message = _non_streaming_tool_call_message(model, _THOUGHT_SIGNATURE)
+    assert ai_message.additional_kwargs["tool_call_extra_content"] == {
+        "call-gated": _THOUGHT_SIGNATURE
+    }
+
+
+def _pydantic_tool_call_response():
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionMessage,
+        ChatCompletionMessageToolCall,
+    )
+    from openai.types.chat.chat_completion import Choice
+
+    tool_call = ChatCompletionMessageToolCall(
+        id="call-pydantic",
+        type="function",
+        function={"name": "get_weather", "arguments": '{"city": "Paris"}'},
+        extra_content=_THOUGHT_SIGNATURE,
+    )
+    message = ChatCompletionMessage(
+        role="assistant",
+        content="",
+        tool_calls=[tool_call],
+        parsed={"city": "Paris"},
+    )
+    return ChatCompletion(
+        id="chatcmpl-test",
+        choices=[Choice(finish_reason="tool_calls", index=0, message=message)],
+        created=1,
+        model="gemini-3.5-flash",
+        object="chat.completion",
+    )
+
+
+def _spy_model_dump(monkeypatch: pytest.MonkeyPatch):
+    from openai.types.chat import ChatCompletion
+
+    calls: list = []
+    original = ChatCompletion.model_dump
+
+    def _counting_dump(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        calls.append((args, kwargs, result))
+        return result
+
+    monkeypatch.setattr(ChatCompletion, "model_dump", _counting_dump)
+    return calls
+
+
+def test_non_google_endpoint_create_chat_result_does_not_serialize_response_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://api.example.com/v1",
+            api_key="test-key",
+            model_id="gemini-3.5-flash",
+        )
+    )
+    calls = _spy_model_dump(monkeypatch)
+    result = model._create_chat_result(_pydantic_tool_call_response())
+
+    # Only the upstream dump inside super()._create_chat_result runs; the
+    # subclass must return right after it for non-target endpoints.
+    assert len(calls) == 1
+    ai_message = result.generations[0].message
+    assert "tool_call_extra_content" not in ai_message.additional_kwargs
+
+
+def test_google_endpoint_create_chat_result_second_dump_excludes_parsed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _openai_compatible_model()
+    calls = _spy_model_dump(monkeypatch)
+    result = model._create_chat_result(_pydantic_tool_call_response())
+
+    assert len(calls) == 2
+    _args, kwargs, dumped = calls[1]
+    assert kwargs.get("exclude") == {"choices": {"__all__": {"message": {"parsed"}}}}
+    assert "parsed" not in dumped["choices"][0]["message"]
+    assert (
+        dumped["choices"][0]["message"]["tool_calls"][0]["extra_content"]
+        == _THOUGHT_SIGNATURE
+    )
+
+    ai_message = result.generations[0].message
+    assert ai_message.additional_kwargs["tool_call_extra_content"] == {
+        "call-pydantic": _THOUGHT_SIGNATURE
+    }
+    tool_calls = _payload_assistant_tool_calls(model, ai_message, "call-pydantic")
+    assert tool_calls[0]["extra_content"] == _THOUGHT_SIGNATURE
