@@ -31,6 +31,7 @@ _OPENAI_PROVIDERS = {
     "huggingface",
     "ollama",
     "infistar",
+    "runcrate",
 }
 
 

@@ -57,6 +57,7 @@ class AdapterRegistry:
         "amazon-nova": AmazonNovaAdapter,
         "openai-compatible": OpenAICompatibleAdapter,
         "infistar": OpenAICompatibleAdapter,
+        "runcrate": OpenAICompatibleAdapter,
         "openai-compatible-responses": OpenAIResponsesCompatibleAdapter,
         **{
             provider_type: AnthropicCompatibleAdapter

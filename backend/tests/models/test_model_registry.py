@@ -36,6 +36,7 @@ def test_registry_lists_only_current_first_class_provider_types() -> None:
         "deepseek",
         "openai-compatible",
         "infistar",
+        "runcrate",
         "openai-compatible-responses",
         "anthropic-compatible",
         "gemini-compatible",

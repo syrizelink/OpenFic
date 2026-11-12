@@ -49,6 +49,7 @@ export function getProviderDisplayName(providerType: string): string {
     "amazon-nova": "Amazon Nova",
     deepseek: "DeepSeek",
     infistar: "Infistar",
+    runcrate: "Runcrate",
     "openai-compatible": "OpenAI Compatible",
     "openai-compatible-responses": "OpenAI Compatible (Responses)",
     "anthropic-compatible": "Anthropic Compatible",
