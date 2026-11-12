@@ -292,7 +292,7 @@ def test_published_schema_upgrades_to_head_and_keeps_existing_data(tmp_path, dat
                 for table_name in ("revisions", "commits", "agent_audit_logs")
             }
             command.upgrade(config, "head")
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1029"
+            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1030"
             assert connection.execute(text(
                 "SELECT response_content, has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
             )).one() == (detail, True, len(detail.encode("utf-8")))

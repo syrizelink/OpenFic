@@ -2511,6 +2511,7 @@ dependencies = [
     { name = "tzdata" },
     { name = "unstructured", extra = ["doc", "docx", "epub", "odt", "ppt", "pptx", "rst", "xlsx"] },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
     { name = "xlrd" },
     { name = "zai-sdk" },
 ]
@@ -2604,6 +2605,7 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2025.2" },
     { name = "unstructured", extras = ["doc", "docx", "epub", "odt", "ppt", "pptx", "rst", "xlsx"], specifier = ">=0.27.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
+    { name = "websockets", specifier = ">=15.0.1" },
     { name = "xlrd", specifier = ">=2.0.2" },
     { name = "zai-sdk", specifier = ">=0.2.3" },
 ]

@@ -35,6 +35,7 @@ from app.api.routers import (
     chapter_context,
     chapter_exports,
     chapters,
+    collaboration,
     commands,
     dashboard,
     health,
@@ -710,6 +711,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await stop_audit_queue()
         await app.state.catalog_icon_proxy_service.aclose()
         await close_checkpointer()
+        from app.collaboration.service import worker as collaboration_worker
+        await collaboration_worker.stop()
         await close_db()
         shutdown_telemetry()
 
@@ -747,6 +750,7 @@ def create_app() -> FastAPI:
     app.include_router(projects.router, prefix=app_settings.api_v1_prefix)
     app.include_router(volumes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapters.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(collaboration.router, prefix=app_settings.api_v1_prefix)
     app.include_router(notes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(commands.router, prefix=app_settings.api_v1_prefix)
     app.include_router(characters.router, prefix=app_settings.api_v1_prefix)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 import json
 from typing import Literal
@@ -968,6 +968,9 @@ async def rollback_revision_for_session(
         if snapshot.exists:
             validate_editor_content(snapshot.description or "")
 
+    from app.collaboration.service import prepare_rollback
+    collaboration_results = await prepare_rollback(session, restore_by_chapter, revisions)
+
     rollback_revision = Revision(
         project_id=target.project_id,
         task_id=target.task_id,
@@ -999,6 +1002,14 @@ async def rollback_revision_for_session(
         current = await chapter_repo.get_by_id(session, snapshot.chapter_id)
         before_image = _image_from_chapter(current) if current is not None else None
         after_image = _image_from_snapshot(snapshot)
+        collaboration_result = collaboration_results.get(snapshot.chapter_id)
+        if collaboration_result is not None and current is not None and after_image is not None:
+            from app.storage.services.chapter_service import _count_words
+            before_image = replace(
+                _image_from_chapter(current), content=collaboration_result["before"],
+                word_count=_count_words(collaboration_result["before"]),
+            )
+            after_image = replace(after_image, content=collaboration_result["content"], word_count=current.word_count)
         if before_image is not None:
             affected_volume_ids.add(before_image.volume_id)
         if after_image is not None:

@@ -170,6 +170,7 @@ async def update_chapter(
             title=data.title,
             content=data.content,
             word_count=data.word_count,
+            expected_updated_at=data.expected_updated_at,
         )
         await background_service.commit_and_notify(session)
         return ChapterResponse.model_validate(chapter)

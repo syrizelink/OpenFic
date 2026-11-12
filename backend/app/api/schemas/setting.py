@@ -155,6 +155,7 @@ class SettingsResponse(BaseModel):
     agent_tool_permissions: list[AgentToolPermissionItem] = Field(
         default_factory=list, description="Agent 工具权限设置"
     )
+    human_ai_collaboration: bool = Field(default=False, description="实验性人机协同编辑")
     audit_persist_details: bool = Field(default=False, description="是否持久化 LLM 调用详情")
     compress_system_prompts: bool = Field(
         default=False,
@@ -310,6 +311,7 @@ class SettingsUpdateRequest(BaseModel):
     agent_tool_permissions: list[AgentToolPermissionItem] | None = Field(
         default=None, description="Agent 工具权限设置"
     )
+    human_ai_collaboration: bool | None = Field(default=None, description="实验性人机协同编辑")
     audit_persist_details: bool | None = Field(
         default=None, description="是否持久化 LLM 调用详情"
     )

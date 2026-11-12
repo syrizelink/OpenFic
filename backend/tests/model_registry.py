@@ -24,6 +24,7 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.agent_memory import AgentMemory
     from app.storage.models.agent_rule import AgentRule
     from app.storage.models.character import Character
+    from app.storage.models.chapter_collaboration import ChapterCollaboration
     from app.storage.models.chapter import Chapter
     from app.storage.models.chapter_summary import ChapterSummary
     from app.storage.models.commit import Commit
@@ -61,6 +62,7 @@ def register_sqlmodel_models() -> None:
         BackgroundJobItem,
         Character,
         Chapter,
+        ChapterCollaboration,
         ChapterSummary,
         Commit,
         Model,

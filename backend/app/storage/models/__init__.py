@@ -16,6 +16,7 @@ from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
 from app.agent_runtime.persistence.model import AgentAttachment, AgentContextCompaction, AgentRunMessage
 from app.storage.models.character import Character, CharacterRelationship, RevisionCharacterRelationshipSnapshot
+from app.storage.models.chapter_collaboration import ChapterCollaboration
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.models.commit import Commit
@@ -58,6 +59,7 @@ __all__ = [
     "CharacterRelationship",
     "RevisionCharacterRelationshipSnapshot",
     "Chapter",
+    "ChapterCollaboration",
     "ChapterSummary",
     "Commit",
     "Model",

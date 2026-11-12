@@ -12,7 +12,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
-from app.core.errors import NotFoundError
+from app.core.errors import ConflictError, NotFoundError
 from app.memory.chapter.sequence import global_order_index
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
@@ -436,6 +436,9 @@ async def update_chapter(
     title: str | None = None,
     content: str | None = None,
     word_count: int | None = None,
+    *,
+    record_activity: bool = True,
+    expected_updated_at: datetime | None = None,
 ) -> Chapter:
     """
     更新章节。
@@ -454,6 +457,11 @@ async def update_chapter(
         NotFoundError: 章节不存在。
     """
     chapter = await get_chapter(session, chapter_id)
+    if expected_updated_at is not None:
+        expected = expected_updated_at.replace(tzinfo=UTC) if expected_updated_at.tzinfo is None else expected_updated_at.astimezone(UTC)
+        actual = chapter.updated_at.replace(tzinfo=UTC) if chapter.updated_at.tzinfo is None else chapter.updated_at.astimezone(UTC)
+        if expected != actual:
+            raise ConflictError("章节已更新，当前草稿未覆盖远端内容，请重新加载并合并修改")
     old_word_count = chapter.word_count
     old_content = chapter.content
 
@@ -482,7 +490,7 @@ async def update_chapter(
 
     # 如果有任何变化，更新项目统计（包括 updated_at）
     if title_changed or content_changed:
-        if content_changed:
+        if content_changed and record_activity:
             await writing_activity_service.record_activity(
                 session,
                 project_id=chapter.project_id,

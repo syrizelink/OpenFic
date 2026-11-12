@@ -32,3 +32,6 @@ desktop/node_modules
 desktop/dist
 desktop/dist-electron
 desktop/out
+
+collaboration/node_modules/
+backend/app/collaboration/server.bundle.cjs

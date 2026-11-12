@@ -130,6 +130,9 @@ async def notify_submitted_jobs(session: AsyncSession) -> None:
 
 async def commit_and_notify(session: AsyncSession) -> None:
     await session.commit()
+    if session.info.get("collaboration_updates"):
+        from app.collaboration.service import publish_committed_updates
+        await publish_committed_updates(session)
     await publish_committed_events(session)
     await notify_submitted_jobs(session)
 
