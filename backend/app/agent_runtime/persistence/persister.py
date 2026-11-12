@@ -67,6 +67,7 @@ class _AssistantBuffer:
     reasoning_started_at: datetime | None = None
     reasoning_last_updated_at: datetime | None = None
     tool_call_chunks: dict[int, dict] = field(default_factory=dict)
+    tool_call_extra_content: dict[str, dict] = field(default_factory=dict)
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -183,6 +184,22 @@ class MessagePersister:
             if args_part:
                 slot["args_text"] += args_part
 
+        # Streamed chunks stash per-tool-call `extra_content` (e.g. Gemini
+        # thought signatures) in additional_kwargs; keep it so the signature
+        # survives even if the aggregated end output drops it.
+        chunk_kwargs = getattr(chunk, "additional_kwargs", None)
+        if isinstance(chunk_kwargs, dict):
+            streamed_extra = chunk_kwargs.get("tool_call_extra_content")
+            if isinstance(streamed_extra, dict):
+                for tool_call_id, extra_content in streamed_extra.items():
+                    if (
+                        isinstance(tool_call_id, str)
+                        and tool_call_id
+                        and isinstance(extra_content, dict)
+                        and extra_content
+                    ):
+                        buf.tool_call_extra_content[tool_call_id] = extra_content
+
     async def _on_chat_model_end(self, event: dict) -> None:
         run_id = event.get("run_id") or "default"
         buf = self._assistant_buffers.pop(run_id, None)
@@ -201,6 +218,17 @@ class MessagePersister:
             if isinstance(responses_output, list) and responses_output
             else {}
         )
+        extra_content = (
+            additional_kwargs.get("tool_call_extra_content")
+            if isinstance(additional_kwargs, dict)
+            else None
+        )
+        if not isinstance(extra_content, dict) or not extra_content:
+            extra_content = buf.tool_call_extra_content or None
+        elif buf.tool_call_extra_content:
+            extra_content = {**buf.tool_call_extra_content, **extra_content}
+        if isinstance(extra_content, dict) and extra_content:
+            metadata["tool_call_extra_content"] = extra_content
         content = "".join(buf.content_parts) or self._extract_output_content(output)
         reasoning = "".join(buf.reasoning_parts) or self._extract_output_reasoning(
             output
