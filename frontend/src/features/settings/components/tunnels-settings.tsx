@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
+import { ExternalLinkSafetyDialog } from "@/components/external-link-safety-dialog";
 import { LabeledSelect } from "@/components/select";
 
 import "./tunnels-settings.css";
@@ -207,8 +208,13 @@ export function TunnelsSettings() {
   const [hasSavedToken, setHasSavedToken] = useState(false);
   const [isRefreshAnimationActive, setIsRefreshAnimationActive] = useState(false);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [pendingExternalUrl, setPendingExternalUrl] = useState<string | null>(null);
   const hasHydratedConfigRef = useRef(false);
   const { data, isLoading, isFetching, isFetchedAfterMount, error, refetch } = useTunnelStatus();
+
+  const handleConfirmExternalLink = () => {
+    if (pendingExternalUrl) window.open(pendingExternalUrl, "_blank", "noopener,noreferrer");
+  };
 
   useEffect(() => {
     if (!data?.config || hasHydratedConfigRef.current) return;
@@ -416,8 +422,14 @@ export function TunnelsSettings() {
                     ? "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/"
                     : "https://ngrok.com/download"
                 }
-                target="_blank"
-                rel="noreferrer"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setPendingExternalUrl(
+                    provider === "cloudflare"
+                      ? "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/"
+                      : "https://ngrok.com/download",
+                  );
+                }}
               >
                 {t("settings.tunnelInstallHelp")}
               </Link>
@@ -445,8 +457,12 @@ export function TunnelsSettings() {
                 dashboard: (
                   <Link
                     href="https://dashboard.ngrok.com/get-started/your-authtoken"
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setPendingExternalUrl(
+                        "https://dashboard.ngrok.com/get-started/your-authtoken",
+                      );
+                    }}
                   />
                 ),
               }}
@@ -489,8 +505,12 @@ export function TunnelsSettings() {
                     createTunnel: (
                       <Link
                         href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-remote-tunnel/"
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setPendingExternalUrl(
+                            "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-remote-tunnel/",
+                          );
+                        }}
                       />
                     ),
                   }}
@@ -587,8 +607,10 @@ export function TunnelsSettings() {
               >
                 <a
                   href={data.url}
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPendingExternalUrl(data.url);
+                  }}
                 >
                   <ExternalLink size={16} />
                 </a>
@@ -648,6 +670,12 @@ export function TunnelsSettings() {
           onOpenChange={setIsQrDialogOpen}
         />
       ) : null}
+      <ExternalLinkSafetyDialog
+        isOpen={pendingExternalUrl !== null}
+        url={pendingExternalUrl ?? ""}
+        onClose={() => setPendingExternalUrl(null)}
+        onConfirm={handleConfirmExternalLink}
+      />
     </Box>
   );
 }
