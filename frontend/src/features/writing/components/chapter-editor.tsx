@@ -1,6 +1,5 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Collaboration from "@tiptap/extension-collaboration";
+import { useQuery } from "@tanstack/react-query";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { AtSign } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -26,14 +25,9 @@ import {
   MAX_EDITOR_CONTENT_LINES,
 } from "@/lib/editor-content-limits";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
-import { connectSocket, getSocket } from "@/lib/socket-client";
 import { createToastThrottler } from "@/lib/ui-utils";
 
 import { useAutoSave } from "../hooks/use-auto-save";
-import {
-  useChapterCollaboration,
-  type ChapterCollaboration,
-} from "../hooks/use-chapter-collaboration";
 import { useUpdateChapter } from "../hooks/use-chapters";
 import {
   shouldShowWritingEditorLoading,
@@ -77,7 +71,6 @@ interface ChapterEditorProps {
 }
 
 interface ChapterEditorContentProps {
-  collaboration?: ChapterCollaboration;
   chapter: Chapter;
   scrollTop: number;
   initialDraft: WritingDraft;
@@ -100,12 +93,10 @@ function ChapterEditorContent({
   onChapterUpdate,
   onScrollPositionChange,
   onAddToConversation,
-  isAgentLocked: agentLocked = false,
-  collaboration,
+  isAgentLocked = false,
   onSelectionChange,
   addSelectionToConversationRef,
 }: ChapterEditorContentProps) {
-  const isAgentLocked = collaboration ? !collaboration.ready : agentLocked;
   const { t } = useTranslation();
   const updateMutation = useUpdateChapter();
   const { containerRef, scrollbarProps } = useScrollbarAutoHide();
@@ -228,10 +219,9 @@ function ChapterEditorContent({
       latestDraftUpdatedAtRef.current = getNextWritingWorkingCopyTimestamp(
         latestDraftUpdatedAtRef.current,
       );
-      if (!collaboration)
-        persistWorkingCopy(draft, baseUpdatedAtRef.current, latestDraftUpdatedAtRef.current);
+      persistWorkingCopy(draft, baseUpdatedAtRef.current, latestDraftUpdatedAtRef.current);
     },
-    [persistWorkingCopy, collaboration],
+    [persistWorkingCopy],
   );
 
   const updateDirtyState = useCallback(
@@ -240,9 +230,7 @@ function ChapterEditorContent({
         title: nextTitle,
         content: htmlToNewlines(nextHtmlContent),
       });
-      const isDirty = collaboration
-        ? lastSavedDraftRef.current.title !== nextDraft.title
-        : isChapterEditorDraftDirty(lastSavedDraftRef.current, nextDraft);
+      const isDirty = isChapterEditorDraftDirty(lastSavedDraftRef.current, nextDraft);
       latestDraftRef.current = nextDraft;
       hasChangesRef.current = isDirty;
       setHasChanges(isDirty);
@@ -251,7 +239,7 @@ function ChapterEditorContent({
       }
       return { draft: nextDraft, isDirty };
     },
-    [persistDraft, collaboration],
+    [persistDraft],
   );
 
   const syncDirtyStateFromEditor = useCallback(
@@ -287,20 +275,12 @@ function ChapterEditorContent({
   );
 
   const editor = useEditor({
-    extensions: collaboration
-      ? [
-          ...editorExtensions.filter(
-            (extension) => extension.name !== "undoRedo" && extension.name !== "history",
-          ),
-          Collaboration.configure({ document: collaboration.document }),
-        ]
-      : editorExtensions,
+    extensions: editorExtensions,
     editable: !isAgentLocked,
-    content: collaboration ? undefined : initialContentRef.current,
+    content: initialContentRef.current,
     parseOptions: { preserveWhitespace: "full" },
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
-      collaboration?.markPending();
       syncDirtyStateFromEditor(editor);
       setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       setWordCount(wordsCount(editor.getText()));
@@ -344,29 +324,6 @@ function ChapterEditorContent({
         return;
       }
 
-      if (collaboration) {
-        setIsSaving(true);
-        try {
-          if (titleRef.current !== lastSavedDraftRef.current.title) {
-            const updatedChapter = await updateMutation.mutateAsync({
-              chapterId: chapter.id,
-              data: { title: titleRef.current },
-            });
-            lastSavedDraftRef.current = createChapterEditorDraft({
-              title: updatedChapter.title,
-              content: editor.getText({ blockSeparator: "\n" }),
-            });
-            syncDirtyStateFromEditor(editor);
-            onChapterUpdate?.(updatedChapter);
-          }
-          collaboration.provider.sendStateless(JSON.stringify({ type: "flush" }));
-        } catch {
-          syncDirtyStateFromEditor(editor);
-        } finally {
-          setIsSaving(false);
-        }
-        return;
-      }
       const draftToSave = latestDraftRef.current;
       const draftUpdatedAt = latestDraftUpdatedAtRef.current;
       const contentLimit = getEditorContentLimit(draftToSave.content);
@@ -388,7 +345,6 @@ function ChapterEditorContent({
           data: {
             title: draftToSave.title,
             content: draftToSave.content,
-            expectedUpdatedAt: baseUpdatedAtRef.current,
             wordCount: currentWordCount,
           },
         });
@@ -412,7 +368,6 @@ function ChapterEditorContent({
     },
     [
       chapter.id,
-      collaboration,
       editor,
       isAgentLocked,
       onChapterUpdate,
@@ -446,7 +401,7 @@ function ChapterEditorContent({
 
   useEffect(() => {
     return () => {
-      if (hasChangesRef.current && !collaboration) {
+      if (hasChangesRef.current) {
         persistWorkingCopy(
           latestDraftRef.current,
           baseUpdatedAtRef.current,
@@ -454,12 +409,11 @@ function ChapterEditorContent({
         );
       }
     };
-  }, [persistWorkingCopy, collaboration]);
+  }, [persistWorkingCopy]);
 
   useEffect(() => {
     if (
       !editor ||
-      collaboration ||
       hasChanges ||
       !isRemoteWritingEntityNewer(chapter.updatedAt, baseUpdatedAtRef.current)
     ) {
@@ -497,7 +451,6 @@ function ChapterEditorContent({
     }
   }, [
     editor,
-    collaboration,
     chapter.title,
     chapter.content,
     chapter.id,
@@ -506,17 +459,6 @@ function ChapterEditorContent({
     title,
     updateTabTitle,
   ]);
-
-  useEffect(() => {
-    if (!collaboration || titleRef.current !== lastSavedDraftRef.current.title) return;
-    if (isRemoteWritingEntityNewer(chapter.updatedAt, baseUpdatedAtRef.current)) {
-      titleRef.current = chapter.title;
-      lastSavedDraftRef.current = { ...lastSavedDraftRef.current, title: chapter.title };
-      baseUpdatedAtRef.current = chapter.updatedAt;
-      setTitle(chapter.title);
-      updateTabTitle(chapter.id, chapter.title);
-    }
-  }, [collaboration, chapter.title, chapter.updatedAt, chapter.id, updateTabTitle]);
 
   useAutoSave({
     onSave: handleSave,
@@ -778,13 +720,9 @@ function ChapterEditorContent({
           size="1"
           color="gray"
         >
-          {collaboration &&
-            t(
-              `writing.${collaboration.status === "synced" ? "collaborationSynced" : collaboration.status === "offline" ? "collaborationOffline" : "collaborationPending"}`,
-            )}
-          {!collaboration && saveStatus === "saving" && t("writing.saving")}
-          {!collaboration && saveStatus === "saved" && t("writing.saved")}
-          {!collaboration && saveStatus === "unsaved" && t("writing.unsavedChanges")}
+          {saveStatus === "saving" && t("writing.saving")}
+          {saveStatus === "saved" && t("writing.saved")}
+          {saveStatus === "unsaved" && t("writing.unsavedChanges")}
         </Text>
       </Flex>
     </Box>
@@ -802,28 +740,11 @@ export function ChapterEditor({
   addSelectionToConversationRef,
 }: ChapterEditorProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    const socket = getSocket();
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: ["settings"] });
-      void queryClient.invalidateQueries({ queryKey: ["writing-editor"] });
-    };
-    socket.on("collaboration:settings_changed", refresh);
-    socket.on("connect", refresh);
-    void connectSocket().catch(() => {});
-    return () => {
-      socket.off("collaboration:settings_changed", refresh);
-      socket.off("connect", refresh);
-    };
-  }, [queryClient]);
   const { data } = useWritingEditorEntity({
     type: "chapter",
     entityId: chapterId,
     fetchEntity: fetchChapter,
   });
-
-  const { data: editorSettings } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
   if (!chapterId) {
     return (
@@ -842,7 +763,7 @@ export function ChapterEditor({
     );
   }
 
-  if (shouldShowWritingEditorLoading(data) || !editorSettings) {
+  if (shouldShowWritingEditorLoading(data)) {
     return (
       <Flex
         align="center"
@@ -851,23 +772,6 @@ export function ChapterEditor({
       >
         <Spinner size={18} />
       </Flex>
-    );
-  }
-
-  if (editorSettings.humanAiCollaboration) {
-    return (
-      <CollaborativeChapterEditor
-        key={`collaboration:${data.entity.id}`}
-        chapter={data.entity}
-        scrollTop={scrollTop}
-        initialDraft={data.draft}
-        initialDraftUpdatedAt={data.draftUpdatedAt}
-        onChapterUpdate={onChapterUpdate}
-        onScrollPositionChange={onScrollPositionChange}
-        onAddToConversation={onAddToConversation}
-        onSelectionChange={onSelectionChange}
-        addSelectionToConversationRef={addSelectionToConversationRef}
-      />
     );
   }
 
@@ -890,7 +794,6 @@ export function ChapterEditor({
 }
 
 function ChapterEditorWorkingCopy({
-  collaboration,
   chapter,
   scrollTop,
   initialDraft,
@@ -909,7 +812,6 @@ function ChapterEditorWorkingCopy({
 
   return (
     <ChapterEditorContent
-      collaboration={collaboration}
       chapter={chapter}
       scrollTop={scrollTop}
       initialDraft={initialDraft}
@@ -921,44 +823,6 @@ function ChapterEditorWorkingCopy({
       isAgentLocked={isAgentLocked}
       onSelectionChange={onSelectionChange}
       addSelectionToConversationRef={addSelectionToConversationRef}
-    />
-  );
-}
-
-function CollaborativeChapterEditor(
-  props: Omit<ChapterEditorContentProps, "workingCopy" | "collaboration">,
-) {
-  const { t } = useTranslation();
-  const [hasLocalDraft] = useState(() =>
-    isChapterEditorDraftDirty(
-      createChapterEditorDraft({ title: props.chapter.title, content: props.chapter.content }),
-      props.initialDraft,
-    ),
-  );
-  if (hasLocalDraft)
-    return (
-      <Flex p="5">
-        <Text>{t("writing.collaborationDraft")}</Text>
-      </Flex>
-    );
-  return <ConnectedChapterEditor {...props} />;
-}
-
-function ConnectedChapterEditor(
-  props: Omit<ChapterEditorContentProps, "workingCopy" | "collaboration">,
-) {
-  const { t } = useTranslation();
-  const { collaboration, error } = useChapterCollaboration(props.chapter.id);
-  if (!collaboration)
-    return (
-      <Flex p="5">
-        <Text>{error ?? t("writing.collaborationConnecting")}</Text>
-      </Flex>
-    );
-  return (
-    <ChapterEditorWorkingCopy
-      {...props}
-      collaboration={collaboration}
     />
   );
 }

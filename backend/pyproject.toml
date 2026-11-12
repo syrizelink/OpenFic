@@ -73,7 +73,6 @@ dependencies = [
     "tiktoken>=0.12.0",
     "tzdata>=2025.2",
     "uvicorn[standard]>=0.40.0",
-    "websockets>=15.0.1",
     "fastembed>=0.8.0",
     "pypinyin>=0.55.0",
     "tavily-python>=0.7.27",
@@ -136,7 +135,7 @@ packages = ["app"]
 "frontend" = "frontend"
 
 [tool.hatch.build.targets.sdist]
-force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend", "app/skills" = "app/skills", "app/collaboration/server.bundle.cjs" = "app/collaboration/server.bundle.cjs" }
+force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend", "app/skills" = "app/skills" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

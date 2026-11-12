@@ -134,7 +134,6 @@ NOTIFICATION_EVENT_KEYS = (
 )
 # 默认值
 DEFAULT_SETTINGS = {
-    "human_ai_collaboration": "false",
     SETTING_KEY_LANGUAGE: "zh-CN",
     SETTING_KEY_THEME: "light",
     SETTING_KEY_THEME_PRESET: "classic",
@@ -356,7 +355,6 @@ async def get_settings(
     )
 
     return SettingsResponse(
-        human_ai_collaboration=_parse_bool_setting(settings_dict.get("human_ai_collaboration", "false"), default=False),
         language=settings_dict.get(SETTING_KEY_LANGUAGE, DEFAULT_SETTINGS[SETTING_KEY_LANGUAGE]),
         theme=settings_dict.get(SETTING_KEY_THEME, DEFAULT_SETTINGS[SETTING_KEY_THEME]),
         theme_preset=settings_dict.get(
@@ -590,7 +588,6 @@ async def update_settings(
     is_restricted_update = any(
         value is not None
         for value in (
-            request.human_ai_collaboration,
             request.default_model,
             request.light_model,
             request.default_model_reasoning_effort,
@@ -610,8 +607,6 @@ async def update_settings(
     )
     if is_restricted_update:
         await require_agent_settings_unlocked(session)
-
-
 
     settings_list = await setting_repo.get_all(session)
     current_settings = {setting.key: setting.value for setting in settings_list}
@@ -794,8 +789,6 @@ async def update_settings(
             [item.model_dump(mode="json") for item in request.agent_tool_permissions],
             ensure_ascii=False,
         )
-    if request.human_ai_collaboration is not None:
-        settings_to_update["human_ai_collaboration"] = json.dumps(request.human_ai_collaboration)
     if request.audit_persist_details is not None:
         settings_to_update[SETTING_KEY_AUDIT_PERSIST_DETAILS] = json.dumps(
             request.audit_persist_details,
@@ -856,20 +849,6 @@ async def update_settings(
     if summary_range_changed:
         await invalidate_all_long_term_summaries(session)
 
-    if request.human_ai_collaboration is not None:
-        from app.collaboration.service import worker, persist_document
-        from app.core.errors import ConflictError
-        if request.human_ai_collaboration:
-            await worker.call("resume")
-        elif worker.process is not None:
-            snapshots = await worker.call("pause")
-            for snapshot in snapshots:
-                try:
-                    await persist_document(session, snapshot)
-                except ConflictError:
-                    # A chapter may have been deleted or moved to a new epoch.
-                    continue
-
     # 批量更新
     if settings_to_update:
         await setting_repo.bulk_upsert(session, settings_to_update)
@@ -881,11 +860,6 @@ async def update_settings(
     # 索引配置变更后通知前端刷新索引状态。
     if index_config_changed:
         schedule_emit_index_config(session)
-
-    if request.human_ai_collaboration is not None:
-        await session.commit()
-        from app.socket import emit
-        await emit("collaboration:settings_changed", {"enabled": request.human_ai_collaboration})
 
     # 返回更新后的完整设置
     return await get_settings(session)

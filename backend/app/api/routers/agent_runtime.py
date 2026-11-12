@@ -1777,15 +1777,12 @@ async def rollback_agent_session(
         if callable(cancel):
             await cancel(session_id)
 
-    from app.collaboration.service import rollback_guard, publish_committed_updates
-    async with rollback_guard(session, request.revision_id):
-        result = await rollback_revision_for_session(
-            session,
-            agent_session_id=session_id,
-            revision_id=request.revision_id,
-        )
-        await session.commit()
-        await publish_committed_updates(session)
+    result = await rollback_revision_for_session(
+        session,
+        agent_session_id=session_id,
+        revision_id=request.revision_id,
+    )
+    await session.commit()
 
     replay_buffer = get_agent_event_replay_buffer()
     async with replay_buffer.session_lock(session_id):

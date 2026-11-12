@@ -6,7 +6,7 @@ Chapter Repository - 章节数据访问层。
 from datetime import UTC, datetime
 from typing import Any, Literal, NamedTuple, cast
 
-from sqlalchemy import case, delete as sql_delete, inspect
+from sqlalchemy import case, delete as sql_delete
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, load_only
@@ -428,17 +428,6 @@ async def update_chapter(session: AsyncSession, chapter: Chapter) -> Chapter:
     Returns:
         更新后的章节实例。
     """
-    state = inspect(chapter)
-    if state is not None and state.attrs.content.history.has_changes() and not session.info.get("collaboration_write"):
-        from app.collaboration.service import is_enabled
-        from app.core.errors import ConflictError
-        from app.storage.models.chapter_collaboration import ChapterCollaboration
-        with session.no_autoflush:
-            if await is_enabled(session):
-                raise ConflictError("协同编辑已开启，正文必须通过共享文档修改，请重新打开章节")
-            record = await session.get(ChapterCollaboration, chapter.id)
-            if record is not None:
-                await session.delete(record)
     session.add(chapter)
     await session.flush()
     await session.refresh(chapter)

@@ -1016,7 +1016,6 @@ export async function moveVolume(volumeId: string, data: VolumeMove): Promise<Vo
  */
 export async function updateChapter(chapterId: string, data: ChapterUpdate): Promise<Chapter> {
   const response = await apiClient.patch(`/chapters/${chapterId}`, {
-    expected_updated_at: data.expectedUpdatedAt,
     title: data.title,
     content: data.content,
     word_count: data.wordCount,

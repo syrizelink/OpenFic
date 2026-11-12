@@ -61,7 +61,6 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: backendTarget,
           changeOrigin: true,
-          ws: true,
         },
         "/icons": {
           target: backendTarget,

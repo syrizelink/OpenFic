@@ -23,8 +23,6 @@ class ChapterCreate(BaseModel):
 class ChapterUpdate(BaseModel):
     """更新章节请求。"""
 
-    expected_updated_at: datetime | None = Field(default=None, description="保存所依据的章节版本")
-
     title: str | None = Field(
         default=None, min_length=1, max_length=200, description="章节标题"
     )

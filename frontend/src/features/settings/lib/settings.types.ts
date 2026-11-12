@@ -66,7 +66,6 @@ export interface Settings {
   notifyOnError: boolean;
   notifyOnlyWhenUnfocused: boolean;
   agentToolPermissions: AgentToolPermission[];
-  humanAiCollaboration: boolean;
   auditPersistDetails: boolean;
   compressSystemPrompts: boolean;
   llmConnectTimeout: number;
@@ -133,7 +132,6 @@ export interface SettingsResponse {
     tool_name: string;
     mode: AgentToolPermissionMode;
   }>;
-  human_ai_collaboration?: boolean;
   audit_persist_details: boolean;
   compress_system_prompts: boolean;
   llm_connect_timeout: number;
@@ -201,7 +199,6 @@ export interface SettingsUpdateRequest {
     tool_name: string;
     mode: AgentToolPermissionMode;
   }>;
-  human_ai_collaboration?: boolean;
   audit_persist_details?: boolean;
   compress_system_prompts?: boolean;
   llm_connect_timeout?: number;

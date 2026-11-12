@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog, InfoTooltip, Spinner, toast } from "@/components";
 import { setTelemetryEnabled } from "@/lib/posthog";
 
-import { useAgentSettingsLock } from "../lib/agent-settings-lock";
 import {
   clearAuditDetails,
   fetchAuditDetailsStorage,
@@ -30,7 +29,6 @@ function formatBytes(bytes: number, locale: string): string {
 export function AdvancedSettings() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: isAgentSettingsLocked } = useAgentSettingsLock();
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const { data: settings, isLoading: isSettingsLoading } = useQuery({
     queryKey: ["settings"],
@@ -101,37 +99,6 @@ export function AdvancedSettings() {
         direction="column"
         gap="5"
       >
-        <Flex
-          align="center"
-          justify="between"
-          gap="4"
-        >
-          <Flex
-            direction="column"
-            gap="1"
-          >
-            <Text
-              size="2"
-              weight="medium"
-            >
-              {t("settings.humanAiCollaboration")}
-            </Text>
-            <Text
-              size="1"
-              color="gray"
-            >
-              {t("settings.humanAiCollaborationHint")}
-            </Text>
-          </Flex>
-          <Switch
-            checked={settings.humanAiCollaboration}
-            disabled={updateMutation.isPending || isAgentSettingsLocked !== false}
-            aria-label={t("settings.humanAiCollaboration")}
-            onCheckedChange={(checked) =>
-              updateMutation.mutate({ human_ai_collaboration: checked })
-            }
-          />
-        </Flex>
         <Flex
           align="center"
           justify="between"

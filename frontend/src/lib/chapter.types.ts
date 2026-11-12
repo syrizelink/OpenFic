@@ -47,7 +47,6 @@ export interface ChapterCreate {
  * 更新章节请求
  */
 export interface ChapterUpdate {
-  expectedUpdatedAt?: string;
   title?: string;
   content?: string;
   wordCount?: number;

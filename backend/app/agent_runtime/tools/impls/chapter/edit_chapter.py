@@ -1,6 +1,5 @@
 import json
 import re
-from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from typing import Any
 
@@ -131,7 +130,6 @@ class EditChapterTool(AgentTool):
         volume_ref_model = VolumeRef.model_validate(volume_ref)
         ref = ChapterRef.model_validate(chapter_ref)
         session = await create_session()
-        collaboration_stack = AsyncExitStack()
         try:
             async with await keyed_lock(("chapters", self.project_id)):
                 volume = resolve_volume_from_list(
@@ -145,22 +143,11 @@ class EditChapterTool(AgentTool):
                     ref_value=ref.value,
                 )
                 match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
-                from app.collaboration import service as collaboration_service
-                collaboration_result = None
-                if old_content is not None and new_content is not None and await collaboration_service.is_enabled(session):
-                    await collaboration_stack.enter_async_context(collaboration_service.chapter_lock(match.id))
-                    collaboration_result = await collaboration_service.edit_chapter(
-                        session, match.id, old_content=old_content,
-                        new_content=new_content, replace_all=replace_all,
-                    )
-                    before_chapter = match.model_copy(update={"content": collaboration_result["before"], "word_count": count_words(collaboration_result["before"])})
-                else:
-                    before_chapter = match
-                before = images_by_id([before_chapter])
-                before_match = chapter_preview_from_object(before_chapter)
+                before = images_by_id([match])
+                before_match = chapter_preview_from_object(match)
                 if new_title is not None:
                     match.title = new_title
-                if collaboration_result is None and old_content is not None and new_content is not None:
+                if old_content is not None and new_content is not None:
                     replace_result = fuzzy_replace(
                         match.content, old_content, new_content, replace_all=replace_all
                     )
@@ -218,5 +205,4 @@ class EditChapterTool(AgentTool):
             await session.rollback()
             raise
         finally:
-            await collaboration_stack.aclose()
             await session.close()
