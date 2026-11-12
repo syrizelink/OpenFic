@@ -32,6 +32,7 @@ from app.models.adapters.openai_responses_compatible import (
 )
 from app.models.adapters.openrouter import OpenRouterAdapter
 from app.models.adapters.requesty import RequestyAdapter
+from app.models.adapters.uberllm import UberLLMAdapter
 
 
 class AdapterRegistry:
@@ -54,6 +55,7 @@ class AdapterRegistry:
         "cohere": CohereAdapter,
         "openrouter": OpenRouterAdapter,
         "requesty": RequestyAdapter,
+        "uberllm": UberLLMAdapter,
         "amazon-nova": AmazonNovaAdapter,
         "openai-compatible": OpenAICompatibleAdapter,
         "infistar": OpenAICompatibleAdapter,

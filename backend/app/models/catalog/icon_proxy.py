@@ -15,6 +15,7 @@ CatalogIconSource = Literal["models_dev", "jsdelivr", "local", "default"]
 
 _LOCAL_ICON_PATHS = {
     "infistar": Path(__file__).resolve().parent / "assets" / "logos" / "infistar.svg",
+    "uberllm": Path(__file__).resolve().parent / "assets" / "logos" / "uberllm.svg",
 }
 
 _MAX_CONCURRENT_UPSTREAM_REQUESTS = 8
