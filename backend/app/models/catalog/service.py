@@ -84,6 +84,17 @@ _LOCAL_PROVIDERS: tuple[dict[str, Any], ...] = (
         "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
         "models": [],
     },
+    {
+        "provider_type": "uberllm",
+        "display_name": "UberLLM",
+        "default_url": "https://api.uberllm.dev/v1",
+        "api": "https://api.uberllm.dev/v1",
+        "icon_path": "/icons/model/catalog/uberllm.svg",
+        "models_dev_provider_id": None,
+        "supported_task_types": ["llm"],
+        "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
+        "models": [],
+    },
 )
 _EMBEDDING_FAMILIES = {
     "text-embedding",
