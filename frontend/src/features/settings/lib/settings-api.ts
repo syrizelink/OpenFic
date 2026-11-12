@@ -75,6 +75,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
       toolName: item.tool_name,
       mode: item.mode,
     })),
+    humanAiCollaboration: raw.human_ai_collaboration ?? false,
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
     llmConnectTimeout: raw.llm_connect_timeout ?? 10,

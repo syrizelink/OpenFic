@@ -38,3 +38,6 @@ desktop/out
 
 # Isolated plugin development instances
 .openfic-dev/
+
+collaboration/node_modules/
+backend/app/collaboration/server.bundle.cjs
