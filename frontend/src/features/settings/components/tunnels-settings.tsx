@@ -212,10 +212,6 @@ export function TunnelsSettings() {
   const hasHydratedConfigRef = useRef(false);
   const { data, isLoading, isFetching, isFetchedAfterMount, error, refetch } = useTunnelStatus();
 
-  const handleConfirmExternalLink = () => {
-    if (pendingExternalUrl) window.open(pendingExternalUrl, "_blank", "noopener,noreferrer");
-  };
-
   useEffect(() => {
     if (!data?.config || hasHydratedConfigRef.current) return;
     hasHydratedConfigRef.current = true;
@@ -674,7 +670,6 @@ export function TunnelsSettings() {
         isOpen={pendingExternalUrl !== null}
         url={pendingExternalUrl ?? ""}
         onClose={() => setPendingExternalUrl(null)}
-        onConfirm={handleConfirmExternalLink}
       />
     </Box>
   );

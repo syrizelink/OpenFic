@@ -9,7 +9,7 @@ type ExternalLinkContents = {
 
 type OpenExternal = (url: string) => Promise<void>;
 
-function isExternalWebUrl(value: string): boolean {
+export function isExternalWebUrl(value: string): boolean {
   try {
     const protocol = new URL(value).protocol;
     return protocol === "http:" || protocol === "https:";
