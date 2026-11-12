@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.1](https://github.com/syrizelink/OpenFic/compare/v0.13.0...v0.13.1) (2026-11-12)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 Anthropic 模型输出被截断在 4096 导致工具参数缺失的问题 ([#485](https://github.com/syrizelink/OpenFic/issues/485)) ([479a0ea](https://github.com/syrizelink/OpenFic/commit/479a0ea1ab0b8b8f62b4c65485f26b44f84780f0))
+* **backend:** 对使用 OpenAI Compatible 提供商的 Gemini 端点回传 thought_signature ([#487](https://github.com/syrizelink/OpenFic/issues/487)) ([539335a](https://github.com/syrizelink/OpenFic/commit/539335a851348fcd2a41a1cfdf73c09dac76fde4))
+
+
+### 🔧 杂项
+
+* **agent:** 支持 Keenable 联网搜索 ([#488](https://github.com/syrizelink/OpenFic/issues/488)) ([6d7c2e0](https://github.com/syrizelink/OpenFic/commit/6d7c2e09ee33998b1b6a86ddaedafcc444d34d46))
+* **frontend:** 允许 Max Tokens 元数据使用内置模型目录默认值 ([#496](https://github.com/syrizelink/OpenFic/issues/496)) ([947ef8b](https://github.com/syrizelink/OpenFic/commit/947ef8b22283afb5ac2b48d01b1ca5be687c85f9))
+* **frontend:** 调整编辑器和右侧边栏多标签页交互 ([#494](https://github.com/syrizelink/OpenFic/issues/494)) ([508d907](https://github.com/syrizelink/OpenFic/commit/508d907f23611a97400f47de48a50f24486bfafb))
+
 ## [0.13.0](https://github.com/syrizelink/OpenFic/compare/v0.12.1...v0.13.0) (2026-10-28)
 
 
