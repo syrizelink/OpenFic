@@ -29,6 +29,7 @@ export interface SocketDiagnosticPayload {
 declare global {
   interface Window {
     openficDesktopHost?: {
+      openExternalLink: (url: string) => Promise<void>;
       publishAppearance: (payload: DesktopAppearancePayload) => void;
       publishLanguage: (language: LanguageCode) => void;
       publishSocketDiagnostic: (payload: SocketDiagnosticPayload) => void;
@@ -47,4 +48,18 @@ export function publishDesktopLanguage(language: LanguageCode): void {
 
 export function publishSocketDiagnostic(payload: SocketDiagnosticPayload): void {
   window.openficDesktopHost?.publishSocketDiagnostic?.(payload);
+}
+
+export function openExternalLink(url: string): void {
+  const desktopHost = window.openficDesktopHost;
+  if (desktopHost) {
+    void desktopHost.openExternalLink(url).catch((error: unknown) => {
+      console.error(
+        `Failed to open external link: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+    return;
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
 }

@@ -40,6 +40,7 @@ export const IpcChannels = {
   reportBug: "help:report-bug",
   suggestFeature: "help:suggest-feature",
   openOpenAICodexAuthorization: "auth:open-openai-codex-authorization",
+  openExternalLink: "link:open-external",
   getZoomFactor: "zoom:get-factor",
   saveZoomFactor: "zoom:save-factor",
   zoomFactorChanged: "zoom:changed",

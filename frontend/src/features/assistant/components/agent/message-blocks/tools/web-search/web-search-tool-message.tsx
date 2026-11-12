@@ -196,12 +196,6 @@ export function WebSearchToolMessage({ message }: WebSearchToolMessageProps) {
   const data = normalizeWebSearchData(getToolResultData(message) ?? getStreamingData(message));
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
-  const handleConfirmLink = () => {
-    if (pendingUrl) {
-      window.open(pendingUrl, "_blank", "noopener,noreferrer");
-    }
-  };
-
   return (
     <>
       <ToolBody>
@@ -229,7 +223,6 @@ export function WebSearchToolMessage({ message }: WebSearchToolMessageProps) {
         isOpen={pendingUrl !== null}
         url={pendingUrl ?? ""}
         onClose={() => setPendingUrl(null)}
-        onConfirm={handleConfirmLink}
       />
     </>
   );

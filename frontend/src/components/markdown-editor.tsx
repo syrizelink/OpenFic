@@ -157,11 +157,6 @@ export function MarkdownEditor({
     setHoveredEditorLink(null);
   }, []);
 
-  const handleConfirmExternalLink = useCallback(() => {
-    if (!pendingExternalLink) return;
-    window.open(pendingExternalLink, "_blank", "noopener,noreferrer");
-  }, [pendingExternalLink]);
-
   const editorExtensions = useMemo(
     () =>
       createMarkdownEditorExtensions({
@@ -379,7 +374,6 @@ export function MarkdownEditor({
         isOpen={pendingExternalLink !== null}
         url={pendingExternalLink ?? ""}
         onClose={() => setPendingExternalLink(null)}
-        onConfirm={handleConfirmExternalLink}
       />
 
       <EditorLinkTooltip link={hoveredEditorLink} />
