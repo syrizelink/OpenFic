@@ -2,6 +2,7 @@ import { BrowserWindow, screen, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import { readWindowState, saveWindowStateSync, type WindowState } from "./window-state.js";
 import { appendLog } from "./logging.js";
+import { attachExternalLinkHandlers } from "./external-links.js";
 
 const preloadPath = fileURLToPath(new URL("../preload/preload.mjs", import.meta.url));
 
@@ -163,8 +164,11 @@ export function createMainWindow(): BrowserWindow {
   if (layout.needsCenter) window.center();
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    void shell.openExternal(url);
     return { action: "deny" };
+  });
+  window.webContents.on("did-attach-webview", (_event, webContents) => {
+    attachExternalLinkHandlers(webContents, (url) => shell.openExternal(url));
   });
   attachWindowDiagnostics(window, "main");
 

@@ -3,16 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LinkSafetyModalProps } from "streamdown";
 
+import { openExternalLink } from "@/lib/desktop-appearance-bridge";
+
 import "./external-link-safety-dialog.css";
 
 const COPY_FEEDBACK_MS = 2000;
 
-export function ExternalLinkSafetyDialog({
-  isOpen,
-  onClose,
-  onConfirm,
-  url,
-}: LinkSafetyModalProps) {
+type ExternalLinkSafetyDialogProps = Omit<LinkSafetyModalProps, "onConfirm">;
+
+export function ExternalLinkSafetyDialog({ isOpen, onClose, url }: ExternalLinkSafetyDialogProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copyResetTimerRef = useRef<number | null>(null);
@@ -61,7 +60,7 @@ export function ExternalLinkSafetyDialog({
   };
 
   const handleConfirm = () => {
-    onConfirm();
+    openExternalLink(url);
     onClose();
   };
 

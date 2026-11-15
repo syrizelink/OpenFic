@@ -58,6 +58,7 @@ window.addEventListener(
 );
 
 contextBridge.exposeInMainWorld("openficDesktopHost", {
+  openExternalLink: (url: string): Promise<void> => ipcRenderer.invoke("link:open-external", url),
   openOpenAICodexAuthorization: (url: string): Promise<void> => {
     return ipcRenderer.invoke("auth:open-openai-codex-authorization", url);
   },
