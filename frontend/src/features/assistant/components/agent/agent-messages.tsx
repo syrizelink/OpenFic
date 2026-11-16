@@ -48,11 +48,13 @@ import { getAgentRunningStatus } from "./agent-running-status";
 import { AgentStatusMessage } from "./agent-status-message";
 import {
   buildAgentRoundChangeSummaries,
+  buildAgentDisplayItemsByBlock,
   buildAgentMessageBlocks,
   buildAgentRoundProcesses,
   buildAgentRoundDisplayBlocks,
   getAgentRoundToolbarTargets,
   getVisibleAgentMessageBlocks,
+  type AgentDisplayItemPlacement,
   type AgentRoundToolbarTarget,
 } from "./display/agent-message-blocks";
 import type { AgentMessageBlock } from "./display/agent-message-blocks";
@@ -203,6 +205,8 @@ function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockD
 
 interface AgentBlockContentProps {
   messages: BlockDisplayMessage[];
+  displayItemPlacements?: AgentDisplayItemPlacement[];
+  excludedMessageId?: string;
   isProcessCollapsed: boolean;
   isProcessDetailed: boolean;
   isProcessActive: boolean;
@@ -213,6 +217,8 @@ interface AgentBlockContentProps {
 const AgentBlockContent = memo(
   function AgentBlockContent({
     messages,
+    displayItemPlacements,
+    excludedMessageId,
     isProcessCollapsed,
     isProcessDetailed,
     isProcessActive,
@@ -229,6 +235,17 @@ const AgentBlockContent = memo(
       displayItems = buildAgentDisplayItems(agentMessages, displayState.items);
       setDisplayState({ messages: agentMessages, items: displayItems });
     }
+    const fallbackPlacements = displayItems.map((item, index, items) => ({
+      item,
+      isClosed: item.type === "process" && (index < items.length - 1 || !isProcessActive),
+    }));
+    const renderedPlacements = (displayItemPlacements ?? fallbackPlacements).filter(
+      ({ item }) =>
+        !excludedMessageId ||
+        (item.type === "process"
+          ? !item.messages.some((message) => message.id === excludedMessageId)
+          : item.message.id !== excludedMessageId),
+    );
 
     return (
       <MessageDisclosureProvider resetKey={isProcessCollapsed}>
@@ -237,7 +254,7 @@ const AgentBlockContent = memo(
           gap="2"
           className="agent-message-block-content"
         >
-          {displayItems.map((item, index, items) => (
+          {renderedPlacements.map(({ item, isClosed }) => (
             <Box
               key={item.id}
               data-scroll-message-ids={JSON.stringify(
@@ -251,7 +268,7 @@ const AgentBlockContent = memo(
                   messages={item.messages}
                   detailed={isProcessDetailed}
                   isParentCollapsed={isProcessCollapsed}
-                  isClosed={!isProcessActive || index < items.length - 1}
+                  isClosed={isClosed}
                   onAbortRetry={onAbortRetry}
                 />
               ) : (
@@ -269,6 +286,8 @@ const AgentBlockContent = memo(
   },
   (prev, next) =>
     areBlockMessageListsEqual(prev.messages, next.messages) &&
+    prev.displayItemPlacements === next.displayItemPlacements &&
+    prev.excludedMessageId === next.excludedMessageId &&
     prev.isProcessCollapsed === next.isProcessCollapsed &&
     prev.isProcessDetailed === next.isProcessDetailed &&
     prev.isProcessActive === next.isProcessActive &&
@@ -974,6 +993,10 @@ export function AgentMessages({
       ),
     [messageBlocks, nodeVisibleMessageBlocks, isRunning, status],
   );
+  const displayItemsByBlock = useMemo(
+    () => buildAgentDisplayItemsByBlock(nodeVisibleMessageBlocks, roundProcesses),
+    [nodeVisibleMessageBlocks, roundProcesses],
+  );
   const visibleMessageBlocks = useMemo(
     () => buildAgentRoundDisplayBlocks(nodeVisibleMessageBlocks, roundProcesses),
     [nodeVisibleMessageBlocks, roundProcesses],
@@ -1425,11 +1448,29 @@ export function AgentMessages({
     block: AgentMessageBlock,
     blockIndex: number,
     isRoundMember = false,
+    excludedMessageId?: string,
   ): ReactNode => {
     const toolbarTarget = isRoundMember ? undefined : toolbarTargetByAnchorId.get(block.id);
     const changeSummary = isRoundMember ? undefined : changeSummaryByAnchorId.get(block.id);
     const process = block.agentRoundId ? roundProcesses.get(block.agentRoundId) : undefined;
     const isProcessCollapsed = Boolean(process?.canCollapse && !expandedProcessIds.has(process.id));
+    const displayItemPlacements = displayItemsByBlock.get(block.id);
+    const hasRenderableDisplayItems =
+      displayItemPlacements?.some(({ item }) => {
+        if (!excludedMessageId) return true;
+        return item.type === "process"
+          ? !item.messages.some((message) => message.id === excludedMessageId)
+          : item.message.id !== excludedMessageId;
+      }) ?? !block.agentRoundId;
+    if (
+      block.type === "agent" &&
+      !block.roundContent &&
+      block.agentRoundId &&
+      !hasRenderableDisplayItems &&
+      !toolbarTarget &&
+      !changeSummary
+    )
+      return null;
     if (block.type === "node") {
       const message = block.messages[0];
       if (!message || message.type !== "node_start") return null;
@@ -1567,30 +1608,34 @@ export function AgentMessages({
             <>
               <MessageBlockShell
                 className="agent-process-card agent-turn-process-card"
-                expandable
+                expandable={process.canCollapse}
                 flush
               >
-                <ProcessMessageHeader
-                  title={getTurnProcessTitle(process.elapsedMs, t)}
-                  showIcon={false}
-                  expanded={!isProcessCollapsed}
-                  label={
-                    isProcessCollapsed
-                      ? t("assistant.expandTurnProcess")
-                      : t("assistant.collapseTurnProcess")
-                  }
-                  onToggle={() =>
-                    setExpandedProcessIds((current) => {
-                      const next = new Set(current);
-                      if (next.has(process.id)) next.delete(process.id);
-                      else next.add(process.id);
-                      return next;
-                    })
-                  }
-                />
+                {process.canCollapse ? (
+                  <ProcessMessageHeader
+                    key="turn-process-header"
+                    title={getTurnProcessTitle(process.elapsedMs, t)}
+                    showIcon={false}
+                    expanded={!isProcessCollapsed}
+                    label={
+                      isProcessCollapsed
+                        ? t("assistant.expandTurnProcess")
+                        : t("assistant.collapseTurnProcess")
+                    }
+                    onToggle={() =>
+                      setExpandedProcessIds((current) => {
+                        const next = new Set(current);
+                        if (next.has(process.id)) next.delete(process.id);
+                        else next.add(process.id);
+                        return next;
+                      })
+                    }
+                  />
+                ) : null}
                 <MessageBlockContent
+                  key="turn-process-content"
                   keepMounted
-                  marginTop={16}
+                  marginTop={process.canCollapse ? 16 : 0}
                   motionKey={`turn:${process.id}`}
                   visible={!isProcessCollapsed}
                 >
@@ -1599,7 +1644,14 @@ export function AgentMessages({
                     gap="2"
                   >
                     {block.roundContent.blocks.map((member) => (
-                      <Fragment key={member.id}>{renderBlock(member, blockIndex, true)}</Fragment>
+                      <Fragment key={member.id}>
+                        {renderBlock(
+                          member,
+                          blockIndex,
+                          true,
+                          block.roundContent?.finalMessage?.id,
+                        )}
+                      </Fragment>
                     ))}
                   </Flex>
                 </MessageBlockContent>
@@ -1616,6 +1668,8 @@ export function AgentMessages({
           ) : (
             <AgentBlockContent
               messages={block.messages}
+              displayItemPlacements={displayItemPlacements}
+              excludedMessageId={excludedMessageId}
               isProcessCollapsed={isProcessCollapsed}
               isProcessDetailed={processDisplayMode === "detailed" && Boolean(process?.isActive)}
               isProcessActive={Boolean(process?.isActive)}

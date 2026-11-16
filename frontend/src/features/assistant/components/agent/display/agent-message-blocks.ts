@@ -5,8 +5,16 @@ import type {
   AgentSessionStatus,
 } from "@/lib/agent.types";
 
-import { isAgentProcessMessage } from "./agent-message-display-items";
-import type { AgentOutputDisplayMessage, BlockDisplayMessage } from "./display-message-types";
+import {
+  buildAgentDisplayItems,
+  isAgentProcessMessage,
+  type AgentDisplayItem,
+} from "./agent-message-display-items";
+import type {
+  AgentBlockDisplayMessage,
+  AgentOutputDisplayMessage,
+  BlockDisplayMessage,
+} from "./display-message-types";
 
 export type AgentMessageBlockType = "user" | "agent" | "node";
 
@@ -44,6 +52,63 @@ export interface AgentRoundProcess {
   elapsedMs?: number;
   isActive: boolean;
   canCollapse: boolean;
+}
+
+export interface AgentDisplayItemPlacement {
+  item: AgentDisplayItem;
+  isClosed: boolean;
+}
+
+function isAgentBlockDisplayMessage(
+  message: BlockDisplayMessage,
+): message is AgentBlockDisplayMessage {
+  return (
+    message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end"
+  );
+}
+
+export function buildAgentDisplayItemsByBlock(
+  blocks: AgentMessageBlock[],
+  processes: ReadonlyMap<string, AgentRoundProcess>,
+): Map<string, AgentDisplayItemPlacement[]> {
+  const rounds = new Map<string, AgentMessageBlock[]>();
+  for (const block of blocks) {
+    if (block.type !== "agent" || !block.agentRoundId) continue;
+    const round = rounds.get(block.agentRoundId) ?? [];
+    round.push(block);
+    rounds.set(block.agentRoundId, round);
+  }
+
+  const placementsByBlock = new Map<string, AgentDisplayItemPlacement[]>();
+  for (const [roundId, round] of rounds) {
+    const agentBlocks = round.filter((block) => block.type === "agent");
+    const messages = agentBlocks.flatMap((block) =>
+      block.messages.filter(isAgentBlockDisplayMessage),
+    );
+    const items = buildAgentDisplayItems(messages);
+    const process = processes.get(roundId);
+    const blockIdByMessageId = new Map(
+      agentBlocks.flatMap((block) =>
+        block.messages
+          .filter(isAgentBlockDisplayMessage)
+          .map((message) => [message.id, block.id] as const),
+      ),
+    );
+
+    items.forEach((item, index) => {
+      const firstMessage = item.type === "process" ? item.messages[0] : item.message;
+      if (!firstMessage) return;
+      const blockId = blockIdByMessageId.get(firstMessage.id);
+      if (!blockId) return;
+      const placements = placementsByBlock.get(blockId) ?? [];
+      placements.push({
+        item,
+        isClosed: item.type === "process" && (index < items.length - 1 || !process?.isActive),
+      });
+      placementsByBlock.set(blockId, placements);
+    });
+  }
+  return placementsByBlock;
 }
 
 export function buildAgentRoundProcesses(
@@ -110,7 +175,7 @@ export function buildAgentRoundProcesses(
         ? endedAt - startedAt
         : undefined;
     processes.set(roundId, {
-      id: `${roundId}:${lastWork?.id ?? anchor.id}`,
+      id: roundId,
       anchorBlockId: anchor.id,
       finalMessageId: lastWork?.type === "agent_output" ? lastWork.id : undefined,
       elapsedMs,
@@ -386,11 +451,7 @@ export function buildAgentRoundDisplayBlocks(
 ): AgentMessageBlock[] {
   const members = new Map<string, AgentMessageBlock[]>();
   for (const block of blocks) {
-    if (
-      block.type === "user" ||
-      !block.agentRoundId ||
-      !processes.get(block.agentRoundId)?.canCollapse
-    )
+    if (block.type === "user" || !block.agentRoundId || !processes.get(block.agentRoundId))
       continue;
     const round = members.get(block.agentRoundId) ?? [];
     round.push(block);
@@ -399,7 +460,7 @@ export function buildAgentRoundDisplayBlocks(
 
   return blocks.flatMap((block) => {
     const process = block.agentRoundId ? processes.get(block.agentRoundId) : undefined;
-    if (block.type === "user" || !block.agentRoundId || !process?.canCollapse) return [block];
+    if (block.type === "user" || !block.agentRoundId || !process) return [block];
     if (block.id !== process.anchorBlockId) return [];
     const round = members.get(block.agentRoundId) ?? [];
     const messages = round.flatMap((member) => member.messages);

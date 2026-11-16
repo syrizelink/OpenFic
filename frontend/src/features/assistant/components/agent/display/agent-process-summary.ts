@@ -3,21 +3,41 @@ import type { TFunction } from "i18next";
 import { getToolDescriptorMeta } from "../message-blocks/tools/shared/tool-message-catalog";
 import type { AgentBlockDisplayMessage } from "./display-message-types";
 
-function toolActivity(toolName: string): string {
+export type ProcessActivity =
+  | "thinking"
+  | "read"
+  | "search"
+  | "edit"
+  | "webSearch"
+  | "webFetch"
+  | "subagents"
+  | "skills"
+  | "plan"
+  | "questions"
+  | "tools";
+
+function toolActivity(toolName: string): ProcessActivity {
   const descriptor = getToolDescriptorMeta(toolName);
   if (toolName === "web_search") return "webSearch";
   if (toolName === "web_fetch") return "webFetch";
   if (descriptor?.group === "orchestration") return "subagents";
   if (descriptor?.group === "plan") return "plan";
   if (descriptor?.group === "interaction") return "questions";
+  if (toolName === "activate_skill" || toolName === "reference_skill") return "skills";
   if (descriptor?.tag === "search" || /^(search|query)_/.test(toolName)) return "search";
   if (descriptor?.tag === "read" || /^(read|list|get)_/.test(toolName)) return "read";
-  if (descriptor?.tag === "write" || /^(write|create)_/.test(toolName)) return "write";
-  if (descriptor?.tag === "edit" || /^(edit|delete|move|update)_/.test(toolName)) return "edit";
+  if (
+    descriptor?.tag === "write" ||
+    descriptor?.tag === "edit" ||
+    /^(write|create|edit|delete|move|update)_/.test(toolName)
+  )
+    return "edit";
   return "tools";
 }
 
-export function getLiveProcessTitleKey(messages: readonly AgentBlockDisplayMessage[]): string {
+function getLiveProcessMessage(
+  messages: readonly AgentBlockDisplayMessage[],
+): Extract<AgentBlockDisplayMessage, { type: "tool" }> | undefined {
   let running: AgentBlockDisplayMessage | undefined;
   for (const message of messages) {
     if (
@@ -27,16 +47,27 @@ export function getLiveProcessTitleKey(messages: readonly AgentBlockDisplayMessa
       continue;
     if (!running || message.timestamp >= running.timestamp) running = message;
   }
-  const activity = running?.type === "tool" ? toolActivity(running.toolName) : "thinking";
+  return running?.type === "tool" ? running : undefined;
+}
+
+export function getLiveProcessActivity(
+  messages: readonly AgentBlockDisplayMessage[],
+): ProcessActivity {
+  const running = getLiveProcessMessage(messages);
+  return running ? toolActivity(running.toolName) : "thinking";
+}
+
+export function getLiveProcessTitleKey(messages: readonly AgentBlockDisplayMessage[]): string {
+  const activity = getLiveProcessActivity(messages);
+  const running = getLiveProcessMessage(messages);
   const phase = running?.status === "pending" ? "preparing" : "running";
   return `assistant.processActivity.${phase}.${activity}`;
 }
 
-export function getCompletedProcessTitle(
+function getCompletedProcessCategories(
   messages: readonly AgentBlockDisplayMessage[],
-  t: TFunction,
-): string {
-  const counts = new Map<string, number>();
+): Array<[ProcessActivity, number]> {
+  const counts = new Map<ProcessActivity, number>();
   const seen = new Set<string>();
   for (const message of messages) {
     if (message.type !== "tool") continue;
@@ -46,7 +77,20 @@ export function getCompletedProcessTitle(
     const activity = toolActivity(message.toolName);
     counts.set(activity, (counts.get(activity) ?? 0) + 1);
   }
-  const categories = [...counts].sort((left, right) => right[1] - left[1]);
+  return [...counts].sort((left, right) => right[1] - left[1]);
+}
+
+export function getCompletedProcessActivity(
+  messages: readonly AgentBlockDisplayMessage[],
+): ProcessActivity {
+  return getCompletedProcessCategories(messages)[0]?.[0] ?? "thinking";
+}
+
+export function getCompletedProcessTitle(
+  messages: readonly AgentBlockDisplayMessage[],
+  t: TFunction,
+): string {
+  const categories = getCompletedProcessCategories(messages);
   const labels = categories
     .slice(0, 3)
     .map(([activity]) => t(`assistant.processActivity.completed.${activity}`));

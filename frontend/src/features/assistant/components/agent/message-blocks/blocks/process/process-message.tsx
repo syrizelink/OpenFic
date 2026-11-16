@@ -1,12 +1,27 @@
 import { Box, Text } from "@radix-ui/themes";
-import { Search } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  Bot,
+  Globe,
+  ListTodo,
+  MessageCircleQuestionMark,
+  PenLine,
+  Search,
+  Sparkles,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AgentMessageRenderer } from "../../../agent-message-renderer";
 import {
+  getCompletedProcessActivity,
   getCompletedProcessTitle,
+  getLiveProcessActivity,
   getLiveProcessTitleKey,
+  type ProcessActivity,
 } from "../../../display/agent-process-summary";
 import type { AgentBlockDisplayMessage } from "../../../display/display-message-types";
 import {
@@ -34,8 +49,23 @@ interface ProcessMessageHeaderProps {
   label: string;
   onToggle: () => void;
   isRunning?: boolean;
+  activity?: ProcessActivity;
   showIcon?: boolean;
 }
+
+const PROCESS_ICONS: Record<ProcessActivity, LucideIcon> = {
+  thinking: Brain,
+  read: BookOpen,
+  search: Search,
+  edit: PenLine,
+  webSearch: Globe,
+  webFetch: BookOpen,
+  subagents: Bot,
+  skills: Sparkles,
+  plan: ListTodo,
+  questions: MessageCircleQuestionMark,
+  tools: Wrench,
+};
 
 export function ProcessMessageHeader({
   title,
@@ -43,8 +73,10 @@ export function ProcessMessageHeader({
   label,
   onToggle,
   isRunning = false,
+  activity = "thinking",
   showIcon = true,
 }: ProcessMessageHeaderProps) {
+  const Icon = PROCESS_ICONS[activity];
   return (
     <MessageBlockHeader
       className="agent-process-header"
@@ -54,7 +86,7 @@ export function ProcessMessageHeader({
     >
       <MessageBlockHeaderMain className="agent-process-header-main">
         {showIcon ? (
-          <Search
+          <Icon
             size={16}
             className="agent-message-shell-icon agent-process-icon"
           />
@@ -101,6 +133,9 @@ export function ProcessMessage({
   );
   const hasError = messages.some((message) => message.status === "error");
   const liveTitleKey = getLiveProcessTitleKey(messages);
+  const activity = isClosed
+    ? getCompletedProcessActivity(messages)
+    : getLiveProcessActivity(messages);
   const [displayedTitleKey, setDisplayedTitleKey] = useState(liveTitleKey);
   const titleChangedAt = useRef(Date.now());
   useEffect(() => {
@@ -131,6 +166,7 @@ export function ProcessMessage({
           expanded={isExpanded}
           onToggle={() => setIsExpanded((value) => !value)}
           isRunning={!isClosed}
+          activity={activity}
           label={
             isExpanded ? t("assistant.collapseProcessGroup") : t("assistant.expandProcessGroup")
           }
