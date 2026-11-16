@@ -182,7 +182,7 @@ async def dispatch(
                 continue
             for priority, handler in plugin.registration.hooks.get(event, []):
                 handlers.append((priority, plugin.manifest.id, handler))
-    handlers.sort(key=lambda item: (item[0], item[1]))
+    handlers.sort(key=lambda item: item[0])
 
     async def step(index, data):
         if index == len(handlers):

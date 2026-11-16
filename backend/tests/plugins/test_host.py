@@ -21,10 +21,18 @@ SOURCE = Path(__file__).resolve().parents[3] / "examples/plugins/project-statist
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
-def package(version="1.0.0", backend=None, capabilities=None, *, legacy=False):
+def package(
+    version="1.0.0",
+    backend=None,
+    capabilities=None,
+    *,
+    legacy=False,
+    plugin_id="project-statistics",
+):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
     manifest["version"] = version
+    manifest["id"] = plugin_id
     # Keep iframe ticket/CSP lifecycle coverage independent of the native example UI.
     manifest["views"] = [
         {
@@ -88,6 +96,74 @@ async def install(client, content=None):
         files={"file": ("plugin.zip", content or package(), "application/zip")},
         data={"trusted": "true"},
     )
+
+
+async def test_plugin_order_survives_update_install_restart_and_uninstall(
+    plugin_api, monkeypatch
+):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        assert (await install(api, package(plugin_id=plugin_id))).status_code == 201
+        await host.set_enabled(plugin_id, True)
+    response = await api.put(
+        "/api/v1/plugins/order", json={"plugin_ids": ["zeta", "alpha"]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"plugin_ids": ["zeta", "alpha"]}
+    assert [p["id"] for p in (await api.get("/api/v1/plugins")).json()["plugins"]] == [
+        "zeta",
+        "alpha",
+    ]
+    await host.install(package("1.1.0", plugin_id="alpha"), update_id="alpha")
+    await host.install(package(plugin_id="beta"))
+    assert list(host.plugins) == ["zeta", "alpha", "beta"]
+    await host.close()
+    activation_order = []
+    activate = host._activate
+
+    async def record_activation(plugin):
+        activation_order.append(plugin.manifest.id)
+        await activate(plugin)
+
+    monkeypatch.setattr(host, "_activate", record_activation)
+    await host.start()
+    assert list(host.plugins) == ["zeta", "alpha", "beta"]
+    assert activation_order == ["zeta", "alpha"]
+    assert host.get("alpha").manifest.version == "1.1.0"
+    await host.uninstall("alpha")
+    await host.close()
+    await host.start()
+    assert list(host.plugins) == ["zeta", "beta"]
+
+
+@pytest.mark.parametrize(
+    "plugin_ids", [["alpha"], ["alpha", "alpha"], ["alpha", "unknown"]]
+)
+async def test_invalid_plugin_order_leaves_registry_unchanged(plugin_api, plugin_ids):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        await install(api, package(plugin_id=plugin_id))
+    registry = (host.root / ".registry.json").read_bytes()
+    response = await api.put("/api/v1/plugins/order", json={"plugin_ids": plugin_ids})
+    assert response.status_code == 400, response.text
+    assert list(host.plugins) == ["alpha", "zeta"]
+    assert (host.root / ".registry.json").read_bytes() == registry
+
+
+async def test_plugin_order_write_failure_restores_memory(plugin_api, monkeypatch):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        await install(api, package(plugin_id=plugin_id))
+    registry = (host.root / ".registry.json").read_bytes()
+
+    def fail_persist():
+        raise OSError("disk full")
+
+    monkeypatch.setattr(host, "_persist", fail_persist)
+    with pytest.raises(OSError, match="disk full"):
+        await host.set_order(["zeta", "alpha"])
+    assert list(host.plugins) == ["alpha", "zeta"]
+    assert (host.root / ".registry.json").read_bytes() == registry
 
 
 async def test_install_enable_statistics_configuration_restart_export_uninstall(

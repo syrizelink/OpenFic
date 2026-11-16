@@ -205,6 +205,33 @@ def register(host):
     assert not plugin_tools({})
 
 
+async def test_hook_order_uses_plugin_order_after_explicit_priority(
+    plugin_api, session
+):
+    host, _, _ = plugin_api
+    source = """
+async def hook(ctx, event, next):
+    event['order'].append(ctx.plugin_id)
+    return await next(event)
+def register(host):
+    host.register_hook('prompt.compose', hook, priority=PRIORITY)
+"""
+    for plugin_id, priority in [("alpha", 0), ("zeta", 0), ("early", -10)]:
+        await host.install(
+            bundle(
+                {"id": plugin_id, "capabilities": ["agent.hooks"]},
+                source.replace("PRIORITY", str(priority)),
+            )
+        )
+        await host.set_enabled(plugin_id, True)
+    await host.set_order(["zeta", "early", "alpha"])
+    result = await dispatch("prompt.compose", {"order": []}, session, host=host)
+    assert result["order"] == ["early", "zeta", "alpha"]
+    await host.set_order(["alpha", "early", "zeta"])
+    result = await dispatch("prompt.compose", {"order": []}, session, host=host)
+    assert result["order"] == ["early", "alpha", "zeta"]
+
+
 async def test_hook_order_reentry_and_read_only_editor_observer(plugin_api, session):
     host, _, _ = plugin_api
     observer = """

@@ -49,7 +49,6 @@ interface SettingsCategoryItem {
 }
 
 export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
-  { id: "plugins", icon: <Package size={16} />, labelKey: "plugins.management" },
   {
     id: "general",
     icon: <SettingsIcon size={16} />,
@@ -132,6 +131,7 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     labelKey: "settings.tunnels",
     badgeKey: "settings.experimental",
   },
+  { id: "plugins", icon: <Package size={16} />, labelKey: "plugins.management" },
   {
     id: "advanced",
     icon: <SlidersHorizontal size={16} />,

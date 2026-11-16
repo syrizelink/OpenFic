@@ -2,8 +2,9 @@ import { Button, Flex, useThemeContext } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams, useNavigate } from "react-router";
+import { useParams, useSearchParams, useNavigate } from "react-router";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 
 import {
@@ -20,19 +21,11 @@ import {
   addPluginDiagnostic,
   pluginDiagnosticsEnabled,
 } from "./plugin-diagnostics";
-import { PluginManager } from "./plugin-manager";
 
 import "./plugins.css";
 
-export function ExtensionsPage() {
-  return (
-    <div className="extensions-page">
-      <PluginManager />
-    </div>
-  );
-}
-
 export function PluginPage() {
+  const { openSettings } = useAppShell();
   const { pluginId, viewId } = useParams();
   const { t } = useTranslation();
   const {
@@ -47,7 +40,12 @@ export function PluginPage() {
     return (
       <div className="extensions-page">
         <p role="alert">{error ? pluginError(error) : t("plugins.unavailable")}</p>
-        <Link to="/extensions">{t("plugins.management")}</Link>
+        <Button
+          variant="soft"
+          onClick={() => openSettings({ category: "plugins" })}
+        >
+          {t("plugins.management")}
+        </Button>
       </div>
     );
   return (
@@ -108,6 +106,7 @@ function IframeView({
   onHeightChange?: (height: number) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const { openSettings } = useAppShell();
   const [search] = useSearchParams();
   const routeParams = useParams();
   const navigate = useNavigate();
@@ -318,11 +317,11 @@ function IframeView({
         >
           <h2>{view.title}</h2>
           <Button
-            asChild
             size="1"
             variant="soft"
+            onClick={() => openSettings({ category: "plugins" })}
           >
-            <Link to="/extensions">{t("plugins.management")}</Link>
+            {t("plugins.management")}
           </Button>
         </Flex>
       )}

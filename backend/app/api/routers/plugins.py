@@ -150,6 +150,18 @@ async def list_plugins(manager: Host):
     }
 
 
+class PluginOrder(BaseModel):
+    plugin_ids: list[str]
+
+
+@router.put("/order")
+async def update_plugin_order(payload: PluginOrder, manager: Host) -> PluginOrder:
+    try:
+        return PluginOrder(plugin_ids=await manager.set_order(payload.plugin_ids))
+    except ValueError as error:
+        raise PluginError(str(error)) from error
+
+
 @router.get("/development")
 async def development_status(manager: Host):
     return (

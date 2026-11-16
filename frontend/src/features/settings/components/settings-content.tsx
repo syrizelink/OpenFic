@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
 import { PluginManager } from "@/features/plugins/plugin-manager";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { saveLanguagePreference } from "@/i18n";
 import {
   applyBaseFontSize,
@@ -281,10 +280,12 @@ export function SettingsContent({
   );
 
   const isSplitPanelCategory =
-    activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
+    activeCategory === "agents" ||
+    activeCategory === "skills" ||
+    activeCategory === "rules" ||
+    activeCategory === "plugins";
   const shouldUseFormPagePadding =
     activeCategory === "audio" ||
-    activeCategory === "plugins" ||
     activeCategory === "general" ||
     activeCategory === "personalization" ||
     activeCategory === "editor" ||
@@ -447,10 +448,12 @@ export function SettingsContent({
         ) : displaySettings ? (
           <>
             {activeCategory === "plugins" ? (
-              <>
-                <PluginManager onOpenView={onClose} />
-                <PluginSlot slot="settings.plugins" />
-              </>
+              <PluginManager
+                onOpenView={onClose}
+                mobilePage={mobileSubpage}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                onMobilePageChange={handleMobileSubpageChange}
+              />
             ) : null}
             {activeCategory === "general" ? (
               <GeneralSettings

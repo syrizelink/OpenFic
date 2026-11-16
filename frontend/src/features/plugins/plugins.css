@@ -4,11 +4,12 @@
   padding: 24px;
 }
 .plugin-manager {
-  max-width: 960px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  height: 100%;
+  min-height: 0;
 }
-.plugin-manager h2,
 .plugin-view h2 {
   font-size: 20px;
   margin: 0 0 12px;
@@ -18,42 +19,195 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-.plugin-install-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 20px;
-  border: 1px dashed var(--gray-7);
-  border-radius: var(--radius-3);
-  margin: 20px 0;
-}
-.plugin-card {
-  padding: 20px;
-  border: 1px solid var(--gray-6);
-  border-radius: var(--radius-3);
-  margin-bottom: 16px;
-  overflow-wrap: anywhere;
-}
 .plugin-error {
   color: var(--red-11);
 }
-.plugin-configuration {
-  margin-top: 16px;
+.plugin-manager-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
-.plugin-configuration summary {
-  cursor: pointer;
-  font-size: 13px;
+.plugin-list-panel {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  flex-shrink: 0;
+  min-height: 0;
+  border-right: 1px solid var(--gray-a4);
 }
-.plugin-setting {
+.plugin-list-header {
+  padding: 12px 12px 8px;
+  flex-shrink: 0;
+}
+.plugin-list-hint {
+  margin: 0;
+  padding: 0 12px 8px;
+}
+.plugin-list-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+}
+.plugin-list-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 14px 0;
+  flex-shrink: 0;
+  position: relative;
+  border-radius: var(--radius-3);
+  transition: transform 200ms ease;
 }
-.plugin-setting .rt-TextFieldRoot {
-  max-width: 220px;
+.plugin-list-row[data-dragging="true"] {
+  z-index: 1;
+  opacity: 0.6;
+  transition: none;
+}
+.plugin-list-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--gray-9);
+  cursor: grab;
+  touch-action: none;
+}
+.plugin-list-drag-handle:hover {
+  color: var(--gray-12);
+}
+.plugin-list-drag-handle:active {
+  cursor: grabbing;
+}
+.plugin-list-drag-handle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.plugin-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px 10px 0;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--gray-11);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.plugin-list-row:hover,
+.plugin-list-row[data-selected="true"] {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+.plugin-list-item:focus-visible,
+.plugin-list-drag-handle:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+.plugin-list-title {
+  min-width: 0;
+  width: 100%;
+}
+.plugin-list-title svg,
+.plugin-list-title .rt-Badge {
+  flex-shrink: 0;
+}
+.plugin-list-description {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plugin-list-empty,
+.plugin-list-footer {
+  padding: 12px;
+}
+.plugin-detail-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 40px 28px;
+}
+.plugin-detail {
+  width: 100%;
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+.plugin-detail-section,
+.plugin-configuration,
+.plugin-setting {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.plugin-detail-section {
+  gap: 16px;
+}
+.plugin-detail-section + .plugin-detail-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--gray-a4);
+}
+.plugin-detail-section p {
+  margin: 0;
+}
+.plugin-information {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(0, 1fr);
+  gap: 12px 20px;
+  margin: 0;
+  font-size: var(--font-size-2);
+}
+.plugin-information dt {
+  color: var(--gray-11);
+}
+.plugin-information dd {
+  margin: 0;
+}
+.plugin-configuration {
+  gap: 20px;
+}
+.plugin-configuration > button {
+  align-self: flex-start;
+}
+.plugin-setting {
+  gap: 8px;
+}
+.plugin-setting > .rt-CheckboxRoot {
+  align-self: flex-start;
+}
+.plugin-detail-empty {
+  min-height: 100%;
+  max-width: 400px;
+  margin-inline: auto;
+  text-align: center;
+  color: var(--gray-8);
+}
+.plugin-install-dialog {
+  max-width: 480px;
+}
+.plugin-trust-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-block: 24px;
+}
+.plugin-trust-label > .rt-CheckboxRoot {
+  flex-shrink: 0;
+  margin-top: 3px;
 }
 .plugin-logs {
   white-space: pre-wrap;
@@ -149,15 +303,32 @@
   .extensions-page {
     padding: 16px;
   }
-  .plugin-card,
-  .plugin-install-panel {
-    padding: 14px;
+  .plugin-list-panel {
+    width: 100%;
+    border-right: 0;
+  }
+  .plugin-manager[data-mobile-page="list"] .plugin-detail-panel,
+  .plugin-manager[data-mobile-page="detail"] .plugin-list-panel {
+    display: none;
+  }
+  .plugin-detail-panel {
+    padding: 18px 24px;
   }
   .plugin-view-header {
     padding: 12px;
   }
-  .plugin-setting {
-    flex-wrap: wrap;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .plugin-list-panel {
+    width: 240px;
+  }
+  .plugin-detail-panel {
+    padding: 24px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plugin-list-row {
+    transition: none;
   }
 }
 

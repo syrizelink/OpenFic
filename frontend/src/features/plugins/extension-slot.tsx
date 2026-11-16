@@ -1,6 +1,6 @@
 import { Text, Tooltip } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { Package, Puzzle } from "lucide-react";
+import { Puzzle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 
@@ -33,6 +33,7 @@ export function ExtensionSlot({
           href: `/extensions/${plugin.id}/${view.id}`,
         })),
     );
+  if (entries.length === 0) return null;
   return (
     <nav
       className="extension-slot"
@@ -46,7 +47,7 @@ export function ExtensionSlot({
           {t("plugins.region")}
         </Text>
       )}
-      {[...entries, { title: t("plugins.management"), href: "/extensions" }].map((entry) => (
+      {entries.map((entry) => (
         <Tooltip
           key={entry.href}
           content={entry.title}
@@ -58,7 +59,7 @@ export function ExtensionSlot({
             to={`${entry.href}${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`}
             onClick={onNavigate}
           >
-            {entry.href === "/extensions" ? <Package size={20} /> : <Puzzle size={20} />}
+            <Puzzle size={20} />
             {expanded && <span>{entry.title}</span>}
           </Link>
         </Tooltip>

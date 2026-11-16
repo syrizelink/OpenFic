@@ -199,8 +199,12 @@ class PluginHost:
         self._write_json(
             self.root / ".registry.json",
             {
-                key: {"enabled": plugin.enabled, "settings": saved_settings(plugin)}
-                for key, plugin in self.plugins.items()
+                key: {
+                    "enabled": plugin.enabled,
+                    "settings": saved_settings(plugin),
+                    "order": order,
+                }
+                for order, (key, plugin) in enumerate(self.plugins.items())
             },
         )
 
@@ -227,7 +231,17 @@ class PluginHost:
                     state = {}
             except (OSError, ValueError):
                 state = {}
-            for directory in sorted(self.root.iterdir()):
+            positions = {
+                key: saved["order"]
+                for key, saved in state.items()
+                if isinstance(saved, dict)
+                and type(saved.get("order")) is int
+                and saved["order"] >= 0
+            }
+            for directory in sorted(
+                self.root.iterdir(),
+                key=lambda path: (positions.get(path.name, len(state)), path.name),
+            ):
                 if (
                     directory.name.startswith(".")
                     or not directory.is_dir()
@@ -531,6 +545,23 @@ class PluginHost:
             finally:
                 if stage.exists():
                     shutil.rmtree(stage)
+
+    async def set_order(self, plugin_ids: list[str]) -> list[str]:
+        async with self._lock:
+            if len(plugin_ids) != len(self.plugins) or set(plugin_ids) != set(
+                self.plugins
+            ):
+                raise ValueError(
+                    "Order must contain every installed plugin exactly once"
+                )
+            previous = self.plugins
+            self.plugins = {plugin_id: previous[plugin_id] for plugin_id in plugin_ids}
+            try:
+                self._persist()
+            except BaseException:
+                self.plugins = previous
+                raise
+            return list(self.plugins)
 
     async def set_enabled(self, plugin_id: str, enabled: bool) -> dict[str, Any]:
         async with self._lock:

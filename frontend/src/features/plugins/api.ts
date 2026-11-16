@@ -50,6 +50,9 @@ export const PLUGINS_QUERY_KEY = ["plugins"] as const;
 export async function fetchPlugins(): Promise<InstalledPlugin[]> {
   return (await apiClient.get<{ plugins: InstalledPlugin[] }>("/plugins")).data.plugins;
 }
+export async function savePluginOrder(pluginIds: string[]): Promise<void> {
+  await apiClient.put("/plugins/order", { plugin_ids: pluginIds });
+}
 export async function installPlugin(file: File, updateId?: string): Promise<void> {
   const data = new FormData();
   data.append("file", file);
