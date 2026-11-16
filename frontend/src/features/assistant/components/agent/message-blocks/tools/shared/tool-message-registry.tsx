@@ -55,7 +55,6 @@ import {
   getRecycleSubagentTitle,
 } from "../orchestration/recycle-subagent-tool-message";
 import { PlanToolMessage } from "../plan/plan-tool-message";
-import { getPlanToolDisplayConfig } from "../plan/plan-tool-message.utils";
 import { WebSearchToolIcon, WebSearchToolMessage } from "../web-search/web-search-tool-message";
 import { normalizeWebSearchData } from "../web-search/web-search-tool-message.utils";
 import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
@@ -115,7 +114,6 @@ export interface ToolDescriptor {
   renderIcon?: (message: AgentMessage, className: string) => ReactNode;
   getTitle: (message: AgentMessage) => string;
   getDetail?: (message: AgentMessage) => string | undefined;
-  defaultExpanded?: (message: AgentMessage) => boolean;
   render?: (message: AgentMessage) => ReactNode;
 }
 
@@ -281,7 +279,6 @@ const TOOL_REGISTRY = {
     icon: FilePenLine,
     getTitle: () => i18n.t("assistant.tools.writeChapter"),
     getDetail: (message) => getChapterPayload(message).title,
-    defaultExpanded: () => true,
     render: (message) => <ChapterToolMessage message={message} />,
   },
   edit_chapter: {
@@ -294,7 +291,6 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.editChapter"),
     getDetail: (message) =>
       getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref")),
-    defaultExpanded: () => true,
     render: (message) => <ChapterToolMessage message={message} />,
   },
   delete_chapter: {
@@ -351,7 +347,6 @@ const TOOL_REGISTRY = {
     icon: NotebookPen,
     getTitle: () => i18n.t("assistant.tools.writeNote"),
     getDetail: (message) => getNotePayload(message).title,
-    defaultExpanded: () => true,
     render: (message) => <WriteNoteToolMessage message={message} />,
   },
   edit_note: {
@@ -364,7 +359,6 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.editNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
-    defaultExpanded: () => true,
     render: (message) => <EditNoteToolMessage message={message} />,
   },
   delete_note: {
@@ -515,7 +509,6 @@ const TOOL_REGISTRY = {
       }
       return data.query;
     },
-    defaultExpanded: () => false,
     render: (message) => <WebSearchToolMessage message={message} />,
   },
   web_fetch: {
@@ -724,7 +717,6 @@ const TOOL_REGISTRY = {
     icon: PenLine,
     getTitle: () => i18n.t("assistant.tools.createWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
-    defaultExpanded: () => true,
     render: (message) => <WorldEntryToolMessage message={message} />,
   },
   edit_world_entry: {
@@ -736,7 +728,6 @@ const TOOL_REGISTRY = {
     icon: PenLine,
     getTitle: () => i18n.t("assistant.tools.editWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
-    defaultExpanded: () => true,
     render: (message) => <WorldEntryToolMessage message={message} />,
   },
   delete_world_entry: {
@@ -758,7 +749,6 @@ const TOOL_REGISTRY = {
     icon: UserRoundPen,
     getTitle: () => i18n.t("assistant.tools.createCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
-    defaultExpanded: () => true,
     render: (message) => <CharacterToolMessage message={message} />,
   },
   edit_character: {
@@ -770,7 +760,6 @@ const TOOL_REGISTRY = {
     icon: UserRoundPen,
     getTitle: () => i18n.t("assistant.tools.editCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
-    defaultExpanded: () => true,
     render: (message) => <CharacterToolMessage message={message} />,
   },
   delete_character: {
@@ -820,10 +809,9 @@ const TOOL_REGISTRY = {
     group: "plan",
     tag: "write",
     isExplore: false,
-    contentMode: getPlanToolDisplayConfig().contentMode,
+    contentMode: "expandable",
     icon: ListTodo,
     getTitle: () => i18n.t("assistant.tools.writePlan"),
-    defaultExpanded: () => getPlanToolDisplayConfig().defaultExpanded,
     render: (message) => <PlanToolMessage message={message} />,
   },
   activate_skill: {

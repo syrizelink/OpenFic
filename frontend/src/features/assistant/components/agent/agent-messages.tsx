@@ -5,8 +5,10 @@
  */
 
 import { Box, Button, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import {
+  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -15,12 +17,14 @@ import {
   useRef,
   useState,
   type ComponentPropsWithRef,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
+import { fetchSettings } from "@/features/settings/lib/settings-api";
 import type {
   AgentChangeSummary,
   AgentMessage as AgentMessageType,
@@ -45,6 +49,8 @@ import { AgentStatusMessage } from "./agent-status-message";
 import {
   buildAgentRoundChangeSummaries,
   buildAgentMessageBlocks,
+  buildAgentRoundProcesses,
+  buildAgentRoundDisplayBlocks,
   getAgentRoundToolbarTargets,
   getVisibleAgentMessageBlocks,
   type AgentRoundToolbarTarget,
@@ -54,12 +60,21 @@ import type { AgentMessageBlock } from "./display/agent-message-blocks";
 import "./agent-message-blocks.css";
 
 import { buildAgentDisplayItems } from "./display/agent-message-display-items";
+import { getTurnProcessTitle } from "./display/agent-process-summary";
 import { normalizeDisplayMessages } from "./display/display-message-normalization";
 import type {
   AgentBlockDisplayMessage,
   BlockDisplayMessage,
 } from "./display/display-message-types";
-import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
+import {
+  ProcessMessage,
+  ProcessMessageHeader,
+} from "./message-blocks/blocks/process/process-message";
+import {
+  MessageBlockContent,
+  MessageBlockShell,
+  MessageDisclosureProvider,
+} from "./message-blocks/shared/message-shell";
 
 const COPY_FEEDBACK_MS = 1200;
 const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
@@ -70,8 +85,21 @@ function shouldShowAgentMessagesLoading(isListHidden: boolean, hasMessages: bool
   return isListHidden && hasMessages;
 }
 
-function estimateAgentBlockHeight(block: AgentMessageBlock, hasChangeSummary = false): number {
+function estimateAgentBlockHeight(
+  block: AgentMessageBlock,
+  hasChangeSummary = false,
+  isRoundExpanded = false,
+): number {
   const changeSummaryHeight = hasChangeSummary ? 150 : 0;
+  if (block.roundContent) {
+    const processHeight = isRoundExpanded
+      ? block.roundContent.blocks.reduce(
+          (height, member) => height + estimateAgentBlockHeight(member),
+          0,
+        )
+      : 0;
+    return 32 + processHeight + (block.roundContent.finalMessage ? 210 : 0) + changeSummaryHeight;
+  }
   if (block.type === "node") return 120 + changeSummaryHeight;
   if (block.type === "user") return 100;
   return 120 + block.messages.length * 90 + changeSummaryHeight;
@@ -175,6 +203,9 @@ function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockD
 
 interface AgentBlockContentProps {
   messages: BlockDisplayMessage[];
+  isProcessCollapsed: boolean;
+  isProcessDetailed: boolean;
+  isProcessActive: boolean;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onAbortRetry?: () => void;
 }
@@ -182,6 +213,9 @@ interface AgentBlockContentProps {
 const AgentBlockContent = memo(
   function AgentBlockContent({
     messages,
+    isProcessCollapsed,
+    isProcessDetailed,
+    isProcessActive,
     onOpenMentionChapter,
     onAbortRetry,
   }: AgentBlockContentProps) {
@@ -197,39 +231,47 @@ const AgentBlockContent = memo(
     }
 
     return (
-      <Flex
-        direction="column"
-        gap="2"
-        className="agent-message-block-content"
-      >
-        {displayItems.map((item) => (
-          <Box
-            key={item.id}
-            data-scroll-message-ids={JSON.stringify(
-              item.type === "exploration"
-                ? item.messages.map((message) => message.id)
-                : [item.message.id],
-            )}
-          >
-            {item.type === "exploration" ? (
-              <ExplorationMessage
-                messages={item.messages}
-                summary={item.summary}
-              />
-            ) : (
-              <AgentMessageRenderer
-                message={item.message}
-                onOpenMentionChapter={onOpenMentionChapter}
-                onAbortRetry={onAbortRetry}
-              />
-            )}
-          </Box>
-        ))}
-      </Flex>
+      <MessageDisclosureProvider resetKey={isProcessCollapsed}>
+        <Flex
+          direction="column"
+          gap="2"
+          className="agent-message-block-content"
+        >
+          {displayItems.map((item, index, items) => (
+            <Box
+              key={item.id}
+              data-scroll-message-ids={JSON.stringify(
+                item.type === "process"
+                  ? item.messages.map((message) => message.id)
+                  : [item.message.id],
+              )}
+            >
+              {item.type === "process" ? (
+                <ProcessMessage
+                  messages={item.messages}
+                  detailed={isProcessDetailed}
+                  isParentCollapsed={isProcessCollapsed}
+                  isClosed={!isProcessActive || index < items.length - 1}
+                  onAbortRetry={onAbortRetry}
+                />
+              ) : (
+                <AgentMessageRenderer
+                  message={item.message}
+                  onOpenMentionChapter={onOpenMentionChapter}
+                  onAbortRetry={onAbortRetry}
+                />
+              )}
+            </Box>
+          ))}
+        </Flex>
+      </MessageDisclosureProvider>
     );
   },
   (prev, next) =>
     areBlockMessageListsEqual(prev.messages, next.messages) &&
+    prev.isProcessCollapsed === next.isProcessCollapsed &&
+    prev.isProcessDetailed === next.isProcessDetailed &&
+    prev.isProcessActive === next.isProcessActive &&
     prev.onOpenMentionChapter === next.onOpenMentionChapter &&
     prev.onAbortRetry === next.onAbortRetry,
 );
@@ -446,6 +488,9 @@ export function AgentMessages({
   onLoadEarlier,
 }: AgentMessagesProps) {
   const { t } = useTranslation();
+  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const processDisplayMode = settings?.agentProcessDisplayMode ?? "standard";
+  const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
   const contentRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
@@ -915,9 +960,23 @@ export function AgentMessages({
     });
     setBlockState({ messages: displayMessages, closeOpenNodeAt, blocks: messageBlocks });
   }
-  const visibleMessageBlocks = useMemo(
+  const nodeVisibleMessageBlocks = useMemo(
     () => getVisibleAgentMessageBlocks(messageBlocks, collapsedNodeIds),
     [collapsedNodeIds, messageBlocks],
+  );
+  const roundProcesses = useMemo(
+    () =>
+      buildAgentRoundProcesses(
+        messageBlocks,
+        nodeVisibleMessageBlocks,
+        isRunning || status === "waiting_answer" || status === "waiting_approval",
+        status,
+      ),
+    [messageBlocks, nodeVisibleMessageBlocks, isRunning, status],
+  );
+  const visibleMessageBlocks = useMemo(
+    () => buildAgentRoundDisplayBlocks(nodeVisibleMessageBlocks, roundProcesses),
+    [nodeVisibleMessageBlocks, roundProcesses],
   );
   visibleBlocksRef.current = visibleMessageBlocks;
   const layoutKey = `${scrollToBottomKey ?? ""}:${visibleMessageBlocks.length > 0}`;
@@ -1362,9 +1421,15 @@ export function AgentMessages({
     );
   };
 
-  const renderBlock = (block: AgentMessageBlock, blockIndex: number) => {
-    const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
-    const changeSummary = changeSummaryByAnchorId.get(block.id);
+  const renderBlock = (
+    block: AgentMessageBlock,
+    blockIndex: number,
+    isRoundMember = false,
+  ): ReactNode => {
+    const toolbarTarget = isRoundMember ? undefined : toolbarTargetByAnchorId.get(block.id);
+    const changeSummary = isRoundMember ? undefined : changeSummaryByAnchorId.get(block.id);
+    const process = block.agentRoundId ? roundProcesses.get(block.agentRoundId) : undefined;
+    const isProcessCollapsed = Boolean(process?.canCollapse && !expandedProcessIds.has(process.id));
     if (block.type === "node") {
       const message = block.messages[0];
       if (!message || message.type !== "node_start") return null;
@@ -1491,14 +1556,73 @@ export function AgentMessages({
         data-message-block-message-count={block.messages.length}
       >
         <Box
-          className="agent-message-block"
+          className={
+            block.roundContent
+              ? "agent-message-block agent-turn-message-block"
+              : "agent-message-block"
+          }
           data-block-type="agent"
         >
-          <AgentBlockContent
-            messages={block.messages}
-            onOpenMentionChapter={onOpenMentionChapter}
-            onAbortRetry={onAbortRetry}
-          />
+          {block.roundContent && process ? (
+            <>
+              <MessageBlockShell
+                className="agent-process-card agent-turn-process-card"
+                expandable
+                flush
+              >
+                <ProcessMessageHeader
+                  title={getTurnProcessTitle(process.elapsedMs, t)}
+                  showIcon={false}
+                  expanded={!isProcessCollapsed}
+                  label={
+                    isProcessCollapsed
+                      ? t("assistant.expandTurnProcess")
+                      : t("assistant.collapseTurnProcess")
+                  }
+                  onToggle={() =>
+                    setExpandedProcessIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(process.id)) next.delete(process.id);
+                      else next.add(process.id);
+                      return next;
+                    })
+                  }
+                />
+                <MessageBlockContent
+                  keepMounted
+                  marginTop={16}
+                  motionKey={`turn:${process.id}`}
+                  visible={!isProcessCollapsed}
+                >
+                  <Flex
+                    direction="column"
+                    gap="2"
+                  >
+                    {block.roundContent.blocks.map((member) => (
+                      <Fragment key={member.id}>{renderBlock(member, blockIndex, true)}</Fragment>
+                    ))}
+                  </Flex>
+                </MessageBlockContent>
+              </MessageBlockShell>
+              {block.roundContent.finalMessage ? (
+                <Box data-scroll-message-ids={JSON.stringify([block.roundContent.finalMessage.id])}>
+                  <AgentMessageRenderer
+                    message={block.roundContent.finalMessage}
+                    onOpenMentionChapter={onOpenMentionChapter}
+                  />
+                </Box>
+              ) : null}
+            </>
+          ) : (
+            <AgentBlockContent
+              messages={block.messages}
+              isProcessCollapsed={isProcessCollapsed}
+              isProcessDetailed={processDisplayMode === "detailed" && Boolean(process?.isActive)}
+              isProcessActive={Boolean(process?.isActive)}
+              onOpenMentionChapter={onOpenMentionChapter}
+              onAbortRetry={onAbortRetry}
+            />
+          )}
         </Box>
         {changeSummary ? (
           <AgentChangeSummaryCard
@@ -1533,9 +1657,16 @@ export function AgentMessages({
   const heightEstimates = useMemo(
     () =>
       visibleMessageBlocks.map((block) =>
-        estimateAgentBlockHeight(block, changeSummaryByAnchorId.has(block.id)),
+        estimateAgentBlockHeight(
+          block,
+          changeSummaryByAnchorId.has(block.id),
+          Boolean(
+            block.agentRoundId &&
+            expandedProcessIds.has(roundProcesses.get(block.agentRoundId)?.id ?? ""),
+          ),
+        ),
       ),
-    [changeSummaryByAnchorId, visibleMessageBlocks],
+    [changeSummaryByAnchorId, visibleMessageBlocks, expandedProcessIds, roundProcesses],
   );
   const prependViewportBuffer =
     hasPendingHistoryPrepend && historyAnchorRef.current

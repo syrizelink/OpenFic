@@ -13,7 +13,8 @@ const normalizedApprovalItemCache = new WeakMap<AgentMessage, ApprovalPanelItem 
 const normalizedQuestionItemCache = new WeakMap<AgentMessage, QuestionPanelItem | null>();
 
 function normalizeBlockMessage(message: AgentMessage): BlockDisplayMessage | null {
-  if (message.display === "hidden") return null;
+  if (message.display === "hidden" && message.type !== "node_start" && message.type !== "node_end")
+    return null;
 
   switch (message.type) {
     case "user_request":

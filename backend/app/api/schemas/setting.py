@@ -3,6 +3,8 @@
 Setting API Schemas - 设置请求/响应模型。
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.context.settings import ContextSettings
@@ -173,6 +175,7 @@ class SettingsResponse(BaseModel):
         description="输入半角标点符号时是否自动转换为全角",
     )
     llm_connect_timeout: float = 10
+    agent_process_display_mode: Literal["standard", "detailed"] = "standard"
     llm_chunk_timeout: float = 120
     llm_request_timeout: float = 600
     auto_compact_context: bool = _context_defaults.auto_compact_context
@@ -230,6 +233,7 @@ class SettingsUpdateRequest(BaseModel):
         description="指定摘要模型时的推理强度",
     )
     llm_connect_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
+    agent_process_display_mode: Literal["standard", "detailed"] | None = None
     llm_chunk_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
     llm_request_timeout: float | None = Field(default=None, ge=1, le=86400, allow_inf_nan=False)
     auto_compact_context: bool | None = None

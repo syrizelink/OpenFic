@@ -1,6 +1,12 @@
-import type { AgentChangeSummary, AgentMessage, AgentSessionChanges } from "@/lib/agent.types";
+import type {
+  AgentChangeSummary,
+  AgentMessage,
+  AgentSessionChanges,
+  AgentSessionStatus,
+} from "@/lib/agent.types";
 
-import type { BlockDisplayMessage } from "./display-message-types";
+import { isAgentProcessMessage } from "./agent-message-display-items";
+import type { AgentOutputDisplayMessage, BlockDisplayMessage } from "./display-message-types";
 
 export type AgentMessageBlockType = "user" | "agent" | "node";
 
@@ -8,6 +14,10 @@ export interface AgentMessageBlock {
   id: string;
   type: AgentMessageBlockType;
   messages: BlockDisplayMessage[];
+  roundContent?: {
+    blocks: AgentMessageBlock[];
+    finalMessage?: AgentOutputDisplayMessage;
+  };
   sourceRevisionId?: string;
   agentRoundId?: string;
   nodeId?: string;
@@ -15,6 +25,7 @@ export interface AgentMessageBlock {
   nodeEndedAt?: number;
   nodeElapsedBaseMs?: number;
   nodeStatus?: AgentMessage["status"];
+  nodeEndStatus?: AgentMessage["status"];
 }
 
 export interface AgentRoundToolbarTarget {
@@ -24,6 +35,100 @@ export interface AgentRoundToolbarTarget {
   sourceRevisionId?: string;
   copyContent: string;
   timestamp?: number;
+}
+
+export interface AgentRoundProcess {
+  id: string;
+  anchorBlockId: string;
+  finalMessageId: string | undefined;
+  elapsedMs?: number;
+  isActive: boolean;
+  canCollapse: boolean;
+}
+
+export function buildAgentRoundProcesses(
+  blocks: AgentMessageBlock[],
+  visibleBlocks: AgentMessageBlock[],
+  isSessionActive: boolean,
+  sessionStatus: AgentSessionStatus,
+): Map<string, AgentRoundProcess> {
+  const rounds = new Map<string, AgentMessageBlock[]>();
+  for (const block of blocks) {
+    if (!block.agentRoundId) continue;
+    const round = rounds.get(block.agentRoundId) ?? [];
+    round.push(block);
+    rounds.set(block.agentRoundId, round);
+  }
+  const latestRoundId = Array.from(rounds.keys()).at(-1);
+  const visibleBlockIds = new Set(visibleBlocks.map((block) => block.id));
+  const processes = new Map<string, AgentRoundProcess>();
+  for (const [roundId, round] of rounds) {
+    const messages = round
+      .filter((block) => block.type === "agent")
+      .flatMap((block) => block.messages);
+    const lastWork = messages.findLast(
+      (message) =>
+        isAgentProcessMessage(message) ||
+        (message.type === "agent_output" && Boolean(message.content?.trim())),
+    );
+    const hasAnswer = lastWork?.type === "agent_output" && Boolean(lastWork.content?.trim());
+    if (
+      !messages.some(
+        (message) =>
+          isAgentProcessMessage(message) ||
+          (message.type === "agent_output" &&
+            Boolean(message.content?.trim()) &&
+            message.id !== lastWork?.id),
+      )
+    )
+      continue;
+    const anchor = round.find((block) => visibleBlockIds.has(block.id) && block.type === "agent");
+    if (!anchor) continue;
+    const isActive = roundId === latestRoundId && isSessionActive;
+    const isCompleted =
+      roundId !== latestRoundId ||
+      sessionStatus === "completed" ||
+      (hasAnswer && lastWork.status === "completed") ||
+      round.findLast((block) => block.type === "node")?.nodeEndStatus === "completed" ||
+      messages.some((message) => message.type === "completed");
+    const startedAt = round.find((block) => block.type === "user")?.messages[0]?.timestamp;
+    const endTimes = [
+      ...round
+        .filter((block) => block.nodeEndStatus === "completed")
+        .map((block) => block.nodeEndedAt),
+      ...messages
+        .filter((message) => message.type === "completed")
+        .map((message) => message.timestamp),
+    ].filter((time): time is number => time !== undefined && Number.isFinite(time));
+    const endedAt = endTimes.length > 0 ? Math.max(...endTimes) : undefined;
+    const elapsedMs =
+      startedAt !== undefined &&
+      Number.isFinite(startedAt) &&
+      endedAt !== undefined &&
+      endedAt >= startedAt &&
+      endedAt >= (lastWork?.timestamp ?? startedAt)
+        ? endedAt - startedAt
+        : undefined;
+    processes.set(roundId, {
+      id: `${roundId}:${lastWork?.id ?? anchor.id}`,
+      anchorBlockId: anchor.id,
+      finalMessageId: lastWork?.type === "agent_output" ? lastWork.id : undefined,
+      elapsedMs,
+      isActive,
+      canCollapse:
+        Boolean(isCompleted && !isActive) &&
+        !(roundId === latestRoundId && sessionStatus === "error") &&
+        !round.some((block) => block.type === "node" && block.nodeStatus === "error") &&
+        !messages.some(
+          (message) =>
+            message.type === "error" ||
+            message.status === "running" ||
+            message.status === "pending" ||
+            message.isStreaming,
+        ),
+    });
+  }
+  return processes;
 }
 
 export function buildAgentRoundChangeSummaries(
@@ -138,6 +243,7 @@ export function buildAgentMessageBlocks(
       if (activeNodeBlock && activeNodeName && activeNodeName === nextNodeName) {
         activeNodeBlock.nodeStatus = message.status ?? activeNodeBlock.nodeStatus;
         activeNodeBlock.nodeEndedAt = undefined;
+        activeNodeBlock.nodeEndStatus = undefined;
         continue;
       }
       if (resumableNodeBlock && nextNodeName && resumableNodeBlock.nodeName === nextNodeName) {
@@ -147,6 +253,7 @@ export function buildAgentMessageBlocks(
         activeNodeHasResumeBoundary = false;
         activeNodeBlock.nodeStartedAt = message.timestamp;
         activeNodeBlock.nodeEndedAt = undefined;
+        activeNodeBlock.nodeEndStatus = undefined;
         activeNodeBlock.nodeStatus = message.status ?? activeNodeBlock.nodeStatus;
         resumableNodeBlock = null;
         continue;
@@ -173,7 +280,10 @@ export function buildAgentMessageBlocks(
     if (message.type === "node_end") {
       if (activeNodeBlock) {
         closeNodeSegment(activeNodeBlock, message.timestamp);
-        activeNodeBlock.nodeStatus = message.status ?? activeNodeBlock.nodeStatus;
+        activeNodeBlock.nodeStatus = isInterruptedNodeEndMessage(message)
+          ? "error"
+          : (message.status ?? activeNodeBlock.nodeStatus);
+        activeNodeBlock.nodeEndStatus = activeNodeBlock.nodeStatus;
         const nodeName = getNodeName(activeNodeBlock.messages[0]);
         const canResumeNode = activeNodeHasResumeBoundary || isInterruptedNodeEndMessage(message);
         if (canResumeNode && nodeName && activeNodeId) {
@@ -265,8 +375,45 @@ export function getVisibleAgentMessageBlocks(
   collapsedNodeIds: ReadonlySet<string>,
 ): AgentMessageBlock[] {
   return blocks.filter((block) => {
-    if (block.type === "node") return true;
+    if (block.type === "node") return block.messages[0]?.display !== "hidden";
     return !block.nodeId || !collapsedNodeIds.has(block.nodeId);
+  });
+}
+
+export function buildAgentRoundDisplayBlocks(
+  blocks: AgentMessageBlock[],
+  processes: ReadonlyMap<string, AgentRoundProcess>,
+): AgentMessageBlock[] {
+  const members = new Map<string, AgentMessageBlock[]>();
+  for (const block of blocks) {
+    if (
+      block.type === "user" ||
+      !block.agentRoundId ||
+      !processes.get(block.agentRoundId)?.canCollapse
+    )
+      continue;
+    const round = members.get(block.agentRoundId) ?? [];
+    round.push(block);
+    members.set(block.agentRoundId, round);
+  }
+
+  return blocks.flatMap((block) => {
+    const process = block.agentRoundId ? processes.get(block.agentRoundId) : undefined;
+    if (block.type === "user" || !block.agentRoundId || !process?.canCollapse) return [block];
+    if (block.id !== process.anchorBlockId) return [];
+    const round = members.get(block.agentRoundId) ?? [];
+    const messages = round.flatMap((member) => member.messages);
+    const finalMessage = messages.find(
+      (message): message is AgentOutputDisplayMessage =>
+        message.type === "agent_output" && message.id === process.finalMessageId,
+    );
+    const processBlocks = round.flatMap((member) => {
+      if (!finalMessage || !member.messages.some((message) => message.id === finalMessage.id))
+        return [member];
+      const messages = member.messages.filter((message) => message.id !== finalMessage?.id);
+      return messages.length === 0 ? [] : [{ ...member, messages }];
+    });
+    return [{ ...block, messages, roundContent: { blocks: processBlocks, finalMessage } }];
   });
 }
 

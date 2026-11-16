@@ -141,10 +141,38 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
     assert data["audit_persist_details"] is False
     assert data["compress_system_prompts"] is False
+    assert data["agent_process_display_mode"] == "standard"
     assert data["editor_auto_indent"] is True
     assert data["editor_auto_convert_punctuation"] is False
     assert data["editor_auto_pair_symbols"] is False
     assert data["editor_show_line_numbers"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["detailed", "standard"])
+async def test_update_agent_process_display_mode(
+    client: AsyncClient, session: AsyncSession, mode: str
+) -> None:
+    response = await client.put(
+        "/api/v1/settings", json={"agent_process_display_mode": mode}
+    )
+    assert response.status_code == 200
+    assert response.json()["agent_process_display_mode"] == mode
+    stored = await setting_repo.get_by_key(session, "agent_process_display_mode")
+    assert stored is not None
+    assert stored.value == mode
+    response = await client.get("/api/v1/settings")
+    assert response.json()["agent_process_display_mode"] == mode
+    response = await client.patch("/api/v1/settings", json={"language": "en"})
+    assert response.json()["agent_process_display_mode"] == mode
+
+
+@pytest.mark.asyncio
+async def test_reject_invalid_agent_process_display_mode(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings", json={"agent_process_display_mode": "verbose"}
+    )
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

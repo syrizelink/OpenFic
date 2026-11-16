@@ -78,6 +78,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
     llmConnectTimeout: raw.llm_connect_timeout ?? 10,
+    agentProcessDisplayMode: raw.agent_process_display_mode ?? "standard",
     llmChunkTimeout: raw.llm_chunk_timeout ?? 120,
     llmRequestTimeout: raw.llm_request_timeout ?? 600,
     autoCompactContext: raw.auto_compact_context ?? true,
