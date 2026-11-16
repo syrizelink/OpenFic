@@ -2752,7 +2752,8 @@
       "verifying": "Verifying model…",
       "ready": "Model ready",
       "failed": "Download failed; retry available"
-     },
+    }
+  },
   "plugins": {
     "management": "Plugin management",
     "description": "Install a single package for backend capabilities and an independent interface. Plugins belong to the connected backend instance.",
