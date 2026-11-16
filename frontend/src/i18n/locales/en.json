@@ -1106,7 +1106,7 @@
     "index": "Index",
     "session": "Session",
     "sessionProcessDisplay": "Work details",
-    "sessionProcessDisplayHint": "Standard collapses process groups; Detailed shows process messages while running. Both hide reasoning, tools and intermediate replies after successful completion, keeping only the final reply visible.",
+    "sessionProcessDisplayHint": "Standard groups and collapses processes; Detailed shows process messages while running.",
     "sessionProcessDisplayStandard": "Standard",
     "sessionProcessDisplayDetailed": "Detailed",
     "sessionConnectTimeout": "Model connection timeout",

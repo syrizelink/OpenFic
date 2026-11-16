@@ -1106,7 +1106,7 @@
     "index": "索引",
     "session": "会话",
     "sessionProcessDisplay": "过程显示",
-    "sessionProcessDisplayHint": "标准模式折叠过程组，详细模式在运行时显示过程消息；正常完成后均自动收起思考、工具和中间回复，仅保留最终回复。",
+    "sessionProcessDisplayHint": "标准模式下过程会被分组折叠，而详细模式则在运行时显示过程消息。",
     "sessionProcessDisplayStandard": "标准",
     "sessionProcessDisplayDetailed": "详细",
     "sessionConnectTimeout": "模型连接超时",
