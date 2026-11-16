@@ -7,6 +7,7 @@ import type { AgentMessage } from "@/lib/agent.types";
 
 import { getReasoningDurationMs } from "../../../../../lib/streaming-message-merge";
 import { AgentMarkdownContent } from "../../../agent-markdown-content";
+import { useMessageDisclosure } from "../../shared/message-disclosure";
 import { formatElapsedDuration } from "../../shared/message-duration";
 import {
   MessageBlockContent,
@@ -39,7 +40,7 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
   const reasoningContentRef = useRef<HTMLDivElement | null>(null);
   const shouldFollowReasoningRef = useRef(true);
   const [durationMs, setDurationMs] = useState(initialDurationMs);
-  const [isExpanded, setIsExpanded] = useState(isRunning);
+  const { isExpanded, toggleExpanded } = useMessageDisclosure(message.id);
   const content = message.content ?? "";
   const hasContent = content.trim().length > 0;
 
@@ -62,7 +63,6 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
   useEffect(() => {
     if (isRunning) {
       wasRunningRef.current = true;
-      queueMicrotask(() => setIsExpanded(true));
       return;
     }
 
@@ -70,14 +70,13 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
       wasRunningRef.current = false;
       queueMicrotask(() => {
         setDurationMs(initialDurationMs + Date.now() - startedAt);
-        setIsExpanded(false);
       });
     }
   }, [initialDurationMs, isRunning, startedAt]);
 
   const handleToggleExpanded = () => {
     if (!hasContent) return;
-    setIsExpanded((value) => !value);
+    toggleExpanded();
   };
 
   const handleReasoningContentScroll = () => {

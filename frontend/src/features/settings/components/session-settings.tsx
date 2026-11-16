@@ -3,9 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Spinner, StepperNumberInput, toast } from "@/components";
+import { LabeledSelect, Spinner, StepperNumberInput, toast } from "@/components";
 
 import { fetchSettings, updateSettings } from "../lib/settings-api";
+import type { AgentProcessDisplayMode } from "../lib/settings.types";
 
 const fields = [
   ["llm_connect_timeout", "llmConnectTimeout", "sessionConnectTimeout"],
@@ -18,18 +19,21 @@ export function SessionSettings() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const [processDisplayMode, setProcessDisplayMode] = useState<AgentProcessDisplayMode>("standard");
   const [values, setValues] = useState<Record<Key, string>>({
     llm_connect_timeout: "",
     llm_chunk_timeout: "",
     llm_request_timeout: "",
   });
   useEffect(() => {
-    if (settings)
+    if (settings) {
+      setProcessDisplayMode(settings.agentProcessDisplayMode);
       setValues(
         Object.fromEntries(
           fields.map(([key, property]) => [key, String(settings[property])]),
         ) as Record<Key, string>,
       );
+    }
   }, [settings]);
   const mutation = useMutation({
     mutationFn: updateSettings,
@@ -47,13 +51,50 @@ export function SessionSettings() {
       Number(values[key]) >= 1 &&
       Number(values[key]) <= 86400,
   );
-  const changed = fields.some(([key, property]) => Number(values[key]) !== settings[property]);
+  const changed =
+    processDisplayMode !== settings.agentProcessDisplayMode ||
+    fields.some(([key, property]) => Number(values[key]) !== settings[property]);
   return (
     <Box>
       <Flex
         direction="column"
         gap="5"
       >
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+          wrap="wrap"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+          >
+            <Text
+              size="2"
+              weight="medium"
+            >
+              {t("settings.sessionProcessDisplay")}
+            </Text>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.sessionProcessDisplayHint")}
+            </Text>
+          </Flex>
+          <LabeledSelect
+            triggerAriaLabel={t("settings.sessionProcessDisplay")}
+            value={processDisplayMode}
+            options={[
+              { value: "standard", label: t("settings.sessionProcessDisplayStandard") },
+              { value: "detailed", label: t("settings.sessionProcessDisplayDetailed") },
+            ]}
+            onChange={(value) => {
+              if (value === "standard" || value === "detailed") setProcessDisplayMode(value);
+            }}
+          />
+        </Flex>
         {fields.map(([key, , label]) => (
           <Flex
             key={key}
@@ -96,7 +137,10 @@ export function SessionSettings() {
           <Button
             disabled={!valid || !changed || mutation.isPending}
             onClick={() =>
-              mutation.mutate(Object.fromEntries(fields.map(([key]) => [key, Number(values[key])])))
+              mutation.mutate({
+                ...Object.fromEntries(fields.map(([key]) => [key, Number(values[key])])),
+                agent_process_display_mode: processDisplayMode,
+              })
             }
           >
             {t("settings.save")}

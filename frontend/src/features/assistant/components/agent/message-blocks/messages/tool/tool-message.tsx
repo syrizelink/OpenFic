@@ -15,6 +15,7 @@ import {
 import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
+import { useMessageDisclosure } from "../../shared/message-disclosure";
 import {
   MessageBlockContent,
   MessageBlockHeader,
@@ -198,8 +199,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
     chapterDiffPreview || noteDiffPreview || worldEntryDiffPreview || skillDiffCards,
   );
   const contentMode = usesDiffHeader ? "expandable" : (descriptor?.contentMode ?? "static");
-  const defaultExpanded = descriptor?.defaultExpanded?.(message) ?? false;
-  const [isExpanded, setIsExpanded] = useState(() => defaultExpanded);
+  const { isExpanded, toggleExpanded } = useMessageDisclosure(message.id);
   const content = !descriptor ? (
     <UnregisteredToolMessage
       toolName={message.toolName}
@@ -278,7 +278,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
 
   const handleToggleExpanded = () => {
     if (!visibilityState.canExpand) return;
-    setIsExpanded((value) => !value);
+    toggleExpanded();
   };
 
   return (

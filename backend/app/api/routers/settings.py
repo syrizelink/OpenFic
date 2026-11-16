@@ -129,6 +129,7 @@ SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS = "editor_auto_pair_symbols"
 SETTING_KEY_EDITOR_SHOW_LINE_NUMBERS = "editor_show_line_numbers"
 SETTING_KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
 SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED = "notify_only_when_unfocused"
+SETTING_KEY_AGENT_PROCESS_DISPLAY_MODE = "agent_process_display_mode"
 NOTIFICATION_EVENT_KEYS = (
     "notify_on_completion", "notify_on_approval", "notify_on_question", "notify_on_error",
 )
@@ -175,6 +176,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_DEFAULT_RERANK_MODEL: DEFAULT_INDEX_RERANK_MODEL,
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL: "false",
     SETTING_KEY_NOTIFICATIONS_ENABLED: "false",
+    SETTING_KEY_AGENT_PROCESS_DISPLAY_MODE: "standard",
     SETTING_KEY_NOTIFY_ONLY_WHEN_UNFOCUSED: "true",
     **{key: "true" for key in NOTIFICATION_EVENT_KEYS},
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
@@ -535,6 +537,11 @@ code_font_family=settings_dict.get(
             ),
             default=True,
         ),
+        agent_process_display_mode=(
+            "detailed"
+            if settings_dict.get(SETTING_KEY_AGENT_PROCESS_DISPLAY_MODE) == "detailed"
+            else "standard"
+        ),
         **{key: getattr(timeout_settings, key) for key in timeout_settings.__dataclass_fields__},
         **{
             key: getattr(context_settings, key)
@@ -816,6 +823,7 @@ async def update_settings(
             ensure_ascii=False,
         )
     for key in (
+        SETTING_KEY_AGENT_PROCESS_DISPLAY_MODE,
         "llm_connect_timeout", "llm_chunk_timeout", "llm_request_timeout",
         "auto_compact_context", "compaction_model", "compaction_model_reasoning_effort",
         "compaction_trigger_ratio",

@@ -1,12 +1,40 @@
 import { Box, Flex, IconButton } from "@radix-ui/themes";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useMemo, useState } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 
 import "./message-shell.css";
+import { MessageDisclosureContext } from "./message-disclosure";
 import { joinClassNames } from "./message-shell-utils";
+
+interface MessageDisclosureProviderProps {
+  children: ReactNode;
+  resetKey: boolean;
+}
+
+export function MessageDisclosureProvider({ children, resetKey }: MessageDisclosureProviderProps) {
+  const [state, setState] = useState(() => ({ resetKey, expandedIds: new Set<string>() }));
+  if (state.resetKey !== resetKey) setState({ resetKey, expandedIds: new Set() });
+  const value = useMemo(
+    () => ({
+      expandedIds: state.expandedIds,
+      onToggle: (messageId: string) =>
+        setState((current) => {
+          const expandedIds = new Set(current.expandedIds);
+          if (expandedIds.has(messageId)) expandedIds.delete(messageId);
+          else expandedIds.add(messageId);
+          return { ...current, expandedIds };
+        }),
+    }),
+    [state.expandedIds],
+  );
+  return (
+    <MessageDisclosureContext.Provider value={value}>{children}</MessageDisclosureContext.Provider>
+  );
+}
 
 interface MessageCardShellProps extends ComponentPropsWithoutRef<"div"> {
   children: ReactNode;
