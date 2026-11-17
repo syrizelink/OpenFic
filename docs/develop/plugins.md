@@ -69,6 +69,14 @@ my-plugin/
 
 `entry` 是可选 Python 入口，导出 `register(host)`；不需要代码的纯 UI 包可以省略。`views` 可为空，适用于工具、事件和工作流插件。`resources` 明确列出允许公开访问的文件或目录，路径均相对于插件根。默认不公开任何文件；公共根不能覆盖入口、plugin.json 或 plugin.dev.json。`assets.read("assets/icon.png")` 使用包根相对路径，HTTP 资源接口和票据遵守同一边界。清单、代码、构建配置不会因为放在插件目录中就被自动公开。
 
+`detail` 可指定包内 Markdown 文件的根目录相对路径，在插件设置中显示；省略时会自动使用包根目录下的 `README.md`（不区分大小写）。Markdown 中的相对图片路径以该文件所在目录为基准，支持 PNG、JPEG、GIF、WebP、AVIF 和 SVG。
+
+`homepage` 可填写插件主页的 HTTP(S) 地址。`icon` 可填写相对于插件包根目录的本地图片路径，支持 SVG、PNG、JPEG 和 WebP，大小不超过 256 KiB。SVG 必须自包含，不能引用外部文件或网络资源；无效图标会被忽略，不影响插件安装。图标以正方形区域居中裁剪显示。
+
+配置项的 `type` 支持 `string`、`boolean`、`integer`、`number`、`json` 和 `select`。`select` 使用 `options` 声明非空选项列表，例如 `[{"value": "fast", "label": "快速"}]`；选项值必须唯一，默认值和保存值必须是其中一个 `value`。
+
+配置项可设置 `required: true`，保存配置时会检查必填项；空字符串、纯空白和 JSON `null` 视为未填写，`false` 和 `0` 有效。`select` 始终使用有效的选项值，忽略该标记。已保存的密钥留空时保留原值。
+
 自带 React/Vue 或原生 HTML 时，添加可选 `panel/` 或 `src/panel/`，构建产物可放在 `dist/panel/`。例如 `resources: ["assets", "dist/panel"]`，视图 `entry: "dist/panel/index.html"`。iframe HTML 必须已经构建；宿主不会动态编译 UI 源码，也不会自动执行 pip/npm 安装。原生声明式 UI 不需要这套前端工程。
 
 ID、版本、入口和设置在安装时严格验证。压缩包上限 20 MiB、展开内容上限 40 MiB、最多 512 个条目；拒绝路径穿越、符号链接、重复路径、加密包和缺失入口/公共资源。

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" role="img" aria-labelledby="sync-flow-title sync-flow-desc" id="google-drive-sync-diagram-root">
+  <title id="sync-flow-title">OpenFic 章节同步</title>
+  <desc id="sync-flow-desc">已保存章节可与 Google Drive 双向同步，发生冲突时由用户选择版本。</desc>
+  <defs>
+      <style>#google-drive-sync-diagram-root { font-family: system-ui, sans-serif; }
+      #google-drive-sync-diagram-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#google-drive-sync-diagram-root .diagram-container { overflow-x: visible; }
+}</style>
+    <marker id="google-drive-sync-diagram-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+    <marker id="google-drive-sync-diagram-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+    <marker id="google-drive-sync-diagram-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+  </defs>
+  <rect width="960" height="480" fill="#f5f5f5"/>
+  <text x="48" y="58" fill="#5a6580" font-family="system-ui, sans-serif" font-size="16" font-weight="600" letter-spacing="2">CHAPTER SYNC</text>
+  <text x="48" y="102" fill="#2d3142" font-family="system-ui, sans-serif" font-size="32" font-weight="600">章节在两端同步</text>
+  <line x1="48" y1="124" x2="912" y2="124" stroke="#bfc0c0" stroke-width="1"/>
+  <line x1="328" y1="205" x2="632" y2="205" stroke="#bf4520" stroke-width="2" marker-end="url(#google-drive-sync-diagram-arrow-accent)"/>
+  <line x1="632" y1="277" x2="328" y2="277" stroke="#4f5d75" stroke-width="2" marker-end="url(#google-drive-sync-diagram-arrow)"/>
+  <rect x="420" y="168" width="120" height="24" fill="#f5f5f5"/>
+  <text x="480" y="187" text-anchor="middle" fill="#bf4520" font-family="system-ui, sans-serif" font-size="20">上传变化</text>
+  <rect x="420" y="240" width="120" height="24" fill="#f5f5f5"/>
+  <text x="480" y="259" text-anchor="middle" fill="#4f5d75" font-family="system-ui, sans-serif" font-size="20">拉取变化</text>
+  <rect x="48" y="160" width="280" height="160" rx="6" fill="#ffffff" stroke="#bfc0c0"/>
+  <rect x="72" y="184" width="60" height="24" rx="2" fill="#f5f5f5" stroke="#bfc0c0"/>
+  <text x="102" y="201" text-anchor="middle" fill="#4f5d75" font-family="system-ui, sans-serif" font-size="13" font-weight="600">本地</text>
+  <text x="72" y="247" fill="#2d3142" font-family="system-ui, sans-serif" font-size="28" font-weight="600">OpenFic</text>
+  <text x="72" y="282" fill="#4f5d75" font-family="system-ui, sans-serif" font-size="19">已保存的章节</text>
+  <rect x="632" y="160" width="280" height="160" rx="6" fill="#fff8f5" stroke="#bf4520"/>
+  <rect x="656" y="184" width="60" height="24" rx="2" fill="#fff8f5" stroke="#bf4520"/>
+  <text x="686" y="201" text-anchor="middle" fill="#bf4520" font-family="system-ui, sans-serif" font-size="13" font-weight="600">云端</text>
+  <text x="656" y="247" fill="#2d3142" font-family="system-ui, sans-serif" font-size="28" font-weight="600">Google Drive</text>
+  <text x="656" y="282" fill="#4f5d75" font-family="monospace" font-size="18">.openfic.json</text>
+  <line x1="48" y1="368" x2="912" y2="368" stroke="#bfc0c0" stroke-width="1"/>
+  <text x="48" y="407" fill="#bf4520" font-family="system-ui, sans-serif" font-size="18" font-weight="600">冲突处理</text>
+  <text x="152" y="407" fill="#4f5d75" font-family="system-ui, sans-serif" font-size="18">两端同时修改时，选择保留的版本。</text>
+  <text x="48" y="444" fill="#5a6580" font-family="system-ui, sans-serif" font-size="16">同步前可预览变化；删除不会传播。</text>
+</svg>

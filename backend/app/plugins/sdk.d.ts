@@ -8,13 +8,13 @@ export type PluginView = { id: string; title: string; slot?: UIAction; height?: 
 /** Unified plugin package. Paths are relative to plugin.json, never tied to directory names. */
 export interface PluginManifest {
   id: string; name: string; version: string; api_version: 1;
-  description?: string; author?: string; format?: "openfic";
+  description?: string; author?: string; detail?: string; homepage?: string; icon?: string; format?: "openfic";
   entry?: string | null;
   /** Public files/directories only; view entries and assets.read paths must be inside these roots. */
   resources?: string[];
   capabilities?: string[]; network_hosts?: string[]; views?: PluginView[];
-  settings?: { key: string; label: string; type: "string" | "boolean" | "integer" | "number" | "json";
-    default: Json; minimum?: number; maximum?: number; secret?: boolean; description?: string }[];
+  settings?: { key: string; label: string; type: "string" | "boolean" | "integer" | "number" | "json" | "select";
+    default: Json; options?: { value: string; label: string }[]; minimum?: number; maximum?: number; secret?: boolean; required?: boolean; description?: string }[];
 }
 export interface PluginDevelopmentConfig {
   fixtures?: { view: string; file: string }[];

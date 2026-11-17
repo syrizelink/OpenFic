@@ -4,13 +4,13 @@
  * 模型设置面板，管理和配置 AI 模型。
  */
 
-import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, IconButton, Badge, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit, PlugZap, Plus, Trash2 } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ReasoningEffortSelect, Spinner } from "@/components";
+import { ReasoningEffortSelect, Spinner, Tabs } from "@/components";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   CapabilityIcon,

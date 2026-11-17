@@ -1,6 +1,7 @@
 """Versioned, framework-independent plugin package contract."""
 
 from typing import Any, Literal
+from pathlib import Path
 
 from pydantic import (
     AliasChoices,
@@ -132,17 +133,30 @@ class View(Contract):
         return self
 
 
+class SettingOption(Contract):
+    value: str = Field(min_length=1, max_length=256)
+    label: str = Field(min_length=1, max_length=256)
+
+
 class Setting(Contract):
     key: str = Field(pattern=r"^[a-z][a-zA-Z0-9_]{0,63}$")
     label: str = Field(min_length=1, max_length=80)
-    type: Literal["string", "boolean", "integer", "json", "number"]
+    type: Literal["string", "boolean", "integer", "json", "number", "select"]
     default: Any
+    options: list[SettingOption] = Field(default_factory=list)
     minimum: int | None = None
     maximum: int | None = None
     secret: bool = False
+    required: bool = False
     description: str = ""
 
     def validate_value(self, value: Any) -> Any:
+        if self.type == "select":
+            if not isinstance(value, str) or value not in {
+                option.value for option in self.options
+            }:
+                raise ValueError(f"Invalid setting option: {self.key}")
+            return value
         if self.type == "json":
             import json
 
@@ -175,6 +189,10 @@ class Setting(Contract):
 
     @model_validator(mode="after")
     def validate_default(self):
+        if self.type == "select":
+            values = [option.value for option in self.options]
+            if not values or len(values) != len(set(values)):
+                raise ValueError(f"Invalid setting options: {self.key}")
         self.validate_value(self.default)
         return self
 
@@ -186,6 +204,9 @@ class Manifest(Contract):
     api_version: Literal[1]
     description: str = Field(default="", max_length=1000)
     author: str = Field(default="", max_length=100)
+    detail: str | None = None
+    homepage: str | None = Field(default=None, max_length=2048)
+    icon: str | None = Field(default=None, max_length=1024)
     entry: str | None = Field(
         default=None, validation_alias=AliasChoices("entry", "backend")
     )
@@ -224,6 +245,23 @@ class Manifest(Contract):
     def resource_url_name(self, name: str) -> str:
         return name.removeprefix("frontend/") if self._legacy_resources else name
 
+    def resolve_detail(self, package: Path) -> None:
+        if self.detail is None:
+            self.detail = next(
+                (
+                    path.name
+                    for path in sorted(package.iterdir())
+                    if path.name.casefold() == "readme.md" and path.is_file()
+                ),
+                None,
+            )
+        if self.detail:
+            path = (package / self.detail).resolve()
+            if not path.is_relative_to(package.resolve()) or not path.is_file():
+                raise ValueError(
+                    "Plugin detail must reference an existing package file"
+                )
+
     def resource_name(self, name: str) -> str:
         try:
             self.resource_root(name)
@@ -256,6 +294,10 @@ class Manifest(Contract):
 
     @model_validator(mode="after")
     def validate_entries(self):
+        if self.detail is not None:
+            safe_path(self.detail)
+            if not self.detail.lower().endswith(".md"):
+                raise ValueError("Plugin detail must be a Markdown file")
         if set(self.capabilities) - CAPABILITIES:
             raise ValueError(
                 f"Unknown capabilities: {set(self.capabilities) - CAPABILITIES}"

@@ -1,5 +1,6 @@
 """Authenticated extension management and versioned plugin RPC transport."""
 
+import asyncio
 import io
 import json
 import mimetypes
@@ -40,6 +41,10 @@ ASSET_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+}
+DETAIL_HEADERS = {
+    **ASSET_HEADERS,
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox",
 }
 
 
@@ -360,6 +365,31 @@ async def plugin_asset(plugin_id: str, filename: str, manager: Host):
         path,
         media_type=mimetypes.guess_type(path.name)[0] or "application/octet-stream",
         headers=ASSET_HEADERS,
+    )
+
+
+@router.get("/{plugin_id}/detail")
+async def plugin_detail(plugin_id: str, manager: Host):
+    return FileResponse(
+        manager.detail_file(plugin_id),
+        media_type="text/plain",
+        headers=DETAIL_HEADERS,
+    )
+
+
+@router.get("/{plugin_id}/icon")
+async def plugin_icon(plugin_id: str, manager: Host):
+    data, media_type = await asyncio.to_thread(manager.icon_data, plugin_id)
+    return Response(data, media_type=media_type, headers=DETAIL_HEADERS)
+
+
+@router.get("/{plugin_id}/detail-images/{filename:path}")
+async def plugin_detail_image(plugin_id: str, filename: str, manager: Host):
+    path = manager.detail_file(plugin_id, filename)
+    return FileResponse(
+        path,
+        media_type=mimetypes.guess_type(path.name)[0] or "application/octet-stream",
+        headers=DETAIL_HEADERS,
     )
 
 

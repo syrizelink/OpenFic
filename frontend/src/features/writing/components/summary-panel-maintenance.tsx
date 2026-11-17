@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Callout, Flex, Tabs, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Callout, Flex, Text } from "@radix-ui/themes";
 import axios from "axios";
 import { AlertTriangle, Play, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import "./summary-panel.css";
 
-import { Spinner, toast } from "@/components";
+import { Spinner, Tabs, toast } from "@/components";
 import i18n from "@/i18n";
 import type {
   EnqueueSummaryRequest,

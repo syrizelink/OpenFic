@@ -1,10 +1,12 @@
 {
   "id": "google-drive-sync",
   "name": "Google Drive 章节同步",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "api_version": 1,
   "description": "双向同步已保存的章节，保护并发冲突，并提供 Agent 手动同步工具。",
   "author": "OpenFic",
+  "homepage": "https://github.com/syrizelink/OpenFic",
+  "icon": "icon.svg",
   "entry": "main.py",
   "resources": [],
   "capabilities": [
@@ -50,14 +52,16 @@
       "key": "clientId",
       "label": "Google OAuth Client ID",
       "type": "string",
-      "default": ""
+      "default": "",
+      "required": true
     },
     {
       "key": "clientSecret",
       "label": "Google OAuth Client Secret",
       "type": "string",
       "default": "",
-      "secret": true
+      "secret": true,
+      "required": true
     },
     {
       "key": "folderId",

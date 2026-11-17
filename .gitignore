@@ -32,6 +32,7 @@ node_modules/
 desktop/dist
 desktop/dist-electron
 desktop/out
+examples/plugins/dist/
 
 # Isolated plugin development instances
 .openfic-dev/

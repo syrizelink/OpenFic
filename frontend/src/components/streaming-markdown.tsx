@@ -6,6 +6,7 @@ import {
   type AnimateOptions,
   type LinkSafetyConfig,
   type PluginConfig,
+  type UrlTransform,
 } from "streamdown";
 
 import "katex/dist/katex.min.css";
@@ -21,6 +22,8 @@ interface StreamingMarkdownProps {
   content: string;
   isStreaming?: boolean;
   className?: string;
+  urlTransform?: UrlTransform;
+  showImageDownload?: boolean;
 }
 
 const STREAMING_ANIMATION: AnimateOptions = {
@@ -57,6 +60,8 @@ export function StreamingMarkdown({
   content,
   isStreaming = false,
   className,
+  urlTransform,
+  showImageDownload = true,
 }: StreamingMarkdownProps) {
   const markdownClassName = className ? `streaming-markdown ${className}` : "streaming-markdown";
 
@@ -64,7 +69,7 @@ export function StreamingMarkdown({
     <Streamdown
       animated={STREAMING_ANIMATION}
       className={markdownClassName}
-      controls={STREAMDOWN_CONTROLS}
+      controls={{ ...STREAMDOWN_CONTROLS, image: showImageDownload }}
       data-streaming={isStreaming ? "true" : undefined}
       isAnimating={isStreaming}
       lineNumbers
@@ -73,6 +78,7 @@ export function StreamingMarkdown({
       parseIncompleteMarkdown
       plugins={STREAMDOWN_PLUGINS}
       remarkPlugins={STREAMDOWN_REMARK_PLUGINS}
+      urlTransform={urlTransform}
     >
       {content}
     </Streamdown>

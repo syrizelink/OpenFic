@@ -30,11 +30,24 @@ def package(
     *,
     legacy=False,
     plugin_id="project-statistics",
+    settings=None,
+    detail=None,
+    extra_files=None,
+    icon=None,
+    homepage=None,
 ):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
     manifest["version"] = version
     manifest["id"] = plugin_id
+    if settings is not None:
+        manifest["settings"] = settings
+    if detail is not None:
+        manifest["detail"] = detail
+    if icon is not None:
+        manifest["icon"] = icon
+    if homepage is not None:
+        manifest["homepage"] = homepage
     # Keep iframe ticket/CSP lifecycle coverage independent of the native example UI.
     manifest["views"] = [
         {
@@ -53,6 +66,8 @@ def package(
         manifest.pop("resources", None)
         manifest["views"][0]["entry"] = "frontend/index.html"
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, content in (extra_files or {}).items():
+            archive.writestr(name, content)
         archive.writestr(
             manifest["views"][0]["entry"],
             "<!doctype html><main>Legacy transport fixture</main>",
@@ -98,6 +113,359 @@ async def install(client, content=None):
         files={"file": ("plugin.zip", content or package(), "application/zip")},
         data={"trusted": "true"},
     )
+
+
+async def test_plugin_homepage_and_local_icon(plugin_api):
+    host, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20"/></svg>'
+    response = await install(
+        api,
+        package(
+            icon="images/icon.svg",
+            homepage="https://github.com/example/plugin",
+            extra_files={"images/icon.svg": svg},
+        ),
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["icon"] == "images/icon.svg"
+    assert response.json()["homepage"] == "https://github.com/example/plugin"
+    image = await api.get("/api/v1/plugins/project-statistics/icon")
+    assert image.status_code == 200 and image.content == svg
+    assert image.headers["content-type"].startswith("image/svg+xml")
+    assert "sandbox" in image.headers["content-security-policy"]
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+async def test_plugin_icon_accepts_self_contained_svg_at_size_limit(plugin_api):
+    _, api, _ = plugin_api
+    svg = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-label="author@example.org">
+    <style>/* local styles */ @media (prefers-color-scheme: dark) { .shape { fill: url(#gradient); } }</style>
+    <defs><linearGradient id="gradient"><stop stop-color="red"/></linearGradient></defs>
+    <rect class="shape" width="16" height="16"><animate attributeName="opacity" values="0;1" dur="1s"/></rect></svg>"""
+    svg += b" " * (256 * 1024 - len(svg))
+    response = await install(
+        api, package(icon="icon.svg", extra_files={"icon.svg": svg})
+    )
+    assert response.status_code == 201
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+async def test_plugin_icon_accepts_embedded_raster_image(plugin_api):
+    import base64
+
+    from PIL import Image
+
+    _, api, _ = plugin_api
+    image = io.BytesIO()
+    Image.new("RGB", (2, 1), "red").save(image, format="PNG")
+    embedded = base64.b64encode(image.getvalue()).decode()
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,{embedded}" width="2" height="1"/></svg>'.encode()
+    response = await install(
+        api, package(icon="icon.svg", extra_files={"icon.svg": svg})
+    )
+    assert response.status_code == 201
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+@pytest.mark.parametrize(
+    ("icon", "content"),
+    [
+        ("../outside.svg", b""),
+        ("https://example.com/icon.svg", b""),
+        ("icon.txt", b"text"),
+        ("icon.png", b"not a PNG"),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><style>@import "https://example.com/a.css";</style></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:url(https://example.com/a)"/></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><style>.x { fill: image-set("https://example.com/a.png" 1x) }</style></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><image><set attributeName="href" to="https://example.com/a.png"/></image></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"/>' + b" " * (256 * 1024),
+        ),
+    ],
+    ids=[
+        "traversal",
+        "remote",
+        "extension",
+        "invalid-png",
+        "external-image",
+        "external-css",
+        "external-paint",
+        "script",
+        "external-image-set",
+        "animated-external-reference",
+        "oversized",
+    ],
+)
+async def test_invalid_icon_does_not_prevent_installation(plugin_api, icon, content):
+    _, api, _ = plugin_api
+    extra_files = {icon: content} if not icon.startswith(("..", "https:")) else {}
+    response = await install(api, package(icon=icon, extra_files=extra_files))
+    assert response.status_code == 201, response.text
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("suffix", "format"),
+    [
+        ("png", "PNG"),
+        ("PNG", "PNG"),
+        ("jpg", "JPEG"),
+        ("jpeg", "JPEG"),
+        ("webp", "WEBP"),
+    ],
+)
+async def test_raster_plugin_icon_formats(plugin_api, suffix, format):
+    from PIL import Image
+
+    _, api, _ = plugin_api
+    image = io.BytesIO()
+    Image.new("RGB", (8, 4), "red").save(image, format=format)
+    response = await install(
+        api,
+        package(
+            icon=f"icon.{suffix}", extra_files={f"icon.{suffix}": image.getvalue()}
+        ),
+    )
+    assert response.status_code == 201, response.text
+    result = await api.get("/api/v1/plugins/project-statistics/icon")
+    assert result.status_code == 200 and result.content == image.getvalue()
+
+
+async def test_plugin_detail_readme_and_images(plugin_api):
+    host, api, _ = plugin_api
+    content = package(
+        extra_files={
+            "ReadMe.MD": "# Details\n![pic](assets/pic.png)",
+            "assets/pic.png": b"image",
+        }
+    )
+    response = await install(api, content)
+    assert response.status_code == 201, response.text
+    assert response.json()["detail"] == "ReadMe.MD"
+    assert (await api.get("/api/v1/plugins/project-statistics/detail")).text.startswith(
+        "# Details"
+    )
+    image = await api.get(
+        "/api/v1/plugins/project-statistics/detail-images/assets/pic.png"
+    )
+    assert image.status_code == 200 and image.content == b"image"
+    assert "sandbox" in image.headers["content-security-policy"]
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail-images/main.py")
+    ).status_code == 404
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins")).json()["plugins"][0][
+        "detail"
+    ] == "ReadMe.MD"
+
+
+@pytest.mark.parametrize("detail", ["../README.md", "docs/missing.md", "main.py"])
+async def test_plugin_detail_rejects_invalid_path(plugin_api, detail):
+    _, api, _ = plugin_api
+    response = await install(api, package(detail=detail))
+    assert response.status_code == 400
+
+
+async def test_plugin_detail_explicit_file_takes_precedence(plugin_api):
+    _, api, _ = plugin_api
+    response = await install(
+        api,
+        package(
+            detail="docs/guide.md",
+            extra_files={"README.md": "default", "docs/guide.md": "# Guide"},
+        ),
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["detail"] == "docs/guide.md"
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail")
+    ).text == "# Guide"
+
+
+async def test_plugin_without_detail_has_no_detail_endpoint(plugin_api):
+    _, api, _ = plugin_api
+    response = await install(api, package())
+    assert response.status_code == 201
+    assert response.json()["detail"] is None
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail")
+    ).status_code == 404
+
+
+async def test_required_settings_allow_install_but_validate_saves(plugin_api):
+    host, api, _ = plugin_api
+    settings = [
+        {
+            "key": "name",
+            "label": "Name",
+            "type": "string",
+            "default": "",
+            "required": True,
+        },
+        {
+            "key": "token",
+            "label": "Token",
+            "type": "string",
+            "default": "",
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "payload",
+            "label": "Payload",
+            "type": "json",
+            "default": None,
+            "required": True,
+        },
+        {
+            "key": "count",
+            "label": "Count",
+            "type": "integer",
+            "default": 0,
+            "required": True,
+        },
+        {
+            "key": "enabled",
+            "label": "Enabled",
+            "type": "boolean",
+            "default": False,
+            "required": True,
+        },
+        {
+            "key": "secretCount",
+            "label": "Secret count",
+            "type": "integer",
+            "default": 0,
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "secretFlag",
+            "label": "Secret flag",
+            "type": "boolean",
+            "default": False,
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "mode",
+            "label": "Mode",
+            "type": "select",
+            "default": "fast",
+            "required": True,
+            "options": [{"value": "fast", "label": "Fast"}],
+        },
+        {"key": "optional", "label": "Optional", "type": "string", "default": ""},
+    ]
+    response = await install(api, package(settings=settings))
+    assert response.status_code == 201, response.text
+    assert response.json()["settings"][0]["required"] is True
+    assert {"secretCount", "secretFlag"} <= set(response.json()["configured_secrets"])
+    await host.close()
+    await host.start()
+    assert len((await api.get("/api/v1/plugins")).json()["plugins"]) == 1
+    path = "/api/v1/plugins/project-statistics/settings"
+    valid = {
+        "name": "Ready",
+        "token": "secret",
+        "payload": {},
+        "count": 0,
+        "enabled": False,
+        "mode": "fast",
+        "optional": "",
+    }
+    for changes in ({"name": "  "}, {"token": ""}, {"payload": None}):
+        result = await api.put(path, json={"settings": valid | changes})
+        assert result.status_code == 400
+    assert (await api.put(path, json={"settings": valid})).status_code == 200
+    preserved = await api.put(path, json={"settings": valid | {"token": ""}})
+    assert preserved.status_code == 200
+    assert "token" in preserved.json()["configured_secrets"]
+    assert preserved.json()["configuration"]["token"] == ""
+
+
+async def test_select_setting_validation_and_persistence(plugin_api):
+    host, api, _ = plugin_api
+    setting = {
+        "key": "mode",
+        "label": "Mode",
+        "type": "select",
+        "default": "fast",
+        "options": [
+            {"value": "fast", "label": "Fast"},
+            {"value": "precise", "label": "Precise"},
+        ],
+    }
+    response = await install(api, package(settings=[setting]))
+    assert response.status_code == 201, response.text
+    assert response.json()["settings"][0]["options"] == setting["options"]
+    assert (
+        await api.put(
+            "/api/v1/plugins/project-statistics/settings",
+            json={"settings": {"mode": "precise"}},
+        )
+    ).status_code == 200
+    assert (
+        await api.put(
+            "/api/v1/plugins/project-statistics/settings",
+            json={"settings": {"mode": "invalid"}},
+        )
+    ).status_code == 400
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins")).json()["plugins"][0]["configuration"][
+        "mode"
+    ] == "precise"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"options": []},
+        {
+            "options": [
+                {"value": "fast", "label": "Fast"},
+                {"value": "fast", "label": "Duplicate"},
+            ]
+        },
+        {"default": "missing"},
+    ],
+)
+async def test_select_rejects_invalid_definitions(plugin_api, changes):
+    _, api, _ = plugin_api
+    setting = {
+        "key": "mode",
+        "label": "Mode",
+        "type": "select",
+        "default": "fast",
+        "options": [{"value": "fast", "label": "Fast"}],
+    } | changes
+    response = await install(api, package(settings=[setting]))
+    assert response.status_code == 400
 
 
 async def test_plugin_changes_are_pushed_after_lifecycle_writes(

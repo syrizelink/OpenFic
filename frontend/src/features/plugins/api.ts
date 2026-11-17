@@ -19,11 +19,13 @@ export interface PluginView {
 export interface PluginSetting {
   key: string;
   label: string;
-  type: "string" | "boolean" | "integer" | "json" | "number";
-  default: string | boolean | number;
+  type: "string" | "boolean" | "integer" | "json" | "number" | "select";
+  default: unknown;
+  options?: { value: string; label: string }[];
   minimum?: number;
   maximum?: number;
   secret?: boolean;
+  required?: boolean;
   description?: string;
 }
 export interface InstalledPlugin {
@@ -33,6 +35,9 @@ export interface InstalledPlugin {
   name: string;
   version: string;
   description: string;
+  detail?: string | null;
+  homepage?: string | null;
+  icon?: string | null;
   author: string;
   development_revision?: number;
   enabled: boolean;
@@ -42,6 +47,7 @@ export interface InstalledPlugin {
   views: PluginView[];
   settings: PluginSetting[];
   configuration: Record<string, unknown>;
+  configured_secrets?: string[];
   tools?: string[];
   hooks?: string[];
   graphs?: string[];

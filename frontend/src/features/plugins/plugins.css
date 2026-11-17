@@ -4,11 +4,43 @@
   padding: 24px;
 }
 .plugin-manager {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+.plugin-risk-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px;
+  background: var(--gray-a3);
+  backdrop-filter: blur(8px);
+}
+.plugin-risk-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 460px;
+  padding: 24px;
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-4);
+  background: var(--color-panel-solid);
+  color: var(--gray-12);
+  text-align: center;
+}
+.plugin-risk-notice > svg {
+  color: var(--amber-10);
+}
+.plugin-risk-notice p {
+  margin: 0;
 }
 .plugin-view h2 {
   font-size: 20px;
@@ -40,6 +72,12 @@
   padding: 12px 12px 8px;
   flex-shrink: 0;
 }
+.plugin-list-header .rt-IconButton,
+.rt-IconButton.plugin-homepage-link {
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
 .plugin-list-hint {
   margin: 0;
   padding: 0 12px 8px;
@@ -59,14 +97,14 @@
   flex-shrink: 0;
   position: relative;
   border-radius: var(--radius-3);
-  transition: transform 200ms ease;
 }
 .plugin-list-row[data-dragging="true"] {
   z-index: 1;
-  opacity: 0.6;
-  transition: none;
+  opacity: 0.5;
 }
 .plugin-list-drag-handle {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,6 +118,7 @@
   color: var(--gray-9);
   cursor: grab;
   touch-action: none;
+  transition: color 140ms ease;
 }
 .plugin-list-drag-handle:hover {
   color: var(--gray-12);
@@ -98,27 +137,81 @@
   flex: 1;
   min-width: 0;
   padding: 10px 8px 10px 0;
-  border: 0;
-  border-radius: var(--radius-3);
-  background: transparent;
   color: var(--gray-11);
-  text-align: start;
-  font: inherit;
-  cursor: pointer;
 }
-.plugin-list-row:hover,
+.plugin-list-row:hover:not([data-selected="true"]) {
+  background: var(--gray-a2);
+  color: var(--gray-12);
+}
 .plugin-list-row[data-selected="true"] {
   background: var(--gray-a3);
   color: var(--gray-12);
 }
-.plugin-list-item:focus-visible,
+.plugin-list-title:focus-visible::after,
 .plugin-list-drag-handle:focus-visible {
   outline: 2px solid var(--accent-8);
   outline-offset: -2px;
 }
-.plugin-list-title {
+.plugin-list-heading {
   min-width: 0;
   width: 100%;
+}
+.plugin-list-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+.plugin-icon-list,
+.plugin-icon-detail {
+  flex-shrink: 0;
+  border-radius: var(--radius-2);
+  object-fit: cover;
+}
+.plugin-icon-list {
+  width: 14px;
+  height: 14px;
+}
+.plugin-icon-detail {
+  width: 40px;
+  height: 40px;
+}
+.plugin-detail-identity {
+  flex: 1;
+  min-width: 0;
+}
+.plugin-homepage-github {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: #000;
+  mask: url("/link-icons/github.svg") center / contain no-repeat;
+}
+.dark .plugin-homepage-github {
+  background: #fff;
+}
+.plugin-list-title::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: var(--radius-3);
+  content: "";
+}
+.plugin-list-title,
+.plugin-list-description {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.rt-SwitchRoot.plugin-list-switch {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
 }
 .plugin-list-title svg,
 .plugin-list-title .rt-Badge {
@@ -130,6 +223,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--font-size-1);
+  color: var(--gray-11);
 }
 .plugin-list-empty,
 .plugin-list-footer {
@@ -139,16 +234,17 @@
   flex: 1;
   min-width: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   padding: 40px 28px;
 }
 .plugin-detail {
   width: 100%;
   max-width: 560px;
+  margin-inline: auto;
   overflow-wrap: anywhere;
 }
 .plugin-detail-section,
-.plugin-configuration,
-.plugin-setting {
+.plugin-configuration {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -156,26 +252,134 @@
 .plugin-detail-section {
   gap: 16px;
 }
-.plugin-detail-section + .plugin-detail-section {
+.plugin-detail-tabs {
   margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid var(--gray-a4);
 }
-.plugin-detail-section p {
+.plugin-detail-tab-content {
+  padding-top: 24px;
+}
+.plugin-detail-tabs .rt-TabsContent[data-state="inactive"] {
+  display: none;
+}
+.plugin-detail-section > p {
   margin: 0;
 }
+.plugin-description {
+  --plugin-description-link-color: var(--accent-11);
+  --plugin-description-link-hover: var(--accent-12);
+  position: relative;
+  min-width: 0;
+}
+.plugin-description-text {
+  margin: 0;
+}
+.plugin-description-suffix {
+  white-space: nowrap;
+}
+.plugin-description-expand {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--plugin-description-link-color);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+button.plugin-description-expand:hover {
+  color: var(--plugin-description-link-hover);
+  text-decoration: underline;
+}
+.plugin-description-expand:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+.plugin-description-measure-container {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
 .plugin-information {
-  display: grid;
-  grid-template-columns: minmax(80px, auto) minmax(0, 1fr);
-  gap: 12px 20px;
   margin: 0;
   font-size: var(--font-size-2);
 }
+.plugin-information-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--gray-a4);
+}
+.plugin-information-row:last-child {
+  border-bottom: 0;
+}
 .plugin-information dt {
+  flex-shrink: 0;
   color: var(--gray-11);
 }
 .plugin-information dd {
+  min-width: 0;
+  max-width: 50%;
   margin: 0;
+  text-align: end;
+}
+.plugin-information a {
+  color: var(--accent-11);
+}
+.plugin-information .plugin-permission-value {
+  width: 50%;
+}
+.plugin-permission-list {
+  --plugin-permission-hover-color: var(--accent-11);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+.plugin-permission-list[data-expanded="true"] {
+  flex-wrap: wrap;
+}
+.plugin-permission-list:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+.plugin-permission-list > .rt-Badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.rt-Badge.plugin-permission-more {
+  cursor: pointer;
+}
+.rt-Badge.plugin-permission-more:hover {
+  color: var(--plugin-permission-hover-color);
+  text-decoration: underline;
+}
+.plugin-permission-more:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+.plugin-permission-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.plugin-permission-measure-items {
+  display: flex;
+  gap: 4px;
+  width: max-content;
 }
 .plugin-configuration {
   gap: 20px;
@@ -184,10 +388,32 @@
   align-self: flex-start;
 }
 .plugin-setting {
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
-.plugin-setting > .rt-CheckboxRoot {
-  align-self: flex-start;
+.plugin-setting-label {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.plugin-setting-control {
+  width: 220px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+.plugin-setting[data-invalid="true"] .plugin-setting-control {
+  box-shadow: inset 0 0 0 1px var(--red-8);
+  outline-color: var(--red-8);
+}
+.plugin-setting[data-type="json"] {
+  flex-wrap: wrap;
+}
+.plugin-setting[data-type="json"] .plugin-setting-control {
+  width: 100%;
 }
 .plugin-detail-empty {
   min-height: 100%;
@@ -300,6 +526,12 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
+  .plugin-setting:not([data-type="boolean"]) {
+    flex-wrap: wrap;
+  }
+  .plugin-setting:not([data-type="boolean"]) .plugin-setting-control {
+    width: 100%;
+  }
   .extensions-page {
     padding: 16px;
   }
@@ -328,6 +560,11 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .plugin-list-row {
+    transition: none !important;
+  }
+  .plugin-list-drag-handle,
+  .plugin-list-header .rt-IconButton,
+  .rt-IconButton.plugin-homepage-link {
     transition: none;
   }
 }

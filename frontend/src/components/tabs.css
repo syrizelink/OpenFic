@@ -1,0 +1,44 @@
+.project-tabs-list {
+  position: relative;
+}
+
+.project-tabs-list .rt-BaseTabListTrigger {
+  transition: color 140ms ease;
+}
+
+.project-tabs-list .rt-BaseTabListTriggerInner {
+  transition: background-color 140ms ease;
+}
+
+.project-tabs-list[data-tabs-ready="true"] .rt-BaseTabListTrigger[data-state="active"]::before {
+  opacity: 0;
+}
+
+.project-tabs-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent-indicator);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.project-tabs-list[data-tabs-ready="true"] .project-tabs-indicator {
+  visibility: visible;
+  transition:
+    transform 200ms ease,
+    width 200ms ease;
+}
+
+.project-tabs-list.rt-high-contrast .project-tabs-indicator {
+  background: var(--accent-12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-tabs-list .rt-BaseTabListTrigger,
+  .project-tabs-list .rt-BaseTabListTriggerInner,
+  .project-tabs-list[data-tabs-ready="true"] .project-tabs-indicator {
+    transition: none;
+  }
+}

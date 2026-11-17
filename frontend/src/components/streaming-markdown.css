@@ -524,8 +524,9 @@
 }
 
 .streaming-markdown [data-streamdown="image-wrapper"] {
-  display: inline-block;
+  display: block;
   position: relative;
+  width: 100%;
   max-width: 100%;
   margin: 0.9em 0;
 }

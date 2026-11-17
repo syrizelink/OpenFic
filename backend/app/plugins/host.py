@@ -256,6 +256,7 @@ class PluginHost:
                     manifest = Manifest.model_validate_json(
                         (directory / "plugin.json").read_bytes()
                     )
+                    manifest.resolve_detail(directory)
                     if manifest.id != directory.name:
                         raise ValueError("Plugin directory identity mismatch")
                     saved = state.get(manifest.id, {})
@@ -318,6 +319,41 @@ class PluginHost:
             raise PluginError("Plugin not found", 404)
         return plugin
 
+    def detail_file(self, plugin_id: str, name: str | None = None) -> Path:
+        plugin = self.get(plugin_id)
+        if not plugin.manifest.detail:
+            raise PluginError("Plugin detail not found", 404)
+        if name is None:
+            name = plugin.manifest.detail
+        elif Path(name).suffix.lower() not in {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".avif",
+            ".svg",
+        }:
+            raise PluginError("Plugin detail image not found", 404)
+        try:
+            safe_path(name)
+            root = (self.root / plugin_id).resolve()
+            path = (root / name).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                raise ValueError("File is outside the plugin package")
+            return path
+        except ValueError as error:
+            raise PluginError("Plugin detail file not found", 404) from error
+
+    def icon_data(self, plugin_id: str) -> tuple[bytes, str]:
+        from app.plugins.packages import read_plugin_icon
+
+        plugin = self.get(plugin_id)
+        result = read_plugin_icon(self.root / plugin_id, plugin.manifest.icon)
+        if result is None:
+            raise PluginError("Plugin icon not found", 404)
+        return result
+
     def describe(self, plugin: Installed) -> dict[str, Any]:
         return {
             **plugin.manifest.model_dump(),
@@ -338,7 +374,12 @@ class PluginHost:
             "configured_secrets": [
                 s.key
                 for s in plugin.manifest.settings
-                if s.secret and plugin.settings[s.key]
+                if s.secret
+                and plugin.settings[s.key] is not None
+                and (
+                    not isinstance(plugin.settings[s.key], str)
+                    or plugin.settings[s.key].strip()
+                )
             ],
             "commands": sorted(plugin.registration.commands)
             if plugin.registration
@@ -611,7 +652,19 @@ class PluginHost:
                         settings[setting.key] = plugin.settings.get(
                             setting.key, setting.default
                         )
-                plugin.settings = plugin.manifest.validate_settings(settings)
+                validated = plugin.manifest.validate_settings(settings)
+                for setting in plugin.manifest.settings:
+                    value = validated[setting.key]
+                    if (
+                        setting.required
+                        and setting.type != "select"
+                        and (
+                            value is None
+                            or (isinstance(value, str) and not value.strip())
+                        )
+                    ):
+                        raise ValueError(f"Required setting is empty: {setting.key}")
+                plugin.settings = validated
             except ValueError as error:
                 raise PluginError(str(error)) from error
             self._persist()
