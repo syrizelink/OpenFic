@@ -4,6 +4,7 @@ import base64
 import copy
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -90,9 +91,11 @@ async def test_assets_are_package_scoped_bounded_and_capability_checked(
 
 
 async def test_balance_accounting_stale_credit_correction_and_secret_isolation(
-    plugin_api, session
+    plugin_api, session, monkeypatch
 ):
     host, api, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
     await install(host)
     await host.configure("deepseek-whale", {"apiKey": "dummy-key-a"})
     current = {"total": "100", "status": 200, "currency": "CNY"}
@@ -121,9 +124,12 @@ async def test_balance_accounting_stale_credit_correction_and_secret_isolation(
         return await host.call("deepseek-whale", "balance.refresh", {}, session)
 
     assert (await refresh())["ok"]
+    await host._notifications.join()
     assert any(
-        event["event"] == "ui.invalidate" and event["pluginId"] == "deepseek-whale"
-        for event in host.events(0)["events"]
+        call.args[0] == "plugins:event"
+        and call.args[1]["event"] == "ui.invalidate"
+        and call.args[1]["pluginId"] == "deepseek-whale"
+        for call in send.await_args_list
     )
     current["total"] = "90"
     await refresh()
@@ -168,9 +174,14 @@ async def test_balance_accounting_stale_credit_correction_and_secret_isolation(
         assert "dummy-key-a" not in json.dumps(document)
         validate_document(document, capabilities=ctx.plugin.manifest.capabilities)
     # Secret-only configuration changes invalidate native views too.
-    cursor = host.events(0)["cursor"]
+    await host._notifications.join()
+    send.reset_mock()
     await host.configure("deepseek-whale", {"apiKey": "dummy-key-b"})
-    assert any(e["event"] == "ui.invalidate" for e in host.events(cursor)["events"])
+    await host._notifications.join()
+    assert any(
+        call.args[0] == "plugins:event" and call.args[1]["event"] == "ui.invalidate"
+        for call in send.await_args_list
+    )
     document = await host.call(
         "deepseek-whale", "ui.render", {"viewId": "settings"}, session
     )

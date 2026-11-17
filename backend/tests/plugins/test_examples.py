@@ -3,6 +3,7 @@
 import io
 import json
 import zipfile
+from unittest.mock import AsyncMock
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 
@@ -97,8 +98,12 @@ async def test_drive_two_way_conflict_resolution_and_agent_tool(
     assert all("googleapis.com" in url for _, url in drive.requests)
 
 
-async def test_drive_oauth_pkce_replay_and_encrypted_tokens(plugin_api, session):
+async def test_drive_oauth_pkce_replay_and_encrypted_tokens(
+    plugin_api, session, monkeypatch
+):
     host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
     ctx, _ = await setup_drive(host, session)
     await host.configure(
         "google-drive-sync",
@@ -116,7 +121,11 @@ async def test_drive_oauth_pkce_replay_and_encrypted_tokens(plugin_api, session)
     assert query["redirect_uri"] == ["http://test/plugin-oauth/callback"]
     state = query["state"][0]
     await finish_oauth(host, state, "test-auth-code", None)
-    assert any(event["event"] == "ui.invalidate" for event in host.events(0)["events"])
+    await host._notifications.join()
+    assert any(
+        call.args[0] == "plugins:event" and call.args[1]["event"] == "ui.invalidate"
+        for call in send.await_args_list
+    )
     assert (await ctx.secrets.get("oauth.tokens"))["refresh_token"] == "test-refresh"
     with pytest.raises(ValueError, match="already used"):
         await finish_oauth(host, state, "test-auth-code", None)

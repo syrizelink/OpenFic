@@ -257,11 +257,6 @@ async def sdk_catalogue():
     }
 
 
-@router.get("/events")
-async def plugin_events(manager: Host, after: int | None = None):
-    return manager.events(manager._event_sequence if after is None else max(0, after))
-
-
 @router.post("", status_code=201)
 async def install_plugin(
     manager: Host,

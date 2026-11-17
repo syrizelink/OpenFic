@@ -4,7 +4,7 @@ import { Puzzle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 
-import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
+import { pluginsQueryOptions } from "./api";
 
 import "./plugins.css";
 
@@ -18,11 +18,7 @@ export function ExtensionSlot({
   const { t } = useTranslation();
   const { projectId } = useParams();
   const location = useLocation();
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 5000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const entries = plugins
     .filter((plugin) => plugin.status === "enabled")
     .flatMap((plugin) =>

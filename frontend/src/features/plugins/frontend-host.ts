@@ -29,8 +29,10 @@ export function registerPluginEditor(editor: PluginEditor) {
     if (editorEventsEnabled) publishLocalEvent("editor.close", { id: editor.read().id });
   };
 }
-export function publishLocalEvent(event: string, data: unknown) {
-  window.dispatchEvent(new CustomEvent("openfic:plugin-event", { detail: { event, data } }));
+export function publishLocalEvent(event: string, data: unknown, pluginId?: string) {
+  window.dispatchEvent(
+    new CustomEvent("openfic:plugin-event", { detail: { event, data, pluginId } }),
+  );
 }
 export function editorSnapshot() {
   return activeEditor?.read() ?? null;
@@ -121,7 +123,7 @@ export async function frontendCall(
     return null;
   }
   if (method === "ui.invalidate") {
-    publishLocalEvent("data.changed", params);
+    publishLocalEvent("ui.invalidate", params);
     return null;
   }
   if (method === "ui.context")

@@ -3,6 +3,7 @@
 import io
 import json
 import zipfile
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -39,8 +40,12 @@ def bundle(manifest, backend="def register(host): pass", files=None):
     return buffer.getvalue()
 
 
-async def test_business_crud_catalogue_validation_and_capabilities(plugin_api, session):
+async def test_business_crud_catalogue_validation_and_capabilities(
+    plugin_api, session, monkeypatch
+):
     host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
     await host.install(
         bundle(
             {
@@ -99,7 +104,11 @@ async def test_business_crud_catalogue_validation_and_capabilities(plugin_api, s
     assert any(
         operation["path"] == "/agent/sessions" for operation in catalogue["operations"]
     )
-    assert any(event["event"] == "data.changed" for event in host.events()["events"])
+    await host._notifications.join()
+    assert any(
+        call.args[0] == "plugins:event" and call.args[1]["event"] == "data.changed"
+        for call in send.await_args_list
+    )
 
 
 async def test_storage_secrets_files_network_and_disable(plugin_api, session):

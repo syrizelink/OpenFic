@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import uuid
+from contextlib import suppress
 from urllib.parse import quote
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -147,8 +148,10 @@ class PluginHost:
         self._lock = asyncio.Lock()
         self._started = False
         self._view_tickets: dict[str, tuple[str, float]] = {}
-        self._events: list[dict] = []
-        self._event_sequence = 0
+        self._notifications: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue(
+            maxsize=500
+        )
+        self._notification_task: asyncio.Task[None] | None = None
         self.http_transport = None
         self.application = None
         self.oauth_flows: dict[str, dict] = {}
@@ -207,6 +210,7 @@ class PluginHost:
                 for order, (key, plugin) in enumerate(self.plugins.items())
             },
         )
+        self._notify("plugins:changed", {})
 
     async def start(self):
         global _active_host
@@ -285,14 +289,25 @@ class PluginHost:
                         "Unable to discover plugin {}: {}", directory.name, error
                     )
             self._started = True
+            self._notification_task = asyncio.create_task(
+                self._send_notifications(), name="plugin-notifications"
+            )
             _active_host = self
 
     async def close(self):
         global _active_host
         async with self._lock:
+            self._started = False
+            if self._notification_task:
+                self._notification_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._notification_task
+                self._notification_task = None
+            while not self._notifications.empty():
+                self._notifications.get_nowait()
+                self._notifications.task_done()
             for plugin in self.plugins.values():
                 await self._deactivate(plugin)
-            self._started = False
             self.plugins.clear()
             if _active_host is self:
                 _active_host = None
@@ -677,24 +692,37 @@ class PluginHost:
             private,
         )
 
-    def emit(self, event: str, data: dict, plugin_id=None):
-        self._event_sequence += 1
-        self._events.append(
+    def _notify(self, event: str, data: dict[str, Any]) -> None:
+        if not self._started:
+            return
+        if self._notifications.full():
+            while not self._notifications.empty():
+                self._notifications.get_nowait()
+                self._notifications.task_done()
+            self._notifications.put_nowait(("plugins:resync", {}))
+        self._notifications.put_nowait((event, data))
+
+    async def _send_notifications(self) -> None:
+        from app.socket import emitter
+
+        while True:
+            event, data = await self._notifications.get()
+            try:
+                await emitter.emit(event, data)
+            except Exception:
+                logger.warning("Unable to push plugin notification: {}", event)
+            finally:
+                self._notifications.task_done()
+
+    def emit(self, event: str, data: dict, plugin_id: str | None = None) -> None:
+        self._notify(
+            "plugins:event",
             {
-                "sequence": self._event_sequence,
                 "event": event,
                 "data": bounded_json(data, 256_000),
                 "pluginId": plugin_id,
-            }
+            },
         )
-        self._events = self._events[-500:]
-        return self._event_sequence
-
-    def events(self, after=0):
-        return {
-            "cursor": self._event_sequence,
-            "events": [event for event in self._events if event["sequence"] > after],
-        }
 
     def logs(self, plugin_id: str) -> list[dict[str, Any]]:
         self.get(plugin_id)

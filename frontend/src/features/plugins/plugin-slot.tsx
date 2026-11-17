@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { EDITOR_PLUGIN_SLOTS, fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
+import { EDITOR_PLUGIN_SLOTS, pluginsQueryOptions } from "./api";
 import { PluginFrame } from "./plugin-page";
 
 export function PluginSlot({
@@ -13,11 +13,7 @@ export function PluginSlot({
   context?: Record<string, unknown>;
   inline?: boolean;
 }) {
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 5000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const [selected, setSelected] = useState<string | null>(null);
   const [heights, setHeights] = useState<Record<string, number>>({});
   const entries = plugins

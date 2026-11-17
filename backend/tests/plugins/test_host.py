@@ -1,11 +1,13 @@
 """Contract and lifecycle tests using actual installable plugin packages."""
 
+import asyncio
 import io
 import json
 import stat
 import sys
 import zipfile
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -96,6 +98,78 @@ async def install(client, content=None):
         files={"file": ("plugin.zip", content or package(), "application/zip")},
         data={"trusted": "true"},
     )
+
+
+async def test_plugin_changes_are_pushed_after_lifecycle_writes(
+    plugin_api, monkeypatch
+):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+
+    async def changed(action):
+        await action
+        await asyncio.wait_for(host._notifications.join(), 5)
+        assert any(
+            call.args == ("plugins:changed", {}) for call in send.await_args_list
+        )
+        send.reset_mock()
+
+    await changed(host.install(package()))
+    await changed(host.set_enabled("project-statistics", True))
+    await changed(host.configure("project-statistics", {"targetWords": 1234}))
+    await changed(host.set_order(["project-statistics"]))
+    await changed(host.install(package("1.1.0"), update_id="project-statistics"))
+    await changed(host.set_enabled("project-statistics", False))
+    await changed(host.uninstall("project-statistics"))
+    assert not any(route.path == "/plugins/events" for route in router.routes)
+
+
+async def test_plugin_events_push_live_and_stop_cleanly(plugin_api, monkeypatch):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host.emit("ui.invalidate", {"viewId": "panel"}, "example")
+    await asyncio.wait_for(host._notifications.join(), 5)
+    send.assert_awaited_once_with(
+        "plugins:event",
+        {
+            "event": "ui.invalidate",
+            "data": {"viewId": "panel"},
+            "pluginId": "example",
+        },
+    )
+    task = host._notification_task
+    await host.close()
+    assert task.done()
+    send.reset_mock()
+    host.emit("ui.toast", {"text": "closed"})
+    await host.start()
+    await asyncio.wait_for(host._notifications.join(), 5)
+    send.assert_not_awaited()
+
+
+async def test_plugin_notification_overflow_requests_resync(plugin_api, monkeypatch):
+    host, _, _ = plugin_api
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    sent = []
+
+    async def send(event, data):
+        entered.set()
+        await release.wait()
+        sent.append((event, data))
+
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host.emit("ui.invalidate", {})
+    await asyncio.wait_for(entered.wait(), 5)
+    for index in range(host._notifications.maxsize + 1):
+        host.emit("ui.invalidate", {"index": index})
+    assert host._notifications.qsize() <= host._notifications.maxsize
+    release.set()
+    await asyncio.wait_for(host._notifications.join(), 5)
+    assert ("plugins:resync", {}) in sent
+    assert sent[-1][1]["data"]["index"] == host._notifications.maxsize
 
 
 async def test_plugin_order_survives_update_install_restart_and_uninstall(

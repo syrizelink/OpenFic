@@ -92,9 +92,6 @@ async def _sdk_call(context, method: str, params: dict):
         return await getattr(context.agent, method.split(".")[1])(**params)
     if method == "events.emit":
         return context.emit(params["event"], params.get("data", {}))
-    if method == "events.poll":
-        context.require("events")
-        return context.host.events(params.get("after", 0))
     if method == "hooks.preview":
         context.require("agent.hooks")
         if params["event"] not in EVENTS or params["event"] in {

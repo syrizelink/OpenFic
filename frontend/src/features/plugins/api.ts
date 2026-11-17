@@ -50,6 +50,11 @@ export const PLUGINS_QUERY_KEY = ["plugins"] as const;
 export async function fetchPlugins(): Promise<InstalledPlugin[]> {
   return (await apiClient.get<{ plugins: InstalledPlugin[] }>("/plugins")).data.plugins;
 }
+export const pluginsQueryOptions = {
+  queryKey: PLUGINS_QUERY_KEY,
+  queryFn: fetchPlugins,
+  staleTime: Infinity,
+};
 export async function savePluginOrder(pluginIds: string[]): Promise<void> {
   await apiClient.put("/plugins/order", { plugin_ids: pluginIds });
 }

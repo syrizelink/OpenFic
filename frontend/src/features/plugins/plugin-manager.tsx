@@ -38,7 +38,7 @@ import { apiClient } from "@/lib/api-client";
 
 import {
   downloadPlugin,
-  fetchPlugins,
+  pluginsQueryOptions,
   fetchPluginDevelopment,
   installPlugin,
   pluginError,
@@ -76,7 +76,7 @@ export function PluginManager({
     isFetching,
     error: loadError,
     refetch,
-  } = useQuery({ queryKey: PLUGINS_QUERY_KEY, queryFn: fetchPlugins });
+  } = useQuery(pluginsQueryOptions);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const plugin = plugins.find((entry) => entry.id === selectedId) ?? plugins[0];
   const [trusted, setTrusted] = useState(false);

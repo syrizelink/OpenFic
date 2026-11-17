@@ -199,12 +199,13 @@ export function DeclarativeView({
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const invalidate = (event: Event) => {
-      const detail = (event as CustomEvent<{ event: string }>).detail;
+      const detail = (event as CustomEvent<{ event: string; pluginId?: string }>).detail;
       if (detail.event !== "ui.invalidate" && detail.event !== "data.changed") return;
+      if (detail.event === "ui.invalidate" && detail.pluginId && detail.pluginId !== plugin.id)
+        return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (detail.event === "data.changed")
-          void queryClient.invalidateQueries({ queryKey: ["plugin-component-data", plugin.id] });
+        void queryClient.invalidateQueries({ queryKey: ["plugin-component-data", plugin.id] });
         void refetch();
       }, 50);
     };

@@ -7,13 +7,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 
-import {
-  fetchPlugins,
-  pluginError,
-  PLUGINS_QUERY_KEY,
-  type InstalledPlugin,
-  type PluginView,
-} from "./api";
+import { pluginsQueryOptions, pluginError, type InstalledPlugin, type PluginView } from "./api";
 import { DeclarativeView } from "./declarative-view";
 import { frontendCall } from "./frontend-host";
 import {
@@ -28,11 +22,7 @@ export function PluginPage() {
   const { openSettings } = useAppShell();
   const { pluginId, viewId } = useParams();
   const { t } = useTranslation();
-  const {
-    data: plugins,
-    isLoading,
-    error,
-  } = useQuery({ queryKey: PLUGINS_QUERY_KEY, queryFn: fetchPlugins, refetchInterval: 5000 });
+  const { data: plugins, isLoading, error } = useQuery(pluginsQueryOptions);
   const plugin = plugins?.find((entry) => entry.id === pluginId && entry.status === "enabled");
   const view = plugin?.views.find((entry) => entry.id === viewId);
   if (isLoading) return <p>{t("plugins.loading")}</p>;

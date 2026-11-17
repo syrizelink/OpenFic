@@ -1,17 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router";
 
-import { fetchPlugins, PLUGINS_QUERY_KEY } from "./api";
+import { pluginsQueryOptions } from "./api";
 import { PluginFrame } from "./plugin-page";
 
 /** Native overlay views reserve no layout space; only their content receives input. */
 export function PluginOverlays() {
   const { pathname } = useLocation();
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 5000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   if (pathname === "/extensions/devtools") return null;
   return (
     <div

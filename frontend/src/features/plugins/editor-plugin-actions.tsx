@@ -6,8 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   EDITOR_PLUGIN_SLOTS,
-  fetchPlugins,
-  PLUGINS_QUERY_KEY,
+  pluginsQueryOptions,
   type InstalledPlugin,
   type PluginView,
 } from "./api";
@@ -18,11 +17,7 @@ import "./plugins.css";
 
 /** Editor slots contribute only compact controls. Content always lives in a portal. */
 export function EditorPluginActions({ context }: { context: Record<string, unknown> }) {
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 5000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const entries = plugins
     .filter((p) => p.status === "enabled")
     .flatMap((plugin) =>

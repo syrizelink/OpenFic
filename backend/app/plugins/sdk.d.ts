@@ -2349,7 +2349,7 @@ export interface OpenFicSDK {
   models: { complete(messages: ChatMessage[], modelId?: string, options?: { temperature?: number; max_tokens?: number; top_p?: number }): Promise<ChatMessage> };
   workflow: { select(projectId: string, provider: string | null): Promise<Json> };
   hooks: { preview(event: string, data: Record<string, Json>): Promise<Json> };
-  events: { on: OpenFicSDK["on"]; emit(event: string, data?: Record<string, Json>): Promise<number> };
+  events: { on: OpenFicSDK["on"]; emit(event: string, data?: Record<string, Json>): Promise<void> };
   editor: { read(): Promise<EditorSnapshot>; insert(text: string): Promise<EditorSnapshot>; replaceSelection(text: string): Promise<EditorSnapshot>; setContent(text: string): Promise<EditorSnapshot>; setSelection(from: number, to: number): Promise<EditorSnapshot>; focus(): Promise<void>; save(): Promise<void>; undo(): Promise<void>; redo(): Promise<void> };
   ui: { resize(height: number): Promise<number>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(): Promise<void> };
   assistant: { fill(text: string): Promise<void> }; log(message: string, level?: "info" | "warning" | "error"): Promise<void>;

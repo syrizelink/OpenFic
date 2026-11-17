@@ -26,13 +26,7 @@ import {
 } from "@/lib/theme";
 
 import { fetchSettings } from "../settings/lib/settings-api";
-import {
-  fetchPluginDevelopment,
-  fetchPlugins,
-  pluginError,
-  PLUGINS_QUERY_KEY,
-  type PluginView,
-} from "./api";
+import { fetchPluginDevelopment, pluginsQueryOptions, pluginError, type PluginView } from "./api";
 import { enablePluginDiagnostics, type PluginDiagnostic } from "./plugin-diagnostics";
 import { PluginFrame } from "./plugin-page";
 import { PluginRuntime } from "./plugin-runtime";
@@ -113,11 +107,7 @@ export function PluginDevtoolsPage() {
     queryFn: fetchPluginDevelopment,
     refetchInterval: 1000,
   });
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 1000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const selected = search.get("pluginId") ?? development?.pluginId ?? plugins[0]?.id ?? "";
   const plugin = plugins.find((item) => item.id === selected);
   const [chosenView, setChosenView] = useState("");
@@ -502,6 +492,15 @@ export function PluginDevtoolsPage() {
 }
 
 export function PluginDevelopmentCanvas() {
+  return (
+    <>
+      <PluginRuntime />
+      <PluginDevelopmentPreview />
+    </>
+  );
+}
+
+function PluginDevelopmentPreview() {
   const [search] = useSearchParams();
   const { i18n } = useTranslation();
   const { data: development } = useQuery({
@@ -509,11 +508,7 @@ export function PluginDevelopmentCanvas() {
     queryFn: fetchPluginDevelopment,
     refetchInterval: 1000,
   });
-  const { data: plugins = [] } = useQuery({
-    queryKey: PLUGINS_QUERY_KEY,
-    queryFn: fetchPlugins,
-    refetchInterval: 1000,
-  });
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const plugin = plugins.find((item) => item.id === search.get("pluginId"));
   const view = plugin?.views.find((item) => item.id === search.get("viewId"));
   const appearance = search.get("theme") === "dark" ? "dark" : "light";
@@ -569,7 +564,6 @@ export function PluginDevelopmentCanvas() {
       hasBackground
       className="plugin-development-canvas"
     >
-      <PluginRuntime />
       <Text
         as="p"
         size="1"
