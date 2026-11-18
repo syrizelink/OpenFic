@@ -12,13 +12,16 @@ import sys
 import tempfile
 import time
 import uuid
+from collections import deque
+from collections.abc import Iterator
 from contextlib import suppress
 from urllib.parse import quote
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import HTTPException
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +32,7 @@ from app.plugins.manifest import (
 )
 from app.plugins.sdk import PluginContext, ProjectData
 from app.plugins.services import bounded_json
+from app.socket.handlers import PLUGIN_LOGS_EVENT, PLUGIN_LOGS_ROOM
 
 _active_host: Any = None
 
@@ -38,6 +42,8 @@ def active_host():
 
 
 Handler = Callable[[PluginContext, dict[str, Any]], Awaitable[Any]]
+InstallStage = Literal["downloading", "validating", "installing", "complete"]
+InstallProgress = Callable[[InstallStage, int], Awaitable[None]]
 
 
 class PluginError(HTTPException):
@@ -160,7 +166,9 @@ class PluginHost:
         self.diagnostics = Diagnostics(os.getenv("OPENFIC_PLUGIN_DEVTOOLS") == "1")
         self.development = None
 
-    def _log(self, plugin_id: str, action: str, message: str, level: str = "info"):
+    def _log(
+        self, plugin_id: str, action: str, message: str, level: str = "info"
+    ) -> None:
         entry = {
             "time": datetime.now(UTC).isoformat(),
             "action": action,
@@ -169,12 +177,9 @@ class PluginHost:
         }
         directory = self.root / ".logs"
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"{plugin_id}.json"
-        try:
-            existing = json.loads(path.read_text()) if path.exists() else []
-        except (OSError, ValueError):
-            existing = []
-        self._write_json(path, [*existing, entry][-200:])
+        with (directory / f"{plugin_id}.jsonl").open("a", encoding="utf-8") as file:
+            file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        self._notify(PLUGIN_LOGS_EVENT, {"pluginId": plugin_id})
 
     @staticmethod
     def _write_json(path: Path, value: Any):
@@ -515,21 +520,32 @@ class PluginHost:
         plugin.module_name = None
         plugin.registration = None
 
-    def _extract(self, content: bytes, target: Path) -> Manifest:
+    def _extract(
+        self, content: bytes, target: Path, repository_archive: bool
+    ) -> Manifest:
         from app.plugins.packages import extract_package, PackageValidationError
 
         try:
-            return extract_package(content, target)
+            return extract_package(content, target, repository_archive)
         except PackageValidationError as error:
             raise PluginError(str(error)) from error
 
     async def install(
-        self, content: bytes, update_id: str | None = None
+        self,
+        content: bytes,
+        update_id: str | None = None,
+        *,
+        repository_archive: bool = False,
+        progress: InstallProgress | None = None,
     ) -> dict[str, Any]:
         async with self._lock:
             stage = Path(tempfile.mkdtemp(prefix=".install-", dir=self.root))
             try:
-                manifest = self._extract(content, stage)
+                if progress:
+                    await progress("validating", 55)
+                manifest = await run_in_threadpool(
+                    self._extract, content, stage, repository_archive
+                )
                 old = self.plugins.get(manifest.id)
                 if update_id is not None and (manifest.id != update_id or old is None):
                     raise PluginError(
@@ -560,6 +576,8 @@ class PluginHost:
                 backup = self.root / f".backup-{manifest.id}"
                 old_moved = False
                 stage_installed = False
+                if progress:
+                    await progress("installing", 85)
                 try:
                     if old:
                         await self._deactivate(old)
@@ -597,6 +615,8 @@ class PluginHost:
                     "update" if old else "install",
                     f"Installed {manifest.version}",
                 )
+                if progress:
+                    await progress("complete", 100)
                 return self.describe(plugin)
             finally:
                 if stage.exists():
@@ -761,7 +781,10 @@ class PluginHost:
         while True:
             event, data = await self._notifications.get()
             try:
-                await emitter.emit(event, data)
+                if event == PLUGIN_LOGS_EVENT:
+                    await emitter.emit(event, data, room=PLUGIN_LOGS_ROOM)
+                else:
+                    await emitter.emit(event, data)
             except Exception:
                 logger.warning("Unable to push plugin notification: {}", event)
             finally:
@@ -777,10 +800,37 @@ class PluginHost:
             },
         )
 
-    def logs(self, plugin_id: str) -> list[dict[str, Any]]:
+    def iter_logs(self, plugin_id: str) -> Iterator[dict[str, str]]:
         self.get(plugin_id)
-        path = self.root / ".logs" / f"{plugin_id}.json"
-        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        directory = self.root / ".logs"
+        with suppress(FileNotFoundError):
+            yield from json.loads(
+                (directory / f"{plugin_id}.json").read_text(encoding="utf-8")
+            )
+        with suppress(FileNotFoundError):
+            with (directory / f"{plugin_id}.jsonl").open(encoding="utf-8") as file:
+                for line in file:
+                    if line.endswith("\n"):
+                        yield json.loads(line)
+
+    def logs(
+        self, plugin_id: str, minutes: int | None = None, limit: int | None = None
+    ) -> list[dict[str, str]]:
+        entries = self.iter_logs(plugin_id)
+        if minutes is not None:
+            cutoff = (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat(
+                timespec="microseconds"
+            )
+            entries = (entry for entry in entries if entry["time"] >= cutoff)
+        return (
+            list(deque(entries, maxlen=limit)) if limit is not None else list(entries)
+        )
+
+    def clear_logs(self, plugin_id: str) -> None:
+        self.get(plugin_id)
+        for suffix in ("json", "jsonl"):
+            (self.root / ".logs" / f"{plugin_id}.{suffix}").unlink(missing_ok=True)
+        self._notify(PLUGIN_LOGS_EVENT, {"pluginId": plugin_id})
 
     def asset(self, plugin_id: str, filename: str) -> Path:
         plugin = self.get(plugin_id)

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosRequestConfig } from "axios";
 
 import { apiClient } from "@/lib/api-client";
 
@@ -64,15 +64,33 @@ export const pluginsQueryOptions = {
 export async function savePluginOrder(pluginIds: string[]): Promise<void> {
   await apiClient.put("/plugins/order", { plugin_ids: pluginIds });
 }
-export async function installPlugin(file: File, updateId?: string): Promise<void> {
+export async function installPlugin(
+  file: File,
+  operationId: string,
+  updateId?: string,
+  onUploadProgress?: AxiosRequestConfig["onUploadProgress"],
+): Promise<InstalledPlugin> {
   const data = new FormData();
   data.append("file", file);
   data.append("trusted", "true");
-  await apiClient[updateId ? "put" : "post"](
-    updateId ? `/plugins/${updateId}/package` : "/plugins",
+  data.append("operation_id", operationId);
+  const response = await apiClient[updateId ? "put" : "post"]<InstalledPlugin>(
+    updateId ? `/plugins/${encodeURIComponent(updateId)}/package` : "/plugins",
     data,
-    { headers: { "Content-Type": "multipart/form-data" } },
+    { headers: { "Content-Type": "multipart/form-data" }, onUploadProgress, timeout: 180_000 },
   );
+  return response.data;
+}
+export async function installPluginFromRepository(
+  url: string,
+  operationId: string,
+): Promise<InstalledPlugin> {
+  const response = await apiClient.post<InstalledPlugin>(
+    "/plugins/repository",
+    { url, trusted: true, operation_id: operationId },
+    { timeout: 180_000 },
+  );
+  return response.data;
 }
 export function pluginError(error: unknown): string {
   if (axios.isAxiosError(error) && typeof error.response?.data?.detail === "string") {
@@ -82,10 +100,44 @@ export function pluginError(error: unknown): string {
 }
 export async function downloadPlugin(plugin: InstalledPlugin): Promise<void> {
   const { data } = await apiClient.get(`/plugins/${plugin.id}/package`, { responseType: "blob" });
+  savePluginDownload(data, `${plugin.id}-${plugin.version}.zip`);
+}
+
+export interface PluginLogEntry {
+  time: string;
+  level: string;
+  action: string;
+  message: string;
+}
+
+function pluginLogsPath(pluginId: string) {
+  return `/plugins/${encodeURIComponent(pluginId)}/logs`;
+}
+
+export async function fetchPluginLogs(
+  pluginId: string,
+  params: { minutes?: number; limit?: number },
+  signal: AbortSignal,
+): Promise<PluginLogEntry[]> {
+  return (await apiClient.get<PluginLogEntry[]>(pluginLogsPath(pluginId), { params, signal })).data;
+}
+
+export async function clearPluginLogs(pluginId: string): Promise<void> {
+  await apiClient.delete(pluginLogsPath(pluginId));
+}
+
+export async function downloadPluginLogs(pluginId: string): Promise<void> {
+  const { data } = await apiClient.get<Blob>(`${pluginLogsPath(pluginId)}/download`, {
+    responseType: "blob",
+  });
+  savePluginDownload(data, `${pluginId}.log`);
+}
+
+function savePluginDownload(data: Blob, filename: string) {
   const url = URL.createObjectURL(data);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${plugin.id}-${plugin.version}.zip`;
+  anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
 }

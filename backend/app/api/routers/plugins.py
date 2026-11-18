@@ -5,12 +5,22 @@ import io
 import json
 import mimetypes
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 from typing import Literal
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
+from fastapi.responses import (
+    FileResponse,
+    Response,
+    HTMLResponse,
+    JSONResponse,
+    StreamingResponse,
+)
+from loguru import logger
 from pydantic import (
     JsonValue,
     BaseModel,
@@ -20,8 +30,9 @@ from pydantic import (
     ValidationInfo,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
-from app.plugins.host import PluginError, PluginHost
+from app.plugins.host import InstallProgress, InstallStage, PluginError, PluginHost
 from app.plugins.manifest import (
     API_VERSION,
     MAX_PACKAGE_BYTES,
@@ -29,7 +40,14 @@ from app.plugins.manifest import (
     UI_SLOTS,
     CAPABILITIES,
 )
+from app.plugins.repository import download_repository, RepositoryDownloadError
 from app.storage.database import get_session
+from app.socket import emitter
+from app.socket.handlers import (
+    PLUGIN_INSTALL_PROGRESS_EVENT,
+    PLUGIN_INSTALL_ROOM_PREFIX,
+    plugin_install_snapshots,
+)
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 asset_router = APIRouter(prefix="/plugin-assets", tags=["plugin views"])
@@ -136,13 +154,55 @@ class CallRequest(BaseModel):
         return value
 
 
-async def read_package(file: UploadFile, trusted: bool) -> bytes:
+def require_trust(trusted: bool) -> None:
     if not trusted:
         raise PluginError("Installation requires acknowledging trusted-code execution")
+
+
+async def read_package(file: UploadFile, trusted: bool) -> bytes:
+    require_trust(trusted)
     content = await file.read(MAX_PACKAGE_BYTES + 1)
     if len(content) > MAX_PACKAGE_BYTES:
         raise PluginError("Package exceeds 20 MiB")
     return content
+
+
+@contextmanager
+def install_progress(operation_id: UUID | None) -> Iterator[InstallProgress | None]:
+    if operation_id is None:
+        yield None
+        return
+    if operation_id in plugin_install_snapshots:
+        raise PluginError("Installation operation is already in progress", 409)
+    plugin_install_snapshots[operation_id] = None
+
+    async def report(stage: InstallStage, progress: int) -> None:
+        payload: dict[str, str | int] = {
+            "operation_id": str(operation_id),
+            "stage": stage,
+            "progress": progress,
+        }
+        plugin_install_snapshots[operation_id] = payload
+        try:
+            async with asyncio.timeout(1):
+                await emitter.emit(
+                    PLUGIN_INSTALL_PROGRESS_EVENT,
+                    payload,
+                    room=f"{PLUGIN_INSTALL_ROOM_PREFIX}{operation_id}",
+                )
+        except Exception:
+            logger.debug("Plugin install progress could not be sent: {}", operation_id)
+
+    try:
+        yield report
+    finally:
+        plugin_install_snapshots.pop(operation_id, None)
+
+
+class RepositoryInstall(BaseModel):
+    url: str = Field(max_length=256)
+    trusted: bool = False
+    operation_id: UUID | None = None
 
 
 @router.get("")
@@ -267,8 +327,32 @@ async def install_plugin(
     manager: Host,
     file: Annotated[UploadFile, File()],
     trusted: Annotated[bool, Form()] = False,
+    operation_id: Annotated[UUID | None, Form()] = None,
 ):
-    return await manager.install(await read_package(file, trusted))
+    with install_progress(operation_id) as progress:
+        return await manager.install(
+            await read_package(file, trusted), progress=progress
+        )
+
+
+@router.post("/repository", status_code=201)
+async def install_repository(payload: RepositoryInstall, manager: Host):
+    require_trust(payload.trusted)
+    with install_progress(payload.operation_id) as progress:
+        try:
+            content = await download_repository(payload.url, progress)
+        except RepositoryDownloadError as error:
+            status = {
+                "invalid": 422,
+                "not_found": 404,
+                "too_large": 413,
+                "timeout": 504,
+                "upstream": 502,
+            }
+            raise PluginError(str(error), status[error.kind]) from error
+        return await manager.install(
+            content, repository_archive=True, progress=progress
+        )
 
 
 @router.get("/sdk.js")
@@ -293,8 +377,12 @@ async def update_plugin(
     manager: Host,
     file: Annotated[UploadFile, File()],
     trusted: Annotated[bool, Form()] = False,
+    operation_id: Annotated[UUID | None, Form()] = None,
 ):
-    return await manager.install(await read_package(file, trusted), update_id=plugin_id)
+    with install_progress(operation_id) as progress:
+        return await manager.install(
+            await read_package(file, trusted), update_id=plugin_id, progress=progress
+        )
 
 
 @router.get("/{plugin_id}/package")
@@ -329,9 +417,42 @@ async def configure_plugin(plugin_id: str, data: ConfigurationRequest, manager: 
     return await manager.configure(plugin_id, data.settings)
 
 
-@router.get("/{plugin_id}/logs")
-async def plugin_logs(plugin_id: str, manager: Host):
-    return manager.logs(plugin_id)
+class PluginLogEntry(BaseModel):
+    time: str
+    level: str
+    action: str
+    message: str
+
+
+@router.get("/{plugin_id}/logs", response_model=list[PluginLogEntry])
+async def plugin_logs(
+    plugin_id: str,
+    manager: Host,
+    minutes: Annotated[int | None, Query(gt=0, le=1440)] = None,
+    limit: Annotated[int | None, Query(gt=0, le=1000)] = None,
+):
+    return await run_in_threadpool(manager.logs, plugin_id, minutes, limit)
+
+
+@router.get("/{plugin_id}/logs/download")
+async def download_plugin_logs(plugin_id: str, manager: Host):
+    manager.get(plugin_id)
+
+    def lines() -> Iterator[str]:
+        for entry in manager.iter_logs(plugin_id):
+            yield f"{entry['time']} [{entry['level']}] {entry['action']}: {entry['message']}\n"
+
+    return StreamingResponse(
+        lines(),
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{plugin_id}.log"'},
+    )
+
+
+@router.delete("/{plugin_id}/logs", status_code=204)
+async def clear_plugin_logs(plugin_id: str, manager: Host) -> Response:
+    manager.clear_logs(plugin_id)
+    return Response(status_code=204)
 
 
 @router.delete("/{plugin_id}", status_code=204)

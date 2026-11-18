@@ -19,8 +19,6 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Badge,
   Button,
-  Checkbox,
-  Dialog,
   Flex,
   Heading,
   IconButton,
@@ -32,13 +30,36 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, GripVertical, Package, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpToLine,
+  Download,
+  ExternalLink,
+  GripVertical,
+  Package,
+  Plus,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { defaultUrlTransform } from "streamdown";
 
-import { ConfirmDialog, StreamingMarkdown, Tabs, toast } from "@/components";
+import {
+  ConfirmDialog,
+  ContextMenu,
+  type ContextMenuItem,
+  type ContextMenuPosition,
+  StreamingMarkdown,
+  Tabs,
+  toast,
+} from "@/components";
 import { apiClient, getApiBaseUrl } from "@/lib/api-client";
 import { openExternalLink } from "@/lib/desktop-appearance-bridge";
 
@@ -46,13 +67,15 @@ import {
   downloadPlugin,
   pluginsQueryOptions,
   fetchPluginDevelopment,
-  installPlugin,
   pluginError,
   savePluginOrder,
   PLUGINS_QUERY_KEY,
   type InstalledPlugin,
 } from "./api";
+import { PluginInstallDialog } from "./plugin-install-dialog";
+import { PluginLogs } from "./plugin-logs";
 import { PluginSlot } from "./plugin-slot";
+import { PluginDescription, PluginImage } from "./plugin-summary";
 
 import "./plugins.css";
 
@@ -68,39 +91,6 @@ function getPluginHomepage(value: string | null | undefined): URL | null {
   } catch {
     return null;
   }
-}
-
-function PluginIcon({
-  plugin,
-  placement,
-}: {
-  plugin: InstalledPlugin;
-  placement: "list" | "detail";
-}) {
-  const [failedSource, setFailedSource] = useState<string | null>(null);
-  const source = plugin.icon
-    ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(plugin.id)}/icon?${new URLSearchParams({
-        version: plugin.version,
-        revision: String(plugin.development_revision ?? 0),
-        path: plugin.icon,
-      })}`
-    : null;
-  if (!source || failedSource === source)
-    return placement === "list" ? (
-      <Package
-        size={14}
-        aria-hidden="true"
-      />
-    ) : null;
-  return (
-    <img
-      className={placement === "list" ? "plugin-icon-list" : "plugin-icon-detail"}
-      src={source}
-      alt=""
-      aria-hidden="true"
-      onError={() => setFailedSource(source)}
-    />
-  );
 }
 
 interface PluginManagerProps {
@@ -158,19 +148,17 @@ export function PluginManager({
   });
   const hasIntroduction =
     !!plugin?.detail && (detail === undefined || detailError || !!detail.trim());
-  const [trusted, setTrusted] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isRefreshSpinning, setIsRefreshSpinning] = useState(false);
   const refreshFinished = useRef(false);
-  const [installation, setInstallation] = useState<{ updateId?: string } | null>(null);
-  const uploadRef = useRef<HTMLInputElement>(null);
+  const [installation, setInstallation] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const [dropPosition, setDropPosition] = useState<{ row: HTMLElement; top: number } | null>(null);
-  const [logs, setLogs] = useState<{
-    id: string;
-    entries: { time: string; level: string; action: string; message: string }[];
-  } | null>(null);
   const [removing, setRemoving] = useState<InstalledPlugin | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    pluginId: string;
+    position: ContextMenuPosition;
+  } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -219,9 +207,11 @@ export function PluginManager({
     }
   }
 
-  function handleOpenInstallation(updateId?: string) {
-    setTrusted(false);
-    setInstallation({ updateId });
+  function togglePlugin(entry: InstalledPlugin, enabled: boolean) {
+    if (busy) return;
+    void run(async () => {
+      await apiClient.patch(`/plugins/${entry.id}/enabled`, { enabled });
+    });
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -233,12 +223,59 @@ export function PluginManager({
     if (busy || !over || active.id === over.id) return;
     const from = plugins.findIndex((entry) => entry.id === active.id);
     const to = plugins.findIndex((entry) => entry.id === over.id);
-    if (from < 0 || to < 0) return;
+    movePlugin(from, to);
+  }
+
+  function movePlugin(from: number, to: number) {
+    if (busy || from < 0 || to < 0 || to >= plugins.length || from === to) return;
     setSelectedId(plugin?.id ?? null);
     const reordered = arrayMove(plugins, from, to);
     void queryClient.cancelQueries({ queryKey: PLUGINS_QUERY_KEY });
     queryClient.setQueryData(PLUGINS_QUERY_KEY, reordered);
     orderMutation.mutate({ pluginIds: reordered.map((entry) => entry.id), previous: plugins });
+  }
+
+  const menuIndex = plugins.findIndex((entry) => entry.id === contextMenu?.pluginId);
+  const menuPlugin = plugins[menuIndex];
+  const menuItems: ContextMenuItem[] = [];
+  if (menuPlugin && !busy) {
+    const enabled = menuPlugin.status === "enabled";
+    menuItems.push({
+      id: "toggle",
+      label: t(enabled ? "plugins.disable" : "plugins.enable"),
+      icon: enabled ? ToggleLeft : ToggleRight,
+      onClick: () => togglePlugin(menuPlugin, !enabled),
+    });
+    for (const [id, target, icon] of [
+      ["moveUp", menuIndex - 1, ArrowUp],
+      ["moveDown", menuIndex + 1, ArrowDown],
+      ["moveToTop", 0, ArrowUpToLine],
+      ["moveToBottom", plugins.length - 1, ArrowDownToLine],
+    ] as const) {
+      if (target >= 0 && target < plugins.length && target !== menuIndex) {
+        menuItems.push({
+          id,
+          label: t(`plugins.${id}`),
+          icon,
+          onClick: () => movePlugin(menuIndex, target),
+        });
+      }
+    }
+    menuItems.push(
+      {
+        id: "export",
+        label: t("plugins.export"),
+        icon: Download,
+        onClick: () => void run(() => downloadPlugin(menuPlugin)),
+      },
+      {
+        id: "uninstall",
+        label: t("plugins.uninstall"),
+        icon: Trash2,
+        danger: true,
+        onClick: () => setRemoving(menuPlugin),
+      },
+    );
   }
 
   return (
@@ -271,7 +308,7 @@ export function PluginManager({
                 size="2"
                 aria-label={t("plugins.install")}
                 disabled={busy}
-                onClick={() => handleOpenInstallation()}
+                onClick={() => setInstallation(true)}
               >
                 <Plus size={14} />
               </IconButton>
@@ -345,11 +382,10 @@ export function PluginManager({
                       selected={plugin?.id === entry.id}
                       disabled={busy || plugins.length < 2}
                       switchDisabled={busy}
-                      onToggle={(enabled) =>
-                        void run(async () => {
-                          await apiClient.patch(`/plugins/${entry.id}/enabled`, { enabled });
-                        })
-                      }
+                      onToggle={(enabled) => togglePlugin(entry, enabled)}
+                      onOpenContextMenu={(position) => {
+                        if (!busy) setContextMenu({ pluginId: entry.id, position });
+                      }}
                       onSelect={() => {
                         setSelectedId(entry.id);
                         onMobilePageChange("detail");
@@ -390,7 +426,7 @@ export function PluginManager({
                   align="center"
                   gap="3"
                 >
-                  <PluginIcon
+                  <PluginImage
                     plugin={plugin}
                     placement="detail"
                   />
@@ -454,6 +490,22 @@ export function PluginManager({
                       </a>
                     </IconButton>
                   )}
+                  <IconButton
+                    type="button"
+                    size="1"
+                    variant="ghost"
+                    color="red"
+                    className="plugin-uninstall-action"
+                    aria-label={t("plugins.uninstall")}
+                    title={t("plugins.uninstall")}
+                    disabled={busy}
+                    onClick={() => setRemoving(plugin)}
+                  >
+                    <Trash2
+                      size={16}
+                      aria-hidden="true"
+                    />
+                  </IconButton>
                 </Flex>
                 <PluginDescription
                   key={plugin.description}
@@ -480,7 +532,7 @@ export function PluginManager({
                     <Tabs.Trigger value="introduction">{t("plugins.tabIntroduction")}</Tabs.Trigger>
                   )}
                   <Tabs.Trigger value="settings">{t("plugins.tabSettings")}</Tabs.Trigger>
-                  <Tabs.Trigger value="management">{t("plugins.tabManagement")}</Tabs.Trigger>
+                  <Tabs.Trigger value="logs">{t("plugins.logs")}</Tabs.Trigger>
                   <Tabs.Trigger value="information">{t("plugins.tabInformation")}</Tabs.Trigger>
                 </Tabs.List>
                 {hasIntroduction && (
@@ -570,81 +622,10 @@ export function PluginManager({
                   )}
                 </Tabs.Content>
                 <Tabs.Content
-                  value="management"
-                  className="plugin-detail-tab-content plugin-detail-section"
+                  value="logs"
+                  className="plugin-detail-tab-content"
                 >
-                  <Flex
-                    wrap="wrap"
-                    gap="2"
-                  >
-                    <Button
-                      size="2"
-                      variant="soft"
-                      color="gray"
-                      disabled={busy}
-                      onClick={() => handleOpenInstallation(plugin.id)}
-                    >
-                      {t("plugins.update")}
-                    </Button>
-                    <Button
-                      size="2"
-                      variant="soft"
-                      color="gray"
-                      disabled={busy}
-                      onClick={() => void run(() => downloadPlugin(plugin))}
-                    >
-                      {t("plugins.export")}
-                    </Button>
-                    <Button
-                      size="2"
-                      variant="soft"
-                      color="gray"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(async () => {
-                          const { data } = await apiClient.get(`/plugins/${plugin.id}/logs`);
-                          setLogs({ id: plugin.id, entries: data });
-                        })
-                      }
-                    >
-                      {t("plugins.logs")}
-                    </Button>
-                    <Button
-                      size="2"
-                      variant="soft"
-                      color="red"
-                      disabled={busy}
-                      onClick={() => setRemoving(plugin)}
-                    >
-                      {t("plugins.uninstall")}
-                    </Button>
-                  </Flex>
-                  {plugin.status === "enabled" &&
-                    plugin.views.filter((view) => view.slot === "sidebar.extensions").length >
-                      0 && (
-                      <Flex
-                        wrap="wrap"
-                        gap="2"
-                      >
-                        {plugin.views
-                          .filter((view) => view.slot === "sidebar.extensions")
-                          .map((view) => (
-                            <Button
-                              asChild
-                              key={view.id}
-                              size="2"
-                              variant="outline"
-                            >
-                              <Link
-                                to={`/extensions/${plugin.id}/${view.id}`}
-                                onClick={onOpenView}
-                              >
-                                {view.title}
-                              </Link>
-                            </Button>
-                          ))}
-                      </Flex>
-                    )}
+                  <PluginLogs pluginId={plugin.id} />
                 </Tabs.Content>
                 <Tabs.Content
                   value="information"
@@ -717,7 +698,7 @@ export function PluginManager({
               <Button
                 variant="soft"
                 disabled={busy || isLoading}
-                onClick={() => handleOpenInstallation()}
+                onClick={() => setInstallation(true)}
               >
                 {t("plugins.install")}
               </Button>
@@ -765,70 +746,11 @@ export function PluginManager({
           </div>
         </div>
       )}
-      <Dialog.Root
-        open={installation !== null}
-        onOpenChange={(open) => {
-          if (!open && !busy) setInstallation(null);
-        }}
-      >
-        <Dialog.Content className="plugin-install-dialog">
-          <Dialog.Title>
-            {t(installation?.updateId ? "plugins.update" : "plugins.install")}
-          </Dialog.Title>
-          <Dialog.Description
-            size="2"
-            color="gray"
-          >
-            {t("plugins.description")}
-          </Dialog.Description>
-          <Text
-            as="label"
-            size="2"
-            className="plugin-trust-label"
-          >
-            <Checkbox
-              checked={trusted}
-              onCheckedChange={(value) => setTrusted(value === true)}
-              disabled={busy}
-            />
-            {t("plugins.trust")}
-          </Text>
-          <Flex
-            gap="2"
-            justify="end"
-          >
-            <Button
-              variant="soft"
-              color="gray"
-              disabled={busy}
-              onClick={() => setInstallation(null)}
-            >
-              {t("plugins.cancel")}
-            </Button>
-            <Button
-              disabled={!trusted || busy}
-              onClick={() => uploadRef.current?.click()}
-            >
-              {t(busy ? "plugins.working" : "plugins.selectPackage")}
-            </Button>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
-      <input
-        ref={uploadRef}
-        type="file"
-        accept=".zip"
-        hidden
-        aria-label={t("plugins.package")}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file && trusted && installation)
-            void run(async () => {
-              await installPlugin(file, installation.updateId);
-              setInstallation(null);
-            }, t("plugins.installed"));
-          event.target.value = "";
-        }}
+      {installation && <PluginInstallDialog onClose={() => setInstallation(false)} />}
+      <ContextMenu
+        position={menuItems.length ? contextMenu?.position : null}
+        items={menuItems}
+        onClose={() => setContextMenu(null)}
       />
       <ConfirmDialog
         open={removing !== null}
@@ -845,37 +767,10 @@ export function PluginManager({
           void run(async () => {
             await apiClient.delete(`/plugins/${removing.id}`);
             setRemoving(null);
-            setLogs(null);
             onMobilePageChange("list");
           });
         }}
       />
-      <Dialog.Root
-        open={logs !== null}
-        onOpenChange={(open) => {
-          if (!open) setLogs(null);
-        }}
-      >
-        <Dialog.Content>
-          <Dialog.Title>{t("plugins.logs")}</Dialog.Title>
-          <Dialog.Description size="2">{logs?.id}</Dialog.Description>
-          <pre className="plugin-logs">
-            {logs?.entries
-              .map((entry) => `${entry.time} [${entry.level}] ${entry.action}: ${entry.message}`)
-              .join("\n") || t("plugins.emptyLogs")}
-          </pre>
-          <Flex justify="end">
-            <Dialog.Close>
-              <Button
-                variant="soft"
-                color="gray"
-              >
-                {t("plugins.close")}
-              </Button>
-            </Dialog.Close>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
     </section>
   );
 }
@@ -887,6 +782,7 @@ interface PluginListItemProps {
   switchDisabled: boolean;
   onToggle: (enabled: boolean) => void;
   onSelect: () => void;
+  onOpenContextMenu: (position: ContextMenuPosition) => void;
 }
 
 function PluginListItem({
@@ -896,6 +792,7 @@ function PluginListItem({
   switchDisabled,
   onToggle,
   onSelect,
+  onOpenContextMenu,
 }: PluginListItemProps) {
   const { t } = useTranslation();
   const {
@@ -914,6 +811,10 @@ function PluginListItem({
       data-sortable-plugin-id={plugin.id}
       data-selected={selected}
       data-dragging={isDragging}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        if (!isDragging) onOpenContextMenu({ x: event.clientX, y: event.clientY });
+      }}
       style={{
         transform: CSS.Transform.toString(transform),
         transition: [transition, "background-color 140ms ease", "color 140ms ease"]
@@ -947,7 +848,7 @@ function PluginListItem({
             aria-pressed={selected}
             onClick={onSelect}
           >
-            <PluginIcon
+            <PluginImage
               plugin={plugin}
               placement="list"
             />
@@ -978,115 +879,6 @@ function PluginListItem({
         <span className="plugin-list-description">
           {plugin.description || t("plugins.noDescription")}
         </span>
-      </div>
-    </div>
-  );
-}
-
-function PluginDescription({ description }: { description: string }) {
-  const { t } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLParagraphElement>(null);
-  const measureTextRef = useRef<HTMLSpanElement>(null);
-  const measureSuffixRef = useRef<HTMLSpanElement>(null);
-  const [prefix, setPrefix] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const expandLabel = t("plugins.expandDescription");
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const measure = measureRef.current;
-    const measureText = measureTextRef.current;
-    const suffix = measureSuffixRef.current;
-    if (!container || !measure || !measureText || !suffix) return;
-    let isActive = true;
-
-    const updateTruncation = () => {
-      if (!container.getBoundingClientRect().width) return;
-      const lineHeight = Number.parseFloat(getComputedStyle(measure).lineHeight);
-      if (!Number.isFinite(lineHeight)) return;
-      const maxHeight = lineHeight * 2 + 0.5;
-      measureText.textContent = description;
-      suffix.hidden = true;
-      if (measure.getBoundingClientRect().height <= maxHeight) {
-        setPrefix(null);
-        return;
-      }
-      suffix.hidden = false;
-      const graphemes = Array.from(
-        new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(description),
-        (item) => item.segment,
-      );
-      let low = 0;
-      let high = graphemes.length;
-      while (low < high) {
-        const middle = Math.ceil((low + high) / 2);
-        measureText.textContent = graphemes.slice(0, middle).join("").trimEnd();
-        if (measure.getBoundingClientRect().height <= maxHeight) low = middle;
-        else high = middle - 1;
-      }
-      setPrefix(graphemes.slice(0, low).join("").trimEnd());
-    };
-
-    updateTruncation();
-    const observer = new ResizeObserver(updateTruncation);
-    observer.observe(container);
-    document.fonts.addEventListener("loadingdone", updateTruncation);
-    void document.fonts.ready.then(() => {
-      if (isActive) updateTruncation();
-    });
-    return () => {
-      isActive = false;
-      observer.disconnect();
-      document.fonts.removeEventListener("loadingdone", updateTruncation);
-    };
-  }, [description, expandLabel]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="plugin-description"
-    >
-      <Text
-        as="p"
-        size="2"
-        color="gray"
-        className="plugin-description-text"
-      >
-        {isExpanded || prefix === null ? description : prefix}
-        {(isExpanded || prefix !== null) && (
-          <span className="plugin-description-suffix">
-            {!isExpanded && "..."}
-            <button
-              type="button"
-              className="plugin-description-expand"
-              aria-expanded={isExpanded}
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? t("plugins.collapseDescription") : expandLabel}
-            </button>
-          </span>
-        )}
-      </Text>
-      <div
-        className="plugin-description-measure-container"
-        aria-hidden="true"
-      >
-        <Text
-          as="p"
-          size="2"
-          color="gray"
-          className="plugin-description-text"
-          ref={measureRef}
-        >
-          <span ref={measureTextRef} />
-          <span
-            ref={measureSuffixRef}
-            className="plugin-description-suffix"
-          >
-            ...<span className="plugin-description-expand">{expandLabel}</span>
-          </span>
-        </Text>
       </div>
     </div>
   );

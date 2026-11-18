@@ -1,14 +1,13 @@
 .error-toast-message {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  overflow-wrap: anywhere;
 }
 
 .error-toast-info {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  margin-inline-start: 6px;
+  vertical-align: middle;
   padding: 0;
   border: 0;
   background: none;

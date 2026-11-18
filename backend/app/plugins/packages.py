@@ -157,7 +157,9 @@ def read_plugin_icon(root: Path, name: str | None) -> tuple[bytes, str] | None:
         return None
 
 
-def extract_package(content: bytes, target: Path) -> Manifest:
+def extract_package(
+    content: bytes, target: Path, repository_archive: bool = False
+) -> Manifest:
     if not content or len(content) > MAX_PACKAGE_BYTES:
         raise PackageValidationError("Package must be between 1 byte and 20 MiB")
     try:
@@ -169,6 +171,7 @@ def extract_package(content: bytes, target: Path) -> Manifest:
             ):
                 raise PackageValidationError("Package exceeds extraction limits")
             seen: set[str] = set()
+            wrapper: str | None = None
             for info in archive.infolist():
                 name = safe_path(
                     info.filename.rstrip("/") if info.is_dir() else info.filename
@@ -182,6 +185,15 @@ def extract_package(content: bytes, target: Path) -> Manifest:
                         "Duplicate, encrypted or symbolic-link archive entry"
                     )
                 seen.add(name.casefold())
+                if repository_archive:
+                    root, _, relative = name.partition("/")
+                    if wrapper is None:
+                        wrapper = root
+                    if root != wrapper or (not relative and not info.is_dir()):
+                        raise PackageValidationError(
+                            "Invalid GitHub repository archive layout"
+                        )
+                    name = relative
                 if info.is_dir():
                     continue
                 destination = target / name

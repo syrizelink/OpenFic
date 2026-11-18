@@ -8,19 +8,44 @@ import sys
 import zipfile
 from pathlib import Path
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+import socketio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.api.routers.plugins import router, asset_router
 from app.auth import AuthMiddleware, AuthService
 from app.plugins.host import PluginError, PluginHost
+from app.socket.handlers import register_handlers
 from app.storage.database import get_session
 
 SOURCE = Path(__file__).resolve().parents[3] / "examples/plugins/project-statistics"
 pytestmark = pytest.mark.asyncio(loop_scope="module")
+REPOSITORY_COMMIT = "a" * 40
+REPOSITORY_ARCHIVE = f"https://codeload.github.com/owner/repo/zip/{REPOSITORY_COMMIT}"
+
+
+def mock_repository_manifest(
+    respx_mock, *, manifest=None, status_code=200, branch=None
+):
+    api_url = "https://api.github.com/repos/owner/repo"
+    if branch:
+        respx_mock.get(f"{api_url}/git/ref/heads/{branch}").respond(
+            json={"object": {"type": "commit", "sha": REPOSITORY_COMMIT}}
+        )
+    else:
+        respx_mock.get(f"{api_url}/commits/HEAD").respond(
+            json={"sha": REPOSITORY_COMMIT}
+        )
+    return respx_mock.get(
+        f"https://raw.githubusercontent.com/owner/repo/{REPOSITORY_COMMIT}/plugin.json"
+    ).respond(
+        status_code=status_code,
+        content=(SOURCE / "plugin.json").read_bytes() if manifest is None else manifest,
+    )
 
 
 def package(
@@ -113,6 +138,232 @@ async def install(client, content=None):
         files={"file": ("plugin.zip", content or package(), "application/zip")},
         data={"trusted": "true"},
     )
+
+
+async def test_plugin_log_filters_download_and_clear(plugin_api):
+    host, client, _ = plugin_api
+    assert (await install(client)).status_code == 201
+    plugin_id = "project-statistics"
+    path = f"/api/v1/plugins/{plugin_id}/logs"
+    legacy = host.root / ".logs" / f"{plugin_id}.json"
+    legacy.write_text(
+        json.dumps(
+            [
+                {
+                    "time": "2000-01-01T00:00:00+00:00",
+                    "level": "info",
+                    "action": "legacy",
+                    "message": "old record",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    for index in range(220):
+        host._log(plugin_id, "plugin", f"record {index}")
+
+    recent = (await client.get(path, params={"minutes": 10, "limit": 100})).json()
+    assert len(recent) == 100
+    assert recent[0]["message"] == "record 120"
+    assert recent[-1]["message"] == "record 219"
+    all_recent = (await client.get(path, params={"minutes": 10})).json()
+    assert len(all_recent) == 221
+    assert len((await client.get(path)).json()) == 222
+
+    downloaded = await client.get(f"{path}/download")
+    assert downloaded.status_code == 200
+    assert f"{plugin_id}.log" in downloaded.headers["content-disposition"]
+    assert "old record" in downloaded.text and "record 219" in downloaded.text
+
+    assert (await client.delete(path)).status_code == 204
+    assert (await client.get(path)).json() == []
+    host._log(plugin_id, "plugin", "after clear")
+    assert [entry["message"] for entry in (await client.get(path)).json()] == [
+        "after clear"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("suffix", "branch"),
+    [
+        (".git/", None),
+        ("/tree/main", "main"),
+        ("/tree/feat/extension-host", "feat/extension-host"),
+        ("/tree/feat%2Fextension-host/", "feat/extension-host"),
+    ],
+)
+async def test_install_repository_downloads_and_reports_progress(
+    plugin_api, monkeypatch, respx_mock, suffix, branch
+):
+    manager, client, _ = plugin_api
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("repo-default/", "")
+        with zipfile.ZipFile(io.BytesIO(package())) as source:
+            for name in source.namelist():
+                archive.writestr(f"repo-default/{name}", source.read(name))
+    preflight = mock_repository_manifest(respx_mock, branch=branch)
+    download = respx_mock.get(REPOSITORY_ARCHIVE).respond(content=output.getvalue())
+    operation_id = str(uuid4())
+    sio = socketio.AsyncServer(async_mode="asgi")
+    register_handlers(sio)
+    sio.emit = AsyncMock()
+    reconnect_sid = None
+
+    async def reconnect_on_first_progress(*args, **kwargs):
+        nonlocal reconnect_sid
+        if reconnect_sid is None:
+            reconnect_sid = await sio.manager.connect("reconnected", "/")
+            await sio.handlers["/"]["plugins:watch-install"](
+                reconnect_sid, operation_id
+            )
+
+    emit = AsyncMock(side_effect=reconnect_on_first_progress)
+    monkeypatch.setattr("app.socket.emitter.emit", emit)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={
+            "url": f"https://github.com/owner/repo{suffix}",
+            "trusted": True,
+            "operation_id": operation_id,
+        },
+    )
+    assert response.status_code == 201
+    assert preflight.called and download.called
+    assert respx_mock.calls[1].request.url.host == "raw.githubusercontent.com"
+    assert respx_mock.calls[2].request.url == REPOSITORY_ARCHIVE
+    assert "project-statistics" in manager.plugins
+    events = [call.args[1] for call in emit.await_args_list]
+    assert [event["stage"] for event in events] == [
+        "downloading",
+        "downloading",
+        "validating",
+        "installing",
+        "complete",
+    ]
+    assert all(event["operation_id"] == operation_id for event in events)
+    assert all(
+        call.kwargs["room"] == f"plugins:install:{operation_id}"
+        for call in emit.await_args_list
+    )
+    assert reconnect_sid is not None
+    assert f"plugins:install:{operation_id}" in sio.rooms(reconnect_sid)
+    sio.emit.assert_awaited_once_with(
+        "plugins:install-progress", events[0], to=reconnect_sid
+    )
+    sio.emit.reset_mock()
+    await sio.handlers["/"]["plugins:watch-install"](reconnect_sid, operation_id)
+    sio.emit.assert_not_awaited()
+    await sio.handlers["/"]["plugins:watch-install"](reconnect_sid, None)
+    assert f"plugins:install:{operation_id}" not in sio.rooms(reconnect_sid)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com.evil.test/a/b",
+        "https://github.com/a/b/blob/main/plugin.json",
+        "https://github.com/a/b/tree/main/%2e%2e",
+        "https://github.com/a/b/tree/",
+    ],
+)
+async def test_install_repository_rejects_non_repository_urls(
+    plugin_api, respx_mock, url
+):
+    _, client, _ = plugin_api
+    response = await client.post(
+        "/api/v1/plugins/repository", json={"url": url, "trusted": True}
+    )
+    assert response.status_code == 422
+    assert not respx_mock.calls
+
+
+async def test_install_repository_does_not_fallback_for_missing_branch(
+    plugin_api, respx_mock
+):
+    manager, client, _ = plugin_api
+    respx_mock.get(
+        "https://api.github.com/repos/owner/repo/git/ref/heads/missing"
+    ).respond(status_code=404)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo/tree/missing", "trusted": True},
+    )
+    assert response.status_code == 404
+    assert "branch not found" in response.text
+    assert len(respx_mock.calls) == 1
+    assert not manager.plugins
+
+
+@pytest.mark.parametrize(
+    ("status_code", "manifest", "message"),
+    [(404, b"", "root plugin.json"), (200, b"{}", "Invalid manifest")],
+)
+async def test_install_repository_skips_archive_for_invalid_manifest(
+    plugin_api, respx_mock, status_code, manifest, message
+):
+    manager, client, _ = plugin_api
+    mock_repository_manifest(respx_mock, manifest=manifest, status_code=status_code)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 422
+    assert message in response.text
+    assert len(respx_mock.calls) == 2
+    assert not manager.plugins
+
+
+async def test_install_repository_does_not_follow_redirect(plugin_api, respx_mock):
+    manager, client, _ = plugin_api
+    mock_repository_manifest(respx_mock)
+    respx_mock.get(REPOSITORY_ARCHIVE).respond(
+        status_code=302, headers={"location": "https://example.org/other.zip"}
+    )
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 502
+    assert len(respx_mock.calls) == 3
+    assert not manager.plugins
+
+
+@pytest.mark.parametrize(
+    "name", ["other-root/plugin.json", "repo-default/../plugin.json"]
+)
+async def test_install_repository_rejects_invalid_archive_paths(
+    plugin_api, respx_mock, name
+):
+    manager, client, _ = plugin_api
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        archive.writestr("repo-default/", "")
+        archive.writestr(name, "{}")
+    mock_repository_manifest(respx_mock)
+    respx_mock.get(REPOSITORY_ARCHIVE).respond(content=output.getvalue())
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 400
+    assert not manager.plugins
+
+
+async def test_file_install_succeeds_when_socket_emission_fails(
+    plugin_api, monkeypatch
+):
+    manager, client, _ = plugin_api
+    emit = AsyncMock(side_effect=RuntimeError)
+    monkeypatch.setattr("app.socket.emitter.emit", emit)
+    response = await client.post(
+        "/api/v1/plugins",
+        files={"file": ("plugin.zip", package(), "application/zip")},
+        data={"trusted": "true", "operation_id": str(uuid4())},
+    )
+    assert response.status_code == 201
+    assert "project-statistics" in manager.plugins
+    assert emit.await_count >= 1
 
 
 async def test_plugin_homepage_and_local_icon(plugin_api):
@@ -515,6 +766,32 @@ async def test_plugin_events_push_live_and_stop_cleanly(plugin_api, monkeypatch)
     await host.start()
     await asyncio.wait_for(host._notifications.join(), 5)
     send.assert_not_awaited()
+
+
+async def test_plugin_logs_notify_only_the_watch_room(plugin_api, monkeypatch):
+    host, client, _ = plugin_api
+    assert (await install(client)).status_code == 201
+    await asyncio.wait_for(host._notifications.join(), 5)
+
+    sio = socketio.AsyncServer(async_mode="asgi")
+    register_handlers(sio)
+    sid = await sio.manager.connect("log-watcher", "/")
+    watch = sio.handlers["/"]["plugins:watch-logs"]
+    await watch(sid, True)
+    assert "plugins:logs" in sio.rooms(sid)
+
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host._log("project-statistics", "plugin", "live entry")
+    assert (await client.delete("/api/v1/plugins/project-statistics/logs")).status_code == 204
+    await asyncio.wait_for(host._notifications.join(), 5)
+    assert send.await_count == 2
+    for event in send.await_args_list:
+        assert event.args == ("plugins:logs-changed", {"pluginId": "project-statistics"})
+        assert event.kwargs == {"room": "plugins:logs"}
+
+    await watch(sid, False)
+    assert "plugins:logs" not in sio.rooms(sid)
 
 
 async def test_plugin_notification_overflow_requests_resync(plugin_api, monkeypatch):

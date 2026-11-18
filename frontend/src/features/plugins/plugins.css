@@ -73,7 +73,9 @@
   flex-shrink: 0;
 }
 .plugin-list-header .rt-IconButton,
-.rt-IconButton.plugin-homepage-link {
+.rt-IconButton.plugin-homepage-link,
+.rt-IconButton.plugin-uninstall-action,
+.plugin-log-actions > .rt-IconButton {
   transition:
     background-color 140ms ease,
     color 140ms ease;
@@ -422,25 +424,149 @@ button.plugin-description-expand:hover {
   text-align: center;
   color: var(--gray-8);
 }
-.plugin-install-dialog {
-  max-width: 480px;
+.plugin-install-steps {
+  position: relative;
+  overflow: clip;
+  overflow-clip-margin: 4px;
 }
-.plugin-trust-label {
+.plugin-install-step {
+  display: flow-root;
+}
+.plugin-install-step[data-exiting] {
+  position: absolute;
+  inset: 0 0 auto;
+  pointer-events: none;
+}
+.plugin-install-method.rt-Button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  width: 100%;
+  height: auto;
+  padding-block: var(--space-3);
+  text-align: start;
+  white-space: normal;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.plugin-install-method.rt-Button:hover {
+  background-color: var(--gray-a3);
+  box-shadow: inset 0 0 0 1px var(--gray-a8);
+}
+.plugin-install-method > svg {
+  color: var(--gray-11);
+}
+.plugin-install-method-label {
+  display: grid;
+  gap: var(--space-1);
+}
+.plugin-install-dropzone {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-block: 24px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: calc(var(--space-5) + var(--space-1) + 8px) var(--space-3);
+  border: 1px dashed var(--gray-a7);
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--gray-12);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: border-color 160ms ease;
 }
-.plugin-trust-label > .rt-CheckboxRoot {
+.plugin-install-dropzone:hover,
+.plugin-install-dropzone:focus-visible {
+  border-color: var(--accent-8);
+}
+.plugin-install-dropzone > svg {
+  color: var(--accent-11);
+}
+.plugin-install-source-form .rt-Button {
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.plugin-install-progress .rt-ProgressIndicator {
+  transition: transform 140ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plugin-install-method.rt-Button,
+  .plugin-install-dropzone,
+  .plugin-install-source-form .rt-Button,
+  .plugin-install-progress .rt-ProgressIndicator {
+    transition: none;
+  }
+}
+.plugin-install-check {
   flex-shrink: 0;
-  margin-top: 3px;
+  color: var(--green-11);
+}
+.plugin-install-success {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  text-align: center;
+}
+.plugin-install-summary {
+  padding: var(--space-3);
+  border: 1px solid var(--gray-a6);
+  border-radius: var(--radius-3);
+}
+.plugin-install-summary-title > .rt-Badge {
+  flex-shrink: 0;
+}
+.plugin-log-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-6);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--gray-a7);
+  border-radius: var(--radius-2);
+  cursor: pointer;
+}
+.plugin-log-toggle:has([data-state="checked"]) {
+  border-color: var(--accent-a8);
+  color: var(--accent-11);
+}
+.plugin-log-content {
+  position: relative;
+  --plugin-log-action-space: calc(var(--space-6) * 2 + var(--space-1) + var(--space-5));
+}
+.plugin-log-actions {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--space-2);
+  inset-inline-end: var(--space-4);
+}
+.plugin-uninstall-action:enabled,
+.plugin-log-actions > button:enabled {
+  cursor: pointer;
+}
+.plugin-log-actions > .plugin-log-clear:enabled:is(:hover, :focus-visible) {
+  background-color: var(--red-a4);
+  color: var(--red-11);
 }
 .plugin-logs {
+  margin: 0;
+  min-width: 0;
+  height: clamp(240px, 55vh, 560px);
+  padding: var(--space-3);
+  padding-inline-end: var(--plugin-log-action-space);
+  border: 1px solid var(--slate-8);
+  border-radius: var(--radius-3);
+  color-scheme: dark;
+  background: var(--slate-1);
+  color: var(--slate-12);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 240px;
   overflow: auto;
-  font-size: 12px;
+  font-family: var(--code-font-family);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
 }
 .extension-slot {
   flex-shrink: 0;
@@ -564,7 +690,9 @@ button.plugin-description-expand:hover {
   }
   .plugin-list-drag-handle,
   .plugin-list-header .rt-IconButton,
-  .rt-IconButton.plugin-homepage-link {
+  .rt-IconButton.plugin-homepage-link,
+  .rt-IconButton.plugin-uninstall-action,
+  .plugin-log-actions > .rt-IconButton {
     transition: none;
   }
 }
