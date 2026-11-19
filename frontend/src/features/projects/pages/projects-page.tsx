@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import type { Project } from "@/lib/project.types";
 
@@ -181,8 +180,6 @@ export function ProjectsPage() {
           />
         </Box>
       </Container>
-
-      <PluginSlot slot="project.toolbar" />
 
       {/* 主内容区域 */}
       <Container

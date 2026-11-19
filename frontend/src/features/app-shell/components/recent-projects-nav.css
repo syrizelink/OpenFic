@@ -7,6 +7,10 @@
   margin-top: var(--space-2);
 }
 
+.app-sidebar-recent-projects[data-at-start="true"] {
+  margin-top: 0;
+}
+
 .app-sidebar-recent-project {
   position: relative;
   width: 40px;

@@ -101,6 +101,7 @@
     "help": "Help",
     "toggleDarkMode": "Switch to dark mode",
     "toggleLightMode": "Switch to light mode",
+    "moreNavigation": "More navigation",
     "toggleSystemMode": "Follow system theme",
     "toggleTheme": "Toggle theme",
     "settings": "Settings",

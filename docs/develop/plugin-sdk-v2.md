@@ -39,7 +39,7 @@ def register(host):
 
 ## UI 与编辑器
 
-UI 插槽：`sidebar.extensions`、`project.toolbar`、`editor.toolbar`、`editor.context`、`editor.panel`、`assistant.toolbar`、`assistant.above-prompt`、`statusbar`、`settings.plugins`、`dashboard`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后通过浮层或对话框显示内容，不允许常驻面板挤占正文区域。
+UI 插槽：`sidebar.extensions`、`editor.toolbar`、`editor.context`、`editor.panel`、`assistant.toolbar`、`assistant.above-prompt`、`statusbar`、`settings.plugins`、`dashboard`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后通过浮层或对话框显示内容，不允许常驻面板挤占正文区域。
 
 `OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持正文读取、设置、追加和保存；不支持的选择区/撤销操作明确报错。
 
@@ -126,7 +126,6 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | --- | --- |
 | `app.overlay` | 应用全局原生浮层；不占布局，需 `ui.overlay`，只支持声明式视图 |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
-| `project.toolbar` | 项目列表与项目写作侧栏的入口 |
 | `editor.toolbar` | 章节和笔记编辑器现有工具栏内的图标按钮，默认打开浮层 |
 | `editor.context` | 旧入口别名：在编辑器工具栏显示按钮，默认打开浮层；不改写内置右键菜单 |
 | `editor.panel` | 旧入口别名：在编辑器工具栏显示按钮，默认打开对话框；不再显示常驻面板 |

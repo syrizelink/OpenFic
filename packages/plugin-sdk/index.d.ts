@@ -1,7 +1,11 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "app.overlay" | "project.toolbar" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
-export type PluginView = { id: string; title: string; slot?: UIAction; height?: number; icon?: UIIconName; presentation?: "popover" | "dialog" } & (
+export type PluginView = { id: string; title: string; height?: number; presentation?: "popover" | "dialog" } & (
+  /** Sidebar icons are image paths relative to plugin.json. */
+  { slot?: "sidebar.extensions"; icon?: string } |
+  { slot: Exclude<UIAction, "sidebar.extensions">; icon?: UIIconName }
+) & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
   { renderer: "declarative"; entry?: never; render: string; action: string }
 );

@@ -350,11 +350,27 @@ class PluginHost:
         except ValueError as error:
             raise PluginError("Plugin detail file not found", 404) from error
 
-    def icon_data(self, plugin_id: str) -> tuple[bytes, str]:
+    def icon_data(
+        self, plugin_id: str, *, view_id: str | None = None
+    ) -> tuple[bytes, str]:
         from app.plugins.packages import read_plugin_icon
 
-        plugin = self.get(plugin_id)
-        result = read_plugin_icon(self.root / plugin_id, plugin.manifest.icon)
+        manifest = self.get(plugin_id).manifest
+        root = self.root / plugin_id
+        if view_id is not None:
+            view = next(
+                (
+                    view
+                    for view in manifest.views
+                    if view.id == view_id and view.slot == "sidebar.extensions"
+                ),
+                None,
+            )
+            if view is None:
+                raise PluginError("Plugin icon not found", 404)
+            if result := read_plugin_icon(root, view.icon):
+                return result
+        result = read_plugin_icon(root, manifest.icon)
         if result is None:
             raise PluginError("Plugin icon not found", 404)
         return result

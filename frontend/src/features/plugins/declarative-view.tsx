@@ -25,13 +25,15 @@ export function DeclarativeView({
   view,
   context = {},
   embedded = false,
+  fullPage = false,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   context?: Record<string, unknown>;
   embedded?: boolean;
+  fullPage?: boolean;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { appearance } = useThemeContext();
   const params = useParams();
@@ -61,26 +63,32 @@ export function DeclarativeView({
     setPortal(container);
     return () => container.remove();
   }, [scope, plugin.id, view.id]);
-  const [columns, setColumns] = useState(100);
+  const [columns, setColumns] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const queue = useRef<Promise<void>>(Promise.resolve());
   const generation = useRef({ active: true, pending: 0 });
   const paneKey = useRef("");
+  const renderKey = [
+    "plugin-declarative",
+    plugin.id,
+    plugin.version,
+    plugin.development_revision,
+    view.id,
+    contextKey,
+  ] as const;
   const {
     data,
     error: renderError,
+    isPlaceholderData,
     refetch,
-  } = useQuery({
-    queryKey: [
-      "plugin-declarative",
-      plugin.id,
-      plugin.version,
-      plugin.development_revision,
-      view.id,
-      contextKey,
-      columns,
-    ],
+  } = useQuery<UIDocument>({
+    queryKey: [...renderKey, columns],
+    enabled: columns !== null,
+    placeholderData: (previous, previousQuery) =>
+      renderKey.every((part, index) => part === previousQuery?.queryKey[index])
+        ? previous
+        : undefined,
     queryFn: async ({ signal }) =>
       (
         await apiClient.post<UIDocument>(
@@ -93,7 +101,7 @@ export function DeclarativeView({
   });
   const styles = useMemo(() => scopeCSS(data?.css ?? "", scope), [data?.css, scope]);
   useEffect(() => {
-    if (data)
+    if (data && !isPlaceholderData)
       addPluginDiagnostic({
         pluginId: plugin.id,
         viewId: view.id,
@@ -112,7 +120,7 @@ export function DeclarativeView({
         status: "error",
         error: pluginError(renderError),
       });
-  }, [data, styles, renderError, plugin.id, view.id, contextKey]);
+  }, [data, styles, renderError, isPlaceholderData, plugin.id, view.id, contextKey]);
   const actions = useRef<UIAction>(() => {});
   const run: UIAction = (id, value = null, event = "press") => {
     if (!id) return;
@@ -189,10 +197,12 @@ export function DeclarativeView({
   useEffect(() => {
     const element = root.current;
     if (!element) return;
-    const observer = new ResizeObserver(() => {
+    const measure = () => {
       const next = Math.max(20, Math.min(240, Math.floor(element.clientWidth / 7.2)));
-      setColumns((previous) => (previous === next ? previous : next));
-    });
+      setColumns(next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -269,7 +279,7 @@ export function DeclarativeView({
         }}
       >
         <style>{styles.css}</style>
-        {!embedded && (
+        {!embedded && !fullPage && (
           <Flex
             direction="column"
             gap="2"
@@ -299,7 +309,16 @@ export function DeclarativeView({
             </Flex>
           </Flex>
         )}
-        {!data && !renderError && !embedded && <Spinner />}
+        {!data &&
+          !renderError &&
+          !embedded &&
+          (fullPage ? (
+            <div className="plugin-page-loading">
+              <Spinner aria-label={t("plugins.loading")} />
+            </div>
+          ) : (
+            <Spinner />
+          ))}
         {message && (
           <Text
             as="p"
@@ -317,7 +336,7 @@ export function DeclarativeView({
             {error ?? pluginError(renderError)}
           </Text>
         )}
-        {styles.warnings.length > 0 && (
+        {!fullPage && styles.warnings.length > 0 && (
           <Text
             role="status"
             size="1"

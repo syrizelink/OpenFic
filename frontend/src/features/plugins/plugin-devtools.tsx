@@ -580,7 +580,6 @@ function PreviewSlot({ view, children }: { view: PluginView; children: React.Rea
     "editor.toolbar",
     "editor.context",
     "editor.panel",
-    "project.toolbar",
     "assistant.toolbar",
     "statusbar",
   ].includes(view.slot);

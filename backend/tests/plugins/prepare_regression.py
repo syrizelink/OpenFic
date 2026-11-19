@@ -72,10 +72,7 @@ def prepare(backend: str, *, observer: bool = False):
             },
         )
         if observer:
-            fixture = (
-                Path(__file__).resolve().parents[3]
-                / "frontend/e2e/fixtures/plugin-regression"
-            )
+            fixture = Path(__file__).with_name("fixtures") / "plugin-regression"
             buffer = io.BytesIO()
             with zipfile.ZipFile(buffer, "w") as archive:
                 for path in fixture.rglob("*"):

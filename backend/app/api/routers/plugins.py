@@ -499,8 +499,10 @@ async def plugin_detail(plugin_id: str, manager: Host):
 
 
 @router.get("/{plugin_id}/icon")
-async def plugin_icon(plugin_id: str, manager: Host):
-    data, media_type = await asyncio.to_thread(manager.icon_data, plugin_id)
+async def plugin_icon(plugin_id: str, manager: Host, view_id: str | None = None):
+    data, media_type = await asyncio.to_thread(
+        manager.icon_data, plugin_id, view_id=view_id
+    )
     return Response(data, media_type=media_type, headers=DETAIL_HEADERS)
 
 

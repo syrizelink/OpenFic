@@ -15,9 +15,7 @@ from tests.plugins import test_host as host_tests
 plugin_api = host_tests.plugin_api
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
-FIXTURE = (
-    Path(__file__).resolve().parents[3] / "frontend/e2e/fixtures/plugin-declarative"
-)
+FIXTURE = Path(__file__).with_name("fixtures") / "plugin-declarative"
 
 
 def bundle():
@@ -321,7 +319,13 @@ async def test_editor_slot_presentation_and_icon_contract(slot):
         is None
     )
     with pytest.raises(ValidationError, match="Unknown Lucide"):
-        View(id="invalid", title="Invalid", entry="panel/index.html", icon="<svg/>")
+        View(
+            id="invalid",
+            title="Invalid",
+            slot=slot,
+            entry="panel/index.html",
+            icon="not-a-lucide-icon",
+        )
     with pytest.raises(ValidationError, match="editor slots"):
         View(
             id="invalid",

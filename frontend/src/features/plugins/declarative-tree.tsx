@@ -154,20 +154,21 @@ function isNode(node: UINode): node is { type: string; props: UIProps; children:
 
 /** Return real element children so Radix asChild/Trigger can forward refs and handlers. */
 // oxlint-disable-next-line react-refresh/only-export-components
-export function renderTree(node: UINode, context: TreeContext, index = 0): ReactNode {
+export function renderTree(node: UINode, context: TreeContext, index = 0, scope = ""): ReactNode {
   if (node == null || typeof node === "boolean") return null;
   if (typeof node !== "object") return String(node);
   if (Array.isArray(node)) {
-    const children = node.map((child, i) => renderTree(child, context, i));
+    const children = node.map((child, i) => renderTree(child, context, i, `${scope}${index}.`));
     return children.length === 1 ? children[0] : children;
   }
   if (!isNode(node)) return null;
   const p = node.props;
+  const key = typeof p.key === "string" ? `${scope}key:${p.key}` : `${scope}index:${index}`;
   const { source, name, definition } = resolveComponent(node.type);
   if (!definition)
     return (
       <Radix.Text
-        key={index}
+        key={key}
         color="gray"
       >
         Unsupported UI component: {node.type}
@@ -182,7 +183,6 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
   const fire = (key: string, value: UIValue = null, event = "change") =>
     context.action(str(p[key]), value, event);
   const props: Record<string, unknown> = {
-    key: str(p.key, String(index)),
     "data-plugin-component": name,
     "data-component-source": source,
   };
@@ -245,7 +245,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
     if (!href)
       return (
         <Radix.Text
-          key={str(p.key, String(index))}
+          key={key}
           style={props.style as CSSProperties}
         >
           {p.label ? str(p.label) : children}
@@ -261,7 +261,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
   if ((name === "Code" && node.type === "Code") || node.type === "Markdown")
     return (
       <pre
-        key={index}
+        key={key}
         className="plugin-declarative-code"
       >
         <Radix.Code {...props}>{children}</Radix.Code>
@@ -272,13 +272,13 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
       const label = str(p["aria-label"], str(p.label));
       const forwarded = Object.fromEntries(
         Object.entries(props).filter(
-          ([key]) => !["key", "name", "size", "strokeWidth", "absoluteStrokeWidth"].includes(key),
+          ([key]) => !["name", "size", "strokeWidth", "absoluteStrokeWidth"].includes(key),
         ),
       );
       return (
         <PluginIcon
           {...forwarded}
-          key={props.key as string}
+          key={key}
           name={str(p.name, "Puzzle")}
           size={Math.max(8, Math.min(96, Number(p.size) || 18))}
           strokeWidth={Math.max(0.5, Math.min(4, Number(p.strokeWidth) || 2))}
@@ -303,7 +303,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
     if (name === "UnitTextField")
       return (
         <InputControl
-          key={props.key as string}
+          key={key}
           component={ProjectInput as unknown as ComponentType<Record<string, unknown>>}
           forwarded={props}
           props={p}
@@ -323,7 +323,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
       );
     const element = (
       <ProjectComponent
-        key={props.key as string}
+        key={key}
         name={name}
         props={p}
         forwarded={props}
@@ -359,7 +359,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
       return (
         <span
           {...wrapper}
-          key={props.key as string}
+          key={key}
         >
           {element}
         </span>
@@ -368,7 +368,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
     return (
       <div
         {...wrapper}
-        key={props.key as string}
+        key={key}
       >
         {element}
       </div>
@@ -377,7 +377,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
   if (!Control)
     return (
       <Radix.Text
-        key={index}
+        key={key}
         color="gray"
       >
         Unsupported UI component: {node.type}
@@ -386,7 +386,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
   if (["TextField.Root", "TextArea"].includes(name))
     return (
       <InputControl
-        key={props.key as string}
+        key={key}
         component={Control}
         forwarded={props}
         props={p}
@@ -398,7 +398,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
   if (name === "Slider")
     return (
       <SliderControl
-        key={props.key as string}
+        key={key}
         forwarded={props}
         props={p}
         action={context.action}
@@ -437,7 +437,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0): React
     "Radio",
     "Switch",
   ].includes(name);
-  return createElement(Control, props, voidControl ? undefined : child);
+  return createElement(Control, { ...props, key }, voidControl ? undefined : child);
 }
 
 export class DeclarativeErrorBoundary extends Component<

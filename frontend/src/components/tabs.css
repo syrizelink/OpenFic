@@ -6,6 +6,11 @@
   transition: color 140ms ease;
 }
 
+.project-tabs-list .rt-BaseTabListTriggerInner,
+.project-tabs-list .rt-BaseTabListTriggerInnerHidden {
+  gap: var(--space-2);
+}
+
 .project-tabs-list .rt-BaseTabListTriggerInner {
   transition: background-color 140ms ease;
 }

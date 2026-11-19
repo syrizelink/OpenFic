@@ -568,38 +568,6 @@ button.plugin-description-expand:hover {
   font-size: var(--font-size-1);
   line-height: 1.5;
 }
-.extension-slot {
-  flex-shrink: 0;
-  border-top: 1px solid var(--gray-a5);
-  margin: 12px 0;
-  padding-top: 10px;
-  max-height: 32vh;
-  overflow-y: auto;
-}
-.extension-slot-link {
-  color: var(--gray-11);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: var(--radius-3);
-  text-decoration: none;
-}
-.extension-slot-link:hover,
-.extension-slot-link[aria-current="page"] {
-  background: var(--gray-a3);
-  color: var(--gray-12);
-}
-.extension-slot-link svg {
-  flex-shrink: 0;
-}
-.extension-slot-link span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
 .plugin-view {
   height: 100%;
   display: flex;
@@ -625,12 +593,36 @@ button.plugin-description-expand:hover {
   min-height: 0;
   height: 100%;
 }
+.plugin-page {
+  position: relative;
+  height: 100%;
+}
+.plugin-page-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.plugin-page > .plugin-view > .plugin-frame {
+  min-height: 0;
+}
+.plugin-page > .plugin-view[data-loading="true"] > .plugin-frame {
+  visibility: hidden;
+}
 .plugin-declarative {
   min-width: 0;
   padding: 20px;
   overflow: auto;
   max-height: 100%;
   color: var(--gray-12);
+}
+.plugin-declarative:not(.plugin-declarative-embedded) {
+  scrollbar-gutter: stable;
+}
+.plugin-page > .plugin-declarative {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0;
 }
 .plugin-declarative-embedded {
   padding: 0;

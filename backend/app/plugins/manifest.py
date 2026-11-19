@@ -23,7 +23,6 @@ SDK_VERSION = "2.0.0"
 UI_SLOTS = (
     "sidebar.extensions",
     "app.overlay",
-    "project.toolbar",
     "editor.toolbar",
     "editor.context",
     "editor.panel",
@@ -104,7 +103,9 @@ class View(Contract):
     def known_slot(self):
         if self.slot not in UI_SLOTS:
             raise ValueError(f"Unknown UI slot: {self.slot}")
-        if self.icon is not None:
+        if self.icon is not None and self.slot == "sidebar.extensions":
+            safe_path(self.icon)
+        elif self.icon is not None:
             from .declarative import normalize_icon
 
             self.icon = normalize_icon(self.icon)

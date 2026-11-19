@@ -60,6 +60,7 @@ def package(
     extra_files=None,
     icon=None,
     homepage=None,
+    sidebar_icon=None,
 ):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
@@ -83,6 +84,8 @@ def package(
         }
     ]
     manifest["resources"] = ["panel"]
+    if sidebar_icon is not None:
+        manifest["views"][0]["icon"] = sidebar_icon
     if capabilities is not None:
         manifest["capabilities"] = capabilities
     if legacy:
@@ -384,9 +387,53 @@ async def test_plugin_homepage_and_local_icon(plugin_api):
     assert image.status_code == 200 and image.content == svg
     assert image.headers["content-type"].startswith("image/svg+xml")
     assert "sandbox" in image.headers["content-security-policy"]
+    sidebar_image = await api.get(
+        "/api/v1/plugins/project-statistics/icon", params={"view_id": "overview"}
+    )
+    assert sidebar_image.status_code == 200 and sidebar_image.content == svg
     await host.close()
     await host.start()
     assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+@pytest.mark.parametrize(
+    "sidebar_icon",
+    [
+        "images/default.svg",
+        "images/missing.svg",
+        "images/invalid.png",
+        "../external.svg",
+        "https://example.com/icon.svg",
+    ],
+)
+async def test_sidebar_icon_uses_declared_package_image(plugin_api, sidebar_icon):
+    _, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>'
+    response = await install(
+        api,
+        package(
+            sidebar_icon=sidebar_icon,
+            extra_files={
+                "images/default.svg": svg,
+                "images/invalid.png": b"invalid image",
+            },
+        ),
+    )
+    if sidebar_icon.startswith(("../", "https:")):
+        assert response.status_code == 400, response.text
+        return
+    assert response.status_code == 201, response.text
+    assert response.json()["views"][0]["icon"] == sidebar_icon
+    url = "/api/v1/plugins/project-statistics/icon"
+    image = await api.get(url, params={"view_id": "overview"})
+    if sidebar_icon == "images/default.svg":
+        assert image.status_code == 200 and image.content == svg
+        assert "sandbox" in image.headers["content-security-policy"]
+    else:
+        assert image.status_code == 404
+    assert (
+        await api.get(url, params={"view_id": "images/default.svg"})
+    ).status_code == 404
 
 
 async def test_plugin_icon_accepts_self_contained_svg_at_size_limit(plugin_api):

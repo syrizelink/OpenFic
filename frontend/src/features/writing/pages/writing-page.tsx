@@ -13,7 +13,6 @@ import "./writing-page.css";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { RightSidebarPanel } from "@/features/app-shell/components/right-sidebar-panel";
 import type { AssistantSidebarState } from "@/features/assistant";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 
@@ -316,10 +315,6 @@ export function WritingPage() {
               collapsible={false}
             >
               <Box className="writing-page-sidebar writing-page-sidebar--left">
-                <PluginSlot
-                  slot="project.toolbar"
-                  context={{ projectId }}
-                />
                 {sidebarContent}
               </Box>
             </Panel>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams, useNavigate } from "react-router";
 
+import { Spinner } from "@/components/spinner";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 
@@ -25,7 +26,14 @@ export function PluginPage() {
   const { data: plugins, isLoading, error } = useQuery(pluginsQueryOptions);
   const plugin = plugins?.find((entry) => entry.id === pluginId && entry.status === "enabled");
   const view = plugin?.views.find((entry) => entry.id === viewId);
-  if (isLoading) return <p>{t("plugins.loading")}</p>;
+  if (isLoading)
+    return (
+      <div className="plugin-page">
+        <div className="plugin-page-loading">
+          <Spinner aria-label={t("plugins.loading")} />
+        </div>
+      </div>
+    );
   if (!plugin || !view || error)
     return (
       <div className="extensions-page">
@@ -39,11 +47,14 @@ export function PluginPage() {
       </div>
     );
   return (
-    <PluginFrame
-      key={`${plugin.id}:${plugin.version}:${view.id}:${JSON.stringify(plugin.configuration)}`}
-      plugin={plugin}
-      view={view}
-    />
+    <div className="plugin-page">
+      <PluginFrame
+        key={`${plugin.id}:${plugin.version}:${view.id}:${JSON.stringify(plugin.configuration)}`}
+        plugin={plugin}
+        view={view}
+        fullPage
+      />
+    </div>
   );
 }
 
@@ -52,12 +63,14 @@ export function PluginFrame({
   view,
   context,
   embedded,
+  fullPage,
   onHeightChange,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   context?: Record<string, unknown>;
   embedded?: boolean;
+  fullPage?: boolean;
   onHeightChange?: (height: number) => void;
 }) {
   if (view.renderer === "declarative")
@@ -68,6 +81,7 @@ export function PluginFrame({
         view={view}
         context={context}
         embedded={embedded}
+        fullPage={fullPage}
       />
     );
   return (
@@ -77,6 +91,7 @@ export function PluginFrame({
       view={view}
       context={context}
       embedded={embedded}
+      fullPage={fullPage}
       onHeightChange={onHeightChange}
     />
   );
@@ -87,12 +102,14 @@ function IframeView({
   view,
   context = {},
   embedded = false,
+  fullPage = false,
   onHeightChange,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   context?: Record<string, unknown>;
   embedded?: boolean;
+  fullPage?: boolean;
   onHeightChange?: (height: number) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -297,9 +314,13 @@ function IframeView({
     gcTime: 0,
     refetchOnWindowFocus: false,
   });
+  const isLoading = !ready && !fault && !(fullPage && viewError);
   return (
-    <section className="plugin-view">
-      {!embedded && (
+    <section
+      className="plugin-view"
+      data-loading={fullPage && isLoading ? "true" : undefined}
+    >
+      {!embedded && !fullPage && (
         <Flex
           className="plugin-view-header"
           align="center"
@@ -315,7 +336,14 @@ function IframeView({
           </Button>
         </Flex>
       )}
-      {!ready && !fault && <p role="status">{t("plugins.loading")}</p>}
+      {isLoading &&
+        (fullPage ? (
+          <div className="plugin-page-loading">
+            <Spinner aria-label={t("plugins.loading")} />
+          </div>
+        ) : (
+          <p role="status">{t("plugins.loading")}</p>
+        ))}
       {fault && <p role="alert">{t("plugins.viewFailed")}</p>}
       {viewError && <p role="alert">{pluginError(viewError)}</p>}
       {viewUrl && (
