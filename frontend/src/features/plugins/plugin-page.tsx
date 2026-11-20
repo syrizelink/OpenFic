@@ -34,7 +34,7 @@ export function PluginPage() {
         </div>
       </div>
     );
-  if (!plugin || !view || error)
+  if (!plugin || !view || view.presentation === "action" || error)
     return (
       <div className="extensions-page">
         <p role="alert">{error ? pluginError(error) : t("plugins.unavailable")}</p>
@@ -65,6 +65,7 @@ export function PluginFrame({
   embedded,
   fullPage,
   onHeightChange,
+  onRequestClose,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
@@ -72,27 +73,30 @@ export function PluginFrame({
   embedded?: boolean;
   fullPage?: boolean;
   onHeightChange?: (height: number) => void;
+  onRequestClose?: () => void;
 }) {
   if (view.renderer === "declarative")
     return (
       <DeclarativeView
-        key={plugin.development_revision ?? 0}
+        key={`${plugin.development_revision ?? 0}:${plugin.reload_revision ?? 0}`}
         plugin={plugin}
         view={view}
         context={context}
         embedded={embedded}
         fullPage={fullPage}
+        onRequestClose={onRequestClose}
       />
     );
   return (
     <IframeView
-      key={plugin.development_revision ?? 0}
+      key={`${plugin.development_revision ?? 0}:${plugin.reload_revision ?? 0}`}
       plugin={plugin}
       view={view}
       context={context}
       embedded={embedded}
       fullPage={fullPage}
       onHeightChange={onHeightChange}
+      onRequestClose={onRequestClose}
     />
   );
 }
@@ -104,6 +108,7 @@ function IframeView({
   embedded = false,
   fullPage = false,
   onHeightChange,
+  onRequestClose,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
@@ -111,6 +116,7 @@ function IframeView({
   embedded?: boolean;
   fullPage?: boolean;
   onHeightChange?: (height: number) => void;
+  onRequestClose?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const { openSettings } = useAppShell();
@@ -145,11 +151,7 @@ function IframeView({
         "*",
       );
     const resizeView = (height: number) => {
-      const maximum =
-        view.slot === "assistant.above-prompt"
-          ? Math.min(420, Math.floor(window.innerHeight * 0.45))
-          : 1600;
-      const bounded = Math.max(0, Math.min(maximum, Math.ceil(height)));
+      const bounded = Math.max(0, Math.min(1600, Math.ceil(height)));
       heightChange.current?.(bounded);
       return bounded;
     };
@@ -247,6 +249,7 @@ function IframeView({
                   message.params,
                   capabilityKey.split(","),
                   navigate,
+                  onRequestClose,
                 )
               : apiClient
                   .post(`/plugins/${plugin.id}/rpc`, {
@@ -295,6 +298,7 @@ function IframeView({
     queryClient,
     capabilityKey,
     embedded,
+    onRequestClose,
   ]);
   const { data: viewUrl, error: viewError } = useQuery({
     queryKey: [

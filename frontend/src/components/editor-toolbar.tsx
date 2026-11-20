@@ -71,10 +71,13 @@ export interface EditorToolbarProps {
   onOpenReplace?: () => void;
   extraActions?: EditorToolbarExtraAction[];
   toolbarPrefix?: React.ReactNode;
-  toolbarActions?: React.ReactNode;
+  toolbarActions?: EditorToolbarActions;
   showMarkdownTools?: boolean;
   showChapterTools?: boolean;
 }
+
+export type EditorToolbarPlacement = "left-end" | "right-start" | "right-end";
+export type EditorToolbarActions = (placement: EditorToolbarPlacement) => React.ReactNode;
 
 interface ToolbarButtonProps {
   icon: React.ReactNode;
@@ -906,6 +909,7 @@ export function EditorToolbar({
                   />
                 </>
               )}
+              {toolbarActions?.("left-end")}
               <Flex
                 className="editor-toolbar__right"
                 gap="1"
@@ -924,6 +928,7 @@ export function EditorToolbar({
                   gap="1"
                   align="center"
                 >
+                  {toolbarActions?.("right-start")}
                   <ToolbarButton
                     icon={<Undo size={18} />}
                     label={t("editor.undo")}
@@ -943,7 +948,7 @@ export function EditorToolbar({
                     disabled={isSaving || !hasChanges}
                     onClick={() => runEditorAction(() => onSave(true))}
                   />
-                  {toolbarActions}
+                  {toolbarActions?.("right-end")}
                 </Flex>
               </Flex>
             </Flex>

@@ -26,12 +26,14 @@ export function DeclarativeView({
   context = {},
   embedded = false,
   fullPage = false,
+  onRequestClose,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   context?: Record<string, unknown>;
   embedded?: boolean;
   fullPage?: boolean;
+  onRequestClose?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -74,6 +76,7 @@ export function DeclarativeView({
     plugin.id,
     plugin.version,
     plugin.development_revision,
+    plugin.reload_revision,
     view.id,
     contextKey,
   ] as const;
@@ -162,7 +165,18 @@ export function DeclarativeView({
               "effect",
               method,
               args,
-              () => frontendCall(method, args, plugin.capabilities, navigate),
+              () =>
+                frontendCall(
+                  method,
+                  args,
+                  plugin.capabilities,
+                  navigate,
+                  onRequestClose &&
+                    (() => {
+                      current.active = false;
+                      onRequestClose();
+                    }),
+                ),
               view.id,
             ),
           (next, values) => send(next, values, "change"),

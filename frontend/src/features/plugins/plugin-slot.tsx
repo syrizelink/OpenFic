@@ -1,17 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { EDITOR_PLUGIN_SLOTS, pluginsQueryOptions } from "./api";
+import { pluginsQueryOptions } from "./api";
 import { PluginFrame } from "./plugin-page";
 
 export function PluginSlot({
   slot,
   context = {},
-  inline = false,
 }: {
   slot: string;
   context?: Record<string, unknown>;
-  inline?: boolean;
 }) {
   const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const [selected, setSelected] = useState<string | null>(null);
@@ -22,7 +20,7 @@ export function PluginSlot({
       plugin.views.filter((view) => view.slot === slot).map((view) => ({ plugin, view })),
     );
   // These slots are mounted only through EditorPluginActions inside the toolbar.
-  if (EDITOR_PLUGIN_SLOTS.includes(slot) || !entries.length) return null;
+  if (slot === "editor.toolbar" || !entries.length) return null;
   return (
     <div
       className={`plugin-slot plugin-slot-${slot.replaceAll(".", "-")}`}
@@ -30,24 +28,21 @@ export function PluginSlot({
     >
       {entries.map(({ plugin, view }) => {
         const id = `${plugin.id}/${view.id}`;
-        const open = inline || selected === id;
+        const open = selected === id;
         const native = view.renderer === "declarative";
-        const compact = native && slot === "assistant.above-prompt";
-        const height = heights[id] ?? (compact ? 0 : (view.height ?? 320));
+        const height = heights[id] ?? view.height ?? 320;
         return (
           <div
             key={id}
-            className={`${open ? "plugin-slot-open" : ""}${compact ? " plugin-slot-compact" : ""}`}
+            className={open ? "plugin-slot-open" : ""}
           >
-            {!inline && (
-              <button
-                type="button"
-                onClick={() => setSelected(open ? null : id)}
-                aria-expanded={open}
-              >
-                {view.title}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setSelected(open ? null : id)}
+              aria-expanded={open}
+            >
+              {view.title}
+            </button>
             {open && (
               <div
                 className="plugin-slot-content"

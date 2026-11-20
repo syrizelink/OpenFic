@@ -26,14 +26,6 @@
       "action": "ui.action"
     },
     {
-      "id": "switches",
-      "title": "提示词开关",
-      "slot": "assistant.above-prompt",
-      "renderer": "declarative",
-      "render": "ui.render",
-      "action": "ui.action"
-    },
-    {
       "id": "editor",
       "title": "提示词与编辑器",
       "slot": "editor.toolbar",

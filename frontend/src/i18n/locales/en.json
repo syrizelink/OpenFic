@@ -2873,6 +2873,8 @@
     "none": "None",
     "enable": "Enable",
     "disable": "Disable",
+    "reload": "Reload plugin",
+    "reloaded": "Plugin reloaded",
     "update": "Update package",
     "export": "Export package",
     "logs": "Logs",

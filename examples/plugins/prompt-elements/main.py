@@ -470,35 +470,6 @@ async def ui_render(ctx, params):
             compact=True,
         )
     configuration = await config(ctx, {"projectId": state["project"]})
-    if view == "switches":
-        return ui_document(
-            ui_node(
-                "Flex",
-                [
-                    ui_node(
-                        "Flex",
-                        [
-                            ui_node(
-                                "Switch",
-                                checked=bool(item.get("enabled", False)),
-                                onCheckedChange="toggle:" + item["id"],
-                                label=str(item.get("title") or item["id"]),
-                            ),
-                            ui_node(
-                                "Text", str(item.get("title") or item["id"]), size="2"
-                            ),
-                        ],
-                        gap="2",
-                        align="center",
-                    )
-                    for item in configuration["elements"]
-                ],
-                wrap="wrap",
-                gap="3",
-            ),
-            ui_status(state),
-            compact=True,
-        )
     # Keep invalid JSON drafts editable; validation happens when saving or previewing.
     try:
         draft = await ui_configuration(ctx, state)
@@ -643,13 +614,8 @@ async def ui_action(ctx, params):
     elif action in {"enabled", "elements", "rules", "system", "user", "text"}:
         state[action] = params["value"]
         state.pop("preview", None)
-    elif action.startswith("toggle:") or action.startswith("draft-toggle:"):
-        immediate = action.startswith("toggle:")
-        configuration = copy.deepcopy(
-            await config(ctx, {"projectId": state["project"]})
-            if immediate
-            else await ui_configuration(ctx, state)
-        )
+    elif action.startswith("draft-toggle:"):
+        configuration = copy.deepcopy(await ui_configuration(ctx, state))
         item = next(
             (
                 item
@@ -661,14 +627,9 @@ async def ui_action(ctx, params):
         if item is None:
             raise ValueError("Unknown element")
         item["enabled"] = bool(params["value"])
-        if immediate:
-            await save(ctx, {"projectId": state["project"], "config": configuration})
-            state["status"] = "已保存，下一次模型请求生效"
-            ctx.host.emit("ui.invalidate", {}, ctx.plugin_id)
-        else:
-            state["elements"] = json.dumps(
-                configuration["elements"], ensure_ascii=False, indent=2
-            )
+        state["elements"] = json.dumps(
+            configuration["elements"], ensure_ascii=False, indent=2
+        )
     elif action in {"save", "preview", "export"}:
         configuration = validate(await ui_configuration(ctx, state))
         if action == "save":

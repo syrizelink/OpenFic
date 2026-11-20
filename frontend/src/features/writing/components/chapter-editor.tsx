@@ -427,9 +427,13 @@ function ChapterEditorContent({
         else if (action === "setSelection")
           editor.commands.setTextSelection({ from: Number(params.from), to: Number(params.to) });
         else if (action === "setContent") editor.commands.setContent(newlinesToHtml(text));
-        else if (action === "insert" || action === "replaceSelection")
-          editor.commands.insertContent(newlinesToHtml(text));
-        else throw new Error(`Unsupported editor action: ${action}`);
+        else if (action === "insert" || action === "replaceSelection") {
+          if (text) {
+            editor.commands.insertContent(
+              /[\r\n]/.test(text) ? newlinesToHtml(text) : { type: "text", text },
+            );
+          }
+        } else throw new Error(`Unsupported editor action: ${action}`);
         return read();
       },
     });
@@ -701,11 +705,12 @@ function ChapterEditorContent({
         onOpenFind={openFind}
         onOpenReplace={openReplace}
         showChapterTools
-        toolbarActions={
+        toolbarActions={(placement) => (
           <EditorPluginActions
+            placement={placement}
             context={{ projectId: chapter.projectId, chapterId: chapter.id, kind: "chapter" }}
           />
-        }
+        )}
       />
 
       <AnimatePresence>

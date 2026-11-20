@@ -2873,6 +2873,8 @@
     "none": "无",
     "enable": "启用",
     "disable": "禁用",
+    "reload": "重载插件",
+    "reloaded": "插件已重载",
     "update": "更新安装包",
     "export": "导出安装包",
     "logs": "日志",

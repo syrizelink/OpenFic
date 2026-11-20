@@ -39,7 +39,7 @@ def register(host):
 
 ## UI 与编辑器
 
-UI 插槽：`sidebar.extensions`、`editor.toolbar`、`editor.context`、`editor.panel`、`assistant.toolbar`、`assistant.above-prompt`、`statusbar`、`settings.plugins`、`dashboard`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后通过浮层或对话框显示内容，不允许常驻面板挤占正文区域。
+UI 插槽：`sidebar.extensions`、`app.overlay`、`editor.toolbar`、`statusbar`、`settings.plugins`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后直接执行操作，或通过浮层、对话框显示内容，不允许常驻面板挤占正文区域。
 
 `OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持正文读取、设置、追加和保存；不支持的选择区/撤销操作明确报错。
 
@@ -126,16 +126,13 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | --- | --- |
 | `app.overlay` | 应用全局原生浮层；不占布局，需 `ui.overlay`，只支持声明式视图 |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
-| `editor.toolbar` | 章节和笔记编辑器现有工具栏内的图标按钮，默认打开浮层 |
-| `editor.context` | 旧入口别名：在编辑器工具栏显示按钮，默认打开浮层；不改写内置右键菜单 |
-| `editor.panel` | 旧入口别名：在编辑器工具栏显示按钮，默认打开对话框；不再显示常驻面板 |
-| `assistant.toolbar` | Agent 输入区域的插件入口 |
-| `assistant.above-prompt` | Agent 输入框上方的常驻区域 |
+| `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
 | `statusbar` | 状态栏入口，展开浮动插件视图 |
 | `settings.plugins` | 设置内插件区域的附加视图 |
-| `dashboard` | 仪表盘中的常驻区域 |
 
 入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
+
+`editor.toolbar` 还支持 `renderer: "declarative"` 配合 `presentation: "action"`。这类按钮只绑定 `action` 命令，不声明 `render` 或 `entry`。点击时以视图的 `id` 作为操作 ID，发送 `press` 事件和当前编辑器上下文，不打开浮层或对话框。
 
 iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章节、插槽、语言和主题上下文；缺少当前编辑器时编辑器 API 明确报错。页面运行在无同源权限的 iframe，CSP 阻止直接联网；允许内联样式以支持框架组件。网络访问走后端 SDK。
 

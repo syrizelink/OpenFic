@@ -412,6 +412,11 @@ async def enable_plugin(plugin_id: str, data: EnableRequest, manager: Host):
     return await manager.set_enabled(plugin_id, data.enabled)
 
 
+@router.post("/{plugin_id}/reload", status_code=204)
+async def reload_plugin(plugin_id: str, manager: Host) -> None:
+    await manager.reload(plugin_id)
+
+
 @router.put("/{plugin_id}/settings")
 async def configure_plugin(plugin_id: str, data: ConfigurationRequest, manager: Host):
     return await manager.configure(plugin_id, data.settings)
@@ -558,7 +563,8 @@ async def declarative_view(
     if "ui" not in plugin.manifest.capabilities:
         raise PluginError("Plugin has not declared ui", 403)
     method = view.render if operation == "render" else view.action
-    assert method is not None
+    if method is None:
+        raise PluginError("This plugin button has no render command", 404)
     params = {**data.model_dump(), "slot": view.slot, "viewId": view.id}
     result = await manager.call(
         plugin_id,

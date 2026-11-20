@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 
 import { Tabs } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 
 import { DashboardFilters } from "../components/dashboard-filters";
@@ -192,11 +191,6 @@ export function DashboardPage() {
             <h1 className="dashboard-title">{t("dashboard.title")}</h1>
           </div>
         </header>
-        <PluginSlot
-          slot="dashboard"
-          inline
-        />
-
         <Tabs.Root
           className="dashboard-tabs"
           value={activeTab}

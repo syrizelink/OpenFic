@@ -6,7 +6,7 @@
 
 ## 最终行为
 
-章节和笔记编辑器的插件入口放入现有工具栏，使用与内置操作相同的图标按钮和 Tooltip。内容通过 Radix Popover/Dialog 的 Portal 展示，不在正文上方插入面板；多个入口横向滚动，不换行或增加工具栏高度。旧 `editor.context`、`editor.panel` 包继续安装，分别默认打开浮层、对话框。iframe 的 `ui.resize()` 只调整浮层内部高度，内容受到视口约束。
+章节和笔记编辑器的插件入口放入现有工具栏，使用与内置操作相同的图标按钮和 Tooltip。内容通过 Radix Popover/Dialog 的 Portal 展示，不在正文上方插入面板；多个入口横向滚动，不换行或增加工具栏高度。iframe 的 `ui.resize()` 只调整浮层内部高度，内容受到视口约束。
 
 SDK 增加清单 `icon`、`presentation: "popover" | "dialog"`，并补充编辑器上下文的 `kind`。声明式 UI 增加 `Icon`（别名 `LucideIcon` / `Project.Icon`），可使用当前宿主全部 **1748 个 Lucide 图标**。名称、属性、能力约束由同一目录验证和生成类型；图标代码通过一个共享模块延迟加载，并加入构建预缓存。详见 [声明式 UI 协议](./declarative-plugin-ui.md#编辑器工具栏与图标)。
 
@@ -35,8 +35,8 @@ Google Drive 与提示词示例升级至 **1.2.0**，使用 `CloudUpload`、`Tex
 1. 安装 13 个入口前后，工具栏和编辑器正文容器的坐标与尺寸完全相同；入口横向溢出，无正文内联容器。
 2. 工具栏与声明式树均渲染 Lucide SVG；标准名称转换、描边、无障碍名称可用，省略图标的旧包正常回退。
 3. 键盘打开、Escape 关闭及焦点恢复，浮层输入、原编辑器光标位置插入与数据库保存。
-4. 旧 `editor.context` iframe 在浮层打开，调用真正的 `OpenFic.ui.resize(180)` 后高度为 180px，编辑器容器尺寸不变。
-5. 旧 `editor.panel` 在对话框打开，编辑器容器尺寸不变。
+4. `editor.toolbar` 的 iframe 在浮层打开，调用 `OpenFic.ui.resize(180)` 后高度为 180px，编辑器容器尺寸不变。
+5. `editor.toolbar` 设为 `presentation: "dialog"` 时在对话框打开，编辑器容器尺寸不变。
 6. 章节切换到笔记后，插件上下文更新为当前笔记。
 7. 390px 移动视口及模拟软键盘下，触摸事件不抢走输入焦点，浮层边缘不超出视口；停用后入口消失。
 

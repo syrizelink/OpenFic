@@ -629,9 +629,6 @@ button.plugin-description-expand:hover {
   font-size: 12px;
   line-height: 1.5;
 }
-.plugin-slot-assistant-above-prompt .plugin-declarative {
-  max-height: min(420px, 45vh);
-}
 .plugin-declarative [data-component="Pane"] {
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
@@ -718,13 +715,6 @@ button.plugin-description-expand:hover {
   height: 100%;
   min-height: 0;
 }
-.plugin-slot-assistant-above-prompt {
-  gap: 0;
-}
-.plugin-slot-compact > .plugin-slot-content {
-  border: 0;
-  border-radius: 0;
-}
 .plugin-slot-statusbar .plugin-slot-content {
   position: fixed;
   bottom: 28px;
@@ -753,14 +743,63 @@ button.plugin-description-expand:hover {
 .editor-plugin-actions::-webkit-scrollbar {
   display: none;
 }
-.editor-plugin-overlay {
-  max-width: calc(100vw - 24px);
-  max-height: calc(100dvh - 32px);
+.rt-DialogOverlay:has(.editor-plugin-overlay),
+.rt-DialogOverlay:has(.editor-plugin-overlay) .rt-DialogScroll {
+  overflow: hidden;
+}
+.rt-DialogOverlay:has(.editor-plugin-overlay) .rt-DialogScrollPadding {
+  padding-block: 28px;
+}
+.editor-plugin-overlay:is(.rt-DialogContent, .rt-PopoverContent) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.editor-plugin-overlay-scroll {
+  --editor-plugin-overlay-padding: var(--dialog-content-padding, var(--popover-content-padding));
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--editor-plugin-overlay-padding);
+}
+.editor-plugin-overlay-scroll:has(+ .editor-plugin-overlay-close) {
+  padding-inline-end: calc(var(--editor-plugin-overlay-padding) + 28px);
+}
+.editor-plugin-overlay > .editor-plugin-overlay-close.rt-IconButton {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-end: 14px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  margin: 0;
 }
 .editor-plugin-overlay-body {
+  flex: 1;
   min-width: 0;
   overflow: auto;
+}
+.editor-plugin-overlay .editor-plugin-overlay-close.rt-IconButton {
+  flex: none;
+  border-radius: var(--radius-4);
+  color: var(--gray-11);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.editor-plugin-overlay .editor-plugin-overlay-close.rt-IconButton:is(:hover, :focus-visible) {
+  background-color: var(--gray-a3);
+  color: var(--gray-12);
+}
+.editor-plugin-overlay-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .editor-plugin-overlay-body .plugin-view {
   height: 100%;

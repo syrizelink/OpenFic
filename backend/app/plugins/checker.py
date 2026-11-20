@@ -171,6 +171,8 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
             for view in manifest.views:
                 if view.renderer == "declarative":
                     for command in [view.render, view.action]:
+                        if command is None:
+                            continue
                         if command not in commands:
                             issue(
                                 "ui.command",

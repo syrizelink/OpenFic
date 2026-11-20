@@ -19,6 +19,7 @@ export function PluginImage({
     ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(plugin.id)}/icon?${new URLSearchParams({
         version: plugin.version,
         revision: String(plugin.development_revision ?? 0),
+        reload: String(plugin.reload_revision ?? 0),
         path: plugin.icon,
       })}`
     : null;

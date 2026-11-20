@@ -24,7 +24,6 @@ import "react-photo-view/dist/react-photo-view.css";
 
 import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
-import { PluginSlot } from "@/features/plugins/plugin-slot";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
 import { fetchAgentComposerItems } from "@/lib/api-client";
@@ -522,15 +521,6 @@ export function AgentInput({
       className="ai-sidebar-input-area"
       data-voice-active={voice.active || undefined}
     >
-      <PluginSlot
-        slot="assistant.toolbar"
-        context={{ projectId }}
-      />
-      <PluginSlot
-        slot="assistant.above-prompt"
-        context={{ projectId }}
-        inline
-      />
       <input
         ref={imageFileInputRef}
         className="agent-composer-file-input"

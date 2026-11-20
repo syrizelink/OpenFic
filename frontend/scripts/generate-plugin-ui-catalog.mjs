@@ -657,7 +657,7 @@ export interface UIActionResult {
   effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
     "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
     "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
-    "ui.invalidate" | "ui.context" | "ui.tools" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
   next?: string;
 }
 `;

@@ -24,13 +24,8 @@ UI_SLOTS = (
     "sidebar.extensions",
     "app.overlay",
     "editor.toolbar",
-    "editor.context",
-    "editor.panel",
-    "assistant.toolbar",
-    "assistant.above-prompt",
     "statusbar",
     "settings.plugins",
-    "dashboard",
 )
 RESOURCE_NAMES = (
     "projects",
@@ -97,25 +92,40 @@ class View(Contract):
     slot: str = "sidebar.extensions"
     height: int = Field(default=320, ge=80, le=1600)
     icon: str | None = None
-    presentation: Literal["popover", "dialog"] | None = None
+    presentation: Literal["popover", "dialog", "action"] | None = None
+    placement: Literal["left-end", "right-start", "right-end"] | None = None
+    showCloseButton: bool | None = None
 
     @model_validator(mode="after")
     def known_slot(self):
         if self.slot not in UI_SLOTS:
             raise ValueError(f"Unknown UI slot: {self.slot}")
+        if self.placement is not None and self.slot != "editor.toolbar":
+            raise ValueError("placement is only supported in editor.toolbar")
+        if self.showCloseButton is not None and self.slot != "editor.toolbar":
+            raise ValueError("showCloseButton is only supported in editor.toolbar")
         if self.icon is not None and self.slot == "sidebar.extensions":
             safe_path(self.icon)
         elif self.icon is not None:
             from .declarative import normalize_icon
 
             self.icon = normalize_icon(self.icon)
-        if self.presentation is not None and self.slot not in {
-            "editor.toolbar",
-            "editor.context",
-            "editor.panel",
-        }:
-            raise ValueError("presentation is only supported in editor slots")
-        if self.renderer == "iframe":
+        if self.presentation is not None and self.slot != "editor.toolbar":
+            raise ValueError("presentation is only supported in editor.toolbar")
+        if self.presentation == "action":
+            if self.slot != "editor.toolbar" or self.renderer != "declarative":
+                raise ValueError(
+                    "Action buttons require a declarative editor.toolbar view"
+                )
+            if self.entry is not None or self.render is not None or not self.action:
+                raise ValueError(
+                    "Action buttons require an action command without entry or render"
+                )
+            if self.showCloseButton is not None or self.action.startswith("sdk."):
+                raise ValueError(
+                    "Action buttons cannot configure closing or bind SDK methods"
+                )
+        elif self.renderer == "iframe":
             if not self.entry or self.render or self.action:
                 raise ValueError(
                     "Iframe views require entry and cannot bind render/action commands"

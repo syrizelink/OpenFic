@@ -830,11 +830,16 @@ async def test_plugin_logs_notify_only_the_watch_room(plugin_api, monkeypatch):
     send = AsyncMock()
     monkeypatch.setattr("app.socket.emitter.emit", send)
     host._log("project-statistics", "plugin", "live entry")
-    assert (await client.delete("/api/v1/plugins/project-statistics/logs")).status_code == 204
+    assert (
+        await client.delete("/api/v1/plugins/project-statistics/logs")
+    ).status_code == 204
     await asyncio.wait_for(host._notifications.join(), 5)
     assert send.await_count == 2
     for event in send.await_args_list:
-        assert event.args == ("plugins:logs-changed", {"pluginId": "project-statistics"})
+        assert event.args == (
+            "plugins:logs-changed",
+            {"pluginId": "project-statistics"},
+        )
         assert event.kwargs == {"room": "plugins:logs"}
 
     await watch(sid, False)
@@ -930,6 +935,77 @@ async def test_plugin_order_write_failure_restores_memory(plugin_api, monkeypatc
         await host.set_order(["zeta", "alpha"])
     assert list(host.plugins) == ["alpha", "zeta"]
     assert (host.root / ".registry.json").read_bytes() == registry
+
+
+async def test_reload_installed_plugin_reads_manifest_and_preserves_configuration(
+    plugin_api,
+):
+    host, api, _ = plugin_api
+    url = "/api/v1/plugins/project-statistics"
+    assert (await install(api)).status_code == 201
+    assert (
+        await api.patch(f"{url}/enabled", json={"enabled": True})
+    ).status_code == 200
+    assert (
+        await api.put(f"{url}/settings", json={"settings": {"targetWords": 800}})
+    ).status_code == 200
+
+    previous = host.get("project-statistics")
+    manifest_path = host.root / "project-statistics" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["views"][0].update(slot="editor.toolbar", placement="right-start")
+    manifest_path.write_text(json.dumps(manifest))
+
+    assert (await api.post(f"{url}/reload")).status_code == 204
+    current = host.get("project-statistics")
+    assert current.registration is not None and previous.registration is None
+    description = host.describe(current)
+    assert description["reload_revision"] == 1
+    assert description["configuration"]["targetWords"] == 800
+    assert description["views"][0]["placement"] == "right-start"
+
+    manifest_path.write_text("{")
+    assert (await api.post(f"{url}/reload")).status_code == 400
+    assert host.get("project-statistics") is current
+    assert current.registration is not None
+
+    manifest_path.write_text(json.dumps(manifest))
+    assert (
+        await api.patch(f"{url}/enabled", json={"enabled": False})
+    ).status_code == 200
+    assert (await api.post(f"{url}/reload")).status_code == 204
+    assert host.describe(host.get("project-statistics"))["status"] == "disabled"
+
+
+async def test_toolbar_button_executes_without_render(plugin_api):
+    host, api, _ = plugin_api
+    source = 'def register(host):\n    host.register_command("run", lambda ctx, args: args)\n'
+    assert (await install(api, package(backend=source))).status_code == 201
+    path = host.root / "project-statistics" / "plugin.json"
+    manifest = json.loads(path.read_text())
+    manifest["views"] = [
+        {
+            "id": "execute",
+            "title": "Execute",
+            "slot": "editor.toolbar",
+            "renderer": "declarative",
+            "presentation": "action",
+            "action": "run",
+        }
+    ]
+    path.write_text(json.dumps(manifest))
+    base = "/api/v1/plugins/project-statistics"
+    assert (await api.post(f"{base}/reload")).status_code == 204
+    assert (
+        await api.patch(f"{base}/enabled", json={"enabled": True})
+    ).status_code == 200
+    view = f"{base}/views/execute"
+    assert (await api.post(f"{view}/render", json={})).status_code == 404
+    response = await api.post(
+        f"{view}/action", json={"id": "execute", "context": {"chapterId": "sample"}}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["context"]["chapterId"] == "sample"
 
 
 async def test_install_enable_statistics_configuration_restart_export_uninstall(

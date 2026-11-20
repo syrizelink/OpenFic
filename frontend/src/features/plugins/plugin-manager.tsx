@@ -28,6 +28,7 @@ import {
   Text,
   TextArea,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,6 +38,7 @@ import {
   ArrowUpToLine,
   Download,
   ExternalLink,
+  FolderSync,
   GripVertical,
   Package,
   Plus,
@@ -140,6 +142,7 @@ export function PluginManager({
       plugin?.id,
       plugin?.version,
       plugin?.development_revision,
+      plugin?.reload_revision,
       plugin?.detail,
     ],
     queryFn: async () =>
@@ -214,6 +217,13 @@ export function PluginManager({
     });
   }
 
+  function handleReloadPlugin(entry: InstalledPlugin) {
+    if (busy) return;
+    void run(async () => {
+      await apiClient.post(`/plugins/${entry.id}/reload`);
+    }, t("plugins.reloaded"));
+  }
+
   function handleDragEnd({ active, over }: DragEndEvent) {
     const row = Array.from(
       listRef.current?.querySelectorAll<HTMLElement>(".plugin-list-row") ?? [],
@@ -262,6 +272,12 @@ export function PluginManager({
       }
     }
     menuItems.push(
+      {
+        id: "reload",
+        label: t("plugins.reload"),
+        icon: FolderSync,
+        onClick: () => handleReloadPlugin(menuPlugin),
+      },
       {
         id: "export",
         label: t("plugins.export"),
@@ -456,56 +472,75 @@ export function PluginManager({
                     </Text>
                   </Flex>
                   {homepage && (
+                    <Tooltip content={t("plugins.openHomepage")}>
+                      <IconButton
+                        asChild
+                        className="plugin-homepage-link"
+                        size="1"
+                        variant="ghost"
+                        color="gray"
+                      >
+                        <a
+                          href={homepage.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={t("plugins.openHomepage")}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            openExternalLink(homepage.href);
+                          }}
+                        >
+                          {["github.com", "www.github.com"].includes(
+                            homepage.hostname.replace(/\.$/, ""),
+                          ) ? (
+                            <span
+                              className="plugin-homepage-github"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <ExternalLink
+                              size={16}
+                              aria-hidden="true"
+                            />
+                          )}
+                        </a>
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip content={t("plugins.reload")}>
                     <IconButton
-                      asChild
-                      className="plugin-homepage-link"
+                      type="button"
                       size="1"
                       variant="ghost"
                       color="gray"
+                      highContrast
+                      aria-label={t("plugins.reload")}
+                      disabled={busy}
+                      onClick={() => handleReloadPlugin(plugin)}
                     >
-                      <a
-                        href={homepage.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={t("plugins.openHomepage")}
-                        title={t("plugins.openHomepage")}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          openExternalLink(homepage.href);
-                        }}
-                      >
-                        {["github.com", "www.github.com"].includes(
-                          homepage.hostname.replace(/\.$/, ""),
-                        ) ? (
-                          <span
-                            className="plugin-homepage-github"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <ExternalLink
-                            size={16}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </a>
+                      <FolderSync
+                        size={16}
+                        aria-hidden="true"
+                      />
                     </IconButton>
-                  )}
-                  <IconButton
-                    type="button"
-                    size="1"
-                    variant="ghost"
-                    color="red"
-                    className="plugin-uninstall-action"
-                    aria-label={t("plugins.uninstall")}
-                    title={t("plugins.uninstall")}
-                    disabled={busy}
-                    onClick={() => setRemoving(plugin)}
-                  >
-                    <Trash2
-                      size={16}
-                      aria-hidden="true"
-                    />
-                  </IconButton>
+                  </Tooltip>
+                  <Tooltip content={t("plugins.uninstall")}>
+                    <IconButton
+                      type="button"
+                      size="1"
+                      variant="ghost"
+                      color="red"
+                      className="plugin-uninstall-action"
+                      aria-label={t("plugins.uninstall")}
+                      disabled={busy}
+                      onClick={() => setRemoving(plugin)}
+                    >
+                      <Trash2
+                        size={16}
+                        aria-hidden="true"
+                      />
+                    </IconButton>
+                  </Tooltip>
                 </Flex>
                 <PluginDescription
                   key={plugin.description}

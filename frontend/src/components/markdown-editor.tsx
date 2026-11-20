@@ -7,7 +7,11 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu } from "./context-menu";
-import { EditorToolbar, type EditorToolbarExtraAction } from "./editor-toolbar";
+import {
+  EditorToolbar,
+  type EditorToolbarActions,
+  type EditorToolbarExtraAction,
+} from "./editor-toolbar";
 import { ExternalLinkSafetyDialog } from "./external-link-safety-dialog";
 import { createMarkdownEditorExtensions } from "./markdown-editor-config";
 import { TitleInput } from "./title-input";
@@ -27,7 +31,7 @@ export interface MarkdownEditorProps {
   titlePlaceholder?: string;
   extraToolbarActions?: EditorToolbarExtraAction[];
   toolbarPrefix?: React.ReactNode;
-  toolbarActions?: React.ReactNode;
+  toolbarActions?: EditorToolbarActions;
   wordCount?: number;
   saveStatusText?: { saving: string; saved: string; unsaved: string };
   wordCountLabel?: string;

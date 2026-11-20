@@ -324,11 +324,12 @@ function NoteEditorContent({
       onLockedAction={showLockedToast}
       placeholder={t("writing.noteContentPlaceholder")}
       lockedBanner={lockedBanner}
-      toolbarActions={
+      toolbarActions={(placement) => (
         <EditorPluginActions
+          placement={placement}
           context={{ projectId: note.projectId, noteId: note.id, kind: "note" }}
         />
-      }
+      )}
       scrollTop={scrollTop}
       onScrollPositionChange={handleScrollPositionChange}
     />

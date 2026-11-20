@@ -2,8 +2,6 @@ import axios, { type AxiosRequestConfig } from "axios";
 
 import { apiClient } from "@/lib/api-client";
 
-export const EDITOR_PLUGIN_SLOTS = ["editor.toolbar", "editor.context", "editor.panel"];
-
 export interface PluginView {
   id: string;
   title: string;
@@ -14,7 +12,9 @@ export interface PluginView {
   slot: string;
   height?: number;
   icon?: string | null;
-  presentation?: "popover" | "dialog" | null;
+  presentation?: "popover" | "dialog" | "action" | null;
+  placement?: "left-end" | "right-start" | "right-end" | null;
+  showCloseButton?: boolean | null;
 }
 export interface PluginSetting {
   key: string;
@@ -40,6 +40,7 @@ export interface InstalledPlugin {
   icon?: string | null;
   author: string;
   development_revision?: number;
+  reload_revision?: number;
   enabled: boolean;
   status: "enabled" | "disabled" | "error";
   error: string | null;

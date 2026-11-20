@@ -56,6 +56,7 @@ export async function frontendCall(
   params: Record<string, unknown>,
   capabilities: string[],
   navigate: (path: string) => void,
+  onRequestClose?: () => void,
 ) {
   const required = method.startsWith("editor.")
     ? method === "editor.read"
@@ -63,6 +64,11 @@ export async function frontendCall(
       : "editor.write"
     : "ui";
   if (!capabilities.includes(required)) throw new Error(`Plugin has not declared ${required}`);
+  if (method === "ui.close") {
+    if (!onRequestClose) throw new Error("Closing requires an editor plugin overlay");
+    onRequestClose();
+    return null;
+  }
   if (method.startsWith("editor.")) {
     if (!activeEditor) throw new Error("No editor is currently open");
     if (method === "editor.read") {

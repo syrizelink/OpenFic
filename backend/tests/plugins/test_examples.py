@@ -359,7 +359,7 @@ async def test_statistics_upgrade_replaces_legacy_ui_and_keeps_settings(plugin_a
     ).status_code == 200
 
 
-async def test_native_switches_do_not_mutate_global_or_other_project_defaults(
+async def test_native_draft_switches_do_not_mutate_global_or_other_project_defaults(
     plugin_api, client, session
 ):
     host, _, _ = plugin_api
@@ -375,11 +375,17 @@ async def test_native_switches_do_not_mutate_global_or_other_project_defaults(
         "prompt-elements",
         "ui.action",
         {
-            "viewId": "switches",
+            "viewId": "rules",
             "context": {"projectId": first},
-            "id": "toggle:consistency",
+            "id": "draft-toggle:consistency",
             "value": False,
         },
+        session,
+    )
+    await host.call(
+        "prompt-elements",
+        "ui.action",
+        {"viewId": "rules", "context": {"projectId": first}, "id": "save"},
         session,
     )
     for project_id, expected in [(first, False), (second, True), (None, True)]:

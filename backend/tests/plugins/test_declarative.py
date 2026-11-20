@@ -298,12 +298,17 @@ async def test_compound_components_and_as_child():
     ).read_bytes()
 
 
-@pytest.mark.parametrize("slot", ["editor.toolbar", "editor.context", "editor.panel"])
-async def test_editor_slot_presentation_and_icon_contract(slot):
+@pytest.mark.parametrize("slot", ["assistant.toolbar", "assistant.above-prompt", "dashboard"])
+async def test_removed_slot_is_rejected(slot: str) -> None:
+    with pytest.raises(ValidationError, match="Unknown UI slot"):
+        View(id="removed", title="Removed", slot=slot, entry="index.html")
+
+
+async def test_editor_slot_presentation_and_icon_contract() -> None:
     view = View(
         id="editor",
         title="Editor",
-        slot=slot,
+        slot="editor.toolbar",
         renderer="declarative",
         render="ui.render",
         action="ui.action",
@@ -314,7 +319,7 @@ async def test_editor_slot_presentation_and_icon_contract(slot):
     assert view.presentation == "popover"
     assert (
         View(
-            id="legacy", title="Legacy", slot=slot, entry="panel/index.html"
+            id="default", title="Default", slot="editor.toolbar", entry="panel/index.html"
         ).presentation
         is None
     )
@@ -322,16 +327,39 @@ async def test_editor_slot_presentation_and_icon_contract(slot):
         View(
             id="invalid",
             title="Invalid",
-            slot=slot,
+            slot="editor.toolbar",
             entry="panel/index.html",
             icon="not-a-lucide-icon",
         )
-    with pytest.raises(ValidationError, match="editor slots"):
+    with pytest.raises(ValidationError, match=r"only supported in editor\.toolbar"):
         View(
             id="invalid",
             title="Invalid",
             entry="panel/index.html",
             presentation="dialog",
+        )
+
+
+async def test_editor_overlay_close_button() -> None:
+    fields = {"id": "editor", "title": "Editor", "entry": "panel/index.html"}
+    view = View.model_validate({**fields, "slot": "editor.toolbar", "showCloseButton": False})
+    assert view.model_dump()["showCloseButton"] is False
+    with pytest.raises(ValidationError, match=r"only supported in editor\.toolbar"):
+        View.model_validate({**fields, "showCloseButton": False})
+
+
+async def test_editor_toolbar_placement() -> None:
+    fields = {"id": "editor", "title": "Editor", "entry": "panel/index.html"}
+    for placement in ("left-end", "right-start", "right-end", None):
+        view = View.model_validate(
+            {**fields, "slot": "editor.toolbar", "placement": placement}
+        )
+        assert view.model_dump()["placement"] == placement
+    with pytest.raises(ValidationError, match="only supported in editor.toolbar"):
+        View.model_validate({**fields, "placement": "left-end"})
+    with pytest.raises(ValidationError, match="placement"):
+        View.model_validate(
+            {**fields, "slot": "editor.toolbar", "placement": "left-start"}
         )
 
 

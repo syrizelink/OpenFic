@@ -6,7 +6,7 @@
 {
   "resources": ["panel"],
   "views": [
-    {"id": "weather", "title": "Weather", "slot": "assistant.above-prompt", "renderer": "declarative", "render": "weather.render", "action": "weather.action"},
+    {"id": "weather", "title": "Weather", "slot": "sidebar.extensions", "renderer": "declarative", "render": "weather.render", "action": "weather.action"},
     {"id": "dashboard", "title": "Dashboard", "renderer": "iframe", "entry": "panel/index.html"}
   ]
 }
@@ -74,7 +74,7 @@ Python 插件可使用 `await context.call("workflow.select", {"projectId": proj
 
 `icon` 可选，省略时使用 `Puzzle`。`presentation` 仅用于编辑器插槽，支持 `popover`（默认）和 `dialog`；iframe 与声明式视图均支持。浮层可通过 Escape、关闭按钮或点击外部关闭；对话框提供焦点约束与关闭按钮。关闭后焦点回到工具栏入口。浮层中的输入不会被工具栏的触摸事件抢走焦点。移动端沿用原工具栏策略，在软键盘出现时显示。
 
-旧 `editor.context` 与 `editor.panel` 包仍能安装，分别转换为工具栏按钮＋浮层、工具栏按钮＋对话框。它们不再在正文上方插入内容，建议新包使用 `editor.toolbar`。`height` 只设置 iframe 浮层内部的高度，iframe 仍可通过 `ui.resize(height)` 调整它；宿主限制内容在视口内滚动，不改变正文布局。`context` 提供 `projectId`、`kind: "chapter" | "note"` 以及对应 `chapterId` / `noteId`；笔记目前不支持撤销/选区 SDK，插件应据此调整操作。
+`height` 只设置 iframe 浮层内部的高度，iframe 仍可通过 `ui.resize(height)` 调整它；宿主限制内容在视口内滚动，不改变正文布局。`context` 提供 `projectId`、`kind: "chapter" | "note"` 以及对应 `chapterId` / `noteId`；笔记目前不支持撤销/选区 SDK，插件应据此调整操作。
 
 声明式树可使用 `Icon`、`Project.Icon` 或别名 `LucideIcon`：
 

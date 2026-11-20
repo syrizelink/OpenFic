@@ -9,7 +9,6 @@ import {
   Select,
   Text,
   TextArea,
-  TextField,
   Theme,
 } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +26,7 @@ import {
 
 import { fetchSettings } from "../settings/lib/settings-api";
 import { fetchPluginDevelopment, pluginsQueryOptions, pluginError, type PluginView } from "./api";
+import { EditorPluginCommandButton } from "./editor-plugin-actions";
 import { enablePluginDiagnostics, type PluginDiagnostic } from "./plugin-diagnostics";
 import { PluginFrame } from "./plugin-page";
 import { PluginRuntime } from "./plugin-runtime";
@@ -571,19 +571,21 @@ function PluginDevelopmentPreview() {
       >
         {view.slot} · {plugin.version} · reload #{plugin.development_revision ?? 0}
       </Text>
-      <PreviewSlot view={view}>{frame}</PreviewSlot>
+      {view.presentation === "action" ? (
+        <EditorPluginCommandButton
+          plugin={plugin}
+          view={view}
+          context={context}
+        />
+      ) : (
+        <PreviewSlot view={view}>{frame}</PreviewSlot>
+      )}
     </Theme>
   );
 }
 function PreviewSlot({ view, children }: { view: PluginView; children: React.ReactNode }) {
-  const toolbar = [
-    "editor.toolbar",
-    "editor.context",
-    "editor.panel",
-    "assistant.toolbar",
-    "statusbar",
-  ].includes(view.slot);
-  if (toolbar && (view.presentation === "dialog" || view.slot === "editor.panel"))
+  const toolbar = ["editor.toolbar", "statusbar"].includes(view.slot);
+  if (toolbar && view.presentation === "dialog")
     return (
       <Dialog.Root>
         <Dialog.Trigger>
@@ -612,17 +614,5 @@ function PreviewSlot({ view, children }: { view: PluginView; children: React.Rea
       </Box>
     );
   if (view.slot === "app.overlay") return <div className="plugin-overlays">{children}</div>;
-  return (
-    <Box
-      className={view.slot === "assistant.above-prompt" ? "plugin-slot-assistant-above-prompt" : ""}
-    >
-      {children}
-      {view.slot === "assistant.above-prompt" && (
-        <TextField.Root
-          placeholder="输入框区域预览"
-          readOnly
-        />
-      )}
-    </Box>
-  );
+  return <Box>{children}</Box>;
 }

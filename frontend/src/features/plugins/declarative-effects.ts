@@ -9,6 +9,7 @@ const methods = new Set([
   "editor.undo",
   "editor.redo",
   "ui.navigate",
+  "ui.close",
   "ui.openExternal",
   "ui.toast",
   "ui.confirm",

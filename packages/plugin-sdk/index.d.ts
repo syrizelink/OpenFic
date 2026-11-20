@@ -1,13 +1,17 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "editor.context" | "editor.panel" | "assistant.toolbar" | "assistant.above-prompt" | "statusbar" | "settings.plugins" | "dashboard";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "statusbar" | "settings.plugins";
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
-export type PluginView = { id: string; title: string; height?: number; presentation?: "popover" | "dialog" } & (
+export type PluginView = { id: string; title: string } & (
+  { slot: "editor.toolbar"; renderer: "declarative"; presentation: "action"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; action: string; entry?: never; render?: never; showCloseButton?: never; height?: number } |
+  ({ height?: number; presentation?: "popover" | "dialog" } & (
   /** Sidebar icons are image paths relative to plugin.json. */
   { slot?: "sidebar.extensions"; icon?: string } |
-  { slot: Exclude<UIAction, "sidebar.extensions">; icon?: UIIconName }
+  { slot: "editor.toolbar"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; showCloseButton?: boolean } |
+  { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar">; icon?: UIIconName }
 ) & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
   { renderer: "declarative"; entry?: never; render: string; action: string }
+  ))
 );
 /** Unified plugin package. Paths are relative to plugin.json, never tied to directory names. */
 export interface PluginManifest {
@@ -2310,7 +2314,7 @@ export interface UIActionResult {
   effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
     "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
     "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
-    "ui.invalidate" | "ui.context" | "ui.tools" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
   next?: string;
 }
 export interface Context {
@@ -2355,7 +2359,7 @@ export interface OpenFicSDK {
   hooks: { preview(event: string, data: Record<string, Json>): Promise<Json> };
   events: { on: OpenFicSDK["on"]; emit(event: string, data?: Record<string, Json>): Promise<void> };
   editor: { read(): Promise<EditorSnapshot>; insert(text: string): Promise<EditorSnapshot>; replaceSelection(text: string): Promise<EditorSnapshot>; setContent(text: string): Promise<EditorSnapshot>; setSelection(from: number, to: number): Promise<EditorSnapshot>; focus(): Promise<void>; save(): Promise<void>; undo(): Promise<void>; redo(): Promise<void> };
-  ui: { resize(height: number): Promise<number>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(): Promise<void> };
+  ui: { close(): Promise<void>; resize(height: number): Promise<number>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(): Promise<void> };
   assistant: { fill(text: string): Promise<void> }; log(message: string, level?: "info" | "warning" | "error"): Promise<void>;
   agent: { tools(): Promise<{name:string;description:string;access_level:string;inputSchema:Json}[]>; start(projectId:string,modelId:string,options?:Record<string,Json>):Promise<Json>; send(sessionId:string,message:string,options?:Record<string,Json>):Promise<Json>; cancel(sessionId:string):Promise<Json> };
 }

@@ -139,6 +139,7 @@ class Installed:
     error: str | None = None
     registration: Registration | None = None
     module_name: str | None = None
+    reload_revision: int = 0
 
 
 async def _await_result(value):
@@ -378,6 +379,7 @@ class PluginHost:
     def describe(self, plugin: Installed) -> dict[str, Any]:
         return {
             **plugin.manifest.model_dump(),
+            "reload_revision": plugin.reload_revision,
             "development_revision": self.development.revision
             if self.development and self.development.plugin_id == plugin.manifest.id
             else 0,
@@ -454,7 +456,7 @@ class PluginHost:
                     raise PermissionError(f"Plugin has not declared {capability}")
             for view in manifest.views:
                 if view.renderer == "declarative" and (
-                    view.render not in registration.commands
+                    (view.render is not None and view.render not in registration.commands)
                     or view.action not in registration.commands
                 ):
                     raise ValueError(
@@ -676,6 +678,61 @@ class PluginHost:
                     plugin_id, "disable", "Plugin disabled; registrations disposed"
                 )
             return self.describe(plugin)
+
+    async def reload(self, plugin_id: str) -> None:
+        async with self._lock:
+            previous = self.get(plugin_id)
+            directory = self.root / plugin_id
+            try:
+                manifest_file = directory / "plugin.json"
+                if directory.is_symlink() or manifest_file.is_symlink():
+                    raise ValueError("Invalid installed plugin directory or manifest")
+                manifest = Manifest.model_validate_json(
+                    await run_in_threadpool(manifest_file.read_bytes)
+                )
+                if manifest.id != plugin_id:
+                    raise ValueError("Plugin directory identity mismatch")
+                manifest.resolve_detail(directory)
+                entries = [manifest.entry, *(view.entry for view in manifest.views)]
+                root = directory.resolve()
+                for name in entries:
+                    if name and (
+                        not (path := (directory / name).resolve()).is_relative_to(root)
+                        or not path.is_file()
+                    ):
+                        raise ValueError("Manifest references an invalid entry file")
+                settings = manifest.validate_settings(
+                    {
+                        item.key: previous.settings[item.key]
+                        for item in manifest.settings
+                        if item.key in previous.settings
+                    }
+                )
+            except (ValueError, OSError, RuntimeError) as error:
+                raise PluginError(
+                    "Cannot reload plugin: invalid manifest, files or settings"
+                ) from error
+
+            plugin = Installed(
+                manifest,
+                previous.enabled,
+                settings,
+                reload_revision=previous.reload_revision + 1,
+            )
+            await self._deactivate(previous)
+            self.plugins[plugin_id] = plugin
+            try:
+                if plugin.enabled:
+                    await self._activate(plugin)
+            except Exception as error:
+                plugin.error = self.diagnostics.redact(str(error), plugin)
+                self._log(plugin_id, "reload", plugin.error, "error")
+                raise PluginError(
+                    f"Plugin activation failed: {plugin.error}"
+                ) from error
+            finally:
+                self._persist()
+            self._log(plugin_id, "reload", "Plugin reloaded")
 
     async def configure(
         self, plugin_id: str, settings: dict[str, Any]
