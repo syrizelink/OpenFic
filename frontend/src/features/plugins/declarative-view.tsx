@@ -171,6 +171,7 @@ export function DeclarativeView({
                   args,
                   plugin.capabilities,
                   navigate,
+                  plugin.id,
                   onRequestClose &&
                     (() => {
                       current.active = false;
@@ -223,13 +224,19 @@ export function DeclarativeView({
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const invalidate = (event: Event) => {
-      const detail = (event as CustomEvent<{ event: string; pluginId?: string }>).detail;
+      const detail = (
+        event as CustomEvent<{ event: string; pluginId?: string; data?: { viewId?: string } }>
+      ).detail;
       if (detail.event !== "ui.invalidate" && detail.event !== "data.changed") return;
       if (detail.event === "ui.invalidate" && detail.pluginId && detail.pluginId !== plugin.id)
         return;
+      if (detail.event === "ui.invalidate" && detail.data?.viewId && detail.data.viewId !== view.id)
+        return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey: ["plugin-component-data", plugin.id] });
+        void queryClient.invalidateQueries({
+          queryKey: ["plugin-component-data", plugin.id, view.id],
+        });
         void refetch();
       }, 50);
     };
@@ -238,7 +245,7 @@ export function DeclarativeView({
       clearTimeout(timer);
       window.removeEventListener("openfic:plugin-event", invalidate);
     };
-  }, [refetch, queryClient, plugin.id]);
+  }, [refetch, queryClient, plugin.id, view.id]);
   useEffect(() => {
     const next = data?.panes.map((pane) => pane.id).join("/") ?? "";
     if (next && next !== paneKey.current && data?.panes.some((pane) => pane.focus)) {
@@ -376,6 +383,7 @@ export function DeclarativeView({
                 {renderTree(entry.tree, {
                   action: run,
                   pluginId: plugin.id,
+                  viewId: view.id,
                   portal,
                   animations: styles.animations,
                   animationVariables: styles.animationVariables,

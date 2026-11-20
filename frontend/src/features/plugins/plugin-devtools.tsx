@@ -30,6 +30,7 @@ import { EditorPluginCommandButton } from "./editor-plugin-actions";
 import { enablePluginDiagnostics, type PluginDiagnostic } from "./plugin-diagnostics";
 import { PluginFrame } from "./plugin-page";
 import { PluginRuntime } from "./plugin-runtime";
+import { PluginStatusItem } from "./plugin-status-items";
 
 import "./plugin-devtools.css";
 
@@ -571,7 +572,14 @@ function PluginDevelopmentPreview() {
       >
         {view.slot} · {plugin.version} · reload #{plugin.development_revision ?? 0}
       </Text>
-      {view.presentation === "action" ? (
+      {view.slot === "statusbar" ? (
+        <div className="app-status-bar">
+          <PluginStatusItem
+            plugin={plugin}
+            view={view}
+          />
+        </div>
+      ) : view.presentation === "action" ? (
         <EditorPluginCommandButton
           plugin={plugin}
           view={view}
@@ -584,7 +592,7 @@ function PluginDevelopmentPreview() {
   );
 }
 function PreviewSlot({ view, children }: { view: PluginView; children: React.ReactNode }) {
-  const toolbar = ["editor.toolbar", "statusbar"].includes(view.slot);
+  const toolbar = view.slot === "editor.toolbar";
   if (toolbar && view.presentation === "dialog")
     return (
       <Dialog.Root>

@@ -117,7 +117,7 @@ export function EditorPluginCommandButton({ plugin, view, context }: EditorPlugi
             "effect",
             method,
             params,
-            () => frontendCall(method, params, plugin.capabilities, navigate),
+            () => frontendCall(method, params, plugin.capabilities, navigate, plugin.id),
             view.id,
           ),
         (next, values) => send(next, values, "change"),
@@ -153,7 +153,16 @@ export function EditorPluginCommandButton({ plugin, view, context }: EditorPlugi
   );
 }
 
-function EditorPluginOverlayButton({ plugin, view, context }: EditorPluginActionProps) {
+export function EditorPluginOverlayButton({
+  plugin,
+  view,
+  context,
+  trigger,
+  side = "bottom",
+}: EditorPluginActionProps & {
+  trigger?: React.ReactElement;
+  side?: "top" | "bottom";
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -220,27 +229,31 @@ function EditorPluginOverlayButton({ plugin, view, context }: EditorPluginAction
       open={open}
       onOpenChange={handleOpenChange}
     >
-      <Tooltip
-        content={view.title}
-        open={!open && tooltipOpen}
-        onOpenChange={(next) => setTooltipOpen(next && !open && !restoringFocus.current)}
-      >
-        <Trigger>
-          <IconButton
-            type="button"
-            className="editor-toolbar-button"
-            variant="ghost"
-            color="gray"
-            highContrast
-            size="2"
-            aria-label={view.title}
-            data-editor-plugin-action={`${plugin.id}/${view.id}`}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            <PluginIcon name={view.icon ?? undefined} />
-          </IconButton>
-        </Trigger>
-      </Tooltip>
+      {trigger ? (
+        <Trigger>{trigger}</Trigger>
+      ) : (
+        <Tooltip
+          content={view.title}
+          open={!open && tooltipOpen}
+          onOpenChange={(next) => setTooltipOpen(next && !open && !restoringFocus.current)}
+        >
+          <Trigger>
+            <IconButton
+              type="button"
+              className="editor-toolbar-button"
+              variant="ghost"
+              color="gray"
+              highContrast
+              size="2"
+              aria-label={view.title}
+              data-editor-plugin-action={`${plugin.id}/${view.id}`}
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              <PluginIcon name={view.icon ?? undefined} />
+            </IconButton>
+          </Trigger>
+        </Tooltip>
+      )}
       {dialog ? (
         <Dialog.Content
           className="editor-plugin-overlay"
@@ -256,7 +269,7 @@ function EditorPluginOverlayButton({ plugin, view, context }: EditorPluginAction
         <Popover.Content
           className="editor-plugin-overlay"
           aria-label={view.title}
-          side="bottom"
+          side={side}
           align="end"
           collisionPadding={12}
           width="380px"

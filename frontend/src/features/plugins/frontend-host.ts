@@ -56,6 +56,7 @@ export async function frontendCall(
   params: Record<string, unknown>,
   capabilities: string[],
   navigate: (path: string) => void,
+  pluginId: string,
   onRequestClose?: () => void,
 ) {
   const required = method.startsWith("editor.")
@@ -129,7 +130,13 @@ export async function frontendCall(
     return null;
   }
   if (method === "ui.invalidate") {
-    publishLocalEvent("ui.invalidate", params);
+    if (params.viewId !== undefined && (typeof params.viewId !== "string" || !params.viewId))
+      throw new Error("Invalid plugin view ID");
+    publishLocalEvent(
+      "ui.invalidate",
+      params.viewId === undefined ? {} : { viewId: params.viewId },
+      pluginId,
+    );
     return null;
   }
   if (method === "ui.context")

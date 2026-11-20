@@ -25,6 +25,7 @@ interface ProjectProps {
   forwarded: Record<string, unknown>;
   children: ReactNode;
   pluginId: string;
+  viewId: string;
   change: (value: UIValue, kind?: string) => void;
 }
 type Row = Record<string, unknown>;
@@ -42,10 +43,10 @@ async function resource(
   });
   return response.data.result;
 }
-function ModelControl({ props: p, pluginId, change }: ProjectProps) {
+function ModelControl({ props: p, pluginId, viewId, change }: ProjectProps) {
   const kind = str(p.taskType, "llm");
   const query = useQuery({
-    queryKey: ["plugin-component-data", pluginId, "models", kind],
+    queryKey: ["plugin-component-data", pluginId, viewId, "models", kind],
     queryFn: () => resource(pluginId, "/models", { task_type: kind }),
   });
   const rows = Array.isArray(query.data) ? (query.data as Row[]) : [];
@@ -90,9 +91,9 @@ async function projectsFor(pluginId: string) {
   }
 }
 function ProjectControl(input: ProjectProps) {
-  const { props: p, pluginId, change } = input;
+  const { props: p, pluginId, viewId, change } = input;
   const query = useQuery({
-    queryKey: ["plugin-component-data", pluginId, "projects"],
+    queryKey: ["plugin-component-data", pluginId, viewId, "projects"],
     queryFn: () => projectsFor(pluginId),
   });
   const raw = query.data ?? [];

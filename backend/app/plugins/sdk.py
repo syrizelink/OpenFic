@@ -182,10 +182,14 @@ class PluginContext:
         self.require("events")
         return self.host.emit(f"plugin.{self.plugin_id}.{event}", data, self.plugin_id)
 
-    def invalidate_ui(self):
+    def invalidate_ui(self, view_id: str | None = None):
         """Notify native views without escaping the plugin event namespace manually."""
         self.require("ui")
-        return self.host.emit("ui.invalidate", {}, self.plugin_id)
+        if view_id is not None and not any(view.id == view_id for view in self.plugin.manifest.views):
+            raise ValueError("Unknown plugin view")
+        return self.host.emit(
+            "ui.invalidate", {"viewId": view_id} if view_id is not None else {}, self.plugin_id
+        )
 
     def log(self, message: str, level="info"):
         self.host._log(self.plugin_id, "plugin", str(message)[:4000], level)

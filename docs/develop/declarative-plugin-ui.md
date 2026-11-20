@@ -32,7 +32,7 @@ def register(host):
     host.register_command("weather.action", action)
 ```
 
-点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端处理状态后，宿主重新获取组件树。主动刷新可通过 `context.invalidate_ui()`（要求 `ui`，或 `await context.call("ui.invalidate", {})`）发出通知，由已有宿主事件轮询接收。`context.emit()` 用于插件命名空间内的自定义事件，不会发送宿主保留的 UI 通知。
+点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端处理状态后，宿主重新获取组件树。主动刷新可调用 `context.invalidate_ui(view_id)`，只刷新当前插件指定视图；省略参数则刷新当前插件全部已挂载视图。也可通过 `await context.call("ui.invalidate", {"viewId": view_id})` 发送通知，这些操作均要求 `ui` 能力。iframe 可调用 `OpenFic.ui.invalidate(viewId)` 在当前页面触发相同范围的刷新。`context.emit()` 用于插件命名空间内的自定义事件，不会发送宿主保留的 UI 通知。
 
 公开 TypeScript 类型 `PluginView/UINode/UIProps/UIDocument/UIRenderRequest/UIEventRequest` 随 `@openfic/plugin-sdk` 提供。可安装的混合视图示例在 `frontend/e2e/fixtures/plugin-declarative`。
 

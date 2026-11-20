@@ -277,15 +277,7 @@ async def render(context, params):
 
 
 async def status(context, params):
-    return {
-        "css": ".showcase-title {color: rgb(14, 116, 144); animation: showcase-pulse 2s infinite;} @keyframes showcase-pulse {from {opacity:.9} to {opacity:1}}",
-        "tree": c(
-            "Badge",
-            "Native UI ready",
-            className="showcase-title",
-            **{"data-testid": "showcase-status"},
-        ),
-    }
+    return {"items": [{"type": "text", "text": "Native UI ready"}]}
 
 
 async def action(context, params):

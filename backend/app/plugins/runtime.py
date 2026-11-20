@@ -43,7 +43,7 @@ async def sdk_call(context, method: str, params: dict):
 
 async def _sdk_call(context, method: str, params: dict):
     if method == "ui.invalidate":
-        return context.invalidate_ui()
+        return context.invalidate_ui(params.get("viewId"))
     if method == "assets.read":
         return await context.assets.read(**params)
     if method == "api.request":

@@ -161,6 +161,12 @@ function IframeView({
     window.addEventListener("resize", viewportResize);
     const localEvent = (event: Event) => {
       const detail = (event as CustomEvent).detail;
+      if (
+        detail.event === "ui.invalidate" &&
+        ((detail.pluginId && detail.pluginId !== plugin.id) ||
+          (detail.data?.viewId && detail.data.viewId !== view.id))
+      )
+        return;
       if (detail.event.startsWith("editor.") && !capabilityKey.split(",").includes("editor.read"))
         return;
       if (!detail.event.startsWith("editor.") && !capabilityKey.split(",").includes("events"))
@@ -249,6 +255,7 @@ function IframeView({
                   message.params,
                   capabilityKey.split(","),
                   navigate,
+                  plugin.id,
                   onRequestClose,
                 )
               : apiClient

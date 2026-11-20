@@ -9,10 +9,11 @@ export interface PluginView {
   entry?: string;
   render?: string;
   action?: string;
+  status?: string;
   slot: string;
   height?: number;
   icon?: string | null;
-  presentation?: "popover" | "dialog" | "action" | null;
+  presentation?: "popover" | "dialog" | "action" | "none" | null;
   placement?: "left-end" | "right-start" | "right-end" | null;
   showCloseButton?: boolean | null;
 }

@@ -127,18 +127,20 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `app.overlay` | 应用全局原生浮层；不占布局，需 `ui.overlay`，只支持声明式视图 |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
-| `statusbar` | 状态栏入口，展开浮动插件视图 |
+| `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
 | `settings.plugins` | 设置内插件区域的附加视图 |
 
 入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
 
 `editor.toolbar` 还支持 `renderer: "declarative"` 配合 `presentation: "action"`。这类按钮只绑定 `action` 命令，不声明 `render` 或 `entry`。点击时以视图的 `id` 作为操作 ID，发送 `press` 事件和当前编辑器上下文，不打开浮层或对话框。
 
+`statusbar` 视图必须声明已注册的 `status` 命令和 `presentation`：`none` 不可点击，`popover` 和 `dialog` 打开对应的插件视图。不可点击的视图不声明 `entry`、`render` 或 `action`；可点击视图按 iframe 或声明式视图的常规方式声明内容。`status` 命令返回 `{"items": [...]}`，每一项只能是 `{"type": "text", "text": "..."}`、`{"type": "icon", "name": "Activity"}` 或 `{"type": "asset", "path": "images/icon.svg"}`，按数组顺序显示，不支持自定义组件或样式。包内图片须在 `resources` 范围内，支持 PNG、JPEG、WebP 和安全 SVG，最大 256 KiB。插件状态变化后调用 `context.invalidate_ui(view_id)` 刷新指定视图，省略视图 ID 则刷新该插件全部视图；连接恢复后也会刷新。
+
 iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章节、插槽、语言和主题上下文；缺少当前编辑器时编辑器 API 明确报错。页面运行在无同源权限的 iframe，CSP 阻止直接联网；允许内联样式以支持框架组件。网络访问走后端 SDK。
 
 `OpenFic.ui` 提供应用内导航、外部 HTTPS 页面、通知、确认、复制、文本下载、当前 UI 上下文和缓存刷新；`OpenFic.assistant.fill` 将文字追加到 Agent 输入框。程序化打开外部页面/剪贴板仍受浏览器平台权限约束。
 
-内嵌 iframe 视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px，对话输入框上方最高为 420px 或窗口高度的 45%。宿主在窗口尺寸变化时重新应用上限。
+内嵌 iframe 视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px。宿主在窗口尺寸变化时重新应用上限。
 
 `OpenFic.on` 可订阅 `editor.open/change/selection/close`、`data.changed` 和插件事件。没有 `editor.read` 的视图不会收到编辑器正文；服务端的 `editor.change` hook 也要求读取能力，改写还要求 `editor.write`。异步编辑器结果只在原内容和当前实体仍匹配时应用，避免覆盖用户后续输入。
 

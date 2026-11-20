@@ -36,6 +36,42 @@
   white-space: nowrap;
 }
 
+.app-status-bar__plugin-items {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.app-status-bar__plugin-items::-webkit-scrollbar {
+  display: none;
+}
+.app-status-bar__plugin-item {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 8px;
+  white-space: pre;
+  color: inherit;
+  font: inherit;
+}
+button.app-status-bar__plugin-item {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+button.app-status-bar__plugin-item:hover {
+  background: var(--gray-a3);
+}
+.app-status-bar__plugin-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
 .app-status-bar__connection {
   display: inline-flex;
   align-items: center;

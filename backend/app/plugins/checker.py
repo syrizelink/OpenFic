@@ -169,8 +169,8 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                         dynamic_registration = True
         if manifest.entry:
             for view in manifest.views:
-                if view.renderer == "declarative":
-                    for command in [view.render, view.action]:
+                if view.renderer == "declarative" or view.status:
+                    for command in [view.render, view.action, view.status]:
                         if command is None:
                             continue
                         if command not in commands:

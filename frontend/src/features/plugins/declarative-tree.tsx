@@ -28,6 +28,7 @@ import { PluginIcon } from "./plugin-icon";
 export interface TreeContext {
   action: UIAction;
   pluginId: string;
+  viewId: string;
   portal: HTMLElement;
   animations: Map<string, string>;
   animationVariables: Set<string>;
@@ -328,6 +329,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
         props={p}
         forwarded={props}
         pluginId={context.pluginId}
+        viewId={context.viewId}
         change={change}
       >
         {projectChildren}

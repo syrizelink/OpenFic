@@ -68,6 +68,12 @@ async def action(context, params):
     await context.storage.set("state", state)
 
 
+async def status(context, params):
+    state = await context.storage.get("state", {})
+    return {"items": [{"type": "icon", "name": "Activity"}, {"type": "text", "text": str(state.get("count", 0))}]}
+
+
 def register(host):
     host.register_command("ui.render", render)
     host.register_command("ui.action", action)
+    host.register_command("ui.status", status)

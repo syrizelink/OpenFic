@@ -24,9 +24,8 @@
       "id": "status",
       "title": "Native UI status",
       "slot": "statusbar",
-      "renderer": "declarative",
-      "render": "ui.status",
-      "action": "ui.action"
+      "presentation": "none",
+      "status": "ui.status"
     }
   ]
 }

@@ -455,7 +455,9 @@ class PluginHost:
                 if entries and capability not in manifest.capabilities:
                     raise PermissionError(f"Plugin has not declared {capability}")
             for view in manifest.views:
-                if view.renderer == "declarative" and (
+                if view.status and view.status not in registration.commands:
+                    raise ValueError(f"Statusbar view {view.id} references an unregistered command")
+                if view.renderer == "declarative" and view.presentation != "none" and (
                     (view.render is not None and view.render not in registration.commands)
                     or view.action not in registration.commands
                 ):

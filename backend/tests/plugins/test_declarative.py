@@ -1,9 +1,11 @@
 """Declarative protocol validation and authenticated, bound view transport."""
 
 import io
+import base64
 import json
 import zipfile
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
@@ -73,6 +75,74 @@ async def test_mixed_views_and_bound_actions(plugin_api):
     ).status_code == 422
     await host.set_enabled("declarative-test", False)
     assert (await api.post(base + "/native/render", json={})).status_code == 409
+
+
+async def test_statusbar_content_tracks_state_and_rejects_custom_ui(plugin_api):
+    from app.api.routers.plugins import plugin_exception_handler
+    from app.plugins.host import PluginError
+
+    host, api, app = plugin_api
+    app.add_exception_handler(PluginError, plugin_exception_handler)
+    assert (await host_tests.install(api, bundle())).status_code == 201
+    await host.set_enabled("declarative-test", True)
+    base = "/api/v1/plugins/declarative-test/views"
+    response = await api.post(base + "/status/status", json={})
+    assert response.status_code == 200
+    assert response.json()["items"] == [{"type": "icon", "name": "Activity"}, {"type": "text", "text": "0"}]
+    assert (await api.post(base + "/native/action", json={"id": "increment"})).status_code == 200
+    assert (await api.post(base + "/status/status", json={})).json()["items"][1]["text"] == "1"
+    registration = host.get("declarative-test").registration
+    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "text", "text": "x", "style": "bad"}]}
+    assert (await api.post(base + "/status/status", json={})).status_code == 422
+    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "asset", "path": "../secret"}]}
+    assert (await api.post(base + "/status/status", json={})).status_code == 422
+    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "asset", "path": "main.py"}]}
+    assert (await api.post(base + "/status/status", json={})).status_code == 422
+    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "text", "text": "x" * 10000}, {"type": "icon", "name": "CloudUpload"}, {"type": "text", "text": "end"}]}
+    response = await api.post(base + "/status/status", json={})
+    assert len(response.json()["items"][0]["text"]) == 10000
+    assert [item["type"] for item in response.json()["items"]] == ["text", "icon", "text"]
+    assert (await api.get("/api/v1/plugins/declarative-test/status-icon", params={"path": "main.py"})).status_code == 404
+    icon = host.root / "declarative-test" / "panel" / "icon.png"
+    icon.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="))
+    response = await api.get("/api/v1/plugins/declarative-test/status-icon", params={"path": "panel/icon.png"})
+    assert response.status_code == 200 and response.headers["content-type"] == "image/png"
+    await host.set_enabled("declarative-test", False)
+    assert (await api.post(base + "/status/status", json={})).status_code == 409
+
+
+async def test_invalidate_ui_scopes_notifications_to_plugin_views(plugin_api, session, monkeypatch):
+    host, api, _ = plugin_api
+    assert (await host_tests.install(api, bundle())).status_code == 201
+    await host.set_enabled("declarative-test", True)
+    emit = Mock()
+    monkeypatch.setattr(host, "emit", emit)
+    context = host.context("declarative-test", session)
+
+    context.invalidate_ui("status")
+    emit.assert_called_once_with("ui.invalidate", {"viewId": "status"}, "declarative-test")
+    emit.reset_mock()
+    await context.call("ui.invalidate", {"viewId": "native"})
+    emit.assert_called_once_with("ui.invalidate", {"viewId": "native"}, "declarative-test")
+    emit.reset_mock()
+    context.invalidate_ui()
+    emit.assert_called_once_with("ui.invalidate", {}, "declarative-test")
+    emit.reset_mock()
+    with pytest.raises(ValueError, match="Unknown plugin view"):
+        context.invalidate_ui("another-plugin-view")
+    emit.assert_not_called()
+
+
+@pytest.mark.parametrize("presentation", ["none", "popover", "dialog"])
+async def test_statusbar_view_contract(presentation):
+    fields = {"id": "status", "title": "Status", "slot": "statusbar", "status": "ui.status", "presentation": presentation}
+    if presentation != "none":
+        fields["entry"] = "panel/index.html"
+    assert View.model_validate(fields).presentation == presentation
+    with pytest.raises(ValidationError):
+        View.model_validate({**fields, "status": "sdk.storage.get"})
+    with pytest.raises(ValidationError):
+        View.model_validate({**fields, "slot": "settings.plugins"})
 
 
 @pytest.mark.parametrize(

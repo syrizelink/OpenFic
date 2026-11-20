@@ -715,17 +715,6 @@ button.plugin-description-expand:hover {
   height: 100%;
   min-height: 0;
 }
-.plugin-slot-statusbar .plugin-slot-content {
-  position: fixed;
-  bottom: 28px;
-  right: 8px;
-  width: min(600px, calc(100vw - 16px));
-  z-index: 100;
-  background: var(--color-background);
-}
-.plugin-slot-statusbar .plugin-slot-open {
-  width: auto;
-}
 
 .editor-plugin-actions {
   display: flex;

@@ -526,6 +526,21 @@ async def open_view(plugin_id: str, view_id: str, manager: Host):
     return {"url": manager.open_view(plugin_id, view_id)}
 
 
+@router.get("/{plugin_id}/status-icon")
+async def status_icon(plugin_id: str, path: str, manager: Host):
+    from app.plugins.packages import read_plugin_icon
+
+    plugin = manager.get(plugin_id)
+    try:
+        plugin.manifest.resource_path(manager.root / plugin_id, path)
+        result = await asyncio.to_thread(read_plugin_icon, manager.root / plugin_id, path)
+    except (ValueError, OSError):
+        result = None
+    if result is None:
+        raise PluginError("Status icon not found", 404)
+    return Response(result[0], media_type=result[1], headers=DETAIL_HEADERS)
+
+
 class ViewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     context: dict[str, Any] = Field(default_factory=dict)
@@ -544,11 +559,48 @@ class ViewRequest(BaseModel):
         return value
 
 
+class StatusText(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["text"]
+    text: str
+
+
+class StatusIcon(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["icon"]
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def known_icon(cls, value: str) -> str:
+        from app.plugins.declarative import normalize_icon
+
+        return normalize_icon(value)
+
+
+class StatusAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["asset"]
+    path: str
+
+    @field_validator("path")
+    @classmethod
+    def safe_asset(cls, value: str) -> str:
+        from app.plugins.manifest import safe_path
+
+        return safe_path(value)
+
+
+class StatusContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[Annotated[StatusText | StatusIcon | StatusAsset, Field(discriminator="type")]]
+
+
 @router.post("/{plugin_id}/views/{view_id}/{operation}")
 async def declarative_view(
     plugin_id: str,
     view_id: str,
-    operation: Literal["render", "action"],
+    operation: Literal["render", "action", "status"],
     data: ViewRequest,
     manager: Host,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -558,11 +610,13 @@ async def declarative_view(
 
     plugin = manager.get(plugin_id)
     view = next((v for v in plugin.manifest.views if v.id == view_id), None)
-    if view is None or view.renderer != "declarative":
+    if view is None or (operation == "status" and view.slot != "statusbar") or (
+        operation != "status" and view.renderer != "declarative"
+    ):
         raise PluginError("Declarative view is unavailable", 404)
     if "ui" not in plugin.manifest.capabilities:
         raise PluginError("Plugin has not declared ui", 403)
-    method = view.render if operation == "render" else view.action
+    method = view.status if operation == "status" else view.render if operation == "render" else view.action
     if method is None:
         raise PluginError("This plugin button has no render command", 404)
     params = {**data.model_dump(), "slot": view.slot, "viewId": view.id}
@@ -578,6 +632,15 @@ async def declarative_view(
     )
     if operation == "action":
         return {"result": result}
+    if operation == "status":
+        try:
+            content = StatusContent.model_validate(result)
+            for item in content.items:
+                if isinstance(item, StatusAsset):
+                    plugin.manifest.resource_root(item.path)
+            return content
+        except ValueError as error:
+            raise PluginError(f"Invalid statusbar content: {error}", 422) from error
     try:
         return validate_document(result, capabilities=plugin.manifest.capabilities)
     except (ValueError, KeyError, TypeError) as error:

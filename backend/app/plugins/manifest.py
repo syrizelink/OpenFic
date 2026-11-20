@@ -89,10 +89,11 @@ class View(Contract):
     entry: str | None = None
     render: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
     action: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
+    status: str | None = Field(default=None, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]{0,79}$")
     slot: str = "sidebar.extensions"
     height: int = Field(default=320, ge=80, le=1600)
     icon: str | None = None
-    presentation: Literal["popover", "dialog", "action"] | None = None
+    presentation: Literal["popover", "dialog", "action", "none"] | None = None
     placement: Literal["left-end", "right-start", "right-end"] | None = None
     showCloseButton: bool | None = None
 
@@ -102,16 +103,29 @@ class View(Contract):
             raise ValueError(f"Unknown UI slot: {self.slot}")
         if self.placement is not None and self.slot != "editor.toolbar":
             raise ValueError("placement is only supported in editor.toolbar")
-        if self.showCloseButton is not None and self.slot != "editor.toolbar":
-            raise ValueError("showCloseButton is only supported in editor.toolbar")
+        if self.showCloseButton is not None and self.slot not in {"editor.toolbar", "statusbar"}:
+            raise ValueError("showCloseButton is only supported in editor.toolbar or statusbar")
         if self.icon is not None and self.slot == "sidebar.extensions":
             safe_path(self.icon)
         elif self.icon is not None:
             from .declarative import normalize_icon
 
             self.icon = normalize_icon(self.icon)
-        if self.presentation is not None and self.slot != "editor.toolbar":
-            raise ValueError("presentation is only supported in editor.toolbar")
+        if self.presentation is not None and self.slot not in {"editor.toolbar", "statusbar"}:
+            raise ValueError("presentation is only supported in editor.toolbar or statusbar")
+        if self.slot == "statusbar":
+            if not self.status or self.status.startswith("sdk."):
+                raise ValueError("Statusbar requires a plugin status command")
+            if self.icon is not None:
+                raise ValueError("Statusbar icons must be returned by the status command")
+            if self.presentation not in {"none", "popover", "dialog"}:
+                raise ValueError("Statusbar requires none, popover or dialog presentation")
+            if self.presentation == "none":
+                if self.entry or self.render or self.action or self.showCloseButton is not None:
+                    raise ValueError("Noninteractive statusbar views cannot have overlay content")
+                return self
+        elif self.status is not None or self.presentation == "none":
+            raise ValueError("status and none presentation are only supported in statusbar")
         if self.presentation == "action":
             if self.slot != "editor.toolbar" or self.renderer != "declarative":
                 raise ValueError(
@@ -335,7 +349,7 @@ class Manifest(Contract):
         if len({root.casefold() for root in self.resources}) != len(self.resources):
             raise ValueError("Duplicate public resource root")
         if (
-            any(view.renderer == "declarative" for view in self.views)
+            any(view.renderer == "declarative" or view.slot == "statusbar" for view in self.views)
             and "ui" not in self.capabilities
         ):
             raise ValueError("Declarative views require ui capability")
