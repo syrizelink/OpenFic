@@ -61,6 +61,7 @@ def package(
     icon=None,
     homepage=None,
     sidebar_icon=None,
+    settings_icon=None,
 ):
     output = io.BytesIO()
     manifest = json.loads((SOURCE / "plugin.json").read_text())
@@ -86,6 +87,10 @@ def package(
     manifest["resources"] = ["panel"]
     if sidebar_icon is not None:
         manifest["views"][0]["icon"] = sidebar_icon
+    if settings_icon is not None:
+        manifest["views"].append(
+            {"id": "settings", "title": "Settings", "slot": "settings", "entry": "panel/index.html", "icon": settings_icon}
+        )
     if capabilities is not None:
         manifest["capabilities"] = capabilities
     if legacy:
@@ -434,6 +439,23 @@ async def test_sidebar_icon_uses_declared_package_image(plugin_api, sidebar_icon
     assert (
         await api.get(url, params={"view_id": "images/default.svg"})
     ).status_code == 404
+
+
+@pytest.mark.parametrize("icon", ["images/settings.svg", "images/missing.svg", "images/invalid.png", "../outside.svg", "https://example.com/icon.svg"])
+async def test_settings_view_icon_uses_package_image(plugin_api, icon):
+    _, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>'
+    response = await install(api, package(settings_icon=icon, icon="images/settings.svg", extra_files={"images/settings.svg": svg, "images/invalid.png": b"invalid"}))
+    if icon.startswith(("../", "https:")):
+        assert response.status_code == 400
+        return
+    assert response.status_code == 201, response.text
+    image = await api.get("/api/v1/plugins/project-statistics/icon", params={"view_id": "settings"})
+    if icon == "images/settings.svg":
+        assert image.status_code == 200 and image.content == svg
+        assert "sandbox" in image.headers["content-security-policy"]
+    else:
+        assert image.status_code == 404
 
 
 async def test_plugin_icon_accepts_self_contained_svg_at_size_limit(plugin_api):

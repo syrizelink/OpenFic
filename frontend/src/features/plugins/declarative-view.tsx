@@ -61,10 +61,11 @@ export function DeclarativeView({
     container.dataset.pluginStyleRoot = scope;
     container.dataset.pluginPortal = plugin.id + "/" + view.id;
     container.style.setProperty("display", "contents", "important");
-    document.body.appendChild(container);
+    const parent = view.slot === "settings" ? root.current?.closest(".settings-plugin-page") : null;
+    (parent ?? document.body).appendChild(container);
     setPortal(container);
     return () => container.remove();
-  }, [scope, plugin.id, view.id]);
+  }, [scope, plugin.id, view.id, view.slot]);
   const [columns, setColumns] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");

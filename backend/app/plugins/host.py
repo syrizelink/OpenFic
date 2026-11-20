@@ -363,7 +363,7 @@ class PluginHost:
                 (
                     view
                     for view in manifest.views
-                    if view.id == view_id and view.slot == "sidebar.extensions"
+                    if view.id == view_id and view.slot in {"sidebar.extensions", "settings"}
                 ),
                 None,
             )
@@ -371,6 +371,8 @@ class PluginHost:
                 raise PluginError("Plugin icon not found", 404)
             if result := read_plugin_icon(root, view.icon):
                 return result
+            if view.slot == "settings":
+                raise PluginError("Plugin icon not found", 404)
         result = read_plugin_icon(root, manifest.icon)
         if result is None:
             raise PluginError("Plugin icon not found", 404)

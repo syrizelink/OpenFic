@@ -42,7 +42,8 @@
     {
       "id": "iframe",
       "title": "自带前端示例",
-      "slot": "settings.plugins",
+      "slot": "settings",
+      "icon": "Settings",
       "entry": "panel/index.html"
     }
   ],

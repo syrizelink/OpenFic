@@ -97,6 +97,11 @@
   min-height: 100dvh;
   box-sizing: border-box;
 }
+
+.plugin-development-settings-preview {
+  height: calc(100dvh - 64px);
+  isolation: isolate;
+}
 .plugin-development-toolbar {
   display: flex;
   align-items: center;

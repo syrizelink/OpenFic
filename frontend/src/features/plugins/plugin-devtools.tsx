@@ -556,7 +556,8 @@ function PluginDevelopmentPreview() {
       plugin={plugin}
       view={view}
       context={{ ...context, theme: appearance }}
-      embedded
+      embedded={view.slot !== "settings"}
+      fullPage={view.slot === "settings"}
     />
   );
   return (
@@ -593,6 +594,12 @@ function PluginDevelopmentPreview() {
 }
 function PreviewSlot({ view, children }: { view: PluginView; children: React.ReactNode }) {
   const toolbar = view.slot === "editor.toolbar";
+  if (view.slot === "settings")
+    return (
+      <div className="plugin-page settings-plugin-page plugin-development-settings-preview">
+        {children}
+      </div>
+    );
   if (toolbar && view.presentation === "dialog")
     return (
       <Dialog.Root>

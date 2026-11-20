@@ -39,7 +39,7 @@ def register(host):
 
 ## UI 与编辑器
 
-UI 插槽：`sidebar.extensions`、`app.overlay`、`editor.toolbar`、`statusbar`、`settings.plugins`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后直接执行操作，或通过浮层、对话框显示内容，不允许常驻面板挤占正文区域。
+UI 插槽：`sidebar.extensions`、`app.overlay`、`editor.toolbar`、`statusbar`、`settings`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后直接执行操作，或通过浮层、对话框显示内容，不允许常驻面板挤占正文区域。
 
 `OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持正文读取、设置、追加和保存；不支持的选择区/撤销操作明确报错。
 
@@ -128,9 +128,11 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
 | `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
-| `settings.plugins` | 设置内插件区域的附加视图 |
+| `settings` | 设置分类列表末尾的插件入口，选择后在设置面板中显示插件页面 |
 
 入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
+
+`settings` 视图必须声明非空 `title` 和 `icon`，作为设置分类的标题和图标。`icon` 支持 Lucide 图标名或插件包内的 PNG、JPEG、WebP、SVG 图片路径，图片须通过宿主的安全校验。插件负责页面内容；设置面板右上角的关闭按钮由宿主管理，不能隐藏或由插件控制。支持声明式和 iframe 页面。
 
 `editor.toolbar` 还支持 `renderer: "declarative"` 配合 `presentation: "action"`。这类按钮只绑定 `action` 命令，不声明 `render` 或 `entry`。点击时以视图的 `id` 作为操作 ID，发送 `press` 事件和当前编辑器上下文，不打开浮层或对话框。
 

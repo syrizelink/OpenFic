@@ -368,10 +368,19 @@ async def test_compound_components_and_as_child():
     ).read_bytes()
 
 
-@pytest.mark.parametrize("slot", ["assistant.toolbar", "assistant.above-prompt", "dashboard"])
+@pytest.mark.parametrize("slot", ["assistant.toolbar", "assistant.above-prompt", "dashboard", "settings.plugins"])
 async def test_removed_slot_is_rejected(slot: str) -> None:
     with pytest.raises(ValidationError, match="Unknown UI slot"):
         View(id="removed", title="Removed", slot=slot, entry="index.html")
+
+
+async def test_settings_view_requires_title_and_icon() -> None:
+    fields = {"id": "settings", "title": "Plugin settings", "slot": "settings", "entry": "panel/index.html"}
+    assert View.model_validate({**fields, "icon": "settings"}).icon == "Settings"
+    assert View.model_validate({**fields, "icon": "images/settings.svg"}).icon == "images/settings.svg"
+    for changes in ({}, {"icon": "Settings", "title": "   "}, {"icon": "not-a-lucide-icon"}, {"icon": "Settings", "showCloseButton": False}):
+        with pytest.raises(ValidationError):
+            View.model_validate({**fields, **changes})
 
 
 async def test_editor_slot_presentation_and_icon_contract() -> None:

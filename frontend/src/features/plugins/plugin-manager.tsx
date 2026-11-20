@@ -76,7 +76,6 @@ import {
 } from "./api";
 import { PluginInstallDialog } from "./plugin-install-dialog";
 import { PluginLogs } from "./plugin-logs";
-import { PluginSlot } from "./plugin-slot";
 import { PluginDescription, PluginImage } from "./plugin-summary";
 
 import "./plugins.css";
@@ -318,39 +317,43 @@ export function PluginManager({
               {t("plugins.totalCount", { count: plugins.length })}
             </Text>
             <Flex gap="1">
-              <IconButton
-                variant="ghost"
-                color="gray"
-                size="2"
-                aria-label={t("plugins.install")}
-                disabled={busy}
-                onClick={() => setInstallation(true)}
-              >
-                <Plus size={14} />
-              </IconButton>
-              <IconButton
-                variant="ghost"
-                color="gray"
-                size="2"
-                aria-label={t("common.refresh")}
-                disabled={isFetching || isRefreshSpinning || busy}
-                onClick={() => {
-                  refreshFinished.current = false;
-                  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-                    setIsRefreshSpinning(true);
-                  void refetch().finally(() => {
-                    refreshFinished.current = true;
-                  });
-                }}
-              >
-                <RefreshCw
-                  size={14}
-                  className={isRefreshSpinning ? "animate-spin" : undefined}
-                  onAnimationIteration={() => {
-                    if (refreshFinished.current) setIsRefreshSpinning(false);
+              <Tooltip content={t("plugins.install")}>
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="2"
+                  aria-label={t("plugins.install")}
+                  disabled={busy}
+                  onClick={() => setInstallation(true)}
+                >
+                  <Plus size={14} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content={t("common.refresh")}>
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  size="2"
+                  aria-label={t("common.refresh")}
+                  disabled={isFetching || isRefreshSpinning || busy}
+                  onClick={() => {
+                    refreshFinished.current = false;
+                    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+                      setIsRefreshSpinning(true);
+                    void refetch().finally(() => {
+                      refreshFinished.current = true;
+                    });
                   }}
-                />
-              </IconButton>
+                >
+                  <RefreshCw
+                    size={14}
+                    className={isRefreshSpinning ? "animate-spin" : undefined}
+                    onAnimationIteration={() => {
+                      if (refreshFinished.current) setIsRefreshSpinning(false);
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
             </Flex>
           </Flex>
           <Text
@@ -710,7 +713,6 @@ export function PluginManager({
                   </dl>
                 </Tabs.Content>
               </Tabs.Root>
-              <PluginSlot slot="settings.plugins" />
             </div>
           ) : (
             <Flex

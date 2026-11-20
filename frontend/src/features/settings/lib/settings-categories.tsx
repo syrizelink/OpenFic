@@ -132,7 +132,12 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     labelKey: "settings.tunnels",
     badgeKey: "settings.experimental",
   },
-  { id: "plugins", icon: <Blocks size={16} />, labelKey: "plugins.management" },
+  {
+    id: "plugins",
+    icon: <Blocks size={16} />,
+    labelKey: "plugins.management",
+    badgeKey: "settings.experimental",
+  },
   {
     id: "advanced",
     icon: <SlidersHorizontal size={16} />,

@@ -1,5 +1,5 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "statusbar" | "settings.plugins";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "statusbar" | "settings";
 export type StatusBarPart = { type: "text"; text: string } | { type: "icon"; name: UIIconName } | { type: "asset"; path: string };
 export interface StatusBarContent { items: StatusBarPart[] }
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
@@ -14,7 +14,8 @@ export type PluginView = { id: string; title: string } & (
   /** Sidebar icons are image paths relative to plugin.json. */
   { slot?: "sidebar.extensions"; icon?: string } |
   { slot: "editor.toolbar"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; showCloseButton?: boolean } |
-  { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar" | "statusbar">; icon?: UIIconName }
+  { slot: "settings"; icon: UIIconName | `${string}.${string}`; presentation?: never } |
+  { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar" | "statusbar" | "settings">; icon?: UIIconName }
 ) & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
   { renderer: "declarative"; entry?: never; render: string; action: string }

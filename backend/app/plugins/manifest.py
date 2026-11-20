@@ -25,7 +25,7 @@ UI_SLOTS = (
     "app.overlay",
     "editor.toolbar",
     "statusbar",
-    "settings.plugins",
+    "settings",
 )
 RESOURCE_NAMES = (
     "projects",
@@ -103,9 +103,15 @@ class View(Contract):
             raise ValueError(f"Unknown UI slot: {self.slot}")
         if self.placement is not None and self.slot != "editor.toolbar":
             raise ValueError("placement is only supported in editor.toolbar")
+        if self.slot == "settings" and (not self.icon or not self.title.strip()):
+            raise ValueError("Settings views require a title and an icon")
         if self.showCloseButton is not None and self.slot not in {"editor.toolbar", "statusbar"}:
             raise ValueError("showCloseButton is only supported in editor.toolbar or statusbar")
-        if self.icon is not None and self.slot == "sidebar.extensions":
+        if self.icon is not None and (
+            self.slot == "sidebar.extensions"
+            or self.slot == "settings"
+            and self.icon.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".svg"))
+        ):
             safe_path(self.icon)
         elif self.icon is not None:
             from .declarative import normalize_icon
