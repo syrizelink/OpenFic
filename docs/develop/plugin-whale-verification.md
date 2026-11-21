@@ -14,7 +14,7 @@
 | --- | --- |
 | 现有插槽无法表达不占页面布局的常驻挂件 | `app.overlay` + 独立 `ui.overlay` 能力，仅接受声明式视图，空白区域不截获鼠标 |
 | 声明式 UI 无法读取/显示本插件图片 | 公开只读 `assets.read` + `Image`，包路径约束、传输上限、raster MIME 白名单 |
-| 拖动交互不宜逐像素往返后端 | 通用 `FloatingPanel`，浏览器本地移动，结束后提交 `{x,y}`；触摸/方向键、窗口尺寸约束 |
+| 拖动交互不应往返后端 | 通用 `FloatingPanel` 在浏览器本地移动并保存位置；支持触摸、方向键和窗口尺寸约束 |
 | 较早的 Agent hook 不能证明费用已落库 | `usage.recorded/turn.settled`，独立观察者载荷/session、超时与错误隔离，按 revision 关联 |
 | 仅改 secret 配置不会刷新原生视图 | 配置成功后发送 `ui.invalidate` |
 | 自定义事件有插件命名空间，不能充当宿主刷新通知 | 公开 `context.invalidate_ui()` / `context.call("ui.invalidate")`，要求 `ui` |

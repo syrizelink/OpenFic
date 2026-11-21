@@ -20,6 +20,12 @@
       "action": "ui.action"
     },
     {
+      "id": "local",
+      "title": "Local controls",
+      "renderer": "declarative",
+      "render": "ui.render"
+    },
+    {
       "id": "status",
       "title": "Status",
       "slot": "statusbar",

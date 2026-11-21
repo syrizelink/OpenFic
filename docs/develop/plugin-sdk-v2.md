@@ -130,7 +130,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
 | `settings` | 设置分类列表末尾的插件入口，选择后在设置面板中显示插件页面 |
 
-入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，绑定 `render/action` 后端命令；`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
+入口通过 manifest 的 `views` 声明。`renderer: "declarative"` 优先使用项目组件原生渲染组件树，也支持显式 Radix Themes 组件、响应式属性和作用域 CSS，声明 `render` 命令并按需绑定业务 `action`；界面状态可由前端本地维护。`renderer: "iframe"` 或省略时继续加载 HTML，允许同一插件混用。详见 [声明式 UI 协议](./declarative-plugin-ui.md)。
 
 `settings` 视图必须声明非空 `title` 和 `icon`，作为设置分类的标题和图标。`icon` 支持 Lucide 图标名或插件包内的 PNG、JPEG、WebP、SVG 图片路径，图片须通过宿主的安全校验。插件负责页面内容；设置面板右上角的关闭按钮由宿主管理，不能隐藏或由插件控制。支持声明式和 iframe 页面。
 

@@ -12,7 +12,7 @@
 }
 ```
 
-省略 `renderer` 默认 `iframe`，旧插件无须修改。iframe 的 `entry` 引用清单 resources 范围内的 HTML（例如 resources: ["panel"]）；声明式视图不能声明 `entry`，必须声明已注册的 `render/action` 命令和 `ui` 能力，不能把 SDK 方法绑定为这两个命令。缺少绑定命令时启用失败，并在管理页面显示原因。
+省略 `renderer` 默认 `iframe`，旧插件无须修改。iframe 的 `entry` 引用清单 resources 范围内的 HTML（例如 resources: ["panel"]）；声明式视图不能声明 `entry`，必须声明已注册的 `render` 命令和 `ui` 能力。需要执行业务操作时再声明 `action` 命令；不能把 SDK 方法绑定为这些命令。缺少已声明的命令时启用失败，并在管理页面显示原因。
 
 ## 渲染与事件
 
@@ -26,13 +26,33 @@ async def action(context, params):
     if params["id"] == "sync":
         # 执行业务操作，更新插件持久化状态。
         await context.storage.set("last_sync", "done")
+        context.invalidate_ui(params["viewId"])
 
 def register(host):
     host.register_command("weather.render", render)
     host.register_command("weather.action", action)
 ```
 
-点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端处理状态后，宿主重新获取组件树。主动刷新可调用 `context.invalidate_ui(view_id)`，只刷新当前插件指定视图；省略参数则刷新当前插件全部已挂载视图。也可通过 `await context.call("ui.invalidate", {"viewId": view_id})` 发送通知，这些操作均要求 `ui` 能力。iframe 可调用 `OpenFic.ui.invalidate(viewId)` 在当前页面触发相同范围的刷新。`context.emit()` 用于插件命名空间内的自定义事件，不会发送宿主保留的 UI 通知。
+点击后，宿主通过同一路径的 `/action` 调用绑定的事件命令，参数包含 `{id: "sync", event: "press", value: null, context, viewId, slot}`。后端动作改变视图所需的数据后，应调用 `context.invalidate_ui(view_id)` 通知宿主刷新指定视图；省略参数则刷新当前插件全部已挂载视图。也可通过 `await context.call("ui.invalidate", {"viewId": view_id})` 发送通知，这些操作均要求 `ui` 能力。通知通过 Socket 传递，宿主按当前视图上下文重新请求组件树；Socket 断开时动作完成后会兜底刷新，连接恢复后也会重新同步。业务数据变更会刷新声明了读取能力的插件视图，其他插件的状态变化应主动发送刷新通知。iframe 可调用 `OpenFic.ui.invalidate(viewId)` 在当前页面触发相同范围的刷新。`context.emit()` 用于插件命名空间内的自定义事件，不会发送宿主保留的 UI 通知。
+
+## 本地界面状态
+
+显隐、选中项、临时输入等界面状态可以由宿主在浏览器中维护，不需要调用插件后端。声明式文档通过 `state` 声明状态，通过 `localActions` 声明本地动作；事件绑定使用 `local.` 前缀。例如：
+
+```python
+return {
+    "state": {"open": {"initial": True, "persist": True}},
+    "localActions": {"local.toggle": [{"op": "toggle", "state": "open"}]},
+    "tree": {"type": "Box", "children": [
+        {"type": "Button", "props": {"onPress": "local.toggle"}, "children": "切换"},
+        {"type": "Text", "when": {"state": "open", "equals": True}, "children": "内容"},
+    ]},
+}
+```
+
+本地状态支持 JSON 值，包括数组和对象。默认只在视图内存中保留；`persist: true` 将值保存到当前浏览器，不跨设备同步，也不适合保存密钥等敏感信息。后端重新返回组件树时，已存在的本地状态不会被初始值覆盖。
+
+本地动作可包含按顺序执行的 `toggle`、`set` 和 `cycle`：`set` 使用 `value`，或使用 `fromEvent: true` 接收控件事件值；`cycle` 使用 `count` 指定循环长度。节点可用 `when` 条件显示；内容或非事件属性可用 `{"$state": "name"}` 绑定状态，数字索引可用 `{"$state": "index", "$map": ["选项一", "选项二"]}` 映射静态值。需要提交本地状态时，可将事件写成 `{"action": "save", "value": {"$state": "draft"}}`，只在该业务动作触发时发送；加上 `"changedOnly": true` 可在该值与后端最近返回的初始值相同时跳过提交。协议不执行插件代码或表达式，后端会校验状态、动作和绑定。业务数据变更仍应使用显式后端动作与 Socket 通知。
 
 公开 TypeScript 类型 `PluginView/UINode/UIProps/UIDocument/UIRenderRequest/UIEventRequest` 随 `@openfic/plugin-sdk` 提供。可安装的混合视图示例在 `frontend/e2e/fixtures/plugin-declarative`。
 
@@ -96,13 +116,13 @@ Python 插件可使用 `await context.call("workflow.select", {"projectId": proj
 ```python
 return {"tree": {"type": "FloatingPanel", "props": {
     "width": 220, "position": {"x": 24, "y": 120},
-    "dragLabel": "移动挂件", "onPositionChange": "position"
+    "dragLabel": "移动挂件"
 }, "children": {"type": "Image", "props": {
     "asset": "assets/mascot.png", "alt": "挂件", "width": 180, "fit": "contain"
 }}}}
 ```
 
-`FloatingPanel` 在浏览器本地更新拖动位置，松开后通过 action 的 `value={x,y}`、`event="change"` 提交一次；方向键每次移动 10px 并提交。指针取消恢复原位置。尺寸/视口变化会限制位置在屏幕内；宽度限制为 96–640px，内容超高时内部滚动。`position: null` 使用右下角默认位置。位置的长期保存由插件自己完成，宿主不创建业务专用存储。
+`FloatingPanel` 的拖动、松开和方向键移动均在浏览器本地完成，不发送插件请求；位置保存在当前浏览器，不跨设备同步。指针取消恢复原位置。尺寸/视口变化会限制位置在屏幕内；宽度限制为 96–640px，内容超高时内部滚动。未保存本地位置时使用 `position`，`position: null` 使用右下角默认位置。需要由插件重置位置时，为组件指定稳定的 `id`，并改变其 `key`；也可以通过改变 `position` 重置本地位置。
 
 `Image.asset` 是相对于插件包根的公共资源路径，例如声明 resources: ["assets"] 后，文件 `assets/mascot.png` 传 `assets/mascot.png`。它通过认证的 SDK `assets.read` 获取 `{name,mime,base64}`；Python 使用 `await context.assets.read(name)`，iframe 使用 `await OpenFic.assets.read(name)`。要求 `ui` 能力，禁止越界路径和链接到其他目录的文件，单文件最大 `3 MiB - 4096 bytes`。包资源只读，插件可写文本文件仍使用 `files`。UI 只渲染 PNG/JPEG/WebP/GIF/AVIF，拒绝 SVG 等格式，不接受任意 URL 或 HTML；图片不会加入宿主安装包。支持 `alt/width/height/fit/loading` 和公共样式属性。
 
@@ -151,7 +171,6 @@ node frontend/scripts/generate-plugin-ui-catalog.mjs --check
 | `onValueChange/onValueCommit`（Slider） | 数字数组；commit 在交互完成时发送 |
 | `onOpenChange` | boolean |
 | `onFocus/onBlur` | null |
-| `onPositionChange`（FloatingPanel） | `{x, y}`；仅拖动结束或方向键操作时发送 |
 | `onCommit`（StepperNumberInput） | 提交后的数字；onChange 为编辑字符串 |
 
 Slider 的 `label/aria-label/aria-labelledby` 同时命名实际可聚焦的滑块；多个滑块的文字标签附加序号。

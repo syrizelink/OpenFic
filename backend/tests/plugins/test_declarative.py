@@ -77,6 +77,23 @@ async def test_mixed_views_and_bound_actions(plugin_api):
     assert (await api.post(base + "/native/render", json={})).status_code == 409
 
 
+async def test_local_only_view_needs_no_action_command(plugin_api):
+    host, api, app = plugin_api
+    from app.api.routers.plugins import plugin_exception_handler
+    from app.plugins.host import PluginError
+
+    app.add_exception_handler(PluginError, plugin_exception_handler)
+    assert (await host_tests.install(api, bundle())).status_code == 201
+    await host.set_enabled("declarative-test", True)
+    base = "/api/v1/plugins/declarative-test/views/local"
+    result = await api.post(base + "/render", json={})
+    assert result.status_code == 200
+    assert result.json()["state"]["open"] == {"initial": True, "persist": True}
+    assert (
+        await api.post(base + "/action", json={"id": "local.toggle"})
+    ).status_code == 404
+
+
 async def test_statusbar_content_tracks_state_and_rejects_custom_ui(plugin_api):
     from app.api.routers.plugins import plugin_exception_handler
     from app.plugins.host import PluginError
@@ -88,30 +105,68 @@ async def test_statusbar_content_tracks_state_and_rejects_custom_ui(plugin_api):
     base = "/api/v1/plugins/declarative-test/views"
     response = await api.post(base + "/status/status", json={})
     assert response.status_code == 200
-    assert response.json()["items"] == [{"type": "icon", "name": "Activity"}, {"type": "text", "text": "0"}]
-    assert (await api.post(base + "/native/action", json={"id": "increment"})).status_code == 200
-    assert (await api.post(base + "/status/status", json={})).json()["items"][1]["text"] == "1"
+    assert response.json()["items"] == [
+        {"type": "icon", "name": "Activity"},
+        {"type": "text", "text": "0"},
+    ]
+    assert (
+        await api.post(base + "/native/action", json={"id": "increment"})
+    ).status_code == 200
+    assert (await api.post(base + "/status/status", json={})).json()["items"][1][
+        "text"
+    ] == "1"
     registration = host.get("declarative-test").registration
-    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "text", "text": "x", "style": "bad"}]}
+    registration.commands["ui.status"] = lambda context, params: {
+        "items": [{"type": "text", "text": "x", "style": "bad"}]
+    }
     assert (await api.post(base + "/status/status", json={})).status_code == 422
-    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "asset", "path": "../secret"}]}
+    registration.commands["ui.status"] = lambda context, params: {
+        "items": [{"type": "asset", "path": "../secret"}]
+    }
     assert (await api.post(base + "/status/status", json={})).status_code == 422
-    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "asset", "path": "main.py"}]}
+    registration.commands["ui.status"] = lambda context, params: {
+        "items": [{"type": "asset", "path": "main.py"}]
+    }
     assert (await api.post(base + "/status/status", json={})).status_code == 422
-    registration.commands["ui.status"] = lambda context, params: {"items": [{"type": "text", "text": "x" * 10000}, {"type": "icon", "name": "CloudUpload"}, {"type": "text", "text": "end"}]}
+    registration.commands["ui.status"] = lambda context, params: {
+        "items": [
+            {"type": "text", "text": "x" * 10000},
+            {"type": "icon", "name": "CloudUpload"},
+            {"type": "text", "text": "end"},
+        ]
+    }
     response = await api.post(base + "/status/status", json={})
     assert len(response.json()["items"][0]["text"]) == 10000
-    assert [item["type"] for item in response.json()["items"]] == ["text", "icon", "text"]
-    assert (await api.get("/api/v1/plugins/declarative-test/status-icon", params={"path": "main.py"})).status_code == 404
+    assert [item["type"] for item in response.json()["items"]] == [
+        "text",
+        "icon",
+        "text",
+    ]
+    assert (
+        await api.get(
+            "/api/v1/plugins/declarative-test/status-icon", params={"path": "main.py"}
+        )
+    ).status_code == 404
     icon = host.root / "declarative-test" / "panel" / "icon.png"
-    icon.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="))
-    response = await api.get("/api/v1/plugins/declarative-test/status-icon", params={"path": "panel/icon.png"})
-    assert response.status_code == 200 and response.headers["content-type"] == "image/png"
+    icon.write_bytes(
+        base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+    )
+    response = await api.get(
+        "/api/v1/plugins/declarative-test/status-icon",
+        params={"path": "panel/icon.png"},
+    )
+    assert (
+        response.status_code == 200 and response.headers["content-type"] == "image/png"
+    )
     await host.set_enabled("declarative-test", False)
     assert (await api.post(base + "/status/status", json={})).status_code == 409
 
 
-async def test_invalidate_ui_scopes_notifications_to_plugin_views(plugin_api, session, monkeypatch):
+async def test_invalidate_ui_scopes_notifications_to_plugin_views(
+    plugin_api, session, monkeypatch
+):
     host, api, _ = plugin_api
     assert (await host_tests.install(api, bundle())).status_code == 201
     await host.set_enabled("declarative-test", True)
@@ -120,10 +175,14 @@ async def test_invalidate_ui_scopes_notifications_to_plugin_views(plugin_api, se
     context = host.context("declarative-test", session)
 
     context.invalidate_ui("status")
-    emit.assert_called_once_with("ui.invalidate", {"viewId": "status"}, "declarative-test")
+    emit.assert_called_once_with(
+        "ui.invalidate", {"viewId": "status"}, "declarative-test"
+    )
     emit.reset_mock()
     await context.call("ui.invalidate", {"viewId": "native"})
-    emit.assert_called_once_with("ui.invalidate", {"viewId": "native"}, "declarative-test")
+    emit.assert_called_once_with(
+        "ui.invalidate", {"viewId": "native"}, "declarative-test"
+    )
     emit.reset_mock()
     context.invalidate_ui()
     emit.assert_called_once_with("ui.invalidate", {}, "declarative-test")
@@ -135,7 +194,13 @@ async def test_invalidate_ui_scopes_notifications_to_plugin_views(plugin_api, se
 
 @pytest.mark.parametrize("presentation", ["none", "popover", "dialog"])
 async def test_statusbar_view_contract(presentation):
-    fields = {"id": "status", "title": "Status", "slot": "statusbar", "status": "ui.status", "presentation": presentation}
+    fields = {
+        "id": "status",
+        "title": "Status",
+        "slot": "statusbar",
+        "status": "ui.status",
+        "presentation": presentation,
+    }
     if presentation != "none":
         fields["entry"] = "panel/index.html"
     assert View.model_validate(fields).presentation == presentation
@@ -160,9 +225,7 @@ async def test_invalid_view_contract(changes):
 
 
 async def test_explicit_ui_capability_and_legacy_default():
-    assert (
-        View(id="test", title="Test", entry="panel/page.html").renderer == "iframe"
-    )
+    assert View(id="test", title="Test", entry="panel/page.html").renderer == "iframe"
     manifest = json.loads((FIXTURE / "plugin.json").read_text())
     manifest["capabilities"] = []
     with pytest.raises(ValidationError, match="ui capability"):
@@ -343,6 +406,123 @@ async def test_reject_invalid_expanded_protocol(document):
         validate_document(document)
 
 
+async def test_local_state_actions_and_bindings_are_validated():
+    document = {
+        "state": {
+            "open": {"initial": True, "persist": True},
+            "index": {"initial": 0},
+            "slider": {"initial": [10]},
+            "selected": {"initial": None},
+        },
+        "localActions": {
+            "local.toggle": [{"op": "toggle", "state": "open"}],
+            "local.next": [
+                {"op": "set", "state": "open", "value": True},
+                {"op": "cycle", "state": "index", "count": 2},
+            ],
+            "local.slider": [{"op": "set", "state": "slider", "fromEvent": True}],
+            "local.select": [{"op": "set", "state": "selected", "value": "one"}],
+        },
+        "tree": {
+            "type": "Box",
+            "children": [
+                {
+                    "type": "Button",
+                    "props": {
+                        "onPress": "local.toggle",
+                        "aria-label": {"$state": "index", "$map": ["one", "two"]},
+                    },
+                },
+                {
+                    "type": "Button",
+                    "props": {
+                        "onPress": {
+                            "action": "save",
+                            "value": {"$state": "index"},
+                            "changedOnly": True,
+                        }
+                    },
+                },
+                {
+                    "type": "Slider",
+                    "props": {
+                        "value": {"$state": "slider"},
+                        "onValueChange": "local.slider",
+                    },
+                },
+                {
+                    "type": "Text",
+                    "when": {"state": "open", "equals": True},
+                    "children": {"$state": "index", "$map": ["one", "two"]},
+                },
+            ],
+        },
+    }
+    result = validate_document(document, capabilities=["ui"])
+    assert result["state"] == document["state"]
+    assert result["localActions"] == document["localActions"]
+    assert (
+        result["trees"][0]["tree"]["children"][1]["props"]["onPress"]["action"]
+        == "save"
+    )
+    assert result["trees"][0]["tree"]["children"][3]["children"] == {
+        "$state": "index",
+        "$map": ["one", "two"],
+    }
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"localActions": {"local.toggle": [{"op": "toggle", "state": "missing"}]}},
+        {
+            "localActions": {
+                "local.toggle": [{"op": "cycle", "state": "open", "count": 0}]
+            }
+        },
+        {
+            "localActions": {
+                "local.toggle": [{"op": "set", "state": "open", "value": "bad"}]
+            }
+        },
+        {"tree": {"type": "Button", "props": {"onPress": "local.missing"}}},
+        {
+            "tree": {
+                "type": "Button",
+                "props": {"onPress": {"action": None, "value": 1}},
+            }
+        },
+        {
+            "tree": {
+                "type": "Button",
+                "props": {
+                    "onPress": {"action": "save", "value": 1, "changedOnly": True}
+                },
+            }
+        },
+        {
+            "tree": {
+                "type": "Button",
+                "props": {
+                    "onPress": {"action": "save", "value": {"$state": "missing"}}
+                },
+            }
+        },
+        {"tree": {"type": "Text", "when": {"state": "missing"}}},
+        {"tree": {"type": "Text", "children": {"$state": "open", "$map": ["one"]}}},
+        {"commands": [{"name": "local.missing"}]},
+    ],
+)
+async def test_reject_invalid_local_state_protocol(change):
+    document = {
+        "state": {"open": {"initial": True}},
+        "tree": {"type": "Text"},
+        **change,
+    }
+    with pytest.raises(ValueError):
+        validate_document(document, capabilities=["ui"])
+
+
 async def test_compound_components_and_as_child():
     document = {
         "tree": {
@@ -368,17 +548,33 @@ async def test_compound_components_and_as_child():
     ).read_bytes()
 
 
-@pytest.mark.parametrize("slot", ["assistant.toolbar", "assistant.above-prompt", "dashboard", "settings.plugins"])
+@pytest.mark.parametrize(
+    "slot",
+    ["assistant.toolbar", "assistant.above-prompt", "dashboard", "settings.plugins"],
+)
 async def test_removed_slot_is_rejected(slot: str) -> None:
     with pytest.raises(ValidationError, match="Unknown UI slot"):
         View(id="removed", title="Removed", slot=slot, entry="index.html")
 
 
 async def test_settings_view_requires_title_and_icon() -> None:
-    fields = {"id": "settings", "title": "Plugin settings", "slot": "settings", "entry": "panel/index.html"}
+    fields = {
+        "id": "settings",
+        "title": "Plugin settings",
+        "slot": "settings",
+        "entry": "panel/index.html",
+    }
     assert View.model_validate({**fields, "icon": "settings"}).icon == "Settings"
-    assert View.model_validate({**fields, "icon": "images/settings.svg"}).icon == "images/settings.svg"
-    for changes in ({}, {"icon": "Settings", "title": "   "}, {"icon": "not-a-lucide-icon"}, {"icon": "Settings", "showCloseButton": False}):
+    assert (
+        View.model_validate({**fields, "icon": "images/settings.svg"}).icon
+        == "images/settings.svg"
+    )
+    for changes in (
+        {},
+        {"icon": "Settings", "title": "   "},
+        {"icon": "not-a-lucide-icon"},
+        {"icon": "Settings", "showCloseButton": False},
+    ):
         with pytest.raises(ValidationError):
             View.model_validate({**fields, **changes})
 
@@ -398,7 +594,10 @@ async def test_editor_slot_presentation_and_icon_contract() -> None:
     assert view.presentation == "popover"
     assert (
         View(
-            id="default", title="Default", slot="editor.toolbar", entry="panel/index.html"
+            id="default",
+            title="Default",
+            slot="editor.toolbar",
+            entry="panel/index.html",
         ).presentation
         is None
     )
@@ -421,7 +620,9 @@ async def test_editor_slot_presentation_and_icon_contract() -> None:
 
 async def test_editor_overlay_close_button() -> None:
     fields = {"id": "editor", "title": "Editor", "entry": "panel/index.html"}
-    view = View.model_validate({**fields, "slot": "editor.toolbar", "showCloseButton": False})
+    view = View.model_validate(
+        {**fields, "slot": "editor.toolbar", "showCloseButton": False}
+    )
     assert view.model_dump()["showCloseButton"] is False
     with pytest.raises(ValidationError, match=r"only supported in editor\.toolbar"):
         View.model_validate({**fields, "showCloseButton": False})

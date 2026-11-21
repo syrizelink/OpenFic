@@ -153,11 +153,11 @@ class View(Contract):
             safe_path(self.entry)
             if not self.entry.endswith(".html"):
                 raise ValueError("Views must reference an HTML file")
-        elif self.entry or not self.render or not self.action:
+        elif self.entry or not self.render:
             raise ValueError(
-                "Declarative views require render/action commands and cannot have entry"
+                "Declarative views require a render command and cannot have entry"
             )
-        elif self.render.startswith("sdk.") or self.action.startswith("sdk."):
+        elif self.render.startswith("sdk.") or (self.action and self.action.startswith("sdk.")):
             raise ValueError(
                 "Declarative views must bind plugin commands, not SDK methods"
             )

@@ -4,8 +4,6 @@ async def action(ctx, params):
     action_id = params["id"]
     if action_id == "increment":
         await ctx.storage.set("count", await ctx.storage.get("count", 0) + 1)
-    elif action_id == "position":
-        await ctx.storage.set("position", params["value"])
     elif action_id == "permission":
         # Deliberately absent projects.read; Inspector must show the actual denial.
         await ctx.call("api.request", {"method": "GET", "path": "/projects"})
@@ -18,4 +16,4 @@ async def action(ctx, params):
         return {"message": ctx.settings.get("apiKey", "")}
     else:
         raise ValueError("Unknown action")
-    ctx.invalidate_ui()
+    ctx.invalidate_ui(params.get("viewId"))

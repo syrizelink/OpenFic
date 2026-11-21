@@ -19,6 +19,7 @@ DEFAULTS = {
     "visible": True,
     "bubble": True,
     "position": None,
+    "positionRevision": 0,
     "phrases": [
         "今天也要写出好故事！",
         "小鲸鱼帮你看着余额。",
@@ -35,7 +36,12 @@ DEFAULTS = {
 }
 CSS = """
 .whale-art { display:block; width:100%; height:auto; min-height:0; border:0; padding:0; background:transparent; cursor:pointer; }
-.whale-art:active { transform:scale(.96); }
+.whale-art:active { transform:scale(.9); }
+.whale-pet-a { animation:whale-pet-a .4s ease-out; }
+.whale-pet-b { animation:whale-pet-b .4s ease-out; }
+@keyframes whale-pet-a { 0%,100% { transform:scale(1); } 40% { transform:scale(.88) rotate(-5deg); } 70% { transform:scale(1.05) rotate(3deg); } }
+@keyframes whale-pet-b { 0%,100% { transform:scale(1); } 40% { transform:scale(.88) rotate(5deg); } 70% { transform:scale(1.05) rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .whale-pet-a, .whale-pet-b { animation:none; } }
 .whale-art img { display:block; width:100%; height:auto; }
 .whale-bubble { padding:12px; border:1px solid var(--gray-a5); border-radius:18px 18px 4px 18px; background:var(--color-panel-solid); box-shadow:0 4px 20px var(--black-a3); overflow-wrap:anywhere; }
 .whale-controls { display:flex; gap:5px; justify-content:center; padding:4px; }
@@ -73,9 +79,9 @@ async def state(ctx):
     return value
 
 
-async def save(ctx, value):
+async def save(ctx, value, view_id=None):
     await ctx.storage.set(STATE_KEY, value)
-    ctx.invalidate_ui()
+    ctx.invalidate_ui(view_id)
 
 
 def identity(key):
@@ -123,6 +129,18 @@ def spending(value, balance):
     )
 
 
+def widget_balance(value):
+    balance = value["balance"]
+    if not balance:
+        return None
+    return (
+        balance["total"],
+        balance["currency"],
+        balance["stale"],
+        spending(value, balance),
+    )
+
+
 async def refresh(ctx, params=None):
     key = str(ctx.settings.get("apiKey") or "").strip()
     account = identity(key) if key else None
@@ -132,8 +150,9 @@ async def refresh(ctx, params=None):
         if cached and cached["account"] != account:
             current["balance"] = None
         if not key:
-            current["error"] = "请在插件配置中填写 DeepSeek API Key。"
-            await save(ctx, current)
+            if current["error"] != DEFAULTS["error"]:
+                current["error"] = DEFAULTS["error"]
+                await save(ctx, current, "settings")
             return {"ok": False, "error": current["error"]}
     # Never hold the accounting lock during network I/O.
     failure = None
@@ -175,17 +194,27 @@ async def refresh(ctx, params=None):
         failure = "余额刷新失败，请稍后重试。"
     async with LOCK:
         value = await state(ctx)
+        widget_before = widget_balance(value)
         previous = value.get("balance")
         if previous and previous["account"] != account:
             value["balance"] = None
         if failure:
+            changed = value["error"] != failure or bool(
+                value["balance"] and not value["balance"]["stale"]
+            )
             value["error"] = failure
             if value["balance"]:
                 value["balance"]["stale"] = True
         else:
             observe_balance(value, balance)
             value["balance"], value["error"] = balance, ""
-        await save(ctx, value)
+            changed = True
+        if changed:
+            await save(
+                ctx,
+                value,
+                "settings" if widget_before == widget_balance(value) else None,
+            )
         return {"ok": failure is None, "error": failure}
 
 
@@ -222,7 +251,7 @@ async def usage_recorded(ctx, event, next_handler):
             pending["cost"] = float(money(pending["cost"]) + cost)
             pending["tokens"] += record["tokens"]
         value["pending"] = dict(list(value["pending"].items())[-100:])
-        await save(ctx, value)
+        await save(ctx, value, "settings")
     return await next_handler(event)
 
 
@@ -239,7 +268,7 @@ async def turn_settled(ctx, event, next_handler):
                 "session": event["session_id"],
             }
             value["bubble"] = True
-            await save(ctx, value)
+            await save(ctx, value, "widget")
     return await next_handler(event)
 
 
@@ -287,54 +316,47 @@ async def ui_render(ctx, params):
     if params.get("viewId") == "widget":
         if not value["visible"]:
             return {"tree": None}
-        phrase = (
-            value["phrases"][value["phraseIndex"] % len(value["phrases"])]
-            if value["phrases"]
-            else "继续创作吧！"
+        phrases = value["phrases"] or ["继续创作吧！"]
+        bubble = node(
+            "Box",
+            [
+                node("Text", {"$state": "phraseIndex", "$map": phrases}, size="2"),
+                text(
+                    "余额 " + amount(balance["total"], currency)
+                    if balance
+                    else "余额待配置",
+                    weight="bold",
+                    id="whale-balance",
+                ),
+                text(
+                    "今日观测 " + amount(spending(value, balance), currency)
+                    if balance
+                    else "在设置页配置 API Key 后刷新。",
+                    size="1",
+                ),
+                text(
+                    f"上一轮 USD {value['lastTurn']['cost']:.8f}"
+                    if value["lastTurn"]
+                    else "尚未观测到已完成回合。",
+                    size="1",
+                    id="whale-turn",
+                ),
+                *[
+                    text(warning, size="1", color="red")
+                    for warning in notifications(ctx, value, balance)
+                ],
+                text("余额已过期，显示最近成功值。", size="1", color="orange")
+                if balance and balance["stale"]
+                else None,
+            ],
+            className="whale-bubble",
+            gap=1,
         )
-        bubble = []
-        if value["bubble"]:
-            bubble = [
-                node(
-                    "Box",
-                    [
-                        text(phrase, size="2"),
-                        text(
-                            "余额 " + amount(balance["total"], currency)
-                            if balance
-                            else "余额待配置",
-                            weight="bold",
-                            id="whale-balance",
-                        ),
-                        text(
-                            "今日观测 " + amount(spending(value, balance), currency)
-                            if balance
-                            else "在设置页配置 API Key 后刷新。",
-                            size="1",
-                        ),
-                        text(
-                            f"上一轮 USD {value['lastTurn']['cost']:.8f}"
-                            if value["lastTurn"]
-                            else "尚未观测到已完成回合。",
-                            size="1",
-                            id="whale-turn",
-                        ),
-                        *[
-                            text(warning, size="1", color="red")
-                            for warning in notifications(ctx, value, balance)
-                        ],
-                        text("余额已过期，显示最近成功值。", size="1", color="orange")
-                        if balance and balance["stale"]
-                        else None,
-                    ],
-                    className="whale-bubble",
-                    gap=1,
-                )
-            ]
+        bubble["when"] = {"state": "bubble", "equals": True}
         content = node(
             "FloatingPanel",
             [
-                *bubble,
+                bubble,
                 node(
                     "Button",
                     node(
@@ -344,16 +366,19 @@ async def ui_render(ctx, params):
                         width=value["size"],
                         fit="contain",
                     ),
-                    className="whale-art",
+                    className={
+                        "$state": "petAnimation",
+                        "$map": ["whale-art whale-pet-a", "whale-art whale-pet-b"],
+                    },
                     label="戳一下小鲸鱼",
-                    onPress="pet",
+                    onPress="local.pet",
                 ),
                 node(
                     "Flex",
                     [
                         icon_button("刷新余额", "RefreshCw", "refresh"),
                         icon_button("小鲸鱼设置", "Settings", "settings"),
-                        icon_button("收起气泡", "MessageCircle", "bubble"),
+                        icon_button("切换气泡", "MessageCircle", "local.bubble"),
                         icon_button("隐藏挂件", "EyeOff", "hide"),
                     ],
                     className="whale-controls",
@@ -362,9 +387,26 @@ async def ui_render(ctx, params):
             width=value["size"] + 24,
             position=value["position"],
             dragLabel="移动小鲸鱼",
-            onPositionChange="position",
+            id="deepseek-whale-panel",
+            key=f"position-{value['positionRevision']}",
         )
-        return {"css": CSS, "tree": content}
+        return {
+            "css": CSS,
+            "tree": content,
+            "state": {
+                "bubble": {"initial": value["bubble"], "persist": True},
+                "phraseIndex": {"initial": value["phraseIndex"] % len(phrases)},
+                "petAnimation": {"initial": 0},
+            },
+            "localActions": {
+                "local.bubble": [{"op": "toggle", "state": "bubble"}],
+                "local.pet": [
+                    {"op": "set", "state": "bubble", "value": True},
+                    {"op": "cycle", "state": "phraseIndex", "count": len(phrases)},
+                    {"op": "cycle", "state": "petAnimation", "count": 2},
+                ],
+            },
+        }
     usage_today = [r for r in value["usage"] if r["date"] == day()]
     usage_cost = sum((money(r["cost"]) for r in usage_today), Decimal(0))
     recent_rows = [
@@ -386,6 +428,20 @@ async def ui_render(ctx, params):
     ]
     return {
         "css": CSS,
+        "state": {
+            "phrasesDraft": {
+                "initial": value.get("phrasesDraft", "\n".join(value["phrases"]))
+            },
+            "correctionDraft": {"initial": value.get("correctionDraft", "")},
+        },
+        "localActions": {
+            "local.phrasesDraft": [
+                {"op": "set", "state": "phrasesDraft", "fromEvent": True}
+            ],
+            "local.correctionDraft": [
+                {"op": "set", "state": "correctionDraft", "fromEvent": True}
+            ],
+        },
         "tree": node(
             "Box",
             [
@@ -488,9 +544,14 @@ async def ui_render(ctx, params):
                 node(
                     "TextArea",
                     label="气泡台词（每行一句）",
-                    value="\n".join(value["phrases"]),
+                    value={"$state": "phrasesDraft"},
                     rows=3,
-                    onChange="phrases",
+                    onInput="local.phrasesDraft",
+                    onBlur={
+                        "action": "phrases",
+                        "value": {"$state": "phrasesDraft"},
+                        "changedOnly": True,
+                    },
                 ),
                 node("Heading", "校正今日观测消费", size="3"),
                 text(
@@ -500,10 +561,14 @@ async def ui_render(ctx, params):
                 node(
                     "Input",
                     label="今日消费校正值",
-                    value=value.get("correctionDraft", ""),
-                    onInput="correction-draft",
+                    value={"$state": "correctionDraft"},
+                    onInput="local.correctionDraft",
                 ),
-                button("保存今日校正", "correct", disabled=not balance),
+                button(
+                    "保存今日校正",
+                    {"action": "correct", "value": {"$state": "correctionDraft"}},
+                    disabled=not balance,
+                ),
                 text(value.get("status", ""), role="status", id="status"),
                 node("Heading", "余额观测历史", size="3"),
                 node(
@@ -564,18 +629,7 @@ async def ui_action(ctx, params):
     async with LOCK:
         value = await state(ctx)
         data = params.get("value")
-        if action == "position":
-            if (
-                not isinstance(data, dict)
-                or set(data) != {"x", "y"}
-                or any(
-                    type(v) not in (float, int) or abs(v) > 100000
-                    for v in data.values()
-                )
-            ):
-                raise ValueError("位置无效")
-            value["position"] = data
-        elif action == "size":
+        if action == "size":
             if (
                 not isinstance(data, list)
                 or len(data) != 1
@@ -586,24 +640,19 @@ async def ui_action(ctx, params):
         elif action == "phrases":
             if not isinstance(data, str) or len(data) > 4000:
                 raise ValueError("台词过长")
+            value["phrasesDraft"] = data
             value["phrases"] = [
                 line[:160] for line in data.splitlines() if line.strip()
             ][:30]
-        elif action == "pet":
-            value["phraseIndex"] += 1
-            value["bubble"] = True
-        elif action == "bubble":
-            value["bubble"] = not value["bubble"]
         elif action == "hide":
             value["visible"] = False
         elif action == "toggle-visible":
             value["visible"] = not value["visible"]
         elif action == "reset-position":
             value["position"] = None
-        elif action == "correction-draft":
-            value["correctionDraft"] = str(data)[:40]
+            value["positionRevision"] += 1
         elif action == "correct":
-            requested = money(value.get("correctionDraft", ""))
+            requested = money(data)
             if requested < 0:
                 raise ValueError("今日消费不能为负数")
             row = value["days"][day_key(value["balance"])]
@@ -611,7 +660,8 @@ async def ui_action(ctx, params):
             value["status"] = "今日校正已保存"
         else:
             raise ValueError("未知操作")
-        await save(ctx, value)
+        target = "widget" if action == "reset-position" else None
+        await save(ctx, value, target)
 
 
 def register(host):

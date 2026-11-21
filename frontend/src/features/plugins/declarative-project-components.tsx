@@ -26,6 +26,7 @@ interface ProjectProps {
   children: ReactNode;
   pluginId: string;
   viewId: string;
+  componentKey: string;
   change: (value: UIValue, kind?: string) => void;
 }
 type Row = Record<string, unknown>;
@@ -151,7 +152,8 @@ export function ProjectComponent(input: ProjectProps) {
         position={p.position}
         width={typeof p.width === "number" ? p.width : undefined}
         dragLabel={str(p.dragLabel, "Move panel")}
-        onPositionChange={(value) => input.change(value)}
+        storageKey={`openfic:plugin-floating-panel:${JSON.stringify([input.pluginId, input.viewId, typeof p.id === "string" ? p.id : input.componentKey])}`}
+        revision={typeof p.id === "string" && typeof p.key === "string" ? p.key : ""}
       >
         {input.children}
       </DeclarativeFloatingPanel>

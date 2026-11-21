@@ -7,14 +7,17 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { PortalContainerContext } from "@/components/portal-container";
 import { Spinner } from "@/components/spinner";
 import { apiClient } from "@/lib/api-client";
+import { getSocketConnectionStatus } from "@/lib/socket-client";
 
 import { pluginError, type InstalledPlugin, type PluginView } from "./api";
 import { scopeCSS } from "./declarative-css";
 import { runUIEffects } from "./declarative-effects";
+import { useDeclarativeLocalState } from "./declarative-local-state";
 import { type UIDocument, type UIAction } from "./declarative-schema";
 import { DeclarativeErrorBoundary, renderTree } from "./declarative-tree";
 import { frontendCall } from "./frontend-host";
 import { diagnosticCall, addPluginDiagnostic } from "./plugin-diagnostics";
+import { shouldRefreshPluginView } from "./plugin-refresh";
 
 function str(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -104,6 +107,12 @@ export function DeclarativeView({
     refetchOnWindowFocus: false,
   });
   const styles = useMemo(() => scopeCSS(data?.css ?? "", scope), [data?.css, scope]);
+  const local = useDeclarativeLocalState(
+    plugin.id,
+    view.id,
+    data?.state ?? {},
+    data?.localActions ?? {},
+  );
   useEffect(() => {
     if (data && !isPlaceholderData)
       addPluginDiagnostic({
@@ -189,7 +198,7 @@ export function DeclarativeView({
             result && typeof result === "object" && "text" in result ? str(result.text) : "",
           );
         }
-        if (current.active) await refetch();
+        if (current.active && getSocketConnectionStatus() !== "connected") await refetch();
       })
       .catch((fault: unknown) => {
         if (current.active) setError(pluginError(fault));
@@ -198,8 +207,12 @@ export function DeclarativeView({
         current.pending--;
       });
   };
+  const dispatch: UIAction = (id, value = null, event = "press") => {
+    if (id.startsWith("local.")) local.apply(id, value);
+    else run(id, value, event);
+  };
   useEffect(() => {
-    actions.current = run;
+    actions.current = dispatch;
   });
   useEffect(() => {
     const lifetime = { active: true, pending: 0 };
@@ -224,21 +237,31 @@ export function DeclarativeView({
   }, []);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let refreshView = false;
     const invalidate = (event: Event) => {
       const detail = (
-        event as CustomEvent<{ event: string; pluginId?: string; data?: { viewId?: string } }>
+        event as CustomEvent<{
+          event: string;
+          pluginId?: string;
+          data?: { viewId?: string; resync?: boolean };
+        }>
       ).detail;
       if (detail.event !== "ui.invalidate" && detail.event !== "data.changed") return;
-      if (detail.event === "ui.invalidate" && detail.pluginId && detail.pluginId !== plugin.id)
-        return;
-      if (detail.event === "ui.invalidate" && detail.data?.viewId && detail.data.viewId !== view.id)
-        return;
+      const shouldRefresh = shouldRefreshPluginView(
+        detail,
+        plugin.id,
+        view.id,
+        plugin.capabilities,
+      );
+      if (!shouldRefresh && detail.event !== "data.changed") return;
+      refreshView ||= shouldRefresh;
       clearTimeout(timer);
       timer = setTimeout(() => {
         void queryClient.invalidateQueries({
           queryKey: ["plugin-component-data", plugin.id, view.id],
         });
-        void refetch();
+        if (refreshView) void refetch();
+        refreshView = false;
       }, 50);
     };
     window.addEventListener("openfic:plugin-event", invalidate);
@@ -246,7 +269,7 @@ export function DeclarativeView({
       clearTimeout(timer);
       window.removeEventListener("openfic:plugin-event", invalidate);
     };
-  }, [refetch, queryClient, plugin.id, view.id]);
+  }, [refetch, queryClient, plugin.id, plugin.capabilities, view.id]);
   useEffect(() => {
     const next = data?.panes.map((pane) => pane.id).join("/") ?? "";
     if (next && next !== paneKey.current && data?.panes.some((pane) => pane.focus)) {
@@ -323,7 +346,7 @@ export function DeclarativeView({
                   key={command.name}
                   size="1"
                   variant="soft"
-                  onClick={() => run(command.name, "", "command")}
+                  onClick={() => dispatch(command.name, "", "command")}
                 >
                   /{command.name}
                 </Button>
@@ -382,9 +405,16 @@ export function DeclarativeView({
                 aria-live={entry.component === "Pane" ? undefined : "polite"}
               >
                 {renderTree(entry.tree, {
-                  action: run,
+                  action: dispatch,
                   pluginId: plugin.id,
                   viewId: view.id,
+                  localState: local.values,
+                  localInitial: Object.fromEntries(
+                    Object.entries(data?.state ?? {}).map(([name, definition]) => [
+                      name,
+                      definition.initial,
+                    ]),
+                  ),
                   portal,
                   animations: styles.animations,
                   animationVariables: styles.animationVariables,

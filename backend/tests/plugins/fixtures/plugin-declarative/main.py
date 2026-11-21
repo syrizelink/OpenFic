@@ -6,6 +6,16 @@ def component(kind, children=None, **props):
 
 
 async def render(context, params):
+    if params["viewId"] == "local":
+        return {
+            "state": {"open": {"initial": True, "persist": True}},
+            "localActions": {"local.toggle": [{"op": "toggle", "state": "open"}]},
+            "tree": {
+                "type": "Button",
+                "props": {"onPress": "local.toggle"},
+                "children": "Toggle",
+            },
+        }
     state = await context.storage.get("state", {})
     children = [
         component("Text", "<img src=x onerror=alert(1)>"),
@@ -66,11 +76,17 @@ async def action(context, params):
     else:
         raise ValueError("Unknown action")
     await context.storage.set("state", state)
+    context.invalidate_ui(params.get("viewId"))
 
 
 async def status(context, params):
     state = await context.storage.get("state", {})
-    return {"items": [{"type": "icon", "name": "Activity"}, {"type": "text", "text": str(state.get("count", 0))}]}
+    return {
+        "items": [
+            {"type": "icon", "name": "Activity"},
+            {"type": "text", "text": str(state.get("count", 0))},
+        ]
+    }
 
 
 def register(host):

@@ -648,7 +648,7 @@ async def ui_action(ctx, params):
     else:
         raise ValueError("Unknown UI action")
     await ctx.storage.set(key, state)
-    ctx.host.emit("ui.invalidate", {}, ctx.plugin_id)
+    ctx.invalidate_ui()
 
 
 def register(host):

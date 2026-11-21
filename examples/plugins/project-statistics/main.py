@@ -283,6 +283,7 @@ async def ui_action(ctx, params):
     elif params["id"] != "refresh":
         raise ValueError("Unknown UI action")
     await ctx.storage.set(key, state)
+    ctx.invalidate_ui(params.get("viewId"))
 
 
 def register(host):

@@ -354,7 +354,7 @@ const project = {
     capabilities: ["ui"],
   },
   FloatingPanel: {
-    props: { ...dom, position: json, width: number, dragLabel: string, onPositionChange: event },
+    props: { ...dom, position: json, width: number, dragLabel: string },
     capabilities: ["ui.overlay"],
   },
   Icon: {
@@ -584,7 +584,7 @@ const componentTypes = Object.entries({ radix, project })
     Object.entries(entries).map(([name, definition]) => {
       const base = source === "radix" ? "UIRadixProps" : "UICommonProps";
       const overrides = Object.keys(definition.props);
-      return `export type UI_${source}_${name.replaceAll(".", "_")} = Omit<${base}, ${overrides.length ? overrides.map(JSON.stringify).join(" | ") : "never"}> & {\n${propertyFields(definition.props)}\n};`;
+      return `export type UI_${source}_${name.replaceAll(".", "_")} = Omit<${base}, ${overrides.length ? overrides.map(JSON.stringify).join(" | ") : "never"}> & UILocalProps<{\n${propertyFields(definition.props)}\n}>;`;
     }),
   )
   .join("\n");
@@ -615,9 +615,17 @@ export type UIResponsive<T> = T | Partial<Record<"initial" | "xs" | "sm" | "md" 
 /** camelCase, kebab-case and custom properties. Numeric lengths follow React CSS conventions. */
 export type UIStyle = { [property: string]: string | number | null };
 export interface UISelectOption { value: string; label?: string; description?: string; disabled?: boolean; labelColor?: string; fontFamily?: string; separatorAfter?: boolean; }
+export type UILocalValue = Json;
+export interface UILocalBinding { $state: string; $map?: UILocalValue[] }
+export interface UILocalCondition { state: string; equals?: null | boolean | number | string }
+export interface UILocalDefinition { initial: UILocalValue; persist?: boolean }
+export type UIEventHandler = string | { action: string; value: UILocalValue | UILocalBinding; changedOnly?: boolean };
+export type UILocalProps<T> = { [K in keyof T]: T[K] | (K extends \`on\${string}\` ? UIEventHandler : UILocalBinding) };
+export type UILocalOperation = { op: "toggle"; state: string } | { op: "cycle"; state: string; count: number } |
+  { op: "set"; state: string; value: UILocalValue } | { op: "set"; state: string; fromEvent: true };
 /** Per-component validity and capabilities are available from sdk.api.catalogue().ui.
- * Events are opaque backend action IDs; functions, refs and arbitrary DOM props are unavailable. */
-export interface UIProps {
+ * Events reference backend action IDs or declared local actions; functions, refs and arbitrary DOM props are unavailable. */
+export interface UIPropsBase {
 ${Object.entries(allProps)
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([k, ts]) => "  " + JSON.stringify(k) + "?: " + [...ts].join(" | ") + ";")
@@ -625,27 +633,29 @@ ${Object.entries(allProps)
   [attribute: \`data-\${string}\`]: string | number | boolean | null | undefined;
   [attribute: \`aria-\${string}\`]: string | number | boolean | null | undefined;
 }
-export interface UICommonProps {
+export type UIProps = UILocalProps<UIPropsBase>;
+export interface UICommonPropsBase {
 ${propertyFields(dom)}
 ${attributes}
 }
-export type UIRadixProps = UICommonProps & {
+export type UICommonProps = UILocalProps<UICommonPropsBase>;
+export type UIRadixProps = UICommonProps & UILocalProps<{
 ${propertyFields({ ...layout, ...legacy, asChild: boolean })}
-};
+}>;
 ${componentTypes}
 export interface UIComponentPropsMap {
 ${componentMap}
 }
 /** Component-specific props; the unparameterized UIProps above remains for generic tooling. */
 export type UIPropsFor<C extends UIComponent> = UIComponentPropsMap[C];
-export type UIElement = { [C in UIComponent]: { type: C; props?: UIComponentPropsMap[C]; children?: UINode } }[UIComponent];
-export type UINode = null | boolean | number | string | UINode[] | UIElement;
+export type UIElement = { [C in UIComponent]: { type: C; props?: UIComponentPropsMap[C]; children?: UINode; when?: UILocalCondition } }[UIComponent];
+export type UINode = null | boolean | number | string | UINode[] | UIElement | UILocalBinding;
 /** CSS is limited to this view and its portals; @import/font-face/global registrations are ignored. */
 export type UIDocument = ({ tree: UINode } | {
   trees: { component: "View" | "AbovePrompt" | "Pane" | "Spinner"; requestId?: string; tree: UINode }[];
   panes?: { id: string; title?: string; focus?: boolean; closeOnEscape?: boolean }[];
   commands?: { name: string }[];
-}) & { css?: string };
+}) & { css?: string; state?: Record<string, UILocalDefinition>; localActions?: Record<\`local.\${string}\`, UILocalOperation[]> };
 export interface UIRenderRequest { viewId: string; slot: UIAction; columns: number; context: Partial<Context>; }
 export interface UIEventRequest extends UIRenderRequest {
   id: string; event: "press" | "input" | "submit" | "select" | "change" | "command" | "close";

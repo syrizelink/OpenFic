@@ -635,7 +635,6 @@ async def ui_action(ctx, params):
         if action == "save":
             await save(ctx, {"projectId": state["project"], "config": configuration})
             state = {**state, "status": "规则已保存，将在下一次模型请求生效"}
-            ctx.host.emit("ui.invalidate", {}, ctx.plugin_id)
         elif action == "preview":
             state["preview"] = await preview(
                 ctx,
@@ -705,6 +704,7 @@ async def ui_action(ctx, params):
     else:
         raise ValueError("Unknown UI action")
     await ctx.storage.set(key, state)
+    ctx.invalidate_ui(None if action == "save" else params.get("viewId"))
 
 
 def register(host):

@@ -150,6 +150,117 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
     css = value.get("css", "")
     if not isinstance(css, str) or len(css.encode()) > 65536:
         raise ValueError("CSS must be a string no larger than 64 KiB")
+    state = value.get("state", {})
+    actions = value.get("localActions", {})
+    if (
+        not isinstance(state, dict)
+        or len(state) > 64
+        or not isinstance(actions, dict)
+        or len(actions) > 64
+    ):
+        raise ValueError("Invalid local UI state or actions")
+
+    def scalar(item):
+        return item is None or type(item) in (bool, int, float, str)
+
+    def local_value(item, depth=0):
+        if scalar(item):
+            return True
+        if depth >= 16:
+            return False
+        if isinstance(item, list):
+            return len(item) <= 200 and all(
+                local_value(value, depth + 1) for value in item
+            )
+        if isinstance(item, dict):
+            return len(item) <= 128 and all(
+                isinstance(key, str) and local_value(value, depth + 1)
+                for key, value in item.items()
+            )
+        return False
+
+    def same_type(first, second):
+        if first is None or second is None:
+            return True
+        if type(first) in (int, float) and type(second) in (int, float):
+            return True
+        return type(first) is type(second)
+
+    for name, definition in state.items():
+        if (
+            not isinstance(name, str)
+            or not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_.-]{0,63}", name)
+            or not isinstance(definition, dict)
+            or definition.keys() - {"initial", "persist"}
+            or "initial" not in definition
+            or not local_value(definition["initial"])
+            or ("persist" in definition and type(definition["persist"]) is not bool)
+        ):
+            raise ValueError("Invalid local UI state definition")
+    for name, operations in actions.items():
+        if (
+            not isinstance(name, str)
+            or not re.fullmatch(r"local\.[a-zA-Z0-9_.-]{1,80}", name)
+            or not isinstance(operations, list)
+            or not 1 <= len(operations) <= 16
+        ):
+            raise ValueError("Invalid local UI action")
+        for operation in operations:
+            if (
+                not isinstance(operation, dict)
+                or not isinstance(operation.get("state"), str)
+                or operation["state"] not in state
+            ):
+                raise ValueError("Invalid local UI action state")
+            initial = state[operation["state"]]["initial"]
+            op = operation.get("op")
+            if op == "toggle":
+                valid = operation.keys() == {"op", "state"} and type(initial) is bool
+            elif op == "cycle":
+                valid = (
+                    operation.keys() == {"op", "state", "count"}
+                    and type(initial) is int
+                    and initial >= 0
+                    and type(operation.get("count")) is int
+                    and 1 <= operation["count"] <= 200
+                )
+            elif op == "set":
+                valid = (
+                    operation.keys() == {"op", "state", "value"}
+                    and local_value(operation["value"])
+                    and same_type(initial, operation["value"])
+                ) or (
+                    operation.keys() == {"op", "state", "fromEvent"}
+                    and operation["fromEvent"] is True
+                )
+            else:
+                valid = False
+            if not valid:
+                raise ValueError("Invalid local UI action operation")
+
+    def binding(item):
+        if not isinstance(item, dict) or "$state" not in item:
+            return None
+        if (
+            item.keys() - {"$state", "$map"}
+            or not isinstance(item["$state"], str)
+            or item["$state"] not in state
+        ):
+            raise ValueError("Invalid local UI binding")
+        initial = state[item["$state"]]["initial"]
+        if "$map" not in item:
+            return [initial]
+        choices = item["$map"]
+        if (
+            type(initial) is not int
+            or initial < 0
+            or not isinstance(choices, list)
+            or not 1 <= len(choices) <= 200
+            or any(not local_value(choice) for choice in choices)
+        ):
+            raise ValueError("Invalid local UI binding map")
+        return choices
+
     count = 0
 
     def node(item, depth=0, ancestors=()):
@@ -161,6 +272,10 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
             return item
         if isinstance(item, list):
             return [node(child, depth + 1, ancestors) for child in item]
+        if isinstance(item, dict) and "$state" in item:
+            if any(not scalar(candidate) for candidate in binding(item)):
+                raise ValueError("Local UI text bindings must be scalar")
+            return item
         if not isinstance(item, dict) or not isinstance(item.get("type"), str):
             raise ValueError("Unknown declarative component")
         source, name, definition = resolve_component(item["type"])
@@ -203,13 +318,61 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
             if key == "children":
                 continue
             spec = definition["props"].get(key)
-            if re.fullmatch(r"(?:aria|data)-[a-z][a-z0-9-]*", key):
+            is_dom_attribute = bool(re.fullmatch(r"(?:aria|data)-[a-z][a-z0-9-]*", key))
+            if is_dom_attribute:
                 spec = {"type": "json"}
-                if isinstance(prop, (dict, list)):
+                if isinstance(prop, (dict, list)) and not (
+                    isinstance(prop, dict) and "$state" in prop
+                ):
                     raise ValueError("DOM attributes must be scalar")
             if spec is None:
                 raise ValueError("Unknown declarative component property: " + key)
-            clean[key] = validate_property(key, prop, spec)
+            if spec["type"] == "event" and isinstance(prop, dict):
+                if (
+                    prop.keys() - {"action", "value", "changedOnly"}
+                    or not {"action", "value"} <= prop.keys()
+                    or (
+                        not local_value(prop["value"])
+                        and binding(prop["value"]) is None
+                    )
+                ):
+                    raise ValueError("Invalid local UI event value")
+                if isinstance(prop["value"], dict) and "$state" in prop["value"]:
+                    binding(prop["value"])
+                if "changedOnly" in prop and (
+                    type(prop["changedOnly"]) is not bool
+                    or prop["changedOnly"]
+                    and (
+                        not isinstance(prop["value"], dict)
+                        or set(prop["value"]) != {"$state"}
+                    )
+                ):
+                    raise ValueError("Invalid local UI change condition")
+                action = validate_property(key, prop["action"], spec)
+                if not isinstance(action, str) or not action or len(action) > 128:
+                    raise ValueError("Invalid local UI event action")
+                if action.startswith("local.") and action not in actions:
+                    raise ValueError("Unknown local UI action")
+                clean[key] = prop
+                continue
+            bound = binding(prop)
+            if bound is not None:
+                if spec["type"] == "event":
+                    raise ValueError("Event handlers cannot be state bindings")
+                for candidate in bound:
+                    if is_dom_attribute and not scalar(candidate):
+                        raise ValueError("DOM attributes must be scalar")
+                    validate_property(key, candidate, spec)
+                clean[key] = prop
+            else:
+                clean[key] = validate_property(key, prop, spec)
+                if (
+                    spec["type"] == "event"
+                    and isinstance(prop, str)
+                    and prop.startswith("local.")
+                    and prop not in actions
+                ):
+                    raise ValueError("Unknown local UI action")
         if source == "project" and name == "Icon" and not clean.get("name"):
             raise ValueError("Icon requires a Lucide name")
         if name == "Select.Item" and not clean.get("value"):
@@ -223,11 +386,23 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
             )
             if not isinstance(child, dict):
                 raise ValueError("asChild requires a single component child")
-        return {
+        result = {
             "type": item["type"],
             "props": clean,
             "children": node(children, depth + 1, (*ancestors, name)),
         }
+        if "when" in item:
+            condition = item["when"]
+            if (
+                not isinstance(condition, dict)
+                or condition.keys() - {"state", "equals"}
+                or not isinstance(condition.get("state"), str)
+                or condition["state"] not in state
+                or ("equals" in condition and not scalar(condition["equals"]))
+            ):
+                raise ValueError("Invalid local UI condition")
+            result["when"] = condition
+        return result
 
     entries = value.get("trees", [{"component": "View", "tree": value.get("tree")}])
     if not isinstance(entries, list) or len(entries) > 60:
@@ -267,6 +442,13 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
         )
     ):
         raise ValueError("Invalid declarative controls")
+    if any(
+        p["id"].startswith("local.") and p["id"] not in actions for p in panes
+    ) or any(
+        command["name"].startswith("local.") and command["name"] not in actions
+        for command in commands
+    ):
+        raise ValueError("Unknown local UI action")
     return {
         "version": 1,
         "css": css,
@@ -281,4 +463,6 @@ def validate_document(value: Any, *, capabilities: list[str] | None = None) -> d
             for p in panes
         ],
         "commands": [{"name": str(p["name"])[:128]} for p in commands],
+        "state": state,
+        "localActions": actions,
     }

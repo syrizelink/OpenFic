@@ -40,7 +40,6 @@ async def test_overlay_permission_and_native_component_contract():
                 "type": "FloatingPanel",
                 "props": {
                     "position": {"x": 10, "y": 20},
-                    "onPositionChange": "move",
                 },
                 "children": {
                     "type": "Image",
@@ -88,6 +87,171 @@ async def test_assets_are_package_scoped_bounded_and_capability_checked(
         await ctx.assets.read("assets/whale.png")
     with pytest.raises(PermissionError):
         host.context("deepseek-whale", session).invalidate_ui()
+
+
+async def test_unconfigured_periodic_refresh_does_not_invalidate_unchanged_views(
+    plugin_api, session, monkeypatch
+):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    await install(host)
+    await host._notifications.join()
+    send.reset_mock()
+
+    for _ in range(2):
+        result = await host.call("deepseek-whale", "balance.refresh", {}, session)
+        assert not result["ok"]
+    await host._notifications.join()
+    assert not any(
+        call.args[0] == "plugins:event" and call.args[1]["event"] == "ui.invalidate"
+        for call in send.await_args_list
+    )
+
+
+async def test_repeated_balance_failure_only_notifies_when_state_changes(
+    plugin_api, session, monkeypatch
+):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    await install(host)
+    await host.configure("deepseek-whale", {"apiKey": "dummy-key"})
+    await host._notifications.join()
+    send.reset_mock()
+    host.http_transport = httpx.MockTransport(lambda _: httpx.Response(503))
+
+    for _ in range(2):
+        result = await host.call("deepseek-whale", "balance.refresh", {}, session)
+        assert not result["ok"]
+    await host._notifications.join()
+    assert (
+        sum(
+            call.args[0] == "plugins:event" and call.args[1]["event"] == "ui.invalidate"
+            for call in send.await_args_list
+        )
+        == 1
+    )
+
+
+async def test_balance_and_actions_invalidate_only_affected_views(
+    plugin_api, session, monkeypatch
+):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    await install(host)
+    await host.configure("deepseek-whale", {"apiKey": "dummy-key"})
+    total = "100"
+
+    def provider(_):
+        return httpx.Response(
+            200, json={"balance_infos": [{"currency": "CNY", "total_balance": total}]}
+        )
+
+    host.http_transport = httpx.MockTransport(provider)
+    await host.call("deepseek-whale", "balance.refresh", {}, session)
+    await host._notifications.join()
+    send.reset_mock()
+
+    await host.call("deepseek-whale", "balance.refresh", {}, session)
+    await host._notifications.join()
+    assert [
+        call.args[1]["data"]
+        for call in send.await_args_list
+        if call.args[1].get("event") == "ui.invalidate"
+    ] == [{"viewId": "settings"}]
+    send.reset_mock()
+
+    await host.call(
+        "deepseek-whale",
+        "ui.action",
+        {"viewId": "settings", "id": "reset-position"},
+        session,
+    )
+    await host._notifications.join()
+    assert [
+        call.args[1]["data"]
+        for call in send.await_args_list
+        if call.args[1].get("event") == "ui.invalidate"
+    ] == [{"viewId": "widget"}]
+    send.reset_mock()
+
+    total = "90"
+    await host.call("deepseek-whale", "balance.refresh", {}, session)
+    await host._notifications.join()
+    assert [
+        call.args[1]["data"]
+        for call in send.await_args_list
+        if call.args[1].get("event") == "ui.invalidate"
+    ] == [{}]
+
+
+async def test_reset_position_changes_panel_revision(plugin_api, session):
+    host, _, _ = plugin_api
+    await install(host)
+    await host.context("deepseek-whale", session).storage.set(
+        "whale.state.v1", {"position": {"x": 33, "y": 44}}
+    )
+    params = {"viewId": "widget"}
+    original = await host.call("deepseek-whale", "ui.render", params, session)
+    original_props = original["tree"]["props"]
+    await host.call(
+        "deepseek-whale",
+        "ui.action",
+        {"viewId": "settings", "id": "reset-position"},
+        session,
+    )
+    updated = await host.call("deepseek-whale", "ui.render", params, session)
+    updated_props = updated["tree"]["props"]
+    assert original_props["id"] == updated_props["id"]
+    assert original_props["position"] == {"x": 33, "y": 44}
+    assert original_props["key"] != updated_props["key"]
+    assert updated_props["position"] is None
+    assert "onPositionChange" not in updated_props
+
+
+async def test_whale_declares_local_interactions(plugin_api, session):
+    host, _, _ = plugin_api
+    await install(host)
+    document = await host.call(
+        "deepseek-whale", "ui.render", {"viewId": "widget"}, session
+    )
+    validated = validate_document(document, capabilities=["ui", "ui.overlay"])
+    assert validated["state"]["bubble"]["persist"] is True
+    assert validated["localActions"]["local.bubble"] == [
+        {"op": "toggle", "state": "bubble"}
+    ]
+    assert validated["localActions"]["local.pet"][0] == {
+        "op": "set",
+        "state": "bubble",
+        "value": True,
+    }
+    assert '"onPress": "local.pet"' in json.dumps(validated)
+    settings = await host.call(
+        "deepseek-whale", "ui.render", {"viewId": "settings"}, session
+    )
+    settings = validate_document(settings, capabilities=["ui", "ui.overlay"])
+    assert "local.correctionDraft" in settings["localActions"]
+    assert '"$state": "correctionDraft"' in json.dumps(settings)
+
+
+async def test_whale_keeps_saved_draft_when_phrases_are_normalized(plugin_api, session):
+    host, _, _ = plugin_api
+    await install(host)
+    draft = "x" * 200 + "\n\n"
+    await host.call(
+        "deepseek-whale",
+        "ui.action",
+        {"viewId": "settings", "id": "phrases", "value": draft},
+        session,
+    )
+    settings = await host.call(
+        "deepseek-whale", "ui.render", {"viewId": "settings"}, session
+    )
+    assert settings["state"]["phrasesDraft"]["initial"] == draft
+    value = await host.context("deepseek-whale", session).storage.get("whale.state.v1")
+    assert value["phrases"] == ["x" * 160]
 
 
 async def test_balance_accounting_stale_credit_correction_and_secret_isolation(
@@ -146,18 +310,20 @@ async def test_balance_accounting_stale_credit_correction_and_secret_isolation(
     assert stale["balance"]["total"] == 85 and stale["balance"]["stale"]
     assert next(iter(stale["days"].values()))["observed"] == 35
     action = {"viewId": "settings", "context": {}}
+    with pytest.raises(Exception, match="未保存校正"):
+        await host.call(
+            "deepseek-whale",
+            "ui.action",
+            {**action, "id": "correct", "value": "17.5"},
+            session,
+        )
+    current["status"] = 200
     await host.call(
         "deepseek-whale",
         "ui.action",
-        {**action, "id": "correction-draft", "value": "17.5"},
+        {**action, "id": "correct", "value": "17.5"},
         session,
     )
-    with pytest.raises(Exception, match="未保存校正"):
-        await host.call(
-            "deepseek-whale", "ui.action", {**action, "id": "correct"}, session
-        )
-    current["status"] = 200
-    await host.call("deepseek-whale", "ui.action", {**action, "id": "correct"}, session)
     current["total"] = "80"
     await refresh()
     corrected = await ctx.storage.get("whale.state.v1")

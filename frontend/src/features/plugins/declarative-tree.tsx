@@ -19,6 +19,9 @@ import { ProjectComponent } from "./declarative-project-components";
 import {
   resolveComponent,
   type UIAction,
+  type UILocalBinding,
+  type UILocalCondition,
+  type UILocalValue,
   type UIProps,
   type UINode,
   type UIValue,
@@ -29,6 +32,8 @@ export interface TreeContext {
   action: UIAction;
   pluginId: string;
   viewId: string;
+  localState: Record<string, UILocalValue>;
+  localInitial: Record<string, UILocalValue>;
   portal: HTMLElement;
   animations: Map<string, string>;
   animationVariables: Set<string>;
@@ -83,12 +88,12 @@ function InputControl({
       value={draft}
       onChange={(event: { target: { value: string } }) => {
         setDraft(event.target.value);
-        action(str(p.onInput || p.onChange), event.target.value, "input");
+        action(p.onInput ? "onInput" : "onChange", event.target.value, "input");
       }}
       onKeyDown={(event: { key: string; preventDefault: () => void }) => {
         if (event.key === "Enter" && p.onSubmit) {
           event.preventDefault();
-          action(str(p.onSubmit), draft, "submit");
+          action("onSubmit", draft, "submit");
         }
       }}
     >
@@ -132,10 +137,10 @@ function SliderControl({
       value={draft}
       onValueChange={(value) => {
         setDraft(value);
-        if (p.onValueChange) action(str(p.onValueChange), value, "select");
+        if (p.onValueChange) action("onValueChange", value, "select");
       }}
       onValueCommit={(value) => {
-        if (p.onValueCommit) action(str(p.onValueCommit), value, "change");
+        if (p.onValueCommit) action("onValueCommit", value, "change");
       }}
     />
   );
@@ -149,8 +154,21 @@ function radixComponent(name: string): ComponentType<Record<string, unknown>> | 
         : undefined;
   return value as ComponentType<Record<string, unknown>> | undefined;
 }
-function isNode(node: UINode): node is { type: string; props: UIProps; children: UINode } {
+function isNode(
+  node: UINode,
+): node is { type: string; props: UIProps; children: UINode; when?: UILocalCondition } {
   return Boolean(node && typeof node === "object" && !Array.isArray(node) && "type" in node);
+}
+
+function localValue(value: UIValue | UINode, state: Record<string, UILocalValue>): UIValue {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !("$state" in value))
+    return value as UIValue;
+  const binding = value as UILocalBinding;
+  const selected = state[binding.$state] ?? null;
+  if (!binding.$map?.length || typeof selected !== "number") return selected;
+  const index =
+    ((Math.trunc(selected) % binding.$map.length) + binding.$map.length) % binding.$map.length;
+  return binding.$map[index];
 }
 
 /** Return real element children so Radix asChild/Trigger can forward refs and handlers. */
@@ -162,8 +180,23 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
     const children = node.map((child, i) => renderTree(child, context, i, `${scope}${index}.`));
     return children.length === 1 ? children[0] : children;
   }
+  if ("$state" in node) {
+    const value = localValue(node, context.localState);
+    return typeof value === "string" || typeof value === "number" ? String(value) : null;
+  }
   if (!isNode(node)) return null;
-  const p = node.props;
+  if (
+    node.when &&
+    context.localState[node.when.state] !==
+      (Object.hasOwn(node.when, "equals") ? node.when.equals : true)
+  )
+    return null;
+  const p = Object.fromEntries(
+    Object.entries(node.props).map(([name, value]) => [
+      name,
+      localValue(value, context.localState),
+    ]),
+  ) as UIProps;
   const key = typeof p.key === "string" ? `${scope}key:${p.key}` : `${scope}index:${index}`;
   const { source, name, definition } = resolveComponent(node.type);
   if (!definition)
@@ -181,14 +214,29 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
       : typeof p.source === "string"
         ? p.source
         : renderTree(node.children, context);
-  const fire = (key: string, value: UIValue = null, event = "change") =>
-    context.action(str(p[key]), value, event);
+  const fire = (name: string, value: UIValue = null, event = "change") => {
+    const handler = p[name];
+    if (handler && typeof handler === "object" && !Array.isArray(handler) && "action" in handler) {
+      if (
+        handler.changedOnly === true &&
+        handler.value &&
+        typeof handler.value === "object" &&
+        !Array.isArray(handler.value) &&
+        typeof handler.value.$state === "string" &&
+        JSON.stringify(context.localState[handler.value.$state]) ===
+          JSON.stringify(context.localInitial[handler.value.$state])
+      )
+        return;
+      context.action(str(handler.action), localValue(handler.value, context.localState), event);
+    } else context.action(str(handler), value, event);
+  };
   const props: Record<string, unknown> = {
     "data-plugin-component": name,
     "data-component-source": source,
   };
   for (const [key, value] of Object.entries(p)) {
     if (legacyProps.has(key) || key.startsWith("on") || key === "style") continue;
+    if (/^(?:aria|data)-/.test(key) && value !== null && typeof value === "object") continue;
     if (key in definition.props || /^(?:aria|data)-/.test(key)) props[key] = value;
   }
   props.style = inlineStyle(p, context.animations, context.animationVariables);
@@ -292,14 +340,20 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
       );
     }
     const change = (value: UIValue, kind = "change") =>
-      context.action(
-        str(p.onPositionChange || p.onValueChange || p.onChange || p.onSelect || p.onInput),
+      fire(
+        p.onValueChange
+          ? "onValueChange"
+          : p.onChange
+            ? "onChange"
+            : p.onSelect
+              ? "onSelect"
+              : "onInput",
         value,
         kind,
       );
     if (name === "StepperNumberInput") {
-      props.onChange = (value: string) => context.action(str(p.onChange), value, "input");
-      props.onCommit = (value: number) => context.action(str(p.onCommit), value, "change");
+      props.onChange = (value: string) => fire("onChange", value, "input");
+      props.onCommit = (value: number) => fire("onCommit", value, "change");
     }
     if (name === "UnitTextField")
       return (
@@ -308,7 +362,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
           component={ProjectInput as unknown as ComponentType<Record<string, unknown>>}
           forwarded={props}
           props={p}
-          action={context.action}
+          action={fire}
         />
       );
     const projectChildren =
@@ -330,6 +384,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
         forwarded={props}
         pluginId={context.pluginId}
         viewId={context.viewId}
+        componentKey={key}
         change={change}
       >
         {projectChildren}
@@ -392,7 +447,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
         component={Control}
         forwarded={props}
         props={p}
-        action={context.action}
+        action={fire}
       >
         {name === "TextField.Root" ? children : undefined}
       </InputControl>
@@ -403,7 +458,7 @@ export function renderTree(node: UINode, context: TreeContext, index = 0, scope 
         key={key}
         forwarded={props}
         props={p}
-        action={context.action}
+        action={fire}
       />
     );
   const elementChild =

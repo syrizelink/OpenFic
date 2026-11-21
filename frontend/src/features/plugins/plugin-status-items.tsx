@@ -10,6 +10,7 @@ import "@/features/app-shell/components/status-bar.css";
 import { pluginsQueryOptions, type InstalledPlugin, type PluginView } from "./api";
 import { EditorPluginOverlayButton } from "./editor-plugin-actions";
 import { PluginIcon } from "./plugin-icon";
+import { shouldRefreshPluginView } from "./plugin-refresh";
 
 type StatusPart =
   | { type: "text"; text: string }
@@ -70,13 +71,13 @@ export function PluginStatusItem({ plugin, view }: { plugin: InstalledPlugin; vi
     let timer: ReturnType<typeof setTimeout>;
     function invalidate(event: Event) {
       const detail = (
-        event as CustomEvent<{ event: string; pluginId?: string; data?: { viewId?: string } }>
+        event as CustomEvent<{
+          event: string;
+          pluginId?: string;
+          data?: { viewId?: string; resync?: boolean };
+        }>
       ).detail;
-      if (detail.event !== "ui.invalidate" && detail.event !== "data.changed") return;
-      if (detail.event === "ui.invalidate" && detail.pluginId && detail.pluginId !== plugin.id)
-        return;
-      if (detail.event === "ui.invalidate" && detail.data?.viewId && detail.data.viewId !== view.id)
-        return;
+      if (!shouldRefreshPluginView(detail, plugin.id, view.id, plugin.capabilities)) return;
       clearTimeout(timer);
       timer = setTimeout(() => void refetch(), 50);
     }
@@ -85,7 +86,7 @@ export function PluginStatusItem({ plugin, view }: { plugin: InstalledPlugin; vi
       clearTimeout(timer);
       window.removeEventListener("openfic:plugin-event", invalidate);
     };
-  }, [plugin.id, view.id, refetch]);
+  }, [plugin.id, plugin.capabilities, view.id, refetch]);
   if (!data?.items.length) return null;
   const children = data.items.map((item, index) => {
     if (item.type === "text") return <span key={index}>{item.text}</span>;

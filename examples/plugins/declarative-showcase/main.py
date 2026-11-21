@@ -284,6 +284,7 @@ async def action(context, params):
     state = await context.storage.get("state", {})
     state[params["id"]] = params["value"]
     await context.storage.set("state", state)
+    context.invalidate_ui(params.get("viewId"))
 
 
 def register(host):

@@ -8280,9 +8280,6 @@
         },
         "dragLabel": {
           "type": "string"
-        },
-        "onPositionChange": {
-          "type": "event"
         }
       },
       "capabilities": [

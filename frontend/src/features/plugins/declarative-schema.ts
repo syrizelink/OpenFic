@@ -1,13 +1,32 @@
 import catalogue from "../../../../backend/app/plugins/ui-catalog.json";
 
 export type UIValue = null | boolean | number | string | UIValue[] | { [key: string]: UIValue };
+export type UILocalValue = UIValue;
+export interface UILocalBinding {
+  $state: string;
+  $map?: UILocalValue[];
+}
+export interface UILocalCondition {
+  state: string;
+  equals?: null | boolean | number | string;
+}
+export interface UILocalDefinition {
+  initial: UILocalValue;
+  persist?: boolean;
+}
+export type UILocalOperation =
+  | { op: "toggle"; state: string }
+  | { op: "cycle"; state: string; count: number }
+  | { op: "set"; state: string; value: UILocalValue }
+  | { op: "set"; state: string; fromEvent: true };
 export type UIProps = Record<string, UIValue>;
 export type UINode =
   | null
   | boolean
   | number
   | string
-  | { type: string; props: UIProps; children: UINode }
+  | { type: string; props: UIProps; children: UINode; when?: UILocalCondition }
+  | UILocalBinding
   | UINode[];
 export interface UIDocument {
   version: 1;
@@ -15,6 +34,8 @@ export interface UIDocument {
   trees: { component: string; requestId: string; tree: UINode }[];
   panes: { id: string; title: string; focus: boolean; closeOnEscape: boolean }[];
   commands: { name: string }[];
+  state: Record<string, UILocalDefinition>;
+  localActions: Record<string, UILocalOperation[]>;
 }
 export interface PropertyDefinition {
   type: string;

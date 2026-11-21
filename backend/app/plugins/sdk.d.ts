@@ -7,7 +7,7 @@ export type PluginView = { id: string; title: string } & (
   { slot: "statusbar"; status: string; presentation: "none"; renderer?: "iframe" | "declarative"; entry?: never; render?: never; action?: never; showCloseButton?: never } |
   ({ slot: "statusbar"; status: string; presentation: "popover" | "dialog"; showCloseButton?: boolean; height?: number } & (
     { renderer?: "iframe"; entry: string; render?: never; action?: never } |
-    { renderer: "declarative"; entry?: never; render: string; action: string }
+    { renderer: "declarative"; entry?: never; render: string; action?: string }
   )) |
   { slot: "editor.toolbar"; renderer: "declarative"; presentation: "action"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; action: string; entry?: never; render?: never; showCloseButton?: never; height?: number } |
   ({ height?: number; presentation?: "popover" | "dialog" } & (
@@ -18,7 +18,7 @@ export type PluginView = { id: string; title: string } & (
   { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar" | "statusbar" | "settings">; icon?: UIIconName }
 ) & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
-  { renderer: "declarative"; entry?: never; render: string; action: string }
+  { renderer: "declarative"; entry?: never; render: string; action?: string }
   ))
 );
 /** Unified plugin package. Paths are relative to plugin.json, never tied to directory names. */
@@ -329,9 +329,17 @@ export type UIResponsive<T> = T | Partial<Record<"initial" | "xs" | "sm" | "md" 
 /** camelCase, kebab-case and custom properties. Numeric lengths follow React CSS conventions. */
 export type UIStyle = { [property: string]: string | number | null };
 export interface UISelectOption { value: string; label?: string; description?: string; disabled?: boolean; labelColor?: string; fontFamily?: string; separatorAfter?: boolean; }
+export type UILocalValue = Json;
+export interface UILocalBinding { $state: string; $map?: UILocalValue[] }
+export interface UILocalCondition { state: string; equals?: null | boolean | number | string }
+export interface UILocalDefinition { initial: UILocalValue; persist?: boolean }
+export type UIEventHandler = string | { action: string; value: UILocalValue | UILocalBinding; changedOnly?: boolean };
+export type UILocalProps<T> = { [K in keyof T]: T[K] | (K extends `on${string}` ? UIEventHandler : UILocalBinding) };
+export type UILocalOperation = { op: "toggle"; state: string } | { op: "cycle"; state: string; count: number } |
+  { op: "set"; state: string; value: UILocalValue } | { op: "set"; state: string; fromEvent: true };
 /** Per-component validity and capabilities are available from sdk.api.catalogue().ui.
- * Events are opaque backend action IDs; functions, refs and arbitrary DOM props are unavailable. */
-export interface UIProps {
+ * Events reference backend action IDs or declared local actions; functions, refs and arbitrary DOM props are unavailable. */
+export interface UIPropsBase {
   "absoluteStrokeWidth"?: boolean;
   "accentColor"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky";
   "activationMode"?: "automatic" | "manual";
@@ -463,7 +471,6 @@ export interface UIProps {
   "onFocus"?: string;
   "onInput"?: string;
   "onOpenChange"?: string;
-  "onPositionChange"?: string;
   "onPress"?: string;
   "onSelect"?: string;
   "onSubmit"?: string;
@@ -539,7 +546,8 @@ export interface UIProps {
   [attribute: `data-${string}`]: string | number | boolean | null | undefined;
   [attribute: `aria-${string}`]: string | number | boolean | null | undefined;
 }
-export interface UICommonProps {
+export type UIProps = UILocalProps<UIPropsBase>;
+export interface UICommonPropsBase {
   "autoFocus"?: boolean;
   "children"?: UINode;
   "className"?: string;
@@ -563,7 +571,8 @@ export interface UICommonProps {
   [attribute: `data-${string}`]: string | number | boolean | null | undefined;
   [attribute: `aria-${string}`]: string | number | boolean | null | undefined;
 }
-export type UIRadixProps = UICommonProps & {
+export type UICommonProps = UILocalProps<UICommonPropsBase>;
+export type UIRadixProps = UICommonProps & UILocalProps<{
   "alignItems"?: string;
   "alignSelf"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "asChild"?: boolean;
@@ -622,23 +631,23 @@ export type UIRadixProps = UICommonProps & {
   "top"?: UIResponsive<string>;
   "width"?: UIResponsive<string>;
   "wrap"?: string;
-};
-export type UI_radix_AccessibleIcon = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_AccessibleIcon = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_AlertDialog_Action = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_AlertDialog_Action = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_AlertDialog_Cancel = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_AlertDialog_Cancel = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_AlertDialog_Content = Omit<UIRadixProps, "align" | "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & {
+}>;
+export type UI_radix_AlertDialog_Content = Omit<UIRadixProps, "align" | "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & UILocalProps<{
   "align"?: "start" | "center";
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
@@ -647,37 +656,37 @@ export type UI_radix_AlertDialog_Content = Omit<UIRadixProps, "align" | "size" |
   "open"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
   "value"?: string;
-};
-export type UI_radix_AlertDialog_Description = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_AlertDialog_Description = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_AlertDialog_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_AlertDialog_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_AlertDialog_Title = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_AlertDialog_Title = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_AlertDialog_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & {
+}>;
+export type UI_radix_AlertDialog_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_AspectRatio = Omit<UIRadixProps, "ratio"> & {
+}>;
+export type UI_radix_AspectRatio = Omit<UIRadixProps, "ratio"> & UILocalProps<{
   "ratio"?: number;
-};
-export type UI_radix_Avatar = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "fallback" | "src" | "alt"> & {
+}>;
+export type UI_radix_Avatar = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "fallback" | "src" | "alt"> & UILocalProps<{
   "alt"?: string;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "fallback"?: string;
@@ -686,27 +695,27 @@ export type UI_radix_Avatar = Omit<UIRadixProps, "size" | "variant" | "color" | 
   "size"?: UIResponsive<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9">;
   "src"?: string;
   "variant"?: "solid" | "soft";
-};
-export type UI_radix_Badge = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius"> & {
+}>;
+export type UI_radix_Badge = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "highContrast"?: boolean;
   "radius"?: "none" | "small" | "medium" | "large" | "full";
   "size"?: UIResponsive<"1" | "2" | "3">;
   "variant"?: "solid" | "soft" | "surface" | "outline";
-};
-export type UI_radix_Blockquote = Omit<UIRadixProps, "wrap" | "size" | "weight" | "color" | "highContrast" | "truncate"> & {
+}>;
+export type UI_radix_Blockquote = Omit<UIRadixProps, "wrap" | "size" | "weight" | "color" | "highContrast" | "truncate"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "highContrast"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9">;
   "truncate"?: boolean;
   "weight"?: UIResponsive<"light" | "regular" | "medium" | "bold">;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Box = Omit<UIRadixProps, "as" | "display"> & {
+}>;
+export type UI_radix_Box = Omit<UIRadixProps, "as" | "display"> & UILocalProps<{
   "as"?: "div" | "span";
   "display"?: UIResponsive<"none" | "inline" | "inline-block" | "block" | "contents">;
-};
-export type UI_radix_Button = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "loading" | "type" | "disabled" | "name" | "value"> & {
+}>;
+export type UI_radix_Button = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "loading" | "type" | "disabled" | "name" | "value"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "disabled"?: boolean;
   "highContrast"?: boolean;
@@ -717,24 +726,24 @@ export type UI_radix_Button = Omit<UIRadixProps, "size" | "variant" | "color" | 
   "type"?: "button" | "submit" | "reset";
   "value"?: string;
   "variant"?: "classic" | "solid" | "soft" | "surface" | "outline" | "ghost";
-};
-export type UI_radix_Callout_Icon = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Callout_Icon = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Callout_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast"> & {
+}>;
+export type UI_radix_Callout_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "highContrast"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3">;
   "variant"?: "soft" | "surface" | "outline";
-};
-export type UI_radix_Callout_Text = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Callout_Text = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Card = Omit<UIRadixProps, "size" | "variant"> & {
+}>;
+export type UI_radix_Card = Omit<UIRadixProps, "size" | "variant"> & UILocalProps<{
   "size"?: UIResponsive<"1" | "2" | "3" | "4" | "5">;
   "variant"?: "surface" | "classic" | "ghost";
-};
-export type UI_radix_Checkbox = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & {
+}>;
+export type UI_radix_Checkbox = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & UILocalProps<{
   "checked"?: true | false | "indeterminate";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultChecked"?: boolean;
@@ -747,16 +756,16 @@ export type UI_radix_Checkbox = Omit<UIRadixProps, "size" | "variant" | "color" 
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_CheckboxCards_Item = Omit<UIRadixProps, "value" | "defaultValue" | "onValueChange" | "disabled" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_CheckboxCards_Item = Omit<UIRadixProps, "value" | "defaultValue" | "onValueChange" | "disabled" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string[];
   "disabled"?: boolean;
   "onValueChange"?: string;
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_CheckboxCards_Root = Omit<UIRadixProps, "gap" | "size" | "variant" | "color" | "highContrast" | "columns" | "value" | "defaultValue" | "onValueChange" | "disabled"> & {
+}>;
+export type UI_radix_CheckboxCards_Root = Omit<UIRadixProps, "gap" | "size" | "variant" | "color" | "highContrast" | "columns" | "value" | "defaultValue" | "onValueChange" | "disabled"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "columns"?: UIResponsive<string>;
   "defaultValue"?: string[];
@@ -767,8 +776,8 @@ export type UI_radix_CheckboxCards_Root = Omit<UIRadixProps, "gap" | "size" | "v
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string[];
   "variant"?: "surface" | "classic";
-};
-export type UI_radix_CheckboxGroup_Item = Omit<UIRadixProps, "value" | "defaultValue" | "onValueChange" | "disabled" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_CheckboxGroup_Item = Omit<UIRadixProps, "value" | "defaultValue" | "onValueChange" | "disabled" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string[];
   "disabled"?: boolean;
   "loop"?: boolean;
@@ -778,8 +787,8 @@ export type UI_radix_CheckboxGroup_Item = Omit<UIRadixProps, "value" | "defaultV
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_CheckboxGroup_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "onValueChange" | "disabled" | "orientation" | "name" | "loop"> & {
+}>;
+export type UI_radix_CheckboxGroup_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "onValueChange" | "disabled" | "orientation" | "name" | "loop"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultValue"?: string[];
   "disabled"?: boolean;
@@ -791,8 +800,8 @@ export type UI_radix_CheckboxGroup_Root = Omit<UIRadixProps, "size" | "variant" 
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string[];
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_Code = Omit<UIRadixProps, "wrap" | "size" | "variant" | "weight" | "color" | "highContrast" | "truncate"> & {
+}>;
+export type UI_radix_Code = Omit<UIRadixProps, "wrap" | "size" | "variant" | "weight" | "color" | "highContrast" | "truncate"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "highContrast"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9">;
@@ -800,13 +809,13 @@ export type UI_radix_Code = Omit<UIRadixProps, "wrap" | "size" | "variant" | "we
   "variant"?: "solid" | "soft" | "outline" | "ghost";
   "weight"?: UIResponsive<"light" | "regular" | "medium" | "bold">;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Container = Omit<UIRadixProps, "size" | "display" | "align"> & {
+}>;
+export type UI_radix_Container = Omit<UIRadixProps, "size" | "display" | "align"> & UILocalProps<{
   "align"?: UIResponsive<"left" | "center" | "right">;
   "display"?: UIResponsive<"none" | "initial">;
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
-};
-export type UI_radix_ContextMenu_CheckboxItem = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "checked" | "defaultChecked" | "onCheckedChange" | "onChange" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_CheckboxItem = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "checked" | "defaultChecked" | "onCheckedChange" | "onChange" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "checked"?: true | false | "indeterminate";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultChecked"?: boolean;
@@ -822,8 +831,8 @@ export type UI_radix_ContextMenu_CheckboxItem = Omit<UIRadixProps, "color" | "sh
   "open"?: boolean;
   "shortcut"?: string;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Content = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & {
+}>;
+export type UI_radix_ContextMenu_Content = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -845,8 +854,8 @@ export type UI_radix_ContextMenu_Content = Omit<UIRadixProps, "size" | "variant"
   "sticky"?: "partial" | "always";
   "value"?: string;
   "variant"?: "solid" | "soft";
-};
-export type UI_radix_ContextMenu_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -856,8 +865,8 @@ export type UI_radix_ContextMenu_Group = Omit<UIRadixProps, "value" | "defaultVa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Item = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "textValue"> & {
+}>;
+export type UI_radix_ContextMenu_Item = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "textValue"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
@@ -870,8 +879,8 @@ export type UI_radix_ContextMenu_Item = Omit<UIRadixProps, "color" | "shortcut" 
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -881,8 +890,8 @@ export type UI_radix_ContextMenu_Label = Omit<UIRadixProps, "value" | "defaultVa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_RadioGroup = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_RadioGroup = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -892,8 +901,8 @@ export type UI_radix_ContextMenu_RadioGroup = Omit<UIRadixProps, "value" | "defa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_RadioItem = Omit<UIRadixProps, "color" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_RadioItem = Omit<UIRadixProps, "color" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
@@ -904,8 +913,8 @@ export type UI_radix_ContextMenu_RadioItem = Omit<UIRadixProps, "color" | "value
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -915,8 +924,8 @@ export type UI_radix_ContextMenu_Root = Omit<UIRadixProps, "value" | "defaultVal
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -926,8 +935,8 @@ export type UI_radix_ContextMenu_Separator = Omit<UIRadixProps, "value" | "defau
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Sub = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Sub = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -937,8 +946,8 @@ export type UI_radix_ContextMenu_Sub = Omit<UIRadixProps, "value" | "defaultValu
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_SubContent = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & {
+}>;
+export type UI_radix_ContextMenu_SubContent = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -956,8 +965,8 @@ export type UI_radix_ContextMenu_SubContent = Omit<UIRadixProps, "value" | "defa
   "sideOffset"?: number;
   "sticky"?: "partial" | "always";
   "value"?: string;
-};
-export type UI_radix_ContextMenu_SubTrigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_SubTrigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -967,8 +976,8 @@ export type UI_radix_ContextMenu_SubTrigger = Omit<UIRadixProps, "value" | "defa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_ContextMenu_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_ContextMenu_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -978,33 +987,33 @@ export type UI_radix_ContextMenu_Trigger = Omit<UIRadixProps, "value" | "default
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DataList_Item = Omit<UIRadixProps, "align" | "value" | "disabled" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_DataList_Item = Omit<UIRadixProps, "align" | "value" | "disabled" | "shortcut" | "textValue"> & UILocalProps<{
   "align"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "disabled"?: boolean;
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_DataList_Label = Omit<UIRadixProps, "color" | "highContrast"> & {
+}>;
+export type UI_radix_DataList_Label = Omit<UIRadixProps, "color" | "highContrast"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "highContrast"?: boolean;
-};
-export type UI_radix_DataList_Root = Omit<UIRadixProps, "orientation" | "size" | "trim"> & {
+}>;
+export type UI_radix_DataList_Root = Omit<UIRadixProps, "orientation" | "size" | "trim"> & UILocalProps<{
   "orientation"?: UIResponsive<"horizontal" | "vertical">;
   "size"?: UIResponsive<"1" | "2" | "3">;
   "trim"?: UIResponsive<"normal" | "start" | "end" | "both">;
-};
-export type UI_radix_DataList_Value = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_DataList_Value = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Dialog_Close = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Dialog_Close = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Dialog_Content = Omit<UIRadixProps, "align" | "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & {
+}>;
+export type UI_radix_Dialog_Content = Omit<UIRadixProps, "align" | "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & UILocalProps<{
   "align"?: "start" | "center";
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
@@ -1013,34 +1022,34 @@ export type UI_radix_Dialog_Content = Omit<UIRadixProps, "align" | "size" | "ope
   "open"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
   "value"?: string;
-};
-export type UI_radix_Dialog_Description = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Dialog_Description = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Dialog_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Dialog_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Dialog_Title = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Dialog_Title = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Dialog_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & {
+}>;
+export type UI_radix_Dialog_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_CheckboxItem = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "checked" | "defaultChecked" | "onCheckedChange" | "onChange" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_CheckboxItem = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "checked" | "defaultChecked" | "onCheckedChange" | "onChange" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "checked"?: true | false | "indeterminate";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultChecked"?: boolean;
@@ -1056,8 +1065,8 @@ export type UI_radix_DropdownMenu_CheckboxItem = Omit<UIRadixProps, "color" | "s
   "open"?: boolean;
   "shortcut"?: string;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Content = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & {
+}>;
+export type UI_radix_DropdownMenu_Content = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1079,8 +1088,8 @@ export type UI_radix_DropdownMenu_Content = Omit<UIRadixProps, "size" | "variant
   "sticky"?: "partial" | "always";
   "value"?: string;
   "variant"?: "solid" | "soft";
-};
-export type UI_radix_DropdownMenu_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1090,8 +1099,8 @@ export type UI_radix_DropdownMenu_Group = Omit<UIRadixProps, "value" | "defaultV
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Item = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "textValue"> & {
+}>;
+export type UI_radix_DropdownMenu_Item = Omit<UIRadixProps, "color" | "shortcut" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "textValue"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
@@ -1104,8 +1113,8 @@ export type UI_radix_DropdownMenu_Item = Omit<UIRadixProps, "color" | "shortcut"
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1115,8 +1124,8 @@ export type UI_radix_DropdownMenu_Label = Omit<UIRadixProps, "value" | "defaultV
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_RadioGroup = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_RadioGroup = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1126,8 +1135,8 @@ export type UI_radix_DropdownMenu_RadioGroup = Omit<UIRadixProps, "value" | "def
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_RadioItem = Omit<UIRadixProps, "color" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_RadioItem = Omit<UIRadixProps, "color" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
@@ -1138,8 +1147,8 @@ export type UI_radix_DropdownMenu_RadioItem = Omit<UIRadixProps, "color" | "valu
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1149,8 +1158,8 @@ export type UI_radix_DropdownMenu_Root = Omit<UIRadixProps, "value" | "defaultVa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1160,8 +1169,8 @@ export type UI_radix_DropdownMenu_Separator = Omit<UIRadixProps, "value" | "defa
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Sub = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Sub = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1171,8 +1180,8 @@ export type UI_radix_DropdownMenu_Sub = Omit<UIRadixProps, "value" | "defaultVal
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_SubContent = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & {
+}>;
+export type UI_radix_DropdownMenu_SubContent = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1190,8 +1199,8 @@ export type UI_radix_DropdownMenu_SubContent = Omit<UIRadixProps, "value" | "def
   "sideOffset"?: number;
   "sticky"?: "partial" | "always";
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_SubTrigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_SubTrigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1201,8 +1210,8 @@ export type UI_radix_DropdownMenu_SubTrigger = Omit<UIRadixProps, "value" | "def
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1212,8 +1221,8 @@ export type UI_radix_DropdownMenu_Trigger = Omit<UIRadixProps, "value" | "defaul
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_DropdownMenu_TriggerIcon = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_DropdownMenu_TriggerIcon = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1223,12 +1232,12 @@ export type UI_radix_DropdownMenu_TriggerIcon = Omit<UIRadixProps, "value" | "de
   "onValueChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_Em = Omit<UIRadixProps, "wrap" | "truncate"> & {
+}>;
+export type UI_radix_Em = Omit<UIRadixProps, "wrap" | "truncate"> & UILocalProps<{
   "truncate"?: boolean;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Flex = Omit<UIRadixProps, "gap" | "wrap" | "as" | "display" | "direction" | "align" | "justify" | "gapX" | "gapY"> & {
+}>;
+export type UI_radix_Flex = Omit<UIRadixProps, "gap" | "wrap" | "as" | "display" | "direction" | "align" | "justify" | "gapX" | "gapY"> & UILocalProps<{
   "align"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "as"?: "div" | "span";
   "direction"?: UIResponsive<"row" | "column" | "row-reverse" | "column-reverse">;
@@ -1238,8 +1247,8 @@ export type UI_radix_Flex = Omit<UIRadixProps, "gap" | "wrap" | "as" | "display"
   "gapY"?: UIResponsive<string>;
   "justify"?: UIResponsive<"start" | "center" | "end" | "between">;
   "wrap"?: UIResponsive<"nowrap" | "wrap" | "wrap-reverse">;
-};
-export type UI_radix_Grid = Omit<UIRadixProps, "gap" | "as" | "display" | "areas" | "columns" | "rows" | "flow" | "align" | "justify" | "alignContent" | "justifyItems" | "gapX" | "gapY"> & {
+}>;
+export type UI_radix_Grid = Omit<UIRadixProps, "gap" | "as" | "display" | "areas" | "columns" | "rows" | "flow" | "align" | "justify" | "alignContent" | "justifyItems" | "gapX" | "gapY"> & UILocalProps<{
   "align"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "alignContent"?: UIResponsive<"start" | "center" | "end" | "baseline" | "between" | "around" | "evenly" | "stretch">;
   "areas"?: UIResponsive<string>;
@@ -1253,8 +1262,8 @@ export type UI_radix_Grid = Omit<UIRadixProps, "gap" | "as" | "display" | "areas
   "justify"?: UIResponsive<"start" | "center" | "end" | "between">;
   "justifyItems"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "rows"?: UIResponsive<string>;
-};
-export type UI_radix_Heading = Omit<UIRadixProps, "wrap" | "as" | "size" | "weight" | "align" | "trim" | "truncate" | "color" | "highContrast"> & {
+}>;
+export type UI_radix_Heading = Omit<UIRadixProps, "wrap" | "as" | "size" | "weight" | "align" | "trim" | "truncate" | "color" | "highContrast"> & UILocalProps<{
   "align"?: UIResponsive<"left" | "center" | "right">;
   "as"?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
@@ -1264,8 +1273,8 @@ export type UI_radix_Heading = Omit<UIRadixProps, "wrap" | "as" | "size" | "weig
   "truncate"?: boolean;
   "weight"?: UIResponsive<"light" | "regular" | "medium" | "bold">;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_HoverCard_Content = Omit<UIRadixProps, "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "openDelay" | "closeDelay" | "value" | "disabled"> & {
+}>;
+export type UI_radix_HoverCard_Content = Omit<UIRadixProps, "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "openDelay" | "closeDelay" | "value" | "disabled"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1283,16 +1292,16 @@ export type UI_radix_HoverCard_Content = Omit<UIRadixProps, "size" | "open" | "d
   "size"?: UIResponsive<"1" | "2" | "3">;
   "sticky"?: "partial" | "always";
   "value"?: string;
-};
-export type UI_radix_HoverCard_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "openDelay" | "closeDelay"> & {
+}>;
+export type UI_radix_HoverCard_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "openDelay" | "closeDelay"> & UILocalProps<{
   "closeDelay"?: number;
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
   "openDelay"?: number;
-};
-export type UI_radix_HoverCard_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "openDelay" | "closeDelay" | "value" | "disabled"> & {
+}>;
+export type UI_radix_HoverCard_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "openDelay" | "closeDelay" | "value" | "disabled"> & UILocalProps<{
   "closeDelay"?: number;
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
@@ -1301,8 +1310,8 @@ export type UI_radix_HoverCard_Trigger = Omit<UIRadixProps, "open" | "defaultOpe
   "open"?: boolean;
   "openDelay"?: number;
   "value"?: string;
-};
-export type UI_radix_IconButton = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "loading" | "type" | "disabled" | "name" | "value"> & {
+}>;
+export type UI_radix_IconButton = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "loading" | "type" | "disabled" | "name" | "value"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "disabled"?: boolean;
   "highContrast"?: boolean;
@@ -1313,8 +1322,8 @@ export type UI_radix_IconButton = Omit<UIRadixProps, "size" | "variant" | "color
   "type"?: "button" | "submit" | "reset";
   "value"?: string;
   "variant"?: "classic" | "solid" | "soft" | "surface" | "outline" | "ghost";
-};
-export type UI_radix_Inset = Omit<UIRadixProps, "p" | "px" | "py" | "pt" | "pr" | "pb" | "pl" | "side" | "clip"> & {
+}>;
+export type UI_radix_Inset = Omit<UIRadixProps, "p" | "px" | "py" | "pt" | "pr" | "pb" | "pl" | "side" | "clip"> & UILocalProps<{
   "clip"?: UIResponsive<"border-box" | "padding-box">;
   "p"?: UIResponsive<"current" | "0">;
   "pb"?: UIResponsive<"current" | "0">;
@@ -1324,12 +1333,12 @@ export type UI_radix_Inset = Omit<UIRadixProps, "p" | "px" | "py" | "pt" | "pr" 
   "px"?: UIResponsive<"current" | "0">;
   "py"?: UIResponsive<"current" | "0">;
   "side"?: UIResponsive<"all" | "x" | "y" | "top" | "bottom" | "left" | "right">;
-};
-export type UI_radix_Kbd = Omit<UIRadixProps, "size" | "variant"> & {
+}>;
+export type UI_radix_Kbd = Omit<UIRadixProps, "size" | "variant"> & UILocalProps<{
   "size"?: UIResponsive<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9">;
   "variant"?: "classic" | "soft";
-};
-export type UI_radix_Link = Omit<UIRadixProps, "wrap" | "size" | "weight" | "trim" | "truncate" | "underline" | "color" | "highContrast" | "href" | "target" | "download" | "active"> & {
+}>;
+export type UI_radix_Link = Omit<UIRadixProps, "wrap" | "size" | "weight" | "trim" | "truncate" | "underline" | "color" | "highContrast" | "href" | "target" | "download" | "active"> & UILocalProps<{
   "active"?: boolean;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "download"?: string;
@@ -1342,20 +1351,20 @@ export type UI_radix_Link = Omit<UIRadixProps, "wrap" | "size" | "weight" | "tri
   "underline"?: "auto" | "always" | "hover" | "none";
   "weight"?: UIResponsive<"light" | "regular" | "medium" | "bold">;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Popover_Anchor = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Popover_Anchor = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Popover_Close = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Popover_Close = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Popover_Content = Omit<UIRadixProps, "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "value" | "disabled"> & {
+}>;
+export type UI_radix_Popover_Content = Omit<UIRadixProps, "size" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "value" | "disabled"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1371,22 +1380,22 @@ export type UI_radix_Popover_Content = Omit<UIRadixProps, "size" | "open" | "def
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
   "sticky"?: "partial" | "always";
   "value"?: string;
-};
-export type UI_radix_Popover_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & {
+}>;
+export type UI_radix_Popover_Root = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
-};
-export type UI_radix_Popover_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & {
+}>;
+export type UI_radix_Popover_Trigger = Omit<UIRadixProps, "open" | "defaultOpen" | "modal" | "onOpenChange" | "value" | "disabled"> & UILocalProps<{
   "defaultOpen"?: boolean;
   "disabled"?: boolean;
   "modal"?: boolean;
   "onOpenChange"?: string;
   "open"?: boolean;
   "value"?: string;
-};
-export type UI_radix_Progress = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "duration" | "value" | "max"> & {
+}>;
+export type UI_radix_Progress = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "duration" | "value" | "max"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "duration"?: string;
   "highContrast"?: boolean;
@@ -1395,12 +1404,12 @@ export type UI_radix_Progress = Omit<UIRadixProps, "size" | "variant" | "color" 
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: number;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_Quote = Omit<UIRadixProps, "wrap" | "truncate"> & {
+}>;
+export type UI_radix_Quote = Omit<UIRadixProps, "wrap" | "truncate"> & UILocalProps<{
   "truncate"?: boolean;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Radio = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & {
+}>;
+export type UI_radix_Radio = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & UILocalProps<{
   "checked"?: boolean;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultChecked"?: boolean;
@@ -1413,8 +1422,8 @@ export type UI_radix_Radio = Omit<UIRadixProps, "size" | "variant" | "color" | "
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_RadioCards_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_RadioCards_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "onSelect"?: string;
@@ -1422,8 +1431,8 @@ export type UI_radix_RadioCards_Item = Omit<UIRadixProps, "value" | "defaultValu
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_RadioCards_Root = Omit<UIRadixProps, "gap" | "size" | "variant" | "color" | "highContrast" | "columns" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & {
+}>;
+export type UI_radix_RadioCards_Root = Omit<UIRadixProps, "gap" | "size" | "variant" | "color" | "highContrast" | "columns" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "columns"?: UIResponsive<string>;
   "defaultValue"?: string;
@@ -1435,8 +1444,8 @@ export type UI_radix_RadioCards_Root = Omit<UIRadixProps, "gap" | "size" | "vari
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "surface" | "classic";
-};
-export type UI_radix_RadioGroup_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_RadioGroup_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "loop"?: boolean;
@@ -1447,8 +1456,8 @@ export type UI_radix_RadioGroup_Item = Omit<UIRadixProps, "value" | "defaultValu
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_RadioGroup_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "required"> & {
+}>;
+export type UI_radix_RadioGroup_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "required"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1462,19 +1471,19 @@ export type UI_radix_RadioGroup_Root = Omit<UIRadixProps, "size" | "variant" | "
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_ScrollArea = Omit<UIRadixProps, "size" | "radius" | "scrollbars" | "type" | "scrollHideDelay"> & {
+}>;
+export type UI_radix_ScrollArea = Omit<UIRadixProps, "size" | "radius" | "scrollbars" | "type" | "scrollHideDelay"> & UILocalProps<{
   "radius"?: "none" | "small" | "medium" | "large" | "full";
   "scrollbars"?: "vertical" | "horizontal" | "both";
   "scrollHideDelay"?: number;
   "size"?: UIResponsive<"1" | "2" | "3">;
   "type"?: "auto" | "always" | "scroll" | "hover";
-};
-export type UI_radix_Section = Omit<UIRadixProps, "size" | "display"> & {
+}>;
+export type UI_radix_Section = Omit<UIRadixProps, "size" | "display"> & UILocalProps<{
   "display"?: UIResponsive<"none" | "initial">;
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
-};
-export type UI_radix_SegmentedControl_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_SegmentedControl_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "loop"?: boolean;
@@ -1485,8 +1494,8 @@ export type UI_radix_SegmentedControl_Item = Omit<UIRadixProps, "value" | "defau
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_SegmentedControl_Root = Omit<UIRadixProps, "disabled" | "size" | "variant" | "radius" | "value" | "defaultValue" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop"> & {
+}>;
+export type UI_radix_SegmentedControl_Root = Omit<UIRadixProps, "disabled" | "size" | "variant" | "radius" | "value" | "defaultValue" | "onValueChange" | "onSelect" | "orientation" | "name" | "loop"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "loop"?: boolean;
@@ -1498,8 +1507,8 @@ export type UI_radix_SegmentedControl_Root = Omit<UIRadixProps, "disabled" | "si
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "surface" | "classic";
-};
-export type UI_radix_Select_Content = Omit<UIRadixProps, "position" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "side" | "align" | "sideOffset" | "alignOffset" | "avoidCollisions" | "collisionPadding"> & {
+}>;
+export type UI_radix_Select_Content = Omit<UIRadixProps, "position" | "variant" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "side" | "align" | "sideOffset" | "alignOffset" | "avoidCollisions" | "collisionPadding"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1515,15 +1524,15 @@ export type UI_radix_Select_Content = Omit<UIRadixProps, "position" | "variant" 
   "sideOffset"?: number;
   "value"?: string;
   "variant"?: "solid" | "soft";
-};
-export type UI_radix_Select_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & {
+}>;
+export type UI_radix_Select_Group = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "onSelect"?: string;
   "onValueChange"?: string;
   "value"?: string;
-};
-export type UI_radix_Select_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "shortcut" | "textValue"> & {
+}>;
+export type UI_radix_Select_Item = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "shortcut" | "textValue"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "onSelect"?: string;
@@ -1531,15 +1540,15 @@ export type UI_radix_Select_Item = Omit<UIRadixProps, "value" | "defaultValue" |
   "shortcut"?: string;
   "textValue"?: string;
   "value"?: string;
-};
-export type UI_radix_Select_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & {
+}>;
+export type UI_radix_Select_Label = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "onSelect"?: string;
   "onValueChange"?: string;
   "value"?: string;
-};
-export type UI_radix_Select_Root = Omit<UIRadixProps, "size" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "onOpenChange" | "autoComplete" | "name" | "required"> & {
+}>;
+export type UI_radix_Select_Root = Omit<UIRadixProps, "size" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "open" | "defaultOpen" | "onOpenChange" | "autoComplete" | "name" | "required"> & UILocalProps<{
   "autoComplete"?: string;
   "defaultOpen"?: boolean;
   "defaultValue"?: string;
@@ -1552,15 +1561,15 @@ export type UI_radix_Select_Root = Omit<UIRadixProps, "size" | "value" | "defaul
   "required"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
-};
-export type UI_radix_Select_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & {
+}>;
+export type UI_radix_Select_Separator = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & UILocalProps<{
   "defaultValue"?: string;
   "disabled"?: boolean;
   "onSelect"?: string;
   "onValueChange"?: string;
   "value"?: string;
-};
-export type UI_radix_Select_Trigger = Omit<UIRadixProps, "variant" | "color" | "radius" | "placeholder" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & {
+}>;
+export type UI_radix_Select_Trigger = Omit<UIRadixProps, "variant" | "color" | "radius" | "placeholder" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1570,17 +1579,17 @@ export type UI_radix_Select_Trigger = Omit<UIRadixProps, "variant" | "color" | "
   "radius"?: "none" | "small" | "medium" | "large" | "full";
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft" | "ghost";
-};
-export type UI_radix_Separator = Omit<UIRadixProps, "orientation" | "size" | "color" | "decorative"> & {
+}>;
+export type UI_radix_Separator = Omit<UIRadixProps, "orientation" | "size" | "color" | "decorative"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "decorative"?: boolean;
   "orientation"?: UIResponsive<"horizontal" | "vertical">;
   "size"?: UIResponsive<"1" | "2" | "3" | "4">;
-};
-export type UI_radix_Skeleton = Omit<UIRadixProps, "loading"> & {
+}>;
+export type UI_radix_Skeleton = Omit<UIRadixProps, "loading"> & UILocalProps<{
   "loading"?: boolean;
-};
-export type UI_radix_Slider = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "orientation" | "name" | "loop" | "value" | "defaultValue" | "min" | "max" | "step" | "minStepsBetweenThumbs" | "disabled" | "inverted" | "onValueChange" | "onValueCommit"> & {
+}>;
+export type UI_radix_Slider = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "orientation" | "name" | "loop" | "value" | "defaultValue" | "min" | "max" | "step" | "minStepsBetweenThumbs" | "disabled" | "inverted" | "onValueChange" | "onValueCommit"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultValue"?: number[];
   "disabled"?: boolean;
@@ -1599,16 +1608,16 @@ export type UI_radix_Slider = Omit<UIRadixProps, "size" | "variant" | "color" | 
   "step"?: number;
   "value"?: number[];
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_Spinner = Omit<UIRadixProps, "size" | "loading"> & {
+}>;
+export type UI_radix_Spinner = Omit<UIRadixProps, "size" | "loading"> & UILocalProps<{
   "loading"?: boolean;
   "size"?: UIResponsive<"1" | "2" | "3">;
-};
-export type UI_radix_Strong = Omit<UIRadixProps, "wrap" | "truncate"> & {
+}>;
+export type UI_radix_Strong = Omit<UIRadixProps, "wrap" | "truncate"> & UILocalProps<{
   "truncate"?: boolean;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_Switch = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & {
+}>;
+export type UI_radix_Switch = Omit<UIRadixProps, "size" | "variant" | "color" | "highContrast" | "radius" | "checked" | "defaultChecked" | "disabled" | "onCheckedChange" | "onChange" | "name" | "value" | "required"> & UILocalProps<{
   "checked"?: boolean;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultChecked"?: boolean;
@@ -1622,14 +1631,14 @@ export type UI_radix_Switch = Omit<UIRadixProps, "size" | "variant" | "color" | 
   "size"?: UIResponsive<"1" | "2" | "3">;
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_TabNav_Link = Omit<UIRadixProps, "active" | "href" | "target" | "download"> & {
+}>;
+export type UI_radix_TabNav_Link = Omit<UIRadixProps, "active" | "href" | "target" | "download"> & UILocalProps<{
   "active"?: boolean;
   "download"?: string;
   "href"?: string;
   "target"?: "_blank" | "_self";
-};
-export type UI_radix_TabNav_Root = Omit<UIRadixProps, "wrap" | "size" | "justify" | "color" | "highContrast" | "href" | "target" | "download" | "active"> & {
+}>;
+export type UI_radix_TabNav_Root = Omit<UIRadixProps, "wrap" | "size" | "justify" | "color" | "highContrast" | "href" | "target" | "download" | "active"> & UILocalProps<{
   "active"?: boolean;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "download"?: string;
@@ -1639,31 +1648,31 @@ export type UI_radix_TabNav_Root = Omit<UIRadixProps, "wrap" | "size" | "justify
   "size"?: UIResponsive<"1" | "2">;
   "target"?: "_blank" | "_self";
   "wrap"?: UIResponsive<"nowrap" | "wrap" | "wrap-reverse">;
-};
-export type UI_radix_Table_Body = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Table_Body = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Table_Cell = Omit<UIRadixProps, "justify"> & {
+}>;
+export type UI_radix_Table_Cell = Omit<UIRadixProps, "justify"> & UILocalProps<{
   "justify"?: UIResponsive<"start" | "center" | "end">;
-};
-export type UI_radix_Table_ColumnHeaderCell = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Table_ColumnHeaderCell = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Table_Header = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Table_Header = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Table_Root = Omit<UIRadixProps, "size" | "variant" | "layout"> & {
+}>;
+export type UI_radix_Table_Root = Omit<UIRadixProps, "size" | "variant" | "layout"> & UILocalProps<{
   "layout"?: UIResponsive<"auto" | "fixed">;
   "size"?: UIResponsive<"1" | "2" | "3">;
   "variant"?: "surface" | "ghost";
-};
-export type UI_radix_Table_Row = Omit<UIRadixProps, "align"> & {
+}>;
+export type UI_radix_Table_Row = Omit<UIRadixProps, "align"> & UILocalProps<{
   "align"?: UIResponsive<"start" | "center" | "end" | "baseline">;
-};
-export type UI_radix_Table_RowHeaderCell = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_Table_RowHeaderCell = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_radix_Tabs_Content = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & {
+}>;
+export type UI_radix_Tabs_Content = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & UILocalProps<{
   "activationMode"?: "automatic" | "manual";
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1672,8 +1681,8 @@ export type UI_radix_Tabs_Content = Omit<UIRadixProps, "value" | "defaultValue" 
   "onValueChange"?: string;
   "orientation"?: "horizontal" | "vertical";
   "value"?: string;
-};
-export type UI_radix_Tabs_List = Omit<UIRadixProps, "wrap" | "size" | "justify" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & {
+}>;
+export type UI_radix_Tabs_List = Omit<UIRadixProps, "wrap" | "size" | "justify" | "color" | "highContrast" | "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & UILocalProps<{
   "activationMode"?: "automatic" | "manual";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "defaultValue"?: string;
@@ -1687,8 +1696,8 @@ export type UI_radix_Tabs_List = Omit<UIRadixProps, "wrap" | "size" | "justify" 
   "size"?: UIResponsive<"1" | "2">;
   "value"?: string;
   "wrap"?: UIResponsive<"nowrap" | "wrap" | "wrap-reverse">;
-};
-export type UI_radix_Tabs_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & {
+}>;
+export type UI_radix_Tabs_Root = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & UILocalProps<{
   "activationMode"?: "automatic" | "manual";
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1697,8 +1706,8 @@ export type UI_radix_Tabs_Root = Omit<UIRadixProps, "value" | "defaultValue" | "
   "onValueChange"?: string;
   "orientation"?: "horizontal" | "vertical";
   "value"?: string;
-};
-export type UI_radix_Tabs_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & {
+}>;
+export type UI_radix_Tabs_Trigger = Omit<UIRadixProps, "value" | "defaultValue" | "disabled" | "onValueChange" | "onSelect" | "orientation" | "activationMode" | "loop"> & UILocalProps<{
   "activationMode"?: "automatic" | "manual";
   "defaultValue"?: string;
   "disabled"?: boolean;
@@ -1707,8 +1716,8 @@ export type UI_radix_Tabs_Trigger = Omit<UIRadixProps, "value" | "defaultValue" 
   "onValueChange"?: string;
   "orientation"?: "horizontal" | "vertical";
   "value"?: string;
-};
-export type UI_radix_Text = Omit<UIRadixProps, "wrap" | "as" | "size" | "weight" | "align" | "trim" | "truncate" | "color" | "highContrast"> & {
+}>;
+export type UI_radix_Text = Omit<UIRadixProps, "wrap" | "as" | "size" | "weight" | "align" | "trim" | "truncate" | "color" | "highContrast"> & UILocalProps<{
   "align"?: UIResponsive<"left" | "center" | "right">;
   "as"?: "span" | "div" | "label" | "p";
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
@@ -1718,8 +1727,8 @@ export type UI_radix_Text = Omit<UIRadixProps, "wrap" | "as" | "size" | "weight"
   "truncate"?: boolean;
   "weight"?: UIResponsive<"light" | "regular" | "medium" | "bold">;
   "wrap"?: UIResponsive<"wrap" | "nowrap" | "pretty" | "balance">;
-};
-export type UI_radix_TextArea = Omit<UIRadixProps, "size" | "variant" | "resize" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit"> & {
+}>;
+export type UI_radix_TextArea = Omit<UIRadixProps, "size" | "variant" | "resize" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit"> & UILocalProps<{
   "autoCapitalize"?: string;
   "autoComplete"?: string;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
@@ -1748,8 +1757,8 @@ export type UI_radix_TextArea = Omit<UIRadixProps, "size" | "variant" | "resize"
   "type"?: "text" | "number" | "email" | "password" | "search" | "tel" | "url" | "date" | "datetime-local" | "time" | "month" | "week" | "color" | "range";
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_TextField_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit"> & {
+}>;
+export type UI_radix_TextField_Root = Omit<UIRadixProps, "size" | "variant" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit"> & UILocalProps<{
   "autoCapitalize"?: string;
   "autoComplete"?: string;
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
@@ -1777,13 +1786,13 @@ export type UI_radix_TextField_Root = Omit<UIRadixProps, "size" | "variant" | "c
   "type"?: "text" | "number" | "email" | "password" | "search" | "tel" | "url" | "date" | "datetime-local" | "time" | "month" | "week" | "color" | "range";
   "value"?: string;
   "variant"?: "classic" | "surface" | "soft";
-};
-export type UI_radix_TextField_Slot = Omit<UIRadixProps, "gap" | "side" | "color"> & {
+}>;
+export type UI_radix_TextField_Slot = Omit<UIRadixProps, "gap" | "side" | "color"> & UILocalProps<{
   "color"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky" | "magenta" | "white" | "black";
   "gap"?: UIResponsive<string>;
   "side"?: "left" | "right";
-};
-export type UI_radix_Theme = Omit<UIRadixProps, "hasBackground" | "appearance" | "accentColor" | "grayColor" | "panelBackground" | "radius" | "scaling"> & {
+}>;
+export type UI_radix_Theme = Omit<UIRadixProps, "hasBackground" | "appearance" | "accentColor" | "grayColor" | "panelBackground" | "radius" | "scaling"> & UILocalProps<{
   "accentColor"?: "gray" | "gold" | "bronze" | "brown" | "yellow" | "amber" | "orange" | "tomato" | "red" | "ruby" | "crimson" | "pink" | "plum" | "purple" | "violet" | "iris" | "indigo" | "blue" | "cyan" | "teal" | "jade" | "green" | "grass" | "lime" | "mint" | "sky";
   "appearance"?: "light" | "dark" | "inherit";
   "grayColor"?: string;
@@ -1791,8 +1800,8 @@ export type UI_radix_Theme = Omit<UIRadixProps, "hasBackground" | "appearance" |
   "panelBackground"?: "solid" | "translucent";
   "radius"?: "none" | "small" | "medium" | "large" | "full";
   "scaling"?: "90%" | "95%" | "100%" | "105%" | "110%";
-};
-export type UI_radix_Tooltip = Omit<UIRadixProps, "content" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "delayDuration"> & {
+}>;
+export type UI_radix_Tooltip = Omit<UIRadixProps, "content" | "open" | "defaultOpen" | "modal" | "onOpenChange" | "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding" | "avoidCollisions" | "sticky" | "hideWhenDetached" | "delayDuration"> & UILocalProps<{
   "align"?: "start" | "center" | "end";
   "alignOffset"?: number;
   "avoidCollisions"?: boolean;
@@ -1807,42 +1816,41 @@ export type UI_radix_Tooltip = Omit<UIRadixProps, "content" | "open" | "defaultO
   "side"?: "top" | "right" | "bottom" | "left";
   "sideOffset"?: number;
   "sticky"?: "partial" | "always";
-};
-export type UI_radix_VisuallyHidden = Omit<UIRadixProps, never> & {
+}>;
+export type UI_radix_VisuallyHidden = Omit<UIRadixProps, never> & UILocalProps<{
 
-};
-export type UI_project_Image = Omit<UICommonProps, "asset" | "alt" | "width" | "height" | "fit" | "loading"> & {
+}>;
+export type UI_project_Image = Omit<UICommonProps, "asset" | "alt" | "width" | "height" | "fit" | "loading"> & UILocalProps<{
   "alt"?: string;
   "asset"?: string;
   "fit"?: "contain" | "cover" | "fill";
   "height"?: number;
   "loading"?: "lazy" | "eager";
   "width"?: number;
-};
-export type UI_project_FloatingPanel = Omit<UICommonProps, "position" | "width" | "dragLabel" | "onPositionChange"> & {
+}>;
+export type UI_project_FloatingPanel = Omit<UICommonProps, "position" | "width" | "dragLabel"> & UILocalProps<{
   "dragLabel"?: string;
-  "onPositionChange"?: string;
   "position"?: Json;
   "width"?: number;
-};
-export type UI_project_Icon = Omit<UICommonProps, "name" | "size" | "color" | "strokeWidth" | "absoluteStrokeWidth"> & {
+}>;
+export type UI_project_Icon = Omit<UICommonProps, "name" | "size" | "color" | "strokeWidth" | "absoluteStrokeWidth"> & UILocalProps<{
   "absoluteStrokeWidth"?: boolean;
   "color"?: string;
   "name"?: UIIconName;
   "size"?: number;
   "strokeWidth"?: number;
-};
-export type UI_project_Spinner = Omit<UICommonProps, "size"> & {
+}>;
+export type UI_project_Spinner = Omit<UICommonProps, "size"> & UILocalProps<{
   "size"?: 12 | 18 | 24 | 32;
-};
-export type UI_project_CircularProgress = Omit<UICommonProps, "value" | "max" | "size" | "strokeWidth" | "ariaLabel"> & {
+}>;
+export type UI_project_CircularProgress = Omit<UICommonProps, "value" | "max" | "size" | "strokeWidth" | "ariaLabel"> & UILocalProps<{
   "ariaLabel"?: string;
   "max"?: number;
   "size"?: number;
   "strokeWidth"?: number;
   "value"?: number;
-};
-export type UI_project_UnitTextField = Omit<UICommonProps, "p" | "px" | "py" | "pt" | "pr" | "pb" | "pl" | "width" | "minWidth" | "maxWidth" | "height" | "minHeight" | "maxHeight" | "position" | "inset" | "top" | "right" | "bottom" | "left" | "overflow" | "overflowX" | "overflowY" | "flexBasis" | "flexShrink" | "flexGrow" | "gridArea" | "gridColumn" | "gridColumnStart" | "gridColumnEnd" | "gridRow" | "gridRowStart" | "gridRowEnd" | "alignSelf" | "justifySelf" | "m" | "mx" | "my" | "mt" | "mr" | "mb" | "ml" | "bold" | "italic" | "dimColor" | "inverse" | "plain" | "flexDirection" | "justifyContent" | "alignItems" | "marginTop" | "paddingX" | "paddingY" | "padding" | "borderStyle" | "borderColor" | "gap" | "wrap" | "asChild" | "size" | "variant" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit" | "unit" | "unitSide" | "leftUnit" | "rightUnit"> & {
+}>;
+export type UI_project_UnitTextField = Omit<UICommonProps, "p" | "px" | "py" | "pt" | "pr" | "pb" | "pl" | "width" | "minWidth" | "maxWidth" | "height" | "minHeight" | "maxHeight" | "position" | "inset" | "top" | "right" | "bottom" | "left" | "overflow" | "overflowX" | "overflowY" | "flexBasis" | "flexShrink" | "flexGrow" | "gridArea" | "gridColumn" | "gridColumnStart" | "gridColumnEnd" | "gridRow" | "gridRowStart" | "gridRowEnd" | "alignSelf" | "justifySelf" | "m" | "mx" | "my" | "mt" | "mr" | "mb" | "ml" | "bold" | "italic" | "dimColor" | "inverse" | "plain" | "flexDirection" | "justifyContent" | "alignItems" | "marginTop" | "paddingX" | "paddingY" | "padding" | "borderStyle" | "borderColor" | "gap" | "wrap" | "asChild" | "size" | "variant" | "color" | "radius" | "value" | "defaultValue" | "placeholder" | "disabled" | "readOnly" | "required" | "name" | "type" | "inputMode" | "pattern" | "spellCheck" | "autoCapitalize" | "enterKeyHint" | "min" | "max" | "step" | "minLength" | "maxLength" | "rows" | "autoComplete" | "onInput" | "onChange" | "onSubmit" | "unit" | "unitSide" | "leftUnit" | "rightUnit"> & UILocalProps<{
   "alignItems"?: string;
   "alignSelf"?: UIResponsive<"start" | "center" | "end" | "baseline" | "stretch">;
   "asChild"?: boolean;
@@ -1932,8 +1940,8 @@ export type UI_project_UnitTextField = Omit<UICommonProps, "p" | "px" | "py" | "
   "variant"?: "classic" | "surface" | "soft";
   "width"?: UIResponsive<string>;
   "wrap"?: string;
-};
-export type UI_project_StepperNumberInput = Omit<UICommonProps, "value" | "min" | "max" | "step" | "unit" | "width" | "disabled" | "increaseAriaLabel" | "decreaseAriaLabel" | "onChange" | "onCommit"> & {
+}>;
+export type UI_project_StepperNumberInput = Omit<UICommonProps, "value" | "min" | "max" | "step" | "unit" | "width" | "disabled" | "increaseAriaLabel" | "decreaseAriaLabel" | "onChange" | "onCommit"> & UILocalProps<{
   "decreaseAriaLabel"?: string;
   "disabled"?: boolean;
   "increaseAriaLabel"?: string;
@@ -1945,8 +1953,8 @@ export type UI_project_StepperNumberInput = Omit<UICommonProps, "value" | "min" 
   "unit"?: string;
   "value"?: Json;
   "width"?: number;
-};
-export type UI_project_LabeledSelect = Omit<UICommonProps, "value" | "options" | "placeholder" | "disabled" | "size" | "variant" | "layout" | "gap" | "labelSize" | "labelWeight" | "labelColor" | "triggerClassName" | "contentClassName" | "triggerLabelVisible" | "hideTriggerChevron" | "onChange" | "onSelect" | "onValueChange"> & {
+}>;
+export type UI_project_LabeledSelect = Omit<UICommonProps, "value" | "options" | "placeholder" | "disabled" | "size" | "variant" | "layout" | "gap" | "labelSize" | "labelWeight" | "labelColor" | "triggerClassName" | "contentClassName" | "triggerLabelVisible" | "hideTriggerChevron" | "onChange" | "onSelect" | "onValueChange"> & UILocalProps<{
   "contentClassName"?: string;
   "disabled"?: boolean;
   "gap"?: "1" | "2" | "3" | "4" | "5";
@@ -1965,8 +1973,8 @@ export type UI_project_LabeledSelect = Omit<UICommonProps, "value" | "options" |
   "triggerLabelVisible"?: boolean;
   "value"?: string;
   "variant"?: "default" | "icon";
-};
-export type UI_project_SearchableSelect = Omit<UICommonProps, "value" | "options" | "placeholder" | "disabled" | "size" | "variant" | "layout" | "gap" | "labelSize" | "labelWeight" | "labelColor" | "triggerClassName" | "contentClassName" | "triggerLabelVisible" | "hideTriggerChevron" | "onChange" | "onSelect" | "onValueChange" | "searchPlaceholder" | "emptyMessage" | "contentHeight"> & {
+}>;
+export type UI_project_SearchableSelect = Omit<UICommonProps, "value" | "options" | "placeholder" | "disabled" | "size" | "variant" | "layout" | "gap" | "labelSize" | "labelWeight" | "labelColor" | "triggerClassName" | "contentClassName" | "triggerLabelVisible" | "hideTriggerChevron" | "onChange" | "onSelect" | "onValueChange" | "searchPlaceholder" | "emptyMessage" | "contentHeight"> & UILocalProps<{
   "contentClassName"?: string;
   "contentHeight"?: number;
   "disabled"?: boolean;
@@ -1988,8 +1996,8 @@ export type UI_project_SearchableSelect = Omit<UICommonProps, "value" | "options
   "triggerLabelVisible"?: boolean;
   "value"?: string;
   "variant"?: "default" | "icon";
-};
-export type UI_project_ModelIdSelect = Omit<UICommonProps, "value" | "placeholder" | "disabled" | "taskType" | "editable" | "allowCustomValue" | "compact" | "compactTrigger" | "hideTriggerChevron" | "emptyOptionLabel" | "triggerClassName" | "contentClassName" | "onChange" | "onSelect" | "onValueChange"> & {
+}>;
+export type UI_project_ModelIdSelect = Omit<UICommonProps, "value" | "placeholder" | "disabled" | "taskType" | "editable" | "allowCustomValue" | "compact" | "compactTrigger" | "hideTriggerChevron" | "emptyOptionLabel" | "triggerClassName" | "contentClassName" | "onChange" | "onSelect" | "onValueChange"> & UILocalProps<{
   "allowCustomValue"?: boolean;
   "compact"?: boolean;
   "compactTrigger"?: boolean;
@@ -2005,25 +2013,25 @@ export type UI_project_ModelIdSelect = Omit<UICommonProps, "value" | "placeholde
   "taskType"?: "llm" | "embedding" | "rerank";
   "triggerClassName"?: string;
   "value"?: string;
-};
-export type UI_project_ProjectSelectField = Omit<UICommonProps, "value" | "disabled" | "showNoneOption" | "placeholder" | "onChange" | "onSelect"> & {
+}>;
+export type UI_project_ProjectSelectField = Omit<UICommonProps, "value" | "disabled" | "showNoneOption" | "placeholder" | "onChange" | "onSelect"> & UILocalProps<{
   "disabled"?: boolean;
   "onChange"?: string;
   "onSelect"?: string;
   "placeholder"?: string;
   "showNoneOption"?: boolean;
   "value"?: string;
-};
-export type UI_project_ProjectGridSelector = Omit<UICommonProps, "value" | "disabled" | "showNoneOption" | "onChange" | "onSelect"> & {
+}>;
+export type UI_project_ProjectGridSelector = Omit<UICommonProps, "value" | "disabled" | "showNoneOption" | "onChange" | "onSelect"> & UILocalProps<{
   "disabled"?: boolean;
   "onChange"?: string;
   "onSelect"?: string;
   "showNoneOption"?: boolean;
   "value"?: string;
-};
-export type UI_project_InfoTooltip = Omit<UICommonProps, "content"> & {
+}>;
+export type UI_project_InfoTooltip = Omit<UICommonProps, "content"> & UILocalProps<{
   "content"?: string;
-};
+}>;
 export interface UIComponentPropsMap {
   "AccessibleIcon": UI_radix_AccessibleIcon;
   "AlertDialog.Action": UI_radix_AlertDialog_Action;
@@ -2303,14 +2311,14 @@ export interface UIComponentPropsMap {
 }
 /** Component-specific props; the unparameterized UIProps above remains for generic tooling. */
 export type UIPropsFor<C extends UIComponent> = UIComponentPropsMap[C];
-export type UIElement = { [C in UIComponent]: { type: C; props?: UIComponentPropsMap[C]; children?: UINode } }[UIComponent];
-export type UINode = null | boolean | number | string | UINode[] | UIElement;
+export type UIElement = { [C in UIComponent]: { type: C; props?: UIComponentPropsMap[C]; children?: UINode; when?: UILocalCondition } }[UIComponent];
+export type UINode = null | boolean | number | string | UINode[] | UIElement | UILocalBinding;
 /** CSS is limited to this view and its portals; @import/font-face/global registrations are ignored. */
 export type UIDocument = ({ tree: UINode } | {
   trees: { component: "View" | "AbovePrompt" | "Pane" | "Spinner"; requestId?: string; tree: UINode }[];
   panes?: { id: string; title?: string; focus?: boolean; closeOnEscape?: boolean }[];
   commands?: { name: string }[];
-}) & { css?: string };
+}) & { css?: string; state?: Record<string, UILocalDefinition>; localActions?: Record<`local.${string}`, UILocalOperation[]> };
 export interface UIRenderRequest { viewId: string; slot: UIAction; columns: number; context: Partial<Context>; }
 export interface UIEventRequest extends UIRenderRequest {
   id: string; event: "press" | "input" | "submit" | "select" | "change" | "command" | "close";

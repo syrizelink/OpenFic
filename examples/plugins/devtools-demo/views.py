@@ -27,8 +27,6 @@ async def render(ctx, params):
             content,
             width=260,
             dragLabel="移动开发示例",
-            position=await ctx.storage.get("position"),
-            onPositionChange="position",
         )
     css = CSS
     if await ctx.storage.get("css-warning", False):

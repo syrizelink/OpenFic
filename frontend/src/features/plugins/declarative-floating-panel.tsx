@@ -17,14 +17,16 @@ export function DeclarativeFloatingPanel({
   position,
   width = 240,
   dragLabel = "Move panel",
-  onPositionChange,
+  storageKey,
+  revision,
   children,
 }: {
   forwarded?: Record<string, unknown>;
   position?: UIValue;
   width?: number;
   dragLabel?: string;
-  onPositionChange: (position: { x: number; y: number }) => void;
+  storageKey: string;
+  revision: string;
   children: ReactNode;
 }) {
   const root = useRef<HTMLDivElement>(null);
@@ -47,7 +49,21 @@ export function DeclarativeFloatingPanel({
     [width],
   );
   useEffect(() => {
-    const value: unknown = JSON.parse(serialized);
+    let value: unknown = JSON.parse(serialized);
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
+      if (
+        stored?.revision === revision &&
+        stored?.position === serialized &&
+        typeof stored.location?.x === "number" &&
+        Number.isFinite(stored.location.x) &&
+        typeof stored.location?.y === "number" &&
+        Number.isFinite(stored.location.y)
+      )
+        value = stored.location;
+    } catch {
+      // Local storage can be unavailable or contain malformed data.
+    }
     if (value === null) {
       setLocation(
         clamp({
@@ -66,7 +82,7 @@ export function DeclarativeFloatingPanel({
       typeof value.y === "number"
     )
       setLocation(clamp({ x: value.x, y: value.y }));
-  }, [serialized, clamp, width]);
+  }, [serialized, clamp, width, storageKey, revision]);
   useLayoutEffect(() => {
     const fit = () => setLocation((value) => clamp(value));
     fit();
@@ -93,16 +109,23 @@ export function DeclarativeFloatingPanel({
           },
     );
     setLocation(next);
-    if (!cancelled) onPositionChange(next);
+    if (!cancelled) persist(next);
+  }
+  function persist(value: { x: number; y: number }) {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ revision, position: serialized, location: value }),
+      );
+    } catch {
+      // Keep the position for this session if local storage is unavailable.
+    }
   }
   return (
     <div
       {...Object.fromEntries(
         Object.entries(forwarded).filter(
-          ([key]) =>
-            !["key", "position", "width", "dragLabel", "onPositionChange", "children"].includes(
-              key,
-            ),
+          ([key]) => !["key", "position", "width", "dragLabel", "children"].includes(key),
         ),
       )}
       ref={root}
@@ -158,7 +181,7 @@ export function DeclarativeFloatingPanel({
           event.preventDefault();
           const next = clamp({ x: location.x + shift[0], y: location.y + shift[1] });
           setLocation(next);
-          onPositionChange(next);
+          persist(next);
         }}
       >
         <GripHorizontal size={16} />

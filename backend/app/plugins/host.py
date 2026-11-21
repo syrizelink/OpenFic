@@ -461,7 +461,7 @@ class PluginHost:
                     raise ValueError(f"Statusbar view {view.id} references an unregistered command")
                 if view.renderer == "declarative" and view.presentation != "none" and (
                     (view.render is not None and view.render not in registration.commands)
-                    or view.action not in registration.commands
+                    or (view.action is not None and view.action not in registration.commands)
                 ):
                     raise ValueError(
                         f"Declarative view {view.id} references an unregistered command"
