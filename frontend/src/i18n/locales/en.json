@@ -795,6 +795,8 @@
     "agentTools": "Tool Permissions",
     "agentToolsDescription": "Configure the default permission strategy for each Agent tool.",
     "agentToolsEmpty": "No configurable tools are available.",
+    "pluginProvidedBy": "Provided by plugin {{name}}",
+    "pluginNamesSeparator": ", ",
     "agentToolsLoadFailed": "Failed to load tool list.",
     "agentTool": {
       "askUser": {
@@ -2854,6 +2856,7 @@
     },
     "capabilityNames": {
       "project_entities_read": "Read project entities",
+      "credentials_read": "Read credentials",
       "storage": "Plugin storage",
       "secrets": "Secret storage",
       "network": "Network access",

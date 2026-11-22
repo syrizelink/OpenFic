@@ -137,6 +137,12 @@ class PluginContext:
         return self.resource("notes")
 
     @property
+    def providers(self):
+        from app.plugins.services import PluginProviders
+
+        return PluginProviders(self)
+
+    @property
     def storage(self):
         from app.plugins.services import PluginStorage
 

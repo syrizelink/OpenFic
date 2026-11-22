@@ -910,6 +910,30 @@ async def test_update_settings_agent_tool_permissions(client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
+async def test_plugin_tool_permission_survives_settings_roundtrip(client: AsyncClient, session) -> None:
+    from app.agent_runtime.tools.base import HookContext
+    from app.agent_runtime.tools.hooks.auth import auth_hook
+
+    permission = {"tool_name": "plugin_example_echo", "mode": "deny"}
+    response = await client.put("/api/v1/settings", json={"agent_tool_permissions": [permission]})
+    assert response.status_code == 200
+    assert permission in response.json()["agent_tool_permissions"]
+    result = await auth_hook(HookContext(
+        tool_name=permission["tool_name"], access_level="readonly", args={},
+        state={"session_id": "s", "project_id": "p"},
+        config={"configurable": {"db_session": session}},
+    ))
+    assert result.proceed is False
+    assert result.interrupt_payload["denied"] is True
+    response = await client.get("/api/v1/settings")
+    assert response.status_code == 200
+    assert permission in response.json()["agent_tool_permissions"]
+    response = await client.put("/api/v1/settings", json={"language": "en"})
+    assert response.status_code == 200
+    assert permission in response.json()["agent_tool_permissions"]
+
+
+@pytest.mark.asyncio
 async def test_get_settings_does_not_lazy_persist_agent_tool_permissions(
     client: AsyncClient, session
 ) -> None:

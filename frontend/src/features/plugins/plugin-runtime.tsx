@@ -144,9 +144,11 @@ export function PluginRuntime() {
       if (pluginsChanged) {
         pluginsChanged = false;
         void queryClient.invalidateQueries({ queryKey: PLUGINS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
       }
       if (resync) {
         resync = false;
+        void queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
         void queryClient.invalidateQueries({ queryKey: ["plugin-development"] });
         void queryClient.invalidateQueries({ queryKey: ["plugin-view-url"] });
         void queryClient.invalidateQueries({ queryKey: ["plugin-component-data"] });

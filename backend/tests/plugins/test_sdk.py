@@ -158,6 +158,89 @@ async def test_storage_secrets_files_network_and_disable(plugin_api, session):
     assert not (host.root / ".data/sdk-test").exists()
 
 
+async def test_provider_api_key_requires_separate_permission_and_rejects_oauth(
+    plugin_api, session
+):
+    from app.core.encryption import EncryptionService
+    from app.models.entities.model_provider import ModelProvider
+    from app.settings import settings
+
+    host, _, _ = plugin_api
+    cipher = EncryptionService(settings.encryption_key)
+    key = "provider-private-key-for-sdk-test"
+    provider = ModelProvider(
+        id="provider-key",
+        name="API",
+        url="https://example.com",
+        provider_type="openai",
+        api_key_encrypted=cipher.encrypt(key),
+    )
+    no_key = ModelProvider(
+        id="provider-empty",
+        name="Empty",
+        url="https://example.com",
+        provider_type="openai",
+        api_key_encrypted="",
+    )
+    oauth = ModelProvider(
+        id="provider-oauth",
+        name="OAuth",
+        url="https://example.com",
+        provider_type="openai-codex",
+        api_key_encrypted=cipher.encrypt(key),
+    )
+    other_oauth = ModelProvider(
+        id="provider-grant",
+        name="Grant",
+        url="https://example.com",
+        provider_type="openai-compatible",
+        api_key_encrypted=cipher.encrypt(key),
+        credentials_encrypted="opaque-oauth-grant",
+    )
+    session.add_all([provider, no_key, oauth, other_oauth])
+    await session.flush()
+    await host.install(bundle({"id": "sdk-denied", "capabilities": ["providers.read"]}))
+    await host.set_enabled("sdk-denied", True)
+    denied = host.context("sdk-denied", session)
+    assert key not in json.dumps(await denied.api.request("GET", "/model-providers"))
+    with pytest.raises(PermissionError, match="credentials.read"):
+        await denied.providers.get_credential(provider.id)
+
+    source = """
+async def reveal(ctx, params):
+    return await ctx.providers.get_credential(params["provider_id"])
+def register(host):
+    host.register_command("reveal", reveal)
+"""
+    await host.install(bundle({"capabilities": ["credentials.read"]}, source))
+    await host.set_enabled("sdk-test", True)
+    ctx = host.context("sdk-test", session)
+    assert await ctx.providers.get_credential(provider.id) == key
+    assert await ctx.providers.get_credential(no_key.id) is None
+    with pytest.raises(ValueError, match="not found"):
+        await ctx.providers.get_credential("does-not-exist")
+    for blocked in (oauth, other_oauth):
+        with pytest.raises(ValueError, match="OAuth"):
+            await ctx.providers.get_credential(blocked.id)
+    with pytest.raises(PluginError, match="Unsupported SDK method"):
+        await host.call(
+            "sdk-test",
+            "sdk.providers.get_credential",
+            {"provider_id": provider.id},
+            session,
+        )
+
+    host.diagnostics.enabled = True
+    assert (
+        await host.call("sdk-test", "reveal", {"provider_id": provider.id}, session)
+        == key
+    )
+    assert key not in json.dumps(list(host.diagnostics.entries))
+    provider.api_key_encrypted = cipher.encrypt("rotated-sdk-test-key")
+    await session.flush()
+    assert await ctx.providers.get_credential(provider.id) == "rotated-sdk-test-key"
+
+
 async def test_secret_settings_are_encrypted_and_redacted(plugin_api):
     host, _, _ = plugin_api
     await host.install(
@@ -185,6 +268,275 @@ async def test_secret_settings_are_encrypted_and_redacted(plugin_api):
     assert host.get("sdk-test").settings["token"] == "hidden-setting"
 
 
+async def test_plugin_tool_requires_nonempty_category_and_display_name():
+    from app.plugins.host import Registration
+
+    async def handler(ctx, params):
+        return None
+
+    registry = Registration()
+    with pytest.raises(TypeError):
+        registry.register_tool("echo", "Echo", {"type": "object"}, handler)
+    with pytest.raises(TypeError):
+        registry.register_tool(
+            "echo", "Echo", {"type": "object"}, handler, category="测试工具"
+        )
+    with pytest.raises(TypeError):
+        registry.register_tool(
+            "echo", "Echo", {"type": "object"}, handler, display_name="回声"
+        )
+    for category, display_name in (
+        ("", "回声"),
+        (" ", "回声"),
+        (None, "回声"),
+        ("测试工具", ""),
+        ("测试工具", " "),
+        ("测试工具", None),
+    ):
+        with pytest.raises(ValueError, match="category.*display_name"):
+            registry.register_tool(
+                "echo",
+                "Echo",
+                {"type": "object"},
+                handler,
+                category=category,
+                display_name=display_name,
+            )
+    registry.register_tool(
+        "echo",
+        "Echo",
+        {"type": "object"},
+        handler,
+        category=" 测试工具 ",
+        display_name=" 回声 ",
+    )
+    assert registry.tools["echo"]["category"] == "测试工具"
+    assert registry.tools["echo"]["display_name"] == "回声"
+    for extra in (
+        {"title": " "},
+        {"icon": "NotALucideIcon"},
+        {"icon": "../bad.svg"},
+        {"detail": {}},
+    ):
+        with pytest.raises(ValueError):
+            registry.register_tool(
+                "other",
+                "Echo",
+                {"type": "object"},
+                handler,
+                category="测试",
+                display_name="回声",
+                **extra,
+            )
+    registry.register_tool(
+        "fixed",
+        "Echo",
+        {"type": "object"},
+        handler,
+        category="测试",
+        display_name="回声",
+        detail="a" * 1100,
+    )
+    assert len(registry.tools["fixed"]["detail"]) == 1024
+
+
+async def test_plugin_tool_presentation_is_per_call_and_preserves_result(
+    plugin_api, session
+):
+    from app.agent_runtime.runner.event_translator import EventTranslator
+    from app.agent_runtime.tools.errors import ToolResult
+
+    host, api, app = plugin_api
+    source = """
+async def echo(ctx, params): return {"echo": params["text"], "success": True}
+def detail(args, result): return f"{args['text']} → {result['echo']}"
+def register(host):
+    host.register_tool("echo", "Echo", {"type":"object", "properties":{"text":{"type":"string"}}}, echo,
+        category="测试", display_name="回声", icon="CloudUpload", title="同步中", detail=detail, access_level="readonly")
+"""
+    await host.install(bundle({"capabilities": ["agent.tools"]}, source))
+    await host.set_enabled("sdk-test", True)
+    from app.api.routers.agent_runtime import router as agent_router
+
+    app.include_router(agent_router, prefix="/api/v1/agent")
+    listing = (await api.get("/api/v1/agent/tools")).json()
+    metadata = next(item for item in listing if item["key"] == "plugin_sdk_test_echo")
+    assert metadata["title"] == "同步中" and metadata["icon"] == "CloudUpload"
+    assert "detail" not in metadata
+    tool = plugin_tools({"project_id": "project", "session_id": "session"})[0]
+    events = [
+        event
+        async for event in tool.astream_events(
+            {"text": "甲"},
+            config={"configurable": {"db_session": session}},
+            version="v2",
+        )
+    ]
+    end = next(event for event in events if event["event"] == "on_tool_end")
+    result = end["data"]["output"]
+    assert isinstance(result, ToolResult)
+    assert json.loads(result) == {"echo": "甲", "success": True}
+    assert result.payload["_openfic_plugin_tool"] == {
+        "plugin_id": "sdk-test",
+        "icon": "CloudUpload",
+        "title": "同步中",
+        "detail": "甲 → 甲",
+    }
+    translated = EventTranslator(session_id="session").translate(end)
+    assert (
+        translated["data"]["plugin_tool_display"]
+        == result.payload["_openfic_plugin_tool"]
+    )
+    assert json.loads(translated["data"]["output"]) == {"echo": "甲", "success": True}
+    second = await tool.ainvoke(
+        {"text": "乙"}, config={"configurable": {"db_session": session}}
+    )
+    assert second.payload["_openfic_plugin_tool"]["detail"] == "乙 → 乙"
+
+    async def async_detail(args, result):
+        return f"异步 {result['echo']}"
+
+    host.get("sdk-test").registration.tools["echo"]["detail"] = async_detail
+    third = await tool.ainvoke(
+        {"text": "丙"}, config={"configurable": {"db_session": session}}
+    )
+    assert third.payload["_openfic_plugin_tool"]["detail"] == "异步 丙"
+
+    def broken_detail(args, result):
+        raise ValueError("private-data-should-not-be-logged")
+
+    host.get("sdk-test").registration.tools["echo"]["detail"] = broken_detail
+    failed_detail = await tool.ainvoke(
+        {"text": "丁"}, config={"configurable": {"db_session": session}}
+    )
+    assert json.loads(failed_detail) == {"echo": "丁", "success": True}
+    assert failed_detail.payload["_openfic_plugin_tool"]["detail"] is None
+    assert "private-data-should-not-be-logged" not in json.dumps(host.logs("sdk-test"))
+
+
+async def test_plugin_tool_asset_icon_requires_valid_public_resource(plugin_api):
+    host, api, _ = plugin_api
+    source = """
+async def echo(ctx, params): return "ok"
+def register(host):
+    host.register_tool("echo", "Echo", {"type": "object"}, echo,
+        category="测试", display_name="回声", icon="assets/icon.svg")
+"""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M0 0h10v10z"/></svg>'
+    await host.install(
+        bundle(
+            {"capabilities": ["agent.tools"], "resources": ["assets"]},
+            source,
+            {"assets/icon.svg": svg},
+        )
+    )
+    await host.set_enabled("sdk-test", True)
+    assert plugin_tools({})[0].icon == "assets/icon.svg"
+    response = await api.get(
+        "/api/v1/plugins/sdk-test/status-icon", params={"path": "assets/icon.svg"}
+    )
+    assert response.status_code == 200 and response.headers["content-type"].startswith(
+        "image/svg+xml"
+    )
+    await host.install(
+        bundle(
+            {"id": "bad-icon", "capabilities": ["agent.tools"]},
+            source.replace("assets/icon.svg", "NotALucideIcon"),
+        )
+    )
+    with pytest.raises(PluginError, match="Unknown Lucide icon"):
+        await host.set_enabled("bad-icon", True)
+    await host.install(
+        bundle(
+            {"id": "private-icon", "capabilities": ["agent.tools"]},
+            source,
+            {"assets/icon.svg": svg},
+        )
+    )
+    with pytest.raises(PluginError, match="declared public resource"):
+        await host.set_enabled("private-icon", True)
+    unsafe = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    await host.install(
+        bundle(
+            {
+                "id": "unsafe-icon",
+                "capabilities": ["agent.tools"],
+                "resources": ["assets"],
+            },
+            source,
+            {"assets/icon.svg": unsafe},
+        )
+    )
+    with pytest.raises(PluginError, match="Invalid plugin tool icon"):
+        await host.set_enabled("unsafe-icon", True)
+
+
+async def test_plugin_tool_presentation_survives_graph_execution(plugin_api, session):
+    from unittest.mock import patch
+    from langchain_core.messages import AIMessage, ToolMessage
+    from app.agent_runtime.graph.react_agent import create_react_agent
+    from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+    from app.agent_runtime.tools.errors import ToolResult
+
+    host, _, _ = plugin_api
+    source = """
+async def echo(ctx, params): return {"success": True, "echo": params["text"]}
+def detail(args, result): return f"已处理 {result['echo']}"
+def register(host):
+    host.register_tool("echo", "Echo", {"type": "object", "properties": {"text": {"type": "string"}}}, echo,
+        category="测试", display_name="回声", detail=detail, access_level="readonly")
+"""
+    await host.install(bundle({"capabilities": ["agent.tools"]}, source))
+    await host.set_enabled("sdk-test", True)
+    tool = plugin_tools({"project_id": "project", "session_id": "session"})[0]
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[tool],
+            termination=TerminationCondition(mode="tool_success", tool_name=tool.name),
+        )
+    )
+    model_result = AIMessage(
+        content="",
+        tool_calls=[{"id": "call_graph", "name": tool.name, "args": {"text": "内容"}}],
+    )
+    tool_events = []
+    final_state = None
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            new=AsyncMock(return_value=model_result),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context",
+            new=AsyncMock(return_value=[HumanMessage(content="test")]),
+        ),
+    ):
+        async for event in graph.astream_events(
+            {
+                "messages": [HumanMessage(content="test")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={"configurable": {"db_session": session}},
+            version="v2",
+        ):
+            if event["event"] == "on_tool_end" and event["name"] == tool.name:
+                tool_events.append(event)
+            if event["event"] == "on_chain_end" and event["name"] == "LangGraph":
+                final_state = event["data"]["output"]
+    result = tool_events[0]["data"]["output"]
+    assert isinstance(result, ToolResult)
+    assert result.payload["_openfic_plugin_tool"]["detail"] == "已处理 内容"
+    assert final_state is not None
+    message = next(
+        item for item in final_state["messages"] if isinstance(item, ToolMessage)
+    )
+    assert json.loads(message.content) == {"success": True, "echo": "内容"}
+    assert "_openfic_plugin_tool" not in message.content
+
+
 async def test_native_tool_and_prompt_middleware_are_live_and_disposed(
     plugin_api, session
 ):
@@ -195,7 +547,7 @@ async def hook(ctx,event,next):
     event["sections"].append({"id":"extra","text":"injected","scope":"system"})
     return await next(event)
 def register(host):
-    host.register_tool("echo","Echo",{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]},echo,access_level="readonly")
+    host.register_tool("echo","Echo",{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]},echo,category="测试工具",display_name="回声",access_level="readonly")
     host.register_hook("prompt.compose",hook)
 """
     await host.install(bundle({"capabilities": ["agent.tools", "agent.hooks"]}, source))

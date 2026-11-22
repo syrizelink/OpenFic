@@ -102,9 +102,11 @@ class Diagnostics:
             return await invoke()
         started = time.perf_counter()
         hidden = (
-            method.startswith("secrets.") or request.get("namespace") == "secrets"
+            method.startswith("secrets.")
+            or method == "providers.get_credential"
+            or request.get("namespace") == "secrets"
             if isinstance(request, dict)
-            else method.startswith("secrets.")
+            else method.startswith("secrets.") or method == "providers.get_credential"
         )
         try:
             result = await invoke()

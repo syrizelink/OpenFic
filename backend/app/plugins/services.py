@@ -43,6 +43,33 @@ class PluginAssets:
         }
 
 
+class PluginProviders:
+    def __init__(self, context):
+        self.context = context
+
+    @traced("providers.get_credential")
+    async def get_credential(self, provider_id: str) -> str | None:
+        self.context.require("credentials.read")
+        from app.core.encryption import EncryptionService
+        from app.models.repos import model_provider_repo
+        from app.models.services.model_provider_service import ModelProviderService
+        from app.models.services.openai_codex_service import OPENAI_CODEX_PROVIDER_TYPE
+        from app.settings import settings
+
+        provider = await model_provider_repo.get_by_id(
+            self.context.data._session, provider_id
+        )
+        if provider is None:
+            raise ValueError("Provider not found")
+        if (
+            provider.provider_type == OPENAI_CODEX_PROVIDER_TYPE
+            or provider.credentials_encrypted
+        ):
+            raise ValueError("OAuth providers do not expose API keys")
+        service = ModelProviderService(EncryptionService(settings.encryption_key))
+        return service.get_decrypted_api_key(provider)
+
+
 class PluginStorage:
     def __init__(self, host, plugin, *, secret=False):
         self.host, self.plugin, self.secret = host, plugin, secret

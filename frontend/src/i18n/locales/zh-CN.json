@@ -795,6 +795,8 @@
     "agentTools": "工具权限",
     "agentToolsDescription": "配置 Agent 调用各个工具时的默认权限策略。",
     "agentToolsEmpty": "当前没有可配置的工具。",
+    "pluginProvidedBy": "由插件 {{name}} 提供",
+    "pluginNamesSeparator": "、",
     "agentToolsLoadFailed": "工具列表加载失败。",
     "agentTool": {
       "askUser": {
@@ -2854,6 +2856,7 @@
     },
     "capabilityNames": {
       "project_entities_read": "读取项目实体",
+      "credentials_read": "读取凭据",
       "storage": "插件存储",
       "secrets": "密钥存储",
       "network": "网络访问",

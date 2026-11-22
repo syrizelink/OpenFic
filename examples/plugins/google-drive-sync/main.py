@@ -330,6 +330,12 @@ async def agent_sync(ctx, params):
     return await sync(ctx, {**params, "mode": "push"})
 
 
+def agent_sync_detail(params, result):
+    if not isinstance(result, dict) or "uploaded" not in result:
+        return None
+    return f"已上传 {result['uploaded']} 章"
+
+
 def ui_node(kind, children=None, **props):
     node = {"type": kind, "props": props, "children": children}
     if kind in {"Input", "TextArea"} and props.get("label"):
@@ -668,4 +674,9 @@ def register(host):
             },
         },
         agent_sync,
+        category="云同步",
+        display_name="同步章节",
+        icon="CloudUpload",
+        title="同步章节",
+        detail=agent_sync_detail,
     )

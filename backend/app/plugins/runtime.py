@@ -389,6 +389,11 @@ def plugin_tools(state: dict, names=None):
             _state=state,
             plugin_id=plugin.manifest.id,
             command_name=name,
+            category=spec["category"],
+            display_name=spec["display_name"],
+            title=spec["title"],
+            icon=spec["icon"],
+            message_detail=spec["detail"] if isinstance(spec["detail"], str) else None,
             host=host,
         )
         for plugin in host.plugins.values()
@@ -399,19 +404,12 @@ def plugin_tools(state: dict, names=None):
     ]
 
 
-def plugin_tool_names_for_agent(agent_key: str, metadata=None) -> list[str]:
-    """Build opts into extensions; other agents retain their original tool scope.
-
-    Agent metadata may explicitly select plugin_tools (a list of full tool names).
-    An empty list disables plugin tools, including for Build.
-    """
+def plugin_tool_names_for_agent(metadata=None) -> list[str]:
+    """Only expose plugin tools explicitly selected in the agent metadata."""
     selection = (metadata or {}).get("plugin_tools")
-    available = plugin_tools({})
-    if selection is None:
-        return [tool.name for tool in available] if agent_key == "build" else []
     if not isinstance(selection, (list, tuple)):
         return []
-    return [tool.name for tool in available if tool.name in selection]
+    return [tool.name for tool in plugin_tools({}) if tool.name in selection]
 
 
 async def selected_graph(state, config, model):

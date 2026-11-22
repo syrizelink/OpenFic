@@ -1,8 +1,14 @@
 """Dynamic AgentTool adapter retaining existing approval and refresh hooks."""
 
+import asyncio
+import inspect
 import json
+from contextlib import suppress
 from typing import Any
+
+from langchain_core.runnables import RunnableConfig
 from pydantic import Field
+
 from app.agent_runtime.tools.base import AgentTool
 
 
@@ -10,7 +16,60 @@ class PluginAgentTool(AgentTool):
     args_schema: Any = Field(default_factory=dict)
     plugin_id: str
     command_name: str
+    category: str
+    display_name: str
+    title: str
+    icon: str | None = None
+    message_detail: str | None = None
     host: Any = Field(exclude=True)
+
+    async def _arun(
+        self, *args: Any, config: RunnableConfig | None = None, **kwargs: Any
+    ) -> str:
+        from app.agent_runtime.tools.errors import ToolResult
+
+        plugin = self.host.plugins.get(self.plugin_id)
+        spec = (
+            plugin.registration.tools.get(self.command_name)
+            if plugin and plugin.registration
+            else None
+        )
+        result = await super()._arun(*args, config=config, **kwargs)
+        metadata = config.get("metadata", {}) if isinstance(config, dict) else {}
+        if isinstance(metadata, dict) and metadata.get("openfic_phase") == "prepare":
+            return result
+        detail = spec.get("detail") if spec else None
+        try:
+            parsed = json.loads(result)
+        except (TypeError, ValueError):
+            parsed = str(result)
+        try:
+            if callable(detail):
+                detail = detail(dict(kwargs), parsed)
+                if inspect.isawaitable(detail):
+                    async with asyncio.timeout(30):
+                        detail = await detail
+            if detail is not None and not isinstance(detail, str):
+                raise ValueError("Tool detail must return a string or None")
+        except Exception as error:
+            with suppress(Exception):
+                self.host._log(
+                    self.plugin_id, "tool.detail", type(error).__name__, "warning"
+                )
+            detail = None
+        if isinstance(result, ToolResult):
+            payload = dict(result.payload)
+        elif isinstance(parsed, dict):
+            payload = dict(parsed)
+        else:
+            payload = {"success": True, "type": "ok", "data": parsed}
+        payload["_openfic_plugin_tool"] = {
+            "plugin_id": self.plugin_id,
+            "icon": self.icon,
+            "title": self.title,
+            "detail": detail[:1024] if isinstance(detail, str) else None,
+        }
+        return ToolResult(str(result), payload)
 
     async def _execute(self, **params):
         async with self.host._lock:

@@ -80,10 +80,37 @@ class Registration:
         schema: dict,
         handler: Handler,
         *,
+        category: str,
+        display_name: str,
         access_level="write",
+        icon: str | None = None,
+        title: str | None = None,
+        detail: str
+        | Callable[[dict[str, Any], Any], str | None | Awaitable[str | None]]
+        | None = None,
     ):
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", name) or name in self.tools:
             raise ValueError("Invalid or duplicate tool name")
+        if (
+            not isinstance(category, str)
+            or not category.strip()
+            or not isinstance(display_name, str)
+            or not display_name.strip()
+        ):
+            raise ValueError("Tools require nonempty category and display_name")
+        if title is not None and (not isinstance(title, str) or not title.strip()):
+            raise ValueError("Tool title must be a nonempty string")
+        if detail is not None and not isinstance(detail, str) and not callable(detail):
+            raise ValueError("Tool detail must be a string or callable")
+        if icon is not None:
+            if not isinstance(icon, str):
+                raise ValueError("Tool icon must be a Lucide name or a resource path")
+            if icon.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".svg")):
+                safe_path(icon)
+            else:
+                from .declarative import normalize_icon
+
+                icon = normalize_icon(icon)
         if schema.get("type") != "object" or access_level not in {"write", "readonly"}:
             raise ValueError(
                 "Tools require an object JSON schema and valid access level"
@@ -104,6 +131,11 @@ class Registration:
 
         references(schema)
         self.tools[name] = {
+            "category": category.strip(),
+            "display_name": display_name.strip(),
+            "title": title.strip() if title is not None else display_name.strip(),
+            "icon": icon,
+            "detail": detail[:1024] if isinstance(detail, str) else detail,
             "description": description,
             "schema": schema,
             "handler": handler,
@@ -456,6 +488,16 @@ class PluginHost:
             for entries, capability in requirements:
                 if entries and capability not in manifest.capabilities:
                     raise PermissionError(f"Plugin has not declared {capability}")
+            for tool in registration.tools.values():
+                icon = tool["icon"]
+                if icon and icon.lower().endswith(
+                    (".png", ".jpg", ".jpeg", ".webp", ".svg")
+                ):
+                    from .packages import read_plugin_icon
+
+                    manifest.resource_path(self.root / manifest.id, icon)
+                    if read_plugin_icon(self.root / manifest.id, icon) is None:
+                        raise ValueError("Invalid plugin tool icon")
             for view in manifest.views:
                 if view.status and view.status not in registration.commands:
                     raise ValueError(f"Statusbar view {view.id} references an unregistered command")

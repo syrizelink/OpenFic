@@ -70,6 +70,8 @@ const unsubscribe = OpenFic.on('data.changed', event => console.log(event));
 
 `context.storage` / `OpenFic.storage` 提供 `get/set/delete/keys`；每个插件独立持久化，更新保留，卸载删除。`context.secrets` 的后端 API 相同，使用 Fernet 加密；前端只能写入、删除和列出自己的密钥名称，不能读回值。标记 `secret: true` 的设置也加密保存，管理接口和 iframe 上下文不返回实际值；保存空输入保留已有值。
 
+声明 `credentials.read` 后，Python 插件可通过 `await context.providers.get_credential(provider_id)` 读取指定提供商的 API Key。未配置或无法解密时返回 `None`；提供商不存在或属于 OAuth 时抛出 `ValueError`。调用前可声明 `providers.read` 并通过业务网关列出提供商；两个权限互不包含。此方法不开放给 iframe SDK，普通提供商列表也不返回密钥。插件后端应避免将密钥写入日志或返回给界面；诊断记录对该接口的参数和结果脱敏。这是 SDK 权限约束，不是对可信 Python 插件的沙箱。
+
 `context.files` 是插件数据目录中的文本文件接口，不等于整个主机文件系统。`context.http.request(method, url, headers=..., json=..., form=..., body=...)` 要求 `network`，目的 hostname 还必须在 `network_hosts` 中。不会自动跟随重定向；正常目标必须 HTTPS，只允许显式声明的 loopback 开发服务使用 HTTP。
 
 `context.oauth.start(...)` 支持 PKCE、随机一次性 state 和十分钟有效期。标准回调为当前后端地址的 `/plugin-oauth/callback`；必须在 OAuth 提供商后台登记相同 URI。成功后令牌存入当前插件的 `oauth.tokens` 密钥，刷新逻辑由插件按提供商协议实现。
@@ -85,20 +87,25 @@ async def sync(context, arguments):
     # 可访问 context.runtime['project_id'] / ['session_id']。
     return {"ok": True}
 
+def sync_detail(arguments, result):
+    return "同步成功" if isinstance(result, dict) and result.get("ok") else None
+
 async def prompt(context, event, next):
     return await next({**event, "sections": [
         *event["sections"], {"id": "my-rule", "text": "保持人物一致性", "scope": "system"}
     ]})
 
 def register(host):
-    host.register_tool("sync", "手动同步", {"type": "object", "properties": {}}, sync)
+    host.register_tool("sync", "手动同步", {"type": "object", "properties": {}}, sync, category="云同步", display_name="同步章节", icon="CloudUpload", title="同步章节", detail=sync_detail)
     host.register_hook("prompt.compose", prompt, priority=10)
     # host.register_graph('custom', factory)
     # host.register_interval(60, background_handler)
     # host.on_dispose(cleanup)
 ```
 
-动态工具会进入 Agent 工具列表，并沿用内置审批和设置。默认写工具需要审批；`access_level='readonly'` 可标为只读。工具名称具有插件命名空间，禁止覆盖内置工具；工具 schema 不允许远程 `$ref`。中间件改写已审批参数时会重新校验和授权。
+动态工具会进入 Agent 工具列表，并沿用内置审批和设置。`category` 和 `display_name` 必须是非空字符串，分别指定自定义分类及工具的界面显示名称；`name` 是机器使用的 ID。分类名称相同的插件工具在智能体设置中归为一组，与内置分类独立。选择分类时只选择当时已注册的工具，之后新增的工具不会自动勾选。默认写工具需要审批；`access_level='readonly'` 可标为只读。工具 ID 具有插件命名空间，禁止覆盖内置工具；工具 schema 不允许远程 `$ref`。中间件改写已审批参数时会重新校验和授权。
+
+可选的 `icon`、`title` 和 `detail` 控制会话工具消息：`icon` 可使用 Lucide 名称或已声明资源中的 PNG、JPEG、WebP、SVG 图标；`title` 默认使用 `display_name`。`detail` 可以是固定字符串，也可以是同步或异步函数，接收本次工具参数和结果，返回字符串或 `None`；JSON 结果会解析为 Python 对象。函数在工具执行结束后运行，结果最多保留 1024 个字符；异常只记录错误类型，不影响工具结果。运行中可显示固定 detail，动态 detail 在执行结束后显示并随消息保存，不会改变提供给模型的工具结果。插件停用或卸载后，历史标题和详情仍可显示；包内图标不可用时使用默认图标。
 
 中间件按 priority、插件 ID 和注册顺序运行，`next` 最多调用一次；允许观察、改写、拒绝或返回自己的结果。同插件内部可串联多个 handler；由 handler 的 SDK 调用引起的重入会跳过自身，防止死锁。异常进入插件日志。每个 handler 上限 30 秒。已提交的数据变更通知失败不会把成功写入伪装成失败。
 
@@ -152,9 +159,9 @@ iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章
 
 ## 示例与验证
 
-整轮改造对原有功能的回归、发现的问题和修复见 [原有功能回归验证](./plugin-regression-verification.md)。插件工具默认由 Build 显式加入，Plan 和子 Agent 不再无条件获得插件工具；可通过 Agent 定义的 `metadata.plugin_tools` 指定完整插件工具名，空列表表示关闭。
+整轮改造对原有功能的回归、发现的问题和修复见 [原有功能回归验证](./plugin-regression-verification.md)。所有智能体默认不启用插件工具；可在智能体设置中按插件声明的分类选择，也可通过 Agent 定义的 `metadata.plugin_tools` 指定完整工具 ID，空列表表示关闭。工具审批设置按显示名称逐个配置允许、询问和拒绝；未配置时只读工具默认允许，写入工具默认询问。
 
-三个插件位于 `examples/plugins/`，安装包位于 `examples/plugins/dist/`。使用说明见 [示例插件](./plugin-examples.md)，测试范围及复现见 [原生插件验证记录](./plugin-native-verification.md)。新增集成测试位于 `backend/tests/plugins/`；浏览器测试 `frontend/e2e/plugin-sdk.spec.ts` 覆盖三个示例、旧 Mod 包拒绝，以及使用独立类型包的 React 插件。旧项目统计仍由 `frontend/e2e/plugins.spec.ts` 回归。
+三个插件位于 `examples/plugins/`，安装包位于 `examples/plugins/dist/`。使用说明见 [示例插件](./plugin-examples.md)，测试范围及复现见 [原生插件验证记录](./plugin-native-verification.md)。插件集成测试位于 `backend/tests/plugins/`。
 
 Google Drive 与模型在自动化测试中使用协议仿真，业务后端、数据库、宿主、RPC、iframe 和 Agent 执行链都是真实实现。测试不会访问真实 Google 账户，也没有运行原生桌面安装程序。
 

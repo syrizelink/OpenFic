@@ -65,10 +65,10 @@ async def _primary_tool_names(
         names = list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
         if allow_runtime_skill_references:
             names.extend(SKILL_TOOL_NAMES)
-        return [*names, *plugin_tool_names_for_agent(agent_key)]
+        return names
     definition = await load_agent_definition(db_session, agent_key)
     return (
-        plugin_tool_names_for_agent(agent_key, getattr(definition, "metadata", None))
+        plugin_tool_names_for_agent(getattr(definition, "metadata", None))
         + list(get_tool_names_for_categories(definition.enabled_tool_categories))
         + list(
             await skill_tool_names_for_definition(

@@ -91,10 +91,12 @@ async def test_drive_two_way_conflict_resolution_and_agent_tool(
     assert (await ctx.chapters.get(chapter["id"]))["content"] == "competing remote edit"
     tools = plugin_tools({"project_id": project["id"], "session_id": "test-session"})
     tool = next(t for t in tools if t.name.endswith("sync_chapters"))
-    report = json.loads(
-        await tool.ainvoke({}, config={"configurable": {"db_session": session}})
-    )
+    assert tool.category == "云同步"
+    assert tool.display_name == "同步章节"
+    tool_result = await tool.ainvoke({}, config={"configurable": {"db_session": session}})
+    report = json.loads(tool_result)
     assert report["unchanged"] == 1
+    assert tool_result.payload["_openfic_plugin_tool"]["detail"] == "已上传 0 章"
     assert all("googleapis.com" in url for _, url in drive.requests)
 
 

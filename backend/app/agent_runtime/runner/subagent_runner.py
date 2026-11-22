@@ -478,9 +478,7 @@ class SubagentRunner:
         from app.plugins.runtime import plugin_tool_names_for_agent
 
         names.extend(
-            plugin_tool_names_for_agent(
-                definition.key, getattr(definition, "metadata", None)
-            )
+            plugin_tool_names_for_agent(getattr(definition, "metadata", None))
         )
         return ToolRegistry.get_tools(
             names=names,

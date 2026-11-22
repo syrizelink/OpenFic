@@ -25,6 +25,7 @@ from app.agent_runtime.runner.event_scope import (
 from app.agent_runtime.tools.errors import (
     ToolErrorCode,
     ToolFailure,
+    ToolResult,
     log_tool_failure,
     serialize_tool_failure,
     tool_failure_from_error,
@@ -303,6 +304,10 @@ class MessagePersister:
             content=content,
             tool_call_id=tool_call_id,
             tool_name=pending.tool_name if pending else event.get("name"),
+            metadata={"plugin_tool_display": output.payload["_openfic_plugin_tool"]}
+            if isinstance(output, ToolResult)
+            and isinstance(output.payload.get("_openfic_plugin_tool"), dict)
+            else None,
         )
 
     async def _on_tool_error(self, event: dict) -> None:

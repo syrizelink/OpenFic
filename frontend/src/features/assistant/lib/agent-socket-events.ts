@@ -192,6 +192,9 @@ export function toAgentEvent(
         tool_args: isRecord(input) ? input : undefined,
         tool_args_text: typeof input === "string" ? input : JSON.stringify(input ?? {}),
         tool_result: result,
+        ...(isRecord(data.plugin_tool_display)
+          ? { plugin_tool_display: data.plugin_tool_display }
+          : {}),
         success: toolSuccess,
         is_preview: data.is_preview === true,
         is_interrupt_preview: data.is_interrupt_preview === true,

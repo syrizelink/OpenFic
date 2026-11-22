@@ -59,6 +59,7 @@ CAPABILITIES = frozenset(
     [f"{name}.{mode}" for name in RESOURCE_NAMES for mode in ("read", "write")]
     + [
         "project.entities.read",
+        "credentials.read",
         "storage",
         "secrets",
         "network",

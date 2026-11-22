@@ -24,6 +24,14 @@ export interface AgentToolPermission {
 export interface AgentToolMetadata {
   key: string;
   isReadonly: boolean;
+  displayName?: string;
+  category?: string;
+  description?: string;
+  pluginId?: string;
+  pluginName?: string;
+  title?: string;
+  icon?: string;
+  detail?: string;
 }
 
 /** 设置数据 */

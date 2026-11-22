@@ -834,8 +834,10 @@ async def _launch_continuation_task_replacing_current(
         raise RuntimeError("failed to replace current agent task")
 
 
-@router.get("/tools", response_model=list[AgentToolMetadataResponse])
+@router.get("/tools", response_model=list[AgentToolMetadataResponse], response_model_exclude_none=True)
 async def list_agent_tools() -> list[AgentToolMetadataResponse]:
+    from app.plugins.agent_tool import PluginAgentTool
+
     items_by_key: dict[str, AgentToolMetadataResponse] = {}
 
     for tool in ToolRegistry.get_tools(state={"session_id": "", "project_id": ""}):
@@ -844,6 +846,14 @@ async def list_agent_tools() -> list[AgentToolMetadataResponse]:
         items_by_key[tool.name] = AgentToolMetadataResponse(
             key=tool.name,
             is_readonly=tool.access_level == "readonly",
+            display_name=tool.display_name if isinstance(tool, PluginAgentTool) else None,
+            category=tool.category if isinstance(tool, PluginAgentTool) else None,
+            description=tool.description if isinstance(tool, PluginAgentTool) else None,
+            plugin_id=tool.plugin_id if isinstance(tool, PluginAgentTool) else None,
+            plugin_name=tool.host.get(tool.plugin_id).manifest.name if isinstance(tool, PluginAgentTool) else None,
+            title=tool.title if isinstance(tool, PluginAgentTool) else None,
+            icon=tool.icon if isinstance(tool, PluginAgentTool) else None,
+            detail=tool.message_detail if isinstance(tool, PluginAgentTool) else None,
         )
 
     return sorted(items_by_key.values(), key=lambda item: TOOL_DISPLAY_ORDER.get(item.key, 999))
