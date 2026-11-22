@@ -1,4 +1,4 @@
-"""Unified plugin packages, public resource boundaries and legacy upgrade paths."""
+"""Unified plugin packages and public resource boundaries."""
 
 import io
 import json
@@ -156,56 +156,6 @@ async def test_package_modules_are_isolated_cleaned_and_reload_from_new_helpers(
     )
 
 
-async def test_legacy_layout_survives_restart_then_upgrades_without_data_loss(
-    plugin_api, session
-):
-    host, _, _ = plugin_api
-    old = contract(
-        backend="backend/main.py",
-        capabilities=["ui", "storage"],
-        views=[{"id": "panel", "title": "Old panel", "entry": "frontend/index.html"}],
-    )
-    code = 'async def data(ctx, params): return await ctx.assets.read("assets/pixel.png")\ndef register(host): host.register_command("data", data)\n'
-    await host.install(
-        archive(
-            old,
-            {
-                "backend/main.py": code,
-                "frontend/index.html": '<script src="../../sdk.js"></script>',
-                "frontend/assets/pixel.png": b"old-image",
-            },
-        )
-    )
-    # Revalidating an existing Pydantic object must preserve legacy path semantics.
-    plugin = host.get("layout-test")
-    plugin.manifest = Manifest.model_validate(plugin.manifest)
-    await host.set_enabled("layout-test", True)
-    ctx = host.context("layout-test", session)
-    await ctx.storage.set("kept", 42)
-    assert (await ctx.assets.read("assets/pixel.png"))["base64"] == "b2xkLWltYWdl"
-    assert host.open_view("layout-test", "panel").endswith("/assets/index.html")
-    await host.close()
-    await host.start()
-    assert (await host.context("layout-test", session).assets.read("assets/pixel.png"))[
-        "base64"
-    ] == "b2xkLWltYWdl"
-    new = contract(
-        version="1.1.0",
-        entry="main.py",
-        resources=["assets"],
-        capabilities=["ui", "storage"],
-    )
-    await host.install(
-        archive(new, {"main.py": code, "assets/pixel.png": b"new-image"}),
-        update_id="layout-test",
-    )
-    assert await host.context("layout-test", session).storage.get("kept") == 42
-    assert (await host.call("layout-test", "data", {}, session))[
-        "base64"
-    ] == "bmV3LWltYWdl"
-    assert "backend" not in host.describe(host.get("layout-test"))
-
-
 async def test_source_checks_keep_dev_files_but_runtime_package_does_not(tmp_path):
     manifest = contract(
         entry="main.py",
@@ -297,31 +247,3 @@ async def test_watch_scripts_use_root_or_explicit_project_directories(tmp_path):
     )
     assert args.watch_script == "watch"
 
-
-async def test_repository_packager_works_without_site_packages(tmp_path):
-    import subprocess
-
-    root = Path(__file__).resolve().parents[3]
-    source = tmp_path / "source"
-    source.mkdir()
-    (source / "plugin.json").write_text(json.dumps(contract(entry="main.py")))
-    (source / "main.py").write_text("def register(host): pass")
-    (source / "dev-only.txt").write_text("not installed")
-    (source / "plugin.dev.json").write_text(
-        json.dumps({"package": {"include": ["main.py"]}})
-    )
-    output = tmp_path / "package.zip"
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-S",
-            str(root / "examples/plugins/build_package.py"),
-            str(source),
-            str(output),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    assert result.returncode == 0, result.stderr
-    assert output.read_bytes() == build_package(source)

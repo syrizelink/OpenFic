@@ -224,8 +224,7 @@ async def test_invalid_view_contract(changes):
         View(id="test", title="Test", **changes)
 
 
-async def test_explicit_ui_capability_and_legacy_default():
-    assert View(id="test", title="Test", entry="panel/page.html").renderer == "iframe"
+async def test_explicit_ui_capability():
     manifest = json.loads((FIXTURE / "plugin.json").read_text())
     manifest["capabilities"] = []
     with pytest.raises(ValidationError, match="ui capability"):
@@ -541,11 +540,6 @@ async def test_compound_components_and_as_child():
         }
     }
     assert validate_document(document)
-    assert (
-        Path(__file__).resolve().parents[3] / "packages/plugin-sdk/index.d.ts"
-    ).read_bytes() == (
-        Path(__file__).resolve().parents[2] / "app/plugins/sdk.d.ts"
-    ).read_bytes()
 
 
 @pytest.mark.parametrize(

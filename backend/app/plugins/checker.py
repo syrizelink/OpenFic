@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote, urlsplit, urljoin, unquote
 
 from app.plugins.declarative import (
@@ -20,7 +21,7 @@ from app.plugins.packages import build_package, source_files, extract_package
 
 def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
     source = source.expanduser().resolve()
-    report = {
+    report: dict[str, Any] = {
         "source": str(source),
         "pluginId": None,
         "diagnostics": [],
@@ -54,12 +55,13 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                 root = source
         except Exception as error:
             # Validation errors can embed input/default secrets. Never emit input values.
+            errors = getattr(error, "errors", None)
             message = (
                 "; ".join(
                     ".".join(map(str, e["loc"])) + ": " + e["msg"]
-                    for e in error.errors(include_input=False)
+                    for e in errors(include_input=False)
                 )
-                if hasattr(error, "errors")
+                if callable(errors)
                 else str(error)
             )
             issue("package.invalid", message)
@@ -85,7 +87,7 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                     self.references.append((values[field], self.getpos()[0]))
 
         for view in manifest.views:
-            if view.renderer != "iframe":
+            if view.renderer != "iframe" or view.entry is None:
                 continue
             html = root / view.entry
             parser = Resources()
@@ -270,6 +272,8 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
                                 ):
                                     builders.add(function.name)
             for item in ast.walk(tree):
+                if not isinstance(item, (ast.Call, ast.Dict)):
+                    continue
                 component = None
                 props = {}
                 if (
@@ -479,12 +483,13 @@ def check_plugin(source: Path, *, documents=(), run_checks=False) -> dict:
             Path(__file__).resolve().parents[3]
             / "frontend/node_modules/@openfic/plugin-devtools/cli.mjs"
         )
+        node = shutil.which("node")
         command = (
             [css_tool]
             if css_tool
             else (
-                [shutil.which("node"), str(repository_tool)]
-                if shutil.which("node") and repository_tool.exists()
+                [node, str(repository_tool)]
+                if node and repository_tool.exists()
                 else None
             )
         )

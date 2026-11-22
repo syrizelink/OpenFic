@@ -79,6 +79,7 @@ def fast_checkpoint_sqlite(monkeypatch: pytest.MonkeyPatch) -> None:
         return connection
 
     monkeypatch.setattr(sqlite3, "connect", connect)
+    monkeypatch.setattr(sqlite3.dbapi2, "connect", connect)
 
 
 class _NotFoundIconHttpClient:

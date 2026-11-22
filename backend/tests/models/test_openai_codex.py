@@ -215,7 +215,7 @@ async def _fake_session(session):
 
 
 @pytest_asyncio.fixture
-async def oauth_database(monkeypatch, tmp_path):
+async def oauth_database(monkeypatch, tmp_path, fast_checkpoint_sqlite):
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlmodel import SQLModel
     from tests.model_registry import register_sqlmodel_models
@@ -278,42 +278,38 @@ async def test_oauth_network_does_not_hold_sqlite_write_lock(monkeypatch, oauth_
 @pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["refresh", "delete"])
 async def test_oauth_rereads_rotation_from_another_process(monkeypatch, tmp_path, oauth_database, operation):
+    import hashlib
+    import json
+    from dataclasses import replace
     from sqlalchemy.ext.asyncio import AsyncSession
     import app.models.services.openai_codex_service as plan
 
     engine, store, provider, credentials = oauth_database
+    key = hashlib.sha256(json.dumps([plan.OPENAI_CODEX_ISSUER, credentials.client_id, credentials.subject]).encode()).hexdigest()
+    lock_dir = tmp_path / "openai-codex-locks"
+    lock_dir.mkdir(exist_ok=True)
     script = '''
-import asyncio
-from dataclasses import replace
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
+import os
+import sqlite3
 import sys
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from app.core.encryption import EncryptionService
-from app.models.repos import model_provider_repo
-import app.models.services.openai_codex_service as plan
-
-async def main():
-    plan.BACKEND_DATA_DIR = Path(sys.argv[1])
-    engine = create_async_engine(sys.argv[2])
-    store = plan.OpenAICodexCredentialStore(EncryptionService(sys.argv[3]))
-    try:
-        async with plan.openai_codex_credential_lock("oaiapp_lock", "subject"):
-            print("locked", flush=True)
-            await asyncio.to_thread(sys.stdin.readline)
-            async with AsyncSession(engine, expire_on_commit=False) as session:
-                provider = await model_provider_repo.get_by_id(session, "lock-provider")
-                credentials = store.read(provider)
-                store.write(provider, replace(credentials, access_token="child-access",
-                    refresh_token="child-rotated", expires_at=datetime.now(UTC) + timedelta(hours=1)))
-                await session.commit()
-    finally:
-        await engine.dispose()
-
-asyncio.run(main())
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+try:
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    print("locked", flush=True)
+    encrypted = sys.stdin.readline().strip()
+    with sqlite3.connect(sys.argv[2]) as connection:
+        connection.execute("PRAGMA synchronous=OFF")
+        connection.execute("UPDATE model_providers SET credentials_encrypted=? WHERE id=?", (encrypted, "lock-provider"))
+finally:
+    os.close(fd)
 '''
     child = await asyncio.create_subprocess_exec(
-        "uv", "run", "python", "-c", script, str(tmp_path), str(engine.url), ENCRYPTION_KEY,
+        "uv", "run", "python", "-c", script, str(lock_dir / f"{key}.lock"), str(tmp_path / "oauth.db"),
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
     task = None
@@ -340,7 +336,8 @@ asyncio.run(main())
             # A separate account must not queue behind this session.
             async with plan.openai_codex_credential_lock(credentials.client_id, "other-subject"):
                 pass
-            child.stdin.write(b"rotate\n")
+            rotated = replace(credentials, access_token="child-access", refresh_token="child-rotated", expires_at=datetime.now(UTC) + timedelta(hours=1))
+            child.stdin.write((store.encryption_service.encrypt(rotated.to_json()) + "\n").encode())
             await child.stdin.drain()
             refreshed = await asyncio.wait_for(task, 30)
             if operation == "refresh":

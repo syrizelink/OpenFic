@@ -664,9 +664,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_db()
     await app.state.plugin_host.start()
     plugin_development = None
-    if getenv("OPENFIC_PLUGIN_DEV_SOURCE"):
+    plugin_dev_source = getenv("OPENFIC_PLUGIN_DEV_SOURCE")
+    if plugin_dev_source:
         from app.plugins.development import DevelopmentSession
-        plugin_development = DevelopmentSession(app.state.plugin_host, Path(getenv("OPENFIC_PLUGIN_DEV_SOURCE")))
+
+        plugin_development = DevelopmentSession(app.state.plugin_host, Path(plugin_dev_source))
         await plugin_development.start()
     await _load_telemetry_enabled()
     cleared_tasks = await _reset_task_running_state()

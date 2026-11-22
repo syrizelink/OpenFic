@@ -22,7 +22,7 @@ def inject_sdk(document: str, url: str) -> str:
 
         def handle_starttag(self, tag, attrs):
             if tag == "head" and self.head is None:
-                self.head = self.position_offset() + len(self.get_starttag_text())
+                self.head = self.position_offset() + len(self.get_starttag_text() or "")
             if tag == "script" and self.script is None:
                 self.script = self.position_offset()
 

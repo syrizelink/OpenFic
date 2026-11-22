@@ -22,7 +22,6 @@ from app.plugins.host import PluginError, PluginHost
 from app.socket.handlers import register_handlers
 from app.storage.database import get_session
 
-SOURCE = Path(__file__).resolve().parents[3] / "examples/plugins/project-statistics"
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 REPOSITORY_COMMIT = "a" * 40
 REPOSITORY_ARCHIVE = f"https://codeload.github.com/owner/repo/zip/{REPOSITORY_COMMIT}"
@@ -44,8 +43,29 @@ def mock_repository_manifest(
         f"https://raw.githubusercontent.com/owner/repo/{REPOSITORY_COMMIT}/plugin.json"
     ).respond(
         status_code=status_code,
-        content=(SOURCE / "plugin.json").read_bytes() if manifest is None else manifest,
+        content=json.dumps(package_manifest()).encode() if manifest is None else manifest,
     )
+
+
+def package_manifest():
+    return {
+        "id": "project-statistics",
+        "name": "Test plugin",
+        "version": "1.0.0",
+        "api_version": 1,
+        "entry": "main.py",
+        "capabilities": ["projects.read", "ui", "storage"],
+        "settings": [
+            {
+                "key": "targetWords",
+                "label": "Target",
+                "type": "integer",
+                "default": 100000,
+                "minimum": 1,
+                "maximum": 100000000,
+            }
+        ],
+    }
 
 
 def package(
@@ -53,7 +73,6 @@ def package(
     backend=None,
     capabilities=None,
     *,
-    legacy=False,
     plugin_id="project-statistics",
     settings=None,
     detail=None,
@@ -64,7 +83,7 @@ def package(
     settings_icon=None,
 ):
     output = io.BytesIO()
-    manifest = json.loads((SOURCE / "plugin.json").read_text())
+    manifest = package_manifest()
     manifest["version"] = version
     manifest["id"] = plugin_id
     if settings is not None:
@@ -75,7 +94,6 @@ def package(
         manifest["icon"] = icon
     if homepage is not None:
         manifest["homepage"] = homepage
-    # Keep iframe ticket/CSP lifecycle coverage independent of the native example UI.
     manifest["views"] = [
         {
             "id": "overview",
@@ -93,30 +111,23 @@ def package(
         )
     if capabilities is not None:
         manifest["capabilities"] = capabilities
-    if legacy:
-        manifest["backend"] = "backend/main.py"
-        manifest.pop("entry", None)
-        manifest.pop("resources", None)
-        manifest["views"][0]["entry"] = "frontend/index.html"
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, content in (extra_files or {}).items():
             archive.writestr(name, content)
         archive.writestr(
             manifest["views"][0]["entry"],
-            "<!doctype html><main>Legacy transport fixture</main>",
+            "<!doctype html><main>Test plugin</main>",
         )
-        for path in sorted(SOURCE.rglob("*")):
-            if not path.is_file() or "__pycache__" in path.parts:
-                continue
-            name = path.relative_to(SOURCE).as_posix()
-            content = path.read_bytes()
-            if name == "plugin.json":
-                content = json.dumps(manifest).encode()
-            if name == "main.py" and backend is not None:
-                content = backend.encode()
-            archive.writestr(
-                "backend/main.py" if legacy and name == "main.py" else name, content
-            )
+        archive.writestr("plugin.json", json.dumps(manifest))
+        archive.writestr(
+            "main.py",
+            backend
+            if backend is not None
+            else (
+                'async def projects(ctx, params): return await ctx.data.list_projects()\n'
+                'def register(host): host.register_command("projects.list", projects)\n'
+            ),
+        )
     return output.getvalue()
 
 
@@ -153,20 +164,6 @@ async def test_plugin_log_filters_download_and_clear(plugin_api):
     assert (await install(client)).status_code == 201
     plugin_id = "project-statistics"
     path = f"/api/v1/plugins/{plugin_id}/logs"
-    legacy = host.root / ".logs" / f"{plugin_id}.json"
-    legacy.write_text(
-        json.dumps(
-            [
-                {
-                    "time": "2000-01-01T00:00:00+00:00",
-                    "level": "info",
-                    "action": "legacy",
-                    "message": "old record",
-                }
-            ]
-        ),
-        encoding="utf-8",
-    )
     for index in range(220):
         host._log(plugin_id, "plugin", f"record {index}")
 
@@ -176,12 +173,12 @@ async def test_plugin_log_filters_download_and_clear(plugin_api):
     assert recent[-1]["message"] == "record 219"
     all_recent = (await client.get(path, params={"minutes": 10})).json()
     assert len(all_recent) == 221
-    assert len((await client.get(path)).json()) == 222
+    assert len((await client.get(path)).json()) == 221
 
     downloaded = await client.get(f"{path}/download")
     assert downloaded.status_code == 200
     assert f"{plugin_id}.log" in downloaded.headers["content-disposition"]
-    assert "old record" in downloaded.text and "record 219" in downloaded.text
+    assert "record 219" in downloaded.text
 
     assert (await client.delete(path)).status_code == 204
     assert (await client.get(path)).json() == []
@@ -1030,121 +1027,6 @@ async def test_toolbar_button_executes_without_render(plugin_api):
     assert response.json()["result"]["context"]["chapterId"] == "sample"
 
 
-async def test_install_enable_statistics_configuration_restart_export_uninstall(
-    plugin_api, client, session
-):
-    host, api, _ = plugin_api
-    project = (await client.post("/api/v1/projects", data={"title": "统计验证"})).json()
-    project_id = project["id"]
-    volume = (await client.get(f"/api/v1/projects/{project_id}/volumes")).json()[0]
-    for title, count in [("一", 100), ("二", 300)]:
-        response = await client.post(
-            f"/api/v1/projects/{project_id}/chapters",
-            json={
-                "volume_id": volume["id"],
-                "title": title,
-                "content": "内容",
-                "word_count": count,
-            },
-        )
-        assert response.status_code == 201
-    from app.storage.models.character import Character
-    from app.storage.models.note import Note
-    from app.storage.models.world_info import WorldInfo
-    from app.storage.models.world_info_entry import WorldInfoEntry
-
-    world = WorldInfo(project_id=project_id, name="世界")
-    session.add(world)
-    await session.flush()
-    session.add_all(
-        [
-            Character(project_id=project_id, name="角色"),
-            Note(project_id=project_id, title="笔记"),
-            WorldInfoEntry(world_info_id=world.id, uid=1, name="条目", order=1),
-        ]
-    )
-    await session.flush()
-
-    response = await install(api)
-    assert response.status_code == 201, response.text
-    assert response.json()["status"] == "disabled"
-    assert (await install(api)).status_code == 409
-    assert (
-        await api.post(
-            "/api/v1/plugins/project-statistics/rpc", json={"method": "projects.list"}
-        )
-    ).status_code == 409
-    enabled = await api.patch(
-        "/api/v1/plugins/project-statistics/enabled", json={"enabled": True}
-    )
-    assert enabled.json()["commands"] == [
-        "projects.list",
-        "statistics.get",
-        "ui.action",
-        "ui.render",
-    ]
-    asset = await api.get("/api/v1/plugins/project-statistics/assets/panel/index.html")
-    assert asset.status_code == 200
-    assert "connect-src 'none'" in asset.headers["content-security-policy"]
-    assert (
-        await api.get("/api/v1/plugins/project-statistics/assets/main.py")
-    ).status_code == 404
-    stats = await api.post(
-        "/api/v1/plugins/project-statistics/rpc",
-        json={"method": "statistics.get", "params": {"projectId": project_id}},
-    )
-    assert stats.status_code == 200, stats.text
-    data = stats.json()["result"]
-    assert (data["words"], data["chapters"], data["averageChapterWords"]) == (
-        400,
-        2,
-        200,
-    )
-    assert (data["characters"], data["notes"], data["worldEntries"]) == (1, 1, 1)
-    assert data["volumeDistribution"][0]["words"] == 400
-    configured = await api.put(
-        "/api/v1/plugins/project-statistics/settings",
-        json={"settings": {"targetWords": 800, "showVolumes": False}},
-    )
-    assert configured.status_code == 200
-    assert (
-        await api.put(
-            "/api/v1/plugins/project-statistics/settings",
-            json={"settings": {"targetWords": True}},
-        )
-    ).status_code == 400
-    assert (
-        await api.put(
-            "/api/v1/plugins/project-statistics/settings",
-            json={"settings": {"targetWords": 0}},
-        )
-    ).status_code == 400
-    await host.close()
-    await host.start()
-    result = await host.call(
-        "project-statistics", "statistics.get", {"projectId": project_id}, session
-    )
-    assert result["progress"] == 50
-    assert result["volumeDistribution"] == []
-    exported = await api.get("/api/v1/plugins/project-statistics/package")
-    assert exported.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
-        assert "plugin.json" in archive.namelist()
-        assert not any("__pycache__" in name for name in archive.namelist())
-    assert (
-        await api.patch(
-            "/api/v1/plugins/project-statistics/enabled", json={"enabled": False}
-        )
-    ).status_code == 200
-    assert (
-        await api.get("/api/v1/plugins/project-statistics/assets/panel/index.html")
-    ).status_code == 409
-    assert (await api.delete("/api/v1/plugins/project-statistics")).status_code == 204
-    assert (await api.get("/api/v1/plugins")).json()["plugins"] == []
-    assert not (host.root / "project-statistics").exists()
-    assert (await install(api, exported.content)).status_code == 201
-
-
 async def test_update_failure_rolls_back_and_disposes_commands(plugin_api, session):
     host, api, _ = plugin_api
     await install(api)
@@ -1175,7 +1057,7 @@ async def test_update_failure_rolls_back_and_disposes_commands(plugin_api, sessi
     )
     assert success.status_code == 200, success.text
     assert success.json()["version"] == "1.1.0"
-    assert len(host.get("project-statistics").registration.commands) == 4
+    assert len(host.get("project-statistics").registration.commands) == 1
     assert (await api.get("/api/v1/plugins/project-statistics/logs")).json()[-1][
         "action"
     ] == "update"

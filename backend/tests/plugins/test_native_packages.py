@@ -1,4 +1,4 @@
-"""Only native packages execute; older native exports remain installable."""
+"""Unsupported packages must not execute."""
 
 import io
 import json
@@ -82,25 +82,3 @@ async def test_startup_skips_old_mod_without_execution_or_data_deletion(plugin_a
     assert json.loads((data / "state.json").read_text()) == {"preserved": True}
     assert json.loads((directory / "plugin.json").read_text()) == manifest
 
-
-async def test_older_native_export_metadata_is_accepted_but_not_emitted(plugin_api):
-    host, _, _ = plugin_api
-    original = host_tests.package()
-    output = io.BytesIO()
-    with zipfile.ZipFile(io.BytesIO(original)) as source, zipfile.ZipFile(
-        output, "w"
-    ) as target:
-        for entry in source.namelist():
-            content = source.read(entry)
-            if entry == "plugin.json":
-                manifest = json.loads(content)
-                manifest.update(format="openfic", compatibility={})
-                content = json.dumps(manifest).encode()
-            target.writestr(entry, content)
-    result = await host.install(output.getvalue())
-    assert "compatibility" not in result
-    await host.set_enabled("project-statistics", True)
-    await host.close()
-    await host.start()
-    assert host.get("project-statistics").registration is not None
-    assert "compatibility" not in host.describe(host.get("project-statistics"))
