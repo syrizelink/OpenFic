@@ -105,8 +105,15 @@ class View(Contract):
             raise ValueError("placement is only supported in editor.toolbar")
         if self.slot == "settings" and (not self.icon or not self.title.strip()):
             raise ValueError("Settings views require a title and an icon")
-        if self.showCloseButton is not None and self.slot not in {"editor.toolbar", "statusbar"}:
-            raise ValueError("showCloseButton is only supported in editor.toolbar or statusbar")
+        if (
+            self.showCloseButton is not None
+            and self.slot not in {"editor.toolbar", "statusbar"}
+            and not (
+                self.slot == "app.overlay"
+                and self.presentation in {"dialog", "popover"}
+            )
+        ):
+            raise ValueError("showCloseButton requires a dialog or popover view")
         if self.icon is not None and (
             self.slot == "sidebar.extensions"
             or self.slot == "settings"
@@ -117,21 +124,46 @@ class View(Contract):
             from .declarative import normalize_icon
 
             self.icon = normalize_icon(self.icon)
-        if self.presentation is not None and self.slot not in {"editor.toolbar", "statusbar"}:
-            raise ValueError("presentation is only supported in editor.toolbar or statusbar")
+        if self.presentation is not None and self.slot not in {
+            "editor.toolbar",
+            "statusbar",
+            "app.overlay",
+        }:
+            raise ValueError("presentation is not supported in this slot")
+        if self.slot == "app.overlay" and self.presentation not in {
+            None,
+            "dialog",
+            "popover",
+        }:
+            raise ValueError(
+                "Application overlays support only dialog or popover presentation"
+            )
         if self.slot == "statusbar":
             if not self.status or self.status.startswith("sdk."):
                 raise ValueError("Statusbar requires a plugin status command")
             if self.icon is not None:
-                raise ValueError("Statusbar icons must be returned by the status command")
+                raise ValueError(
+                    "Statusbar icons must be returned by the status command"
+                )
             if self.presentation not in {"none", "popover", "dialog"}:
-                raise ValueError("Statusbar requires none, popover or dialog presentation")
+                raise ValueError(
+                    "Statusbar requires none, popover or dialog presentation"
+                )
             if self.presentation == "none":
-                if self.entry or self.render or self.action or self.showCloseButton is not None:
-                    raise ValueError("Noninteractive statusbar views cannot have overlay content")
+                if (
+                    self.entry
+                    or self.render
+                    or self.action
+                    or self.showCloseButton is not None
+                ):
+                    raise ValueError(
+                        "Noninteractive statusbar views cannot have overlay content"
+                    )
                 return self
         elif self.status is not None or self.presentation == "none":
-            raise ValueError("status and none presentation are only supported in statusbar")
+            raise ValueError(
+                "status and none presentation are only supported in statusbar"
+            )
         if self.presentation == "action":
             if self.slot != "editor.toolbar" or self.renderer != "declarative":
                 raise ValueError(
@@ -157,7 +189,9 @@ class View(Contract):
             raise ValueError(
                 "Declarative views require a render command and cannot have entry"
             )
-        elif self.render.startswith("sdk.") or (self.action and self.action.startswith("sdk.")):
+        elif self.render.startswith("sdk.") or (
+            self.action and self.action.startswith("sdk.")
+        ):
             raise ValueError(
                 "Declarative views must bind plugin commands, not SDK methods"
             )
@@ -355,7 +389,11 @@ class Manifest(Contract):
         if len({root.casefold() for root in self.resources}) != len(self.resources):
             raise ValueError("Duplicate public resource root")
         if (
-            any(view.renderer == "declarative" or view.slot == "statusbar" for view in self.views)
+            any(
+                view.renderer == "declarative"
+                or view.slot in {"statusbar", "app.overlay"}
+                for view in self.views
+            )
             and "ui" not in self.capabilities
         ):
             raise ValueError("Declarative views require ui capability")
@@ -364,11 +402,6 @@ class Manifest(Contract):
             and "ui.overlay" not in self.capabilities
         ):
             raise ValueError("Application overlays require ui.overlay capability")
-        if any(
-            view.slot == "app.overlay" and view.renderer != "declarative"
-            for view in self.views
-        ):
-            raise ValueError("Application overlays currently require declarative UI")
         for view in self.views:
             if view.entry:
                 self.resource_root(view.entry)

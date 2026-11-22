@@ -2330,13 +2330,13 @@ export interface UIActionResult {
   effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
     "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
     "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
-    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "ui.openOverlay" | "ui.closeOverlay" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
   next?: string;
 }
 export interface Context {
   pluginId: string; projectId: string | null; chapterId?: string; noteId?: string; kind?: "chapter" | "note";
   language: string; theme: "light" | "dark"; settings: Record<string, Json>;
-  capabilities: string[]; slot: UIAction; sdkVersion: string;
+  capabilities: string[]; slot: UIAction; sdkVersion: string; viewport?: { width: number; height: number };
 }
 export interface RequestOptions {
   json?: Json; query?: Record<string, string | number | boolean | undefined>;
@@ -2375,7 +2375,7 @@ export interface OpenFicSDK {
   hooks: { preview(event: string, data: Record<string, Json>): Promise<Json> };
   events: { on: OpenFicSDK["on"]; emit(event: string, data?: Record<string, Json>): Promise<void> };
   editor: { read(): Promise<EditorSnapshot>; insert(text: string): Promise<EditorSnapshot>; replaceSelection(text: string): Promise<EditorSnapshot>; setContent(text: string): Promise<EditorSnapshot>; setSelection(from: number, to: number): Promise<EditorSnapshot>; focus(): Promise<void>; save(): Promise<void>; undo(): Promise<void>; redo(): Promise<void> };
-  ui: { close(): Promise<void>; resize(height: number): Promise<number>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(viewId?: string): Promise<void> };
+  ui: { close(): Promise<void>; openOverlay(viewId: string, anchor?: { x: number; y: number; width: number; height: number }): Promise<void>; closeOverlay(): Promise<void>; resize(height: number): Promise<number>; setOverlayBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<{ x: number; y: number; width: number; height: number }>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(viewId?: string): Promise<void> };
   assistant: { fill(text: string): Promise<void> }; log(message: string, level?: "info" | "warning" | "error"): Promise<void>;
   agent: { tools(): Promise<{name:string;description:string;access_level:string;inputSchema:Json}[]>; start(projectId:string,modelId:string,options?:Record<string,Json>):Promise<Json>; send(sessionId:string,message:string,options?:Record<string,Json>):Promise<Json>; cancel(sessionId:string):Promise<Json> };
 }

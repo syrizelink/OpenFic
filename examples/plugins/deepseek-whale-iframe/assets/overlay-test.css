@@ -1,0 +1,5 @@
+body { margin: 0; color: #203170; background: transparent; font: 14px/1.5 sans-serif; }
+main { padding: 20px; }
+h1 { margin: 0 0 8px; font-size: 17px; }
+p { margin: 0 0 16px; }
+button { padding: 6px 14px; border: 1px solid #20317055; border-radius: 6px; color: #203170; background: #20317010; cursor: pointer; }

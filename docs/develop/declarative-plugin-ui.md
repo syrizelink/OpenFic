@@ -111,7 +111,7 @@ Python 插件可使用 `await context.call("workflow.select", {"projectId": proj
 
 ## 全局浮层与包内图片
 
-`app.overlay` 插槽在应用 Shell 中持续挂载，路由切换后保留，不参与编辑器或其他页面的布局。它只接受声明式视图，清单须同时声明 `ui` 和 `ui.overlay`。宿主浮层的空白区域不接收指针事件；内容使用 `FloatingPanel` 提供交互边界，层级低于应用对话框。停用/卸载后随插件目录刷新移除。
+未设置 `presentation` 的 `app.overlay` 视图在应用 Shell 中持续挂载，路由切换后保留，不参与页面布局。清单须同时声明 `ui` 和 `ui.overlay`。宿主浮层的空白区域不接收指针事件；常驻声明式内容使用 `FloatingPanel` 提供交互边界，层级低于应用对话框。常驻 iframe 视图使用 `OpenFic.ui.setOverlayBounds` 设置交互矩形。设置 `presentation` 为 `dialog` 或 `popover` 的独立视图仅在常驻视图请求时打开，详见插件 SDK 文档。停用/卸载后随插件目录刷新移除。
 
 ```python
 return {"tree": {"type": "FloatingPanel", "props": {

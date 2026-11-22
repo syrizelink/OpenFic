@@ -11,6 +11,7 @@
 | `examples/plugins/dist/handoff-workflow-1.2.0.zip` | 规划/写作/审稿交接、自定义项目 Graph、结果保存为笔记 |
 | `examples/plugins/dist/prompt-elements-1.3.0.zip` | 上下文匹配规则、提示词开关/注入、输入框面板和编辑器操作示例 |
 | `examples/plugins/dist/deepseek-whale-1.1.0.zip` | 原生悬浮挂件、DeepSeek 余额观测、分币种账本与 Agent 用量气泡；[移植范围及安装](../../examples/plugins/deepseek-whale/README.md) |
+| `examples/plugins/dist/deepseek-whale-iframe-1.0.0.zip` | 独立 iframe 版小鲸鱼，复刻经典气泡、拖动与吸附；[安装和功能说明](../../examples/plugins/deepseek-whale-iframe/README.md) |
 | `examples/plugins/dist/declarative-showcase-1.1.0.zip` | 原生组件目录、项目组件、事件、CSS 和移动端选择器 |
 | `examples/plugins/dist/devtools-demo-1.1.0.zip` | 多文件相对导入、原生/iframe 混合 UI、检查与热重载示例；[开发说明](../../examples/plugins/devtools-demo/README.md) |
 

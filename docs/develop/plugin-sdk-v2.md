@@ -124,7 +124,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 
 | 插槽 | 位置与呈现 |
 | --- | --- |
-| `app.overlay` | 应用全局原生浮层；不占布局，需 `ui.overlay`，只支持声明式视图 |
+| `app.overlay` | 应用全局浮层；不占布局，需 `ui` 和 `ui.overlay`，支持声明式视图和 iframe |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
 | `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
@@ -143,6 +143,10 @@ iframe 内嵌视图可用 `height` 指定 80–1600px。视图收到项目、章
 `OpenFic.ui` 提供应用内导航、外部 HTTPS 页面、通知、确认、复制、文本下载、当前 UI 上下文和缓存刷新；`OpenFic.assistant.fill` 将文字追加到 Agent 输入框。程序化打开外部页面/剪贴板仍受浏览器平台权限约束。
 
 内嵌 iframe 视图可调用 `OpenFic.ui.resize(height)` 调整自身高度，返回实际采用的高度；要求 `ui` 能力，不能改变其他视图或整个应用。允许 0 高度折叠，通用视图最高 1600px。宿主在窗口尺寸变化时重新应用上限。
+
+常驻 `app.overlay` iframe 的初始尺寸为零，调用 `OpenFic.ui.setOverlayBounds({ x, y, width, height })` 设置相对于视口左上角的像素矩形。尺寸须为非负有限数值，坐标须为有限数值；宿主将矩形限制在视口内并返回实际矩形，视口变化时重新限制。`OpenFic.ready` 返回的上下文包含宿主 `viewport: { width, height }`；视口变化时可通过 `OpenFic.on("ui.viewportChanged", callback)` 获取新尺寸。矩形外的指针事件穿透，矩形内即使内容透明也会拦截事件。插件负责定位、拖动及位置持久化。
+
+全局浮层插件可额外声明 `slot: "app.overlay"` 且 `presentation: "dialog"` 或 `"popover"` 的独立视图，支持 iframe 和声明式渲染；这些视图不会常驻挂载。常驻视图通过 `OpenFic.ui.openOverlay(viewId, anchor?)` 打开同一插件的目标视图，通过 `OpenFic.ui.closeOverlay()` 关闭；声明式视图可在 action effects 中使用对应的 `ui.openOverlay` / `ui.closeOverlay`。浮层必须提供 `anchor: { x, y, width, height }`，以宿主视口左上角为原点，单位为像素；对话框无需锚点。宿主将锚点限制在视口内并处理浮层定位、关闭和焦点。弹层内容可使用 `OpenFic.ui.close()` 或 `ui.close` effect 关闭自身，iframe 可用 `OpenFic.ui.resize()` 调整高度。每个常驻视图同时最多打开一个弹层，打开另一个会替换原弹层；关闭、停用插件或卸载常驻视图时弹层随之移除。
 
 `OpenFic.on` 可订阅 `editor.open/change/selection/close`、`data.changed` 和插件事件。没有 `editor.read` 的视图不会收到编辑器正文；服务端的 `editor.change` hook 也要求读取能力，改写还要求 `editor.write`。异步编辑器结果只在原内容和当前实体仍匹配时应用，避免覆盖用户后续输入。
 

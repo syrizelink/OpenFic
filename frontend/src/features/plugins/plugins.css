@@ -778,6 +778,13 @@ button.plugin-description-expand:hover {
   overflow: visible;
   pointer-events: none;
 }
+.plugin-overlay-anchor {
+  position: fixed;
+  pointer-events: none;
+}
+.plugin-overlays [data-overlay-iframe="true"] > .plugin-frame {
+  background: transparent;
+}
 .plugin-floating-panel-handle {
   display: flex;
   margin-inline: auto;

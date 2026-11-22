@@ -55,10 +55,116 @@ async def test_overlay_permission_and_native_component_contract():
         "id": "iframe",
         "title": "Iframe",
         "slot": "app.overlay",
-        "entry": "panel/index.html",
+        "entry": "assets/index.html",
     }
-    with pytest.raises(ValidationError, match="declarative"):
+    assert Manifest.model_validate(manifest).views[0].renderer == "iframe"
+    manifest["capabilities"].remove("ui.overlay")
+    with pytest.raises(ValidationError, match="ui.overlay"):
         Manifest.model_validate(manifest)
+    manifest["capabilities"].append("ui.overlay")
+    manifest["capabilities"].remove("ui")
+    with pytest.raises(ValidationError, match="ui capability"):
+        Manifest.model_validate(manifest)
+
+
+async def test_application_overlay_dialog_and_popover_view_contract():
+    manifest = json.loads((SOURCE / "plugin.json").read_text())
+    for presentation in ("dialog", "popover"):
+        for renderer in ("iframe", "declarative"):
+            fields = (
+                {"entry": "assets/index.html"}
+                if renderer == "iframe"
+                else {"render": "ui.render", "action": "ui.action"}
+            )
+            manifest["views"].append(
+                {
+                    "id": "popup",
+                    "title": "Popup",
+                    "slot": "app.overlay",
+                    "renderer": renderer,
+                    "presentation": presentation,
+                    "showCloseButton": False,
+                    **fields,
+                }
+            )
+            view = Manifest.model_validate(manifest).views[-1]
+            assert view.presentation == presentation and view.renderer == renderer
+            manifest["views"].pop()
+    manifest["views"][0]["presentation"] = "action"
+    with pytest.raises(ValidationError, match="only dialog or popover"):
+        Manifest.model_validate(manifest)
+    manifest["views"][0].pop("presentation")
+    manifest["views"][0]["showCloseButton"] = False
+    with pytest.raises(ValidationError, match="showCloseButton"):
+        Manifest.model_validate(manifest)
+
+
+async def test_iframe_whale_balance_and_correction(plugin_api, session):
+    host, api, _ = plugin_api
+    await host.install(example_package("deepseek-whale-iframe"))
+    await host.set_enabled("deepseek-whale-iframe", True)
+    url = host.open_view("deepseek-whale-iframe", "widget")
+    assert (await api.get(url)).status_code == 200
+    for name in (
+        "widget.js",
+        "widget.css",
+        "whale.png",
+        "overlay-test.html",
+        "overlay-test.js",
+        "overlay-test.css",
+    ):
+        assert (await api.get(url.rsplit("/", 1)[0] + "/" + name)).status_code == 200
+    for name in ("test-dialog", "test-popover"):
+        assert (
+            await api.get(host.open_view("deepseek-whale-iframe", name))
+        ).status_code == 200
+    await host.configure("deepseek-whale-iframe", {"apiKey": "dummy-key"})
+    total = "100"
+
+    def provider(request):
+        assert request.url.host == "api.deepseek.com"
+        return httpx.Response(
+            200, json={"balance_infos": [{"currency": "CNY", "total_balance": total}]}
+        )
+
+    host.http_transport = httpx.MockTransport(provider)
+    plugin = "deepseek-whale-iframe"
+    assert (await host.call(plugin, "whale.refresh", {}, session))["ok"]
+    total = "90"
+    assert (await host.call(plugin, "whale.refresh", {}, session))["ok"]
+    total = "120"
+    assert (await host.call(plugin, "whale.refresh", {}, session))["ok"]
+    result = await host.call(plugin, "whale.snapshot", {}, session)
+    assert result["balance"]["total"] == 120
+    assert result["today"] == 10
+    assert "dummy-key" not in json.dumps(result)
+    await host.call(plugin, "whale.correct", {"amount": "17.50"}, session)
+    assert (await host.call(plugin, "whale.snapshot", {}, session))["today"] == 17.5
+    usage = {
+        "event_id": "iframe-usage",
+        "session_id": "session",
+        "task_id": "task",
+        "revision_id": "revision",
+        "currency": "USD",
+        "cost": 0.01,
+        "token_input": 100,
+        "token_output": 20,
+    }
+    await observe("usage.recorded", usage, host=host)
+    await observe("usage.recorded", usage, host=host)
+    await observe(
+        "turn.settled",
+        {
+            "session_id": "session",
+            "task_id": "task",
+            "revision_id": "revision",
+            "status": "completed",
+        },
+        host=host,
+    )
+    result = await host.call(plugin, "whale.snapshot", {}, session)
+    assert result["lastTurn"]["cost"] == 0.01
+    assert result["lastTurn"]["tokens"] == 120
 
 
 async def test_assets_are_package_scoped_bounded_and_capability_checked(

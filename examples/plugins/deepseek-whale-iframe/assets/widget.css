@@ -1,0 +1,30 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: "Noto Sans SC", sans-serif; }
+button { font: inherit; }
+.whale { position: absolute; user-select: none; --unit: 1cqw; container-type: inline-size; }
+.bubble { position: absolute; inset: 0 0 auto; width: 100%; aspect-ratio: 1026 / 700; padding: 0; border: 0; background: none; color: #536ba9; cursor: pointer; }
+.bubble svg { width: 100%; height: 100%; overflow: visible; }
+.bubble path, .bubble ellipse { fill: white; stroke: #203170; stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; }
+.bubble-text { position: absolute; left: 44.25%; top: 36%; width: 65%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
+.bubble-text span { font-size: calc(var(--unit) * 6.4); font-weight: 600; }
+.bubble-text strong { font-size: calc(var(--unit) * 10); font-weight: 800; white-space: nowrap; }
+.bubble-text small { margin-top: 3px; font-size: calc(var(--unit) * 4.5); color: #899cca; }
+.pet { position: absolute; right: 0; bottom: 0; width: 59.45%; height: 59.45%; border: 0; padding: 0; background: transparent; cursor: grab; touch-action: none; transform-origin: 50% 100%; transition: transform .22s cubic-bezier(.34,1.56,.64,1); }
+.pet:active { cursor: grabbing; transform: scale(.9, .84); }
+.pet img { width: 100%; height: 100%; object-fit: contain; object-position: right bottom; }
+.whale.left .pet { transform: scaleX(-1); }
+.whale.left .pet:active { transform: scaleX(-.9) scaleY(.84); }
+.whale.left .bubble { transform: scaleX(-1); }
+.whale.left .bubble-text { transform: translate(-50%, -50%) scaleX(-1); }
+.menu-button { position: absolute; right: 4px; top: 41%; width: 27px; height: 27px; border: 0; border-radius: 6px; color: white; background: rgba(32,49,112,.85); cursor: pointer; }
+.menu { position: absolute; z-index: 2; overflow: auto; padding: 10px 12px; border: 1px solid rgba(32,49,112,.35); border-radius: 10px; background: rgba(255,255,255,.97); color: #203170; box-shadow: 0 6px 18px #0003; font-size: 12px; }
+.menu[hidden] { display: none; }
+.menu-title { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; }
+.menu label { display: flex; align-items: center; gap: 6px; margin: 9px 0; }
+.menu input[type="range"] { flex: 1; min-width: 0; accent-color: #203170; }
+.menu input[type="checkbox"] { accent-color: #203170; }
+.menu input[type="number"] { width: 65px; min-width: 0; }
+.menu button { padding: 4px 8px; border: 1px solid #20317055; border-radius: 6px; background: #20317010; color: #203170; cursor: pointer; }
+.menu-actions { display: flex; gap: 6px; }
+.menu small { display: block; margin-top: 6px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .pet { transition: none; } }

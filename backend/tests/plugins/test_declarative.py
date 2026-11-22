@@ -609,7 +609,7 @@ async def test_editor_slot_presentation_and_icon_contract() -> None:
             entry="panel/index.html",
             icon="not-a-lucide-icon",
         )
-    with pytest.raises(ValidationError, match=r"only supported in editor\.toolbar"):
+    with pytest.raises(ValidationError, match="presentation is not supported"):
         View(
             id="invalid",
             title="Invalid",
@@ -624,7 +624,7 @@ async def test_editor_overlay_close_button() -> None:
         {**fields, "slot": "editor.toolbar", "showCloseButton": False}
     )
     assert view.model_dump()["showCloseButton"] is False
-    with pytest.raises(ValidationError, match=r"only supported in editor\.toolbar"):
+    with pytest.raises(ValidationError, match="showCloseButton requires"):
         View.model_validate({**fields, "showCloseButton": False})
 
 

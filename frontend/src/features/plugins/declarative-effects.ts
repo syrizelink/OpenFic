@@ -10,6 +10,8 @@ const methods = new Set([
   "editor.redo",
   "ui.navigate",
   "ui.close",
+  "ui.openOverlay",
+  "ui.closeOverlay",
   "ui.openExternal",
   "ui.toast",
   "ui.confirm",
