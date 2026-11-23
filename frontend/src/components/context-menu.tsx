@@ -32,7 +32,7 @@ export interface ContextMenuItem {
   disabled?: boolean;
   /** 危险操作（显示红色） */
   danger?: boolean;
-  onClick: () => void;
+  onClick: (anchor: { x: number; y: number; width: number; height: number }) => void;
 }
 
 /** 菜单位置 */
@@ -470,11 +470,12 @@ export function ContextMenu({
 
   // 点击菜单项
   const handleItemClick = useCallback(
-    (item: ContextMenuItem, event: { stopPropagation: () => void }) => {
+    (item: ContextMenuItem, event: { stopPropagation: () => void; currentTarget: HTMLElement }) => {
       event.stopPropagation();
       if (item.disabled) return;
       try {
-        item.onClick();
+        const { x, y, width, height } = event.currentTarget.getBoundingClientRect();
+        item.onClick({ x, y, width, height });
       } finally {
         onClose();
       }

@@ -55,12 +55,26 @@ async def test_selection_menu_requires_explicit_source_trigger_and_permission():
         View.model_validate({**view, "slot": "selection.menu"})
 
 
-@pytest.mark.parametrize("slot", [
-    "menu.character", "menu.chapter", "menu.volume", "menu.note",
-    "menu.note-category", "menu.world-info-entry",
-])
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "menu.character",
+        "menu.chapter",
+        "menu.volume",
+        "menu.note",
+        "menu.note-category",
+        "menu.world-info-entry",
+    ],
+)
 async def test_list_menu_requires_bound_declarative_action(slot):
-    view = {"id": "action", "title": "Action", "slot": slot, "renderer": "declarative", "presentation": "action", "action": "handle"}
+    view = {
+        "id": "action",
+        "title": "Action",
+        "slot": slot,
+        "renderer": "declarative",
+        "presentation": "action",
+        "action": "handle",
+    }
     assert View.model_validate(view).slot == slot
     with pytest.raises(ValidationError):
         View.model_validate({**view, "presentation": "dialog"})
@@ -240,7 +254,7 @@ async def test_invalidate_ui_scopes_notifications_to_plugin_views(
     emit.assert_not_called()
 
 
-@pytest.mark.parametrize("presentation", ["none", "popover", "dialog"])
+@pytest.mark.parametrize("presentation", ["none", "action"])
 async def test_statusbar_view_contract(presentation):
     fields = {
         "id": "status",
@@ -250,7 +264,7 @@ async def test_statusbar_view_contract(presentation):
         "presentation": presentation,
     }
     if presentation != "none":
-        fields["entry"] = "panel/index.html"
+        fields.update(renderer="declarative", action="ui.action")
     assert View.model_validate(fields).presentation == presentation
     with pytest.raises(ValidationError):
         View.model_validate({**fields, "status": "sdk.storage.get"})
@@ -627,28 +641,27 @@ async def test_editor_slot_presentation_and_icon_contract() -> None:
         title="Editor",
         slot="editor.toolbar",
         renderer="declarative",
-        render="ui.render",
         action="ui.action",
         icon="cloud-upload",
-        presentation="popover",
+        presentation="action",
     )
     assert view.icon == "CloudUpload"
-    assert view.presentation == "popover"
-    assert (
+    assert view.presentation == "action"
+    with pytest.raises(ValidationError, match="Toolbar views require action"):
         View(
             id="default",
             title="Default",
             slot="editor.toolbar",
             entry="panel/index.html",
-        ).presentation
-        is None
-    )
+        )
     with pytest.raises(ValidationError, match="Unknown Lucide"):
         View(
             id="invalid",
             title="Invalid",
             slot="editor.toolbar",
-            entry="panel/index.html",
+            renderer="declarative",
+            presentation="action",
+            action="ui.action",
             icon="not-a-lucide-icon",
         )
     with pytest.raises(ValidationError, match="presentation is not supported"):
@@ -660,10 +673,15 @@ async def test_editor_slot_presentation_and_icon_contract() -> None:
         )
 
 
-async def test_editor_overlay_close_button() -> None:
+async def test_overlay_close_button() -> None:
     fields = {"id": "editor", "title": "Editor", "entry": "panel/index.html"}
     view = View.model_validate(
-        {**fields, "slot": "editor.toolbar", "showCloseButton": False}
+        {
+            **fields,
+            "slot": "app.overlay",
+            "presentation": "dialog",
+            "showCloseButton": False,
+        }
     )
     assert view.model_dump()["showCloseButton"] is False
     with pytest.raises(ValidationError, match="showCloseButton requires"):
@@ -671,7 +689,13 @@ async def test_editor_overlay_close_button() -> None:
 
 
 async def test_editor_toolbar_placement() -> None:
-    fields = {"id": "editor", "title": "Editor", "entry": "panel/index.html"}
+    fields = {
+        "id": "editor",
+        "title": "Editor",
+        "renderer": "declarative",
+        "presentation": "action",
+        "action": "ui.action",
+    }
     for placement in ("left-end", "right-start", "right-end", None):
         view = View.model_validate(
             {**fields, "slot": "editor.toolbar", "placement": placement}

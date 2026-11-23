@@ -131,19 +131,18 @@ class View(Contract):
                 raise ValueError("Selection menu requires action presentation")
         elif self.slot.startswith("menu.") and self.presentation != "action":
             raise ValueError("Menu views require action presentation")
-        if self.slot != "menu.selection" and (self.selectionTriggers is not None or self.selectionSources is not None):
+        if self.slot == "editor.toolbar" and self.presentation != "action":
+            raise ValueError("Toolbar views require action presentation")
+        if self.slot != "menu.selection" and (
+            self.selectionTriggers is not None or self.selectionSources is not None
+        ):
             raise ValueError("Selection menu options require menu.selection")
         if self.placement is not None and self.slot != "editor.toolbar":
             raise ValueError("placement is only supported in editor.toolbar")
         if self.slot == "settings" and (not self.icon or not self.title.strip()):
             raise ValueError("Settings views require a title and an icon")
-        if (
-            self.showCloseButton is not None
-            and self.slot not in {"editor.toolbar", "statusbar"}
-            and not (
-                self.slot == "app.overlay"
-                and self.presentation in {"dialog", "popover"}
-            )
+        if self.showCloseButton is not None and not (
+            self.slot == "app.overlay" and self.presentation in {"dialog", "popover"}
         ):
             raise ValueError("showCloseButton requires a dialog or popover view")
         if self.icon is not None and (
@@ -159,8 +158,12 @@ class View(Contract):
         if self.presentation is not None and self.slot not in {
             "editor.toolbar",
             "menu.selection",
-            "menu.character", "menu.chapter", "menu.volume", "menu.note",
-            "menu.note-category", "menu.world-info-entry",
+            "menu.character",
+            "menu.chapter",
+            "menu.volume",
+            "menu.note",
+            "menu.note-category",
+            "menu.world-info-entry",
             "statusbar",
             "app.overlay",
         }:
@@ -180,10 +183,8 @@ class View(Contract):
                 raise ValueError(
                     "Statusbar icons must be returned by the status command"
                 )
-            if self.presentation not in {"none", "popover", "dialog"}:
-                raise ValueError(
-                    "Statusbar requires none, popover or dialog presentation"
-                )
+            if self.presentation not in {"none", "action"}:
+                raise ValueError("Statusbar requires none or action presentation")
             if self.presentation == "none":
                 if (
                     self.entry
@@ -201,11 +202,12 @@ class View(Contract):
             )
         if self.presentation == "action":
             if (
-                self.slot != "editor.toolbar" and not self.slot.startswith("menu.")
+                self.slot not in {"editor.toolbar", "statusbar"}
+                and not self.slot.startswith("menu.")
                 or self.renderer != "declarative"
             ):
                 raise ValueError(
-                    "Action buttons require a declarative editor.toolbar or menu view"
+                    "Action buttons require a declarative toolbar, statusbar or menu view"
                 )
             if self.entry is not None or self.render is not None or not self.action:
                 raise ValueError(

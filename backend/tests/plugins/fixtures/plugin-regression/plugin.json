@@ -9,6 +9,7 @@
   ],
   "capabilities": [
     "ui",
+    "ui.overlay",
     "editor.read",
     "editor.write",
     "agent.hooks"
@@ -17,8 +18,17 @@
     {
       "id": "editor",
       "title": "Regression probe",
-      "entry": "panel/index.html",
       "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "presentation": "action",
+      "action": "open"
+    },
+    {
+      "id": "editor-panel",
+      "title": "Regression probe",
+      "entry": "panel/index.html",
+      "slot": "app.overlay",
+      "presentation": "popover",
       "height": 80
     }
   ]

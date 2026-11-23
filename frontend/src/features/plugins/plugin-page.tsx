@@ -14,8 +14,6 @@ import { frontendCall } from "./frontend-host";
 
 import "./plugins.css";
 
-export type OverlayRequest = (method: string, params: Record<string, unknown>) => void;
-
 export function PluginPage() {
   const { openSettings } = useAppShell();
   const { pluginId, viewId } = useParams();
@@ -63,7 +61,6 @@ export function PluginFrame({
   fullPage,
   onHeightChange,
   onRequestClose,
-  onOverlayRequest,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
@@ -72,7 +69,6 @@ export function PluginFrame({
   fullPage?: boolean;
   onHeightChange?: (height: number) => void;
   onRequestClose?: () => void;
-  onOverlayRequest?: OverlayRequest;
 }) {
   if (view.renderer === "declarative")
     return (
@@ -84,7 +80,6 @@ export function PluginFrame({
         embedded={embedded}
         fullPage={fullPage}
         onRequestClose={onRequestClose}
-        onOverlayRequest={onOverlayRequest}
       />
     );
   return (
@@ -97,7 +92,6 @@ export function PluginFrame({
       fullPage={fullPage}
       onHeightChange={onHeightChange}
       onRequestClose={onRequestClose}
-      onOverlayRequest={onOverlayRequest}
     />
   );
 }
@@ -110,7 +104,6 @@ function IframeView({
   fullPage = false,
   onHeightChange,
   onRequestClose,
-  onOverlayRequest,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
@@ -119,7 +112,6 @@ function IframeView({
   fullPage?: boolean;
   onHeightChange?: (height: number) => void;
   onRequestClose?: () => void;
-  onOverlayRequest?: OverlayRequest;
 }) {
   const { t, i18n } = useTranslation();
   const { openSettings } = useAppShell();
@@ -258,71 +250,60 @@ function IframeView({
         }
         inFlight++;
         const operation =
-          message.method === "host.ui.openOverlay" || message.method === "host.ui.closeOverlay"
+          message.method === "host.ui.setOverlayBounds"
             ? Promise.resolve().then(() => {
                 if (
                   !isOverlay ||
-                  !onOverlayRequest ||
-                  !capabilityKey.split(",").includes("ui") ||
-                  !capabilityKey.split(",").includes("ui.overlay")
+                  !capabilityKey.split(",").includes("ui.overlay") ||
+                  !capabilityKey.split(",").includes("ui")
                 )
                   throw new Error(
-                    "Opening overlays requires a mounted app.overlay view with ui and ui.overlay",
+                    "Overlay bounds require an app.overlay view with ui and ui.overlay",
                   );
-                onOverlayRequest(message.method.slice(5), message.params);
+                const { x, y, width, height } = message.params;
+                if (
+                  ![x, y, width, height].every(
+                    (value) => typeof value === "number" && Number.isFinite(value),
+                  ) ||
+                  width < 0 ||
+                  height < 0
+                )
+                  throw new Error(
+                    "Overlay bounds must contain finite coordinates and non-negative dimensions",
+                  );
+                requestedBounds.current = { x, y, width, height };
+                requestedHeight.current = null;
+                return fitOverlay();
               })
-            : message.method === "host.ui.setOverlayBounds"
+            : message.method === "host.ui.resize"
               ? Promise.resolve().then(() => {
-                  if (
-                    !isOverlay ||
-                    !capabilityKey.split(",").includes("ui.overlay") ||
-                    !capabilityKey.split(",").includes("ui")
-                  )
-                    throw new Error(
-                      "Overlay bounds require an app.overlay view with ui and ui.overlay",
-                    );
-                  const { x, y, width, height } = message.params;
-                  if (
-                    ![x, y, width, height].every(
-                      (value) => typeof value === "number" && Number.isFinite(value),
-                    ) ||
-                    width < 0 ||
-                    height < 0
-                  )
-                    throw new Error(
-                      "Overlay bounds must contain finite coordinates and non-negative dimensions",
-                    );
-                  requestedBounds.current = { x, y, width, height };
-                  requestedHeight.current = null;
-                  return fitOverlay();
+                  if (!capabilityKey.split(",").includes("ui"))
+                    throw new Error("Plugin has not declared ui");
+                  if (!embedded || (!isOverlay && !heightChange.current))
+                    throw new Error("Resizing requires an embedded plugin view");
+                  const height = message.params.height;
+                  if (typeof height !== "number" || !Number.isFinite(height))
+                    throw new Error("Plugin height must be a finite number");
+                  requestedHeight.current = height;
+                  return resizeView(height);
                 })
-              : message.method === "host.ui.resize"
-                ? Promise.resolve().then(() => {
-                    if (!capabilityKey.split(",").includes("ui"))
-                      throw new Error("Plugin has not declared ui");
-                    if (!embedded || (!isOverlay && !heightChange.current))
-                      throw new Error("Resizing requires an embedded plugin view");
-                    const height = message.params.height;
-                    if (typeof height !== "number" || !Number.isFinite(height))
-                      throw new Error("Plugin height must be a finite number");
-                    requestedHeight.current = height;
-                    return resizeView(height);
-                  })
-                : message.method.startsWith("host.")
-                  ? frontendCall(
-                      message.method.slice(5),
-                      message.params,
-                      capabilityKey.split(","),
-                      navigate,
-                      plugin.id,
-                      onRequestClose,
-                    )
-                  : apiClient
-                      .post(`/plugins/${plugin.id}/rpc`, {
-                        method: message.method,
-                        params: message.params,
-                      })
-                      .then(({ data }) => data.result);
+              : message.method.startsWith("host.")
+                ? frontendCall(
+                    message.method.slice(5),
+                    message.params,
+                    capabilityKey.split(","),
+                    navigate,
+                    plugin.id,
+                    onRequestClose,
+                    undefined,
+                    { ...JSON.parse(extraContext), projectId, language, theme, slot: view.slot },
+                  )
+                : apiClient
+                    .post(`/plugins/${plugin.id}/rpc`, {
+                      method: message.method,
+                      params: message.params,
+                    })
+                    .then(({ data }) => data.result);
         void operation
           .then((result) => {
             if (!disposed) reply({ type: "result", id: message.id, result });
@@ -359,7 +340,6 @@ function IframeView({
     embedded,
     isOverlay,
     onRequestClose,
-    onOverlayRequest,
   ]);
   const { data: viewUrl, error: viewError } = useQuery({
     queryKey: ["plugin-view-url", plugin.id, plugin.version, view.id, configuration],

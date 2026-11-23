@@ -25,7 +25,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 async def test_quote_prompt_is_applied_only_to_its_own_message(monkeypatch):
     from app.agent_runtime.graph.orchestrator.graph import _primary_messages
-    from app.agent_runtime.context.helpers.canonical_mentions import compile_canonical_mentions
+    from app.agent_runtime.context.helpers.canonical_mentions import (
+        compile_canonical_mentions,
+    )
 
     plugin = SimpleNamespace(enabled=True, registration=object())
     monkeypatch.setattr(
@@ -48,7 +50,10 @@ async def test_quote_prompt_is_applied_only_to_its_own_message(monkeypatch):
     compiled = await compile_canonical_mentions(f"请看 {mention}")
     assert mention in compiled
     messages = await _primary_messages({"user_request": compiled, "messages": []})
-    assert messages[-1].content == "请看 分析这段内容\n\n@selection:引用\n```\n第一行\n第二行\n```\n"
+    assert (
+        messages[-1].content
+        == "请看 分析这段内容\n\n@selection:引用\n```\n第一行\n第二行\n```\n"
+    )
     assert captured.await_args.args[1]["quotes"] == [payload]
 
     mixed = await compile_canonical_mentions(
@@ -111,15 +116,47 @@ async def test_selection_example_package_and_effect_chain(plugin_api):
     await host.set_enabled("selection-demo", True)
     await host.configure("selection-demo", {"quotePrompt": "测试专用提示词"})
     views = {view.id: view for view in host.get("selection-demo").manifest.views}
-    sources = {"chapter", "note", "character", "world-info", "agent-message", "agent-input"}
-    assert set(views["inspect-selection"].selectionSources) == sources - {"agent-message"}
+    sources = {
+        "chapter",
+        "note",
+        "character",
+        "world-info",
+        "agent-message",
+        "agent-input",
+    }
+    assert set(views["inspect-selection"].selectionSources) == sources - {
+        "agent-message"
+    }
     assert views["inspect-message"].selectionSources == ["agent-message"]
     assert views["inspect-message"].icon == "Search"
     assert views["quote"].icon == "Quote"
-    assert all(set(views[name].selectionSources) == sources for name in ("inspect-contextmenu", "quote"))
+    assert all(
+        set(views[name].selectionSources) == sources
+        for name in ("inspect-contextmenu", "quote")
+    )
     assert views["inspect-selection"].selectionTriggers == ["selection"]
     assert views["inspect-contextmenu"].selectionTriggers == ["contextmenu"]
     assert set(views["quote"].selectionTriggers) == {"selection", "contextmenu"}
+    target = {"kind": "menu.chapter", "ids": ["chapter-1"], "projectId": "project-1"}
+    response = await api.post(
+        "/api/v1/plugins/selection-demo/views/inspect-chapter/action",
+        json={
+            "id": "inspect-chapter",
+            "event": "press",
+            "value": target,
+            "context": {"menuTarget": target},
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["effects"] == [
+        {"method": "ui.openOverlay", "params": {"viewId": "chapter-dialog"}}
+    ]
+    response = await api.post(
+        "/api/v1/plugins/selection-demo/views/chapter-dialog/render",
+        json={"context": {"menuTarget": target}},
+    )
+    assert response.status_code == 200, response.text
+    assert "chapter-1" in response.text
     selection = {
         "text": "被选中的文字",
         "source": {"kind": "chapter", "id": "chapter-1", "projectId": "project-1"},
@@ -128,7 +165,12 @@ async def test_selection_example_package_and_effect_chain(plugin_api):
     }
     context = {"selection": selection, "projectId": "project-1"}
 
-    for view_id in ("inspect-selection", "inspect-message", "inspect-contextmenu", "quote"):
+    for view_id in (
+        "inspect-selection",
+        "inspect-message",
+        "inspect-contextmenu",
+        "quote",
+    ):
         current_selection = (
             {**selection, "source": {"kind": "agent-message", "id": "message-1"}}
             if view_id == "inspect-message"
@@ -136,15 +178,34 @@ async def test_selection_example_package_and_effect_chain(plugin_api):
         )
         current_context = {"selection": current_selection, "projectId": "project-1"}
         url = f"/api/v1/plugins/selection-demo/views/{view_id}/action"
-        response = await api.post(url, json={"id": view_id, "event": "press", "value": current_selection, "context": current_context})
+        response = await api.post(
+            url,
+            json={
+                "id": view_id,
+                "event": "press",
+                "value": current_selection,
+                "context": current_context,
+            },
+        )
         assert response.status_code == 200, response.text
         first = response.json()["result"]
         assert first["effects"] == [{"method": "selection.read"}]
-        followup = await api.post(url, json={"id": first["next"], "event": "change", "value": [current_selection], "context": current_context})
+        followup = await api.post(
+            url,
+            json={
+                "id": first["next"],
+                "event": "change",
+                "value": [current_selection],
+                "context": current_context,
+            },
+        )
         assert followup.status_code == 200, followup.text
         effects = followup.json()["result"]["effects"]
         if view_id == "quote":
-            assert effects[0] == {"method": "assistant.quote", "params": {"prompt": "测试专用提示词"}}
+            assert effects[0] == {
+                "method": "assistant.quote",
+                "params": {"prompt": "测试专用提示词"},
+            }
         else:
             assert current_selection["source"]["id"] in effects[0]["params"]["text"]
             assert "被选中的文字" in effects[0]["params"]["text"]
@@ -152,16 +213,50 @@ async def test_selection_example_package_and_effect_chain(plugin_api):
     no_target = {key: value for key, value in selection.items() if key != "target"}
     rejected = await api.post(
         "/api/v1/plugins/selection-demo/views/quote/action",
-        json={"id": "quote-ready", "event": "change", "value": [no_target], "context": {"selection": no_target}},
+        json={
+            "id": "quote-ready",
+            "event": "change",
+            "value": [no_target],
+            "context": {"selection": no_target},
+        },
     )
     assert rejected.status_code == 422
     assert "目标 Agent 会话" in rejected.text
     mismatch = await api.post(
         "/api/v1/plugins/selection-demo/views/quote/action",
-        json={"id": "quote-ready", "event": "change", "value": [{**selection, "text": "不同"}], "context": context},
+        json={
+            "id": "quote-ready",
+            "event": "change",
+            "value": [{**selection, "text": "不同"}],
+            "context": context,
+        },
     )
     assert mismatch.status_code == 422
     assert "快照不一致" in mismatch.text
+
+
+@pytest.mark.parametrize(
+    ("plugin_id", "view_id", "overlay_id"),
+    [
+        ("prompt-elements", "editor", "editor-panel"),
+        ("google-drive-sync", "toolbar", "toolbar-panel"),
+        ("devtools-demo", "toolbar", "toolbar-panel"),
+    ],
+)
+async def test_example_toolbar_explicitly_opens_overlay(plugin_api, plugin_id, view_id, overlay_id):
+    host, api, _ = plugin_api
+    source = Path(__file__).resolve().parents[3] / "examples/plugins" / plugin_id
+    await host.install(build_package(source))
+    await host.set_enabled(plugin_id, True)
+    anchor = {"x": 10, "y": 20, "width": 30, "height": 40}
+    response = await api.post(
+        f"/api/v1/plugins/{plugin_id}/views/{view_id}/action",
+        json={"id": view_id, "event": "press", "context": {"anchor": anchor}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["effects"] == [
+        {"method": "ui.openOverlay", "params": {"viewId": overlay_id, "anchor": anchor}}
+    ]
 
 
 def bundle(manifest, backend="def register(host): pass", files=None):
@@ -189,7 +284,19 @@ def bundle(manifest, backend="def register(host): pass", files=None):
 async def test_list_menu_action_receives_target(plugin_api):
     host, api, _ = plugin_api
     package = bundle(
-        {"capabilities": ["ui"], "views": [{"id": "inspect", "title": "Inspect", "slot": "menu.character", "renderer": "declarative", "presentation": "action", "action": "inspect"}]},
+        {
+            "capabilities": ["ui"],
+            "views": [
+                {
+                    "id": "inspect",
+                    "title": "Inspect",
+                    "slot": "menu.character",
+                    "renderer": "declarative",
+                    "presentation": "action",
+                    "action": "inspect",
+                }
+            ],
+        },
         "def register(host):\n    host.register_command('inspect', lambda context, params: params['context']['menuTarget'])\n",
     )
     await host.install(package)
@@ -197,7 +304,12 @@ async def test_list_menu_action_receives_target(plugin_api):
     target = {"kind": "menu.character", "ids": ["c1", "c2"], "projectId": "p1"}
     response = await api.post(
         "/api/v1/plugins/sdk-test/views/inspect/action",
-        json={"id": "inspect", "event": "press", "value": target, "context": {"projectId": "p1", "menuTarget": target}},
+        json={
+            "id": "inspect",
+            "event": "press",
+            "value": target,
+            "context": {"projectId": "p1", "menuTarget": target},
+        },
     )
     assert response.status_code == 200, response.text
     assert response.json()["result"] == target

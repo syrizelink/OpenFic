@@ -43,7 +43,9 @@ def mock_repository_manifest(
         f"https://raw.githubusercontent.com/owner/repo/{REPOSITORY_COMMIT}/plugin.json"
     ).respond(
         status_code=status_code,
-        content=json.dumps(package_manifest()).encode() if manifest is None else manifest,
+        content=json.dumps(package_manifest()).encode()
+        if manifest is None
+        else manifest,
     )
 
 
@@ -107,7 +109,13 @@ def package(
         manifest["views"][0]["icon"] = sidebar_icon
     if settings_icon is not None:
         manifest["views"].append(
-            {"id": "settings", "title": "Settings", "slot": "settings", "entry": "panel/index.html", "icon": settings_icon}
+            {
+                "id": "settings",
+                "title": "Settings",
+                "slot": "settings",
+                "entry": "panel/index.html",
+                "icon": settings_icon,
+            }
         )
     if capabilities is not None:
         manifest["capabilities"] = capabilities
@@ -124,7 +132,7 @@ def package(
             backend
             if backend is not None
             else (
-                'async def projects(ctx, params): return await ctx.data.list_projects()\n'
+                "async def projects(ctx, params): return await ctx.data.list_projects()\n"
                 'def register(host): host.register_command("projects.list", projects)\n'
             ),
         )
@@ -438,16 +446,34 @@ async def test_sidebar_icon_uses_declared_package_image(plugin_api, sidebar_icon
     ).status_code == 404
 
 
-@pytest.mark.parametrize("icon", ["images/settings.svg", "images/missing.svg", "images/invalid.png", "../outside.svg", "https://example.com/icon.svg"])
+@pytest.mark.parametrize(
+    "icon",
+    [
+        "images/settings.svg",
+        "images/missing.svg",
+        "images/invalid.png",
+        "../outside.svg",
+        "https://example.com/icon.svg",
+    ],
+)
 async def test_settings_view_icon_uses_package_image(plugin_api, icon):
     _, api, _ = plugin_api
     svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>'
-    response = await install(api, package(settings_icon=icon, icon="images/settings.svg", extra_files={"images/settings.svg": svg, "images/invalid.png": b"invalid"}))
+    response = await install(
+        api,
+        package(
+            settings_icon=icon,
+            icon="images/settings.svg",
+            extra_files={"images/settings.svg": svg, "images/invalid.png": b"invalid"},
+        ),
+    )
     if icon.startswith(("../", "https:")):
         assert response.status_code == 400
         return
     assert response.status_code == 201, response.text
-    image = await api.get("/api/v1/plugins/project-statistics/icon", params={"view_id": "settings"})
+    image = await api.get(
+        "/api/v1/plugins/project-statistics/icon", params={"view_id": "settings"}
+    )
     if icon == "images/settings.svg":
         assert image.status_code == 200 and image.content == svg
         assert "sandbox" in image.headers["content-security-policy"]
@@ -972,7 +998,7 @@ async def test_reload_installed_plugin_reads_manifest_and_preserves_configuratio
     previous = host.get("project-statistics")
     manifest_path = host.root / "project-statistics" / "plugin.json"
     manifest = json.loads(manifest_path.read_text())
-    manifest["views"][0].update(slot="editor.toolbar", placement="right-start")
+    manifest["views"][0]["title"] = "Reloaded"
     manifest_path.write_text(json.dumps(manifest))
 
     assert (await api.post(f"{url}/reload")).status_code == 204
@@ -981,7 +1007,7 @@ async def test_reload_installed_plugin_reads_manifest_and_preserves_configuratio
     description = host.describe(current)
     assert description["reload_revision"] == 1
     assert description["configuration"]["targetWords"] == 800
-    assert description["views"][0]["placement"] == "right-start"
+    assert description["views"][0]["title"] == "Reloaded"
 
     manifest_path.write_text("{")
     assert (await api.post(f"{url}/reload")).status_code == 400

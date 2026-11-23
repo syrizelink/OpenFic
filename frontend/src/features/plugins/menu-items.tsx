@@ -48,7 +48,7 @@ export function usePluginMenuItems(target: PluginMenuTarget | null): ContextMenu
                 ),
               }
             : {}),
-          onClick: () => {
+          onClick: (anchor) => {
             const context = {
               projectId: target.projectId,
               pluginId: plugin.id,
@@ -58,6 +58,7 @@ export function usePluginMenuItems(target: PluginMenuTarget | null): ContextMenu
               slot: view.slot,
               sdkVersion: "2.0.0",
               menuTarget: target,
+              anchor,
             };
             async function send(id: string, value: unknown, event: "press" | "change") {
               const { data } = await apiClient.post<{ result: unknown }>(
@@ -71,7 +72,16 @@ export function usePluginMenuItems(target: PluginMenuTarget | null): ContextMenu
                 runUIEffects(
                   result,
                   (method, params) =>
-                    frontendCall(method, params, plugin.capabilities, navigate, plugin.id),
+                    frontendCall(
+                      method,
+                      params,
+                      plugin.capabilities,
+                      navigate,
+                      plugin.id,
+                      undefined,
+                      undefined,
+                      context,
+                    ),
                   (id, values) => send(id, values, "change"),
                   () => true,
                 ),

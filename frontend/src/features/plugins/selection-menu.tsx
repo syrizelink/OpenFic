@@ -204,7 +204,12 @@ export function SelectionMenu() {
   }, [plugins]);
 
   const run = useCallback(
-    async (plugin: InstalledPlugin, view: PluginView, selection: SelectionSnapshot) => {
+    async (
+      plugin: InstalledPlugin,
+      view: PluginView,
+      selection: SelectionSnapshot,
+      anchor: { x: number; y: number; width: number; height: number },
+    ) => {
       const context = {
         projectId: selection.source.projectId ?? selection.target?.projectId ?? null,
         pluginId: plugin.id,
@@ -214,6 +219,7 @@ export function SelectionMenu() {
         slot: view.slot,
         sdkVersion: "2.0.0",
         selection,
+        anchor,
       };
       async function send(id: string, value: unknown, event: "press" | "change") {
         const { data } = await apiClient.post<{ result: unknown }>(
@@ -235,6 +241,7 @@ export function SelectionMenu() {
               plugin.id,
               undefined,
               selection,
+              context,
             ),
           (id, values) => send(id, values, "change"),
           () => true,
@@ -267,7 +274,7 @@ export function SelectionMenu() {
         detail.items.push({
           id: `${plugin.id}:${view.id}`,
           label: view.title,
-          onClick: () => void run(plugin, view, selection),
+          onClick: (anchor) => void run(plugin, view, selection, anchor),
         });
       }
     };
@@ -308,7 +315,8 @@ export function SelectionMenu() {
                       ),
                     }
                   : {}),
-                onClick: () => void run(plugin, view, menu.selection),
+                onClick: (anchor: Parameters<ContextMenuItem["onClick"]>[0]) =>
+                  void run(plugin, view, menu.selection, anchor),
               })),
               ...(menu.trigger === "contextmenu"
                 ? [

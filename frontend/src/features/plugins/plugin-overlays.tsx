@@ -1,11 +1,11 @@
 import { Dialog, IconButton, Popover } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { pluginsQueryOptions, type InstalledPlugin, type PluginView } from "./api";
-import { PluginFrame, type OverlayRequest } from "./plugin-page";
+import { PluginFrame } from "./plugin-page";
 
 interface Anchor {
   x: number;
@@ -17,6 +17,7 @@ interface Anchor {
 interface ActiveOverlay {
   view: PluginView;
   anchor?: Anchor;
+  context: Record<string, unknown>;
 }
 
 export function PluginOverlays() {
@@ -28,26 +29,21 @@ export function PluginOverlays() {
     >
       {plugins
         .filter((plugin) => plugin.status === "enabled")
-        .flatMap((plugin) =>
-          plugin.views
-            .filter((view) => view.slot === "app.overlay" && !view.presentation)
-            .map((view) => (
-              <OverlayOwner
-                key={`${plugin.id}:${plugin.version}:${plugin.reload_revision ?? 0}:${view.id}`}
-                plugin={plugin}
-                view={view}
-              />
-            )),
-        )}
+        .map((plugin) => (
+          <OverlayOwner
+            key={`${plugin.id}:${plugin.version}:${plugin.reload_revision ?? 0}`}
+            plugin={plugin}
+          />
+        ))}
     </div>
   );
 }
 
-function OverlayOwner({ plugin, view }: { plugin: InstalledPlugin; view: PluginView }) {
+function OverlayOwner({ plugin }: { plugin: InstalledPlugin }) {
   const [active, setActive] = useState<ActiveOverlay | null>(null);
   const close = useCallback(() => setActive(null), []);
-  const request = useCallback<OverlayRequest>(
-    (method, params) => {
+  const request = useCallback(
+    (method: string, params: Record<string, unknown>, context: Record<string, unknown>) => {
       if (method === "ui.closeOverlay") {
         close();
         return;
@@ -88,10 +84,33 @@ function OverlayOwner({ plugin, view }: { plugin: InstalledPlugin; view: PluginV
       }
       if (target.presentation === "popover" && !anchor)
         throw new Error("Popover requires an anchor");
-      setActive({ view: target, anchor });
+      setActive({ view: target, anchor, context });
     },
     [plugin, close],
   );
+  useEffect(() => {
+    function handleRequest(event: Event) {
+      const detail = (
+        event as CustomEvent<{
+          pluginId: string;
+          method: string;
+          params: Record<string, unknown>;
+          context: Record<string, unknown>;
+          error?: unknown;
+          handled: boolean;
+        }>
+      ).detail;
+      if (detail.pluginId !== plugin.id) return;
+      detail.handled = true;
+      try {
+        request(detail.method, detail.params, detail.context);
+      } catch (error) {
+        detail.error = error;
+      }
+    }
+    window.addEventListener("openfic:plugin-overlay", handleRequest);
+    return () => window.removeEventListener("openfic:plugin-overlay", handleRequest);
+  }, [plugin.id, request]);
   const current =
     active &&
     plugin.views.find(
@@ -102,18 +121,23 @@ function OverlayOwner({ plugin, view }: { plugin: InstalledPlugin; view: PluginV
     );
   return (
     <>
-      <PluginFrame
-        plugin={plugin}
-        view={view}
-        embedded
-        onOverlayRequest={request}
-      />
+      {plugin.views
+        .filter((view) => view.slot === "app.overlay" && !view.presentation)
+        .map((view) => (
+          <PluginFrame
+            key={view.id}
+            plugin={plugin}
+            view={view}
+            embedded
+          />
+        ))}
       {active && current && (
         <OverlayContent
           key={current.id}
           plugin={plugin}
           view={current}
           anchor={active.anchor}
+          context={active.context}
           onClose={close}
         />
       )}
@@ -125,11 +149,13 @@ function OverlayContent({
   plugin,
   view,
   anchor,
+  context,
   onClose,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
   anchor?: Anchor;
+  context: Record<string, unknown>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -145,6 +171,7 @@ function OverlayContent({
           <PluginFrame
             plugin={plugin}
             view={view}
+            context={context}
             embedded
             onHeightChange={setHeight}
             onRequestClose={onClose}
@@ -202,7 +229,7 @@ function OverlayContent({
       <Popover.Content
         className="editor-plugin-overlay"
         aria-label={view.title}
-        side="top"
+        side={context.slot === "editor.toolbar" ? "bottom" : "top"}
         align="end"
         collisionPadding={12}
         width="380px"

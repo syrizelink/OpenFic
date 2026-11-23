@@ -8,7 +8,7 @@ import { apiClient, getApiBaseUrl } from "@/lib/api-client";
 import "@/features/app-shell/components/status-bar.css";
 
 import { pluginsQueryOptions, type InstalledPlugin, type PluginView } from "./api";
-import { EditorPluginOverlayButton } from "./editor-plugin-actions";
+import { EditorPluginCommandButton } from "./editor-plugin-actions";
 import { PluginIcon } from "./plugin-icon";
 import { shouldRefreshPluginView } from "./plugin-refresh";
 
@@ -121,20 +121,12 @@ export function PluginStatusItem({ plugin, view }: { plugin: InstalledPlugin; vi
       </span>
     );
   return (
-    <EditorPluginOverlayButton
+    <EditorPluginCommandButton
       plugin={plugin}
       view={view}
       context={context}
-      side="top"
-      trigger={
-        <button
-          type="button"
-          className="app-status-bar__plugin-item"
-          aria-label={view.title}
-        >
-          {children}
-        </button>
-      }
-    />
+    >
+      {children}
+    </EditorPluginCommandButton>
   );
 }

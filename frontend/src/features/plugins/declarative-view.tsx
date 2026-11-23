@@ -16,7 +16,6 @@ import { useDeclarativeLocalState } from "./declarative-local-state";
 import { type UIDocument, type UIAction } from "./declarative-schema";
 import { DeclarativeErrorBoundary, renderTree } from "./declarative-tree";
 import { frontendCall } from "./frontend-host";
-import type { OverlayRequest } from "./plugin-page";
 import { shouldRefreshPluginView } from "./plugin-refresh";
 
 function str(value: unknown, fallback = ""): string {
@@ -30,7 +29,6 @@ export function DeclarativeView({
   embedded = false,
   fullPage = false,
   onRequestClose,
-  onOverlayRequest,
 }: {
   plugin: InstalledPlugin;
   view: PluginView;
@@ -38,7 +36,6 @@ export function DeclarativeView({
   embedded?: boolean;
   fullPage?: boolean;
   onRequestClose?: () => void;
-  onOverlayRequest?: OverlayRequest;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -142,32 +139,20 @@ export function DeclarativeView({
         const result = await runUIEffects(
           response,
           (method, args) =>
-            method === "ui.openOverlay" || method === "ui.closeOverlay"
-              ? Promise.resolve().then(() => {
-                  if (
-                    view.slot !== "app.overlay" ||
-                    view.presentation ||
-                    !onOverlayRequest ||
-                    !plugin.capabilities.includes("ui") ||
-                    !plugin.capabilities.includes("ui.overlay")
-                  )
-                    throw new Error(
-                      "Opening overlays requires a mounted app.overlay view with ui and ui.overlay",
-                    );
-                  onOverlayRequest(method, args);
-                })
-              : frontendCall(
-                  method,
-                  args,
-                  plugin.capabilities,
-                  navigate,
-                  plugin.id,
-                  onRequestClose &&
-                    (() => {
-                      current.active = false;
-                      onRequestClose();
-                    }),
-                ),
+            frontendCall(
+              method,
+              args,
+              plugin.capabilities,
+              navigate,
+              plugin.id,
+              onRequestClose &&
+                (() => {
+                  current.active = false;
+                  onRequestClose();
+                }),
+              undefined,
+              JSON.parse(contextKey),
+            ),
           (next, values) => send(next, values, "change"),
           () => current.active,
         );

@@ -62,6 +62,7 @@ export async function frontendCall(
   pluginId: string,
   onRequestClose?: () => void,
   selectionContext?: SelectionSnapshot,
+  overlayContext: Record<string, unknown> = {},
 ) {
   const required =
     method === "selection.read"
@@ -72,6 +73,28 @@ export async function frontendCall(
           : "editor.write"
         : "ui";
   if (!capabilities.includes(required)) throw new Error(`Plugin has not declared ${required}`);
+  selectionContext ??= overlayContext.selection as SelectionSnapshot | undefined;
+  if (method === "ui.openOverlay" || method === "ui.closeOverlay") {
+    if (!capabilities.includes("ui.overlay")) throw new Error("Plugin has not declared ui.overlay");
+    const detail: {
+      pluginId: string;
+      method: string;
+      params: Record<string, unknown>;
+      context: Record<string, unknown>;
+      handled: boolean;
+      error?: unknown;
+    } = {
+      pluginId,
+      method,
+      params,
+      context: overlayContext,
+      handled: false,
+    };
+    window.dispatchEvent(new CustomEvent("openfic:plugin-overlay", { detail }));
+    if (detail.error) throw detail.error;
+    if (!detail.handled) throw new Error("Plugin overlay host is unavailable");
+    return null;
+  }
   if (method === "selection.read") return selectionContext ?? null;
   if (method === "assistant.quote") {
     if (!capabilities.includes("selection.read"))
