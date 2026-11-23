@@ -665,9 +665,9 @@ export interface UIEventRequest extends UIRenderRequest {
  * At most 16 effects/batch and 4 batches; next receives results as its event value. */
 export interface UIActionResult {
   effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
-    "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
+    "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" | "selection.read" |
     "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
-    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "ui.openOverlay" | "ui.closeOverlay" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "ui.openOverlay" | "ui.closeOverlay" | "assistant.fill" | "assistant.quote"; params?: Record<string, Json>; discardResult?: boolean }[];
   next?: string;
 }
 `;

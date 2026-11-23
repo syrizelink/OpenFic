@@ -8,6 +8,7 @@ const methods = new Set([
   "editor.save",
   "editor.undo",
   "editor.redo",
+  "selection.read",
   "ui.navigate",
   "ui.close",
   "ui.openOverlay",
@@ -21,6 +22,7 @@ const methods = new Set([
   "ui.context",
   "ui.tools",
   "assistant.fill",
+  "assistant.quote",
 ]);
 
 /** Effects only run in response to an action, through the capability-checked SDK bridge. */

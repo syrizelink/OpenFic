@@ -13,6 +13,7 @@ import {
   type EditorSnapshot,
 } from "./frontend-host";
 import { enablePluginDiagnostics } from "./plugin-diagnostics";
+import { SelectionMenu } from "./selection-menu";
 
 const DATA_QUERY_PREFIXES: Record<string, readonly string[]> = {
   projects: [
@@ -265,5 +266,5 @@ export function PluginRuntime() {
       socket.off("connect", handleResync);
     };
   }, [queryClient]);
-  return null;
+  return <SelectionMenu />;
 }

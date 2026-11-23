@@ -756,6 +756,10 @@ function ChapterEditorContent({
           <Box
             py="5"
             ref={editorContentRef}
+            data-plugin-selection-source="chapter"
+            data-plugin-selection-id={chapter.id}
+            data-plugin-selection-project={chapter.projectId}
+            data-plugin-editor-context-menu={!isAgentLocked ? "true" : undefined}
           >
             <EditorContent
               editor={editor}

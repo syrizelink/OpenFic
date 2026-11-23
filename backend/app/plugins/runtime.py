@@ -2,7 +2,10 @@
 
 import asyncio
 import copy
+import html
+import json
 from contextvars import ContextVar
+from urllib.parse import unquote
 
 from app.plugins.services import bounded_json
 
@@ -35,6 +38,43 @@ EVENTS = frozenset(
 _executing_plugins: ContextVar[tuple[tuple[str, object], ...]] = ContextVar(
     "plugin_hook_stack", default=()
 )
+
+def expand_quotes(text: str, *, require_enabled: bool = True) -> tuple[str, list[dict]]:
+    from app.agent_runtime.context.helpers.canonical_mentions import parse_canonical_mentions
+    from app.plugins.host import active_host
+
+    quotes = []
+
+    parts = []
+    for part in parse_canonical_mentions(text):
+        if isinstance(part, str):
+            parts.append(part)
+            continue
+        if part.kind != "selection" or not part.attrs.get("plugin_data"):
+            parts.append(part.raw)
+            continue
+        try:
+            metadata = json.loads(unquote(part.attrs["plugin_data"], errors="strict"))
+        except (ValueError, UnicodeError):
+            parts.append(part.raw)
+            continue
+        if not isinstance(metadata, dict) or not all(
+            isinstance(metadata.get(key), str) for key in ("prompt", "pluginId")
+        ) or not isinstance(metadata.get("source"), dict):
+            parts.append(part.raw)
+            continue
+        host = active_host()
+        plugin = host.plugins.get(metadata["pluginId"]) if host else None
+        if require_enabled and (plugin is None or not plugin.enabled or plugin.registration is None):
+            raise ValueError(f"Quote plugin is unavailable: {metadata['pluginId']}")
+        quotes.append({**metadata, "text": part.body})
+        label = html.escape(part.attrs.get("label", "引用"), quote=True)
+        body = html.escape(part.body, quote=False)
+        chapter = part.attrs.get("chapter_id", "")
+        chapter_attr = f' chapter_id="{html.escape(chapter, quote=True)}"' if chapter else ""
+        reference = f'<of-mention kind="selection" label="{label}"{chapter_attr}>{body}</of-mention>'
+        parts.append(f"{metadata['prompt']}\n\n{reference}" if metadata["prompt"] else reference)
+    return "".join(parts), quotes
 
 
 async def sdk_call(context, method: str, params: dict):

@@ -20,6 +20,39 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 FIXTURE = Path(__file__).with_name("fixtures") / "plugin-declarative"
 
 
+async def test_selection_menu_requires_explicit_source_trigger_and_permission():
+    view = {
+        "id": "quote",
+        "title": "Quote",
+        "slot": "selection.menu",
+        "renderer": "declarative",
+        "presentation": "action",
+        "action": "quote",
+        "selectionTriggers": ["selection", "contextmenu"],
+        "selectionSources": ["chapter", "note", "agent-message"],
+    }
+    manifest = {
+        "id": "selection-test",
+        "name": "Selection Test",
+        "version": "1.0.0",
+        "api_version": 1,
+        "capabilities": ["ui", "selection.read"],
+        "views": [view],
+    }
+    assert (
+        Manifest.model_validate(manifest).views[0].selectionSources
+        == view["selectionSources"]
+    )
+    with pytest.raises(ValidationError):
+        Manifest.model_validate({**manifest, "capabilities": ["ui"]})
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "selectionSources": []})
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "selectionTriggers": ["unknown"]})
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "slot": "editor.toolbar"})
+
+
 def bundle():
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:

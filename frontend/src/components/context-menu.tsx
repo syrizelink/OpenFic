@@ -9,9 +9,9 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import type { Editor } from "@tiptap/react";
 import { Scissors, Copy, Clipboard } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import type { LucideProps } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -26,7 +26,8 @@ const MOBILE_POINTER_MOVE_TOLERANCE = 8;
 export interface ContextMenuItem {
   id: string;
   label: string;
-  icon?: LucideIcon;
+  icon?: React.ElementType<LucideProps>;
+  iconOnly?: boolean;
   shortcut?: string;
   disabled?: boolean;
   /** 危险操作（显示红色） */
@@ -53,6 +54,8 @@ interface ContextMenuProps {
   containerRef?: React.RefObject<HTMLElement | null>;
   /** 编辑器模式附加菜单项 */
   editorExtraItems?: (editor: Editor) => ContextMenuItem[];
+  orientation?: "vertical" | "horizontal";
+  side?: "top" | "bottom";
 }
 
 /** 菜单项样式 */
@@ -74,10 +77,13 @@ export function ContextMenu({
   editor,
   containerRef,
   editorExtraItems,
+  orientation = "vertical",
+  side = "bottom",
 }: ContextMenuProps) {
   const { t } = useTranslation();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [internalPosition, setInternalPosition] = useState<ContextMenuPosition | null>(null);
+  const [selectionItems, setSelectionItems] = useState<ContextMenuItem[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const themeWrapperRef = useRef<HTMLDivElement | null>(null);
   const [menuSize, setMenuSize] = useState({ width: 180, height: 0 });
@@ -96,13 +102,19 @@ export function ContextMenu({
   // 判断使用哪种模式
   const isEditorMode = !!editor && !!containerRef;
 
-  // 触摸设备上编辑器直接使用系统菜单，不启用自定义编辑器菜单
-  const editorMenuDisabled = useMemo(
-    () =>
-      isEditorMode &&
-      (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0),
-    [isEditorMode],
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => window.matchMedia("(max-width: 767px)").matches,
   );
+  const editorMenuDisabled = isEditorMode && isMobileViewport;
+
+  useEffect(() => {
+    if (!isEditorMode) return;
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleChange = () => setIsMobileViewport(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [isEditorMode]);
 
   // 使用内部位置（编辑器模式）或外部位置（手动模式）
   const position = isEditorMode ? internalPosition : (externalPosition ?? null);
@@ -150,6 +162,9 @@ export function ContextMenu({
       }
 
       e.preventDefault();
+      const detail = { target: e.target, items: [] as ContextMenuItem[] };
+      window.dispatchEvent(new CustomEvent("openfic:editor-selection-menu", { detail }));
+      setSelectionItems(detail.items);
       setInternalPosition({ x: e.clientX, y: e.clientY });
     },
     [isEditorMode, editorMenuDisabled, containerRef],
@@ -263,6 +278,9 @@ export function ContextMenu({
         event.preventDefault();
         event.stopPropagation();
         suppressNextEditorContextMenuRef.current = true;
+        const detail = { target: event.target, items: [] as ContextMenuItem[] };
+        window.dispatchEvent(new CustomEvent("openfic:editor-selection-menu", { detail }));
+        setSelectionItems(detail.items);
         const releaseX = event.clientX || pointer.lastX;
         const releaseY = event.clientY || pointer.lastY;
         setInternalPosition({ x: releaseX, y: releaseY });
@@ -387,7 +405,7 @@ export function ContextMenu({
       },
     ];
     const extraItems = editorExtraItems ? editorExtraItems(editor) : [];
-    return [...extraItems, ...baseItems];
+    return [...selectionItems, ...extraItems, ...baseItems];
   })();
 
   // 使用编辑器菜单项或外部菜单项
@@ -424,12 +442,31 @@ export function ContextMenu({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+        return;
       }
+      const forward = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+      const backward = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+      if (e.shiftKey || (e.key !== forward && e.key !== backward)) return;
+      const entries = Array.from(
+        menuRef.current?.querySelectorAll<HTMLElement>(
+          '[role="menuitem"]:not([aria-disabled="true"])',
+        ) ?? [],
+      );
+      if (!entries.length) return;
+      e.preventDefault();
+      const current = entries.indexOf(document.activeElement as HTMLElement);
+      const next =
+        e.key === forward
+          ? (current + 1) % entries.length
+          : current < 0
+            ? entries.length - 1
+            : (current - 1 + entries.length) % entries.length;
+      entries[next]?.focus();
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [position, onClose]);
+  }, [position, onClose, orientation]);
 
   // 点击菜单项
   const handleItemClick = useCallback(
@@ -489,7 +526,7 @@ export function ContextMenu({
           Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
         ),
         y: Math.min(
-          Math.max(position.y, viewportPadding),
+          Math.max(position.y - (side === "top" ? menuHeight : 0), viewportPadding),
           Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding),
         ),
       }
@@ -517,8 +554,12 @@ export function ContextMenu({
           onPointerDown={(event) => event.preventDefault()}
         >
           <Box
+            role="menu"
+            aria-orientation={orientation}
             style={{
-              minWidth: 160,
+              minWidth: orientation === "vertical" ? 160 : undefined,
+              maxWidth: orientation === "horizontal" ? "calc(100vw - 16px)" : undefined,
+              overflowX: orientation === "horizontal" ? "auto" : undefined,
               padding: 2,
               borderRadius: 8,
               background: "var(--color-background)",
@@ -526,12 +567,22 @@ export function ContextMenu({
               boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)",
             }}
           >
-            <Flex direction="column">
+            <Flex direction={orientation === "horizontal" ? "row" : "column"}>
               {items.map((item) => (
                 <Box
                   key={item.id}
+                  role="menuitem"
+                  aria-label={
+                    orientation === "horizontal" && item.iconOnly ? item.label : undefined
+                  }
+                  title={orientation === "horizontal" && item.iconOnly ? item.label : undefined}
+                  tabIndex={item.disabled ? -1 : 0}
+                  aria-disabled={item.disabled || undefined}
                   style={{
                     ...menuItemStyle,
+                    ...(orientation === "horizontal"
+                      ? { flexShrink: 0, whiteSpace: "nowrap" }
+                      : {}),
                     opacity: item.disabled ? 0.4 : 1,
                     cursor: item.disabled ? "not-allowed" : "pointer",
                     backgroundColor:
@@ -540,6 +591,12 @@ export function ContextMenu({
                   onMouseEnter={() => !item.disabled && setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   onPointerUp={(e) => handleItemClick(item, e)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleItemClick(item, e);
+                    }
+                  }}
                 >
                   <Flex
                     align="center"
@@ -553,14 +610,16 @@ export function ContextMenu({
                         }}
                       />
                     )}
-                    <Text
-                      size="2"
-                      style={{
-                        color: item.danger ? "var(--red-11)" : undefined,
-                      }}
-                    >
-                      {item.label}
-                    </Text>
+                    {(orientation !== "horizontal" || !item.iconOnly || !item.icon) && (
+                      <Text
+                        size="2"
+                        style={{
+                          color: item.danger ? "var(--red-11)" : undefined,
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                    )}
                   </Flex>
                   {item.shortcut && (
                     <Text

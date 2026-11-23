@@ -140,8 +140,12 @@ async def _primary_messages(state: OrchestratorState, session=None) -> list[Base
     user_request = state.get("user_request") or ""
     attachments = state.get("user_attachments") or []
     if user_request:
-        from app.plugins.runtime import dispatch
-        rewritten = await dispatch("prompt.submit", {"text": user_request, "context": [],
+        from app.plugins.runtime import dispatch, expand_quotes
+        user_request, quotes = expand_quotes(user_request)
+        if quotes and "<of-mention" in user_request:
+            from app.agent_runtime.context.helpers.canonical_mentions import compile_canonical_mentions
+            user_request = await compile_canonical_mentions(user_request, session)
+        rewritten = await dispatch("prompt.submit", {"text": user_request, "context": [], "quotes": quotes,
                                                        "projectId": state.get("project_id")},
                                     session, runtime=dict(state))
         if rewritten.get("drop"):

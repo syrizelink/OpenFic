@@ -1,4 +1,5 @@
 import { Flex, Text } from "@radix-ui/themes";
+import type { Editor } from "@tiptap/react";
 import { Lock } from "lucide-react";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +7,11 @@ import { useTranslation } from "react-i18next";
 import { MarkdownEditor, Spinner } from "@/components";
 import { toast } from "@/components/toast";
 import { EditorPluginActions } from "@/features/plugins/editor-plugin-actions";
-import { registerPluginEditor } from "@/features/plugins/frontend-host";
+import {
+  hasEditorEventConsumers,
+  publishLocalEvent,
+  registerPluginEditor,
+} from "@/features/plugins/frontend-host";
 import { fetchNote } from "@/lib/api-client";
 import {
   getEditorContentLimit,
@@ -79,6 +84,7 @@ function NoteEditorContent({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [editorContent, setEditorContent] = useState(initialDraft.content);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const savedContentRef = useRef(initialDraft.content);
   const latestDraftRef = useRef(initialDraft);
   const latestDraftUpdatedAtRef = useRef(initialDraftUpdatedAt);
@@ -259,33 +265,58 @@ function NoteEditorContent({
     [note.id, onScrollPositionChange],
   );
 
-  useEffect(
-    () =>
-      registerPluginEditor({
-        read: () => ({
-          kind: "note",
-          id: note.id,
-          projectId: note.projectId,
-          title: titleRef.current,
-          content: savedContentRef.current,
-          locked: isAgentLocked || note.isLocked,
-          selection: { from: 0, to: 0, text: "" },
-        }),
-        run: async (action, params) => {
-          if (isAgentLocked || note.isLocked) throw new Error("Note is locked");
-          if (action === "save") {
-            await handleSave();
-            return null;
-          }
-          if (action === "setContent") handleContentChange(String(params.text ?? ""));
-          else if (action === "insert")
-            handleContentChange(savedContentRef.current + String(params.text ?? ""));
-          else throw new Error(`Note editor does not support ${action}`);
-          return null;
+  useEffect(() => {
+    if (!editor) return;
+    const read = () =>
+      ({
+        kind: "note",
+        id: note.id,
+        projectId: note.projectId,
+        title: titleRef.current,
+        content: savedContentRef.current,
+        locked: isAgentLocked || note.isLocked,
+        selection: {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+          text: editor.state.doc.textBetween(
+            editor.state.selection.from,
+            editor.state.selection.to,
+            "\n",
+          ),
         },
-      }),
-    [note.id, note.projectId, note.isLocked, isAgentLocked, handleSave, handleContentChange],
-  );
+      }) as const;
+    const dispose = registerPluginEditor({
+      read,
+      run: async (action, params) => {
+        if (isAgentLocked || note.isLocked) throw new Error("Note is locked");
+        if (action === "save") {
+          await handleSave();
+          return null;
+        }
+        if (action === "setContent") handleContentChange(String(params.text ?? ""));
+        else if (action === "insert")
+          handleContentChange(savedContentRef.current + String(params.text ?? ""));
+        else throw new Error(`Note editor does not support ${action}`);
+        return null;
+      },
+    });
+    const selectionChanged = () => {
+      if (hasEditorEventConsumers()) publishLocalEvent("editor.selection", read().selection);
+    };
+    editor.on("selectionUpdate", selectionChanged);
+    return () => {
+      editor.off("selectionUpdate", selectionChanged);
+      dispose();
+    };
+  }, [
+    editor,
+    note.id,
+    note.projectId,
+    note.isLocked,
+    isAgentLocked,
+    handleSave,
+    handleContentChange,
+  ]);
 
   const lockedBanner = note.isLocked ? (
     <Flex
@@ -324,6 +355,8 @@ function NoteEditorContent({
       onLockedAction={showLockedToast}
       placeholder={t("writing.noteContentPlaceholder")}
       lockedBanner={lockedBanner}
+      onEditorChange={setEditor}
+      selectionSource={{ kind: "note", id: note.id, projectId: note.projectId }}
       toolbarActions={(placement) => (
         <EditorPluginActions
           placement={placement}

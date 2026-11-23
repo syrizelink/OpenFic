@@ -1,4 +1,5 @@
 import json
+from urllib.parse import quote
 from unittest.mock import AsyncMock, patch
 import pytest
 
@@ -22,6 +23,20 @@ async def test_history_maps_basic_fields():
     assert result[0].content == "你好"
     assert result[0].metadata == {"part": "history"}
     assert result[1].role == "assistant"
+
+
+async def test_history_restores_quote_after_plugin_is_disabled():
+    data = {
+        "text": "原文\n第二行",
+        "prompt": "解释",
+        "pluginId": "removed-plugin",
+        "source": {"kind": "note"},
+    }
+    metadata = {key: value for key, value in data.items() if key != "text"}
+    encoded = quote(json.dumps(metadata, ensure_ascii=False))
+    mention = f'<of-mention kind="selection" label="引用" plugin_data="{encoded}">原文\n第二行</of-mention>'
+    result = await build_history([{"role": "user", "content": mention}])
+    assert result[0].content == "解释\n\n@selection:引用\n```\n原文\n第二行\n```\n"
 
 
 async def test_history_filters_non_message_and_hidden_records_first():

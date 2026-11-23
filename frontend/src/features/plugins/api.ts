@@ -16,6 +16,10 @@ export interface PluginView {
   presentation?: "popover" | "dialog" | "action" | "none" | null;
   placement?: "left-end" | "right-start" | "right-end" | null;
   showCloseButton?: boolean | null;
+  selectionTriggers?: ("selection" | "contextmenu")[] | null;
+  selectionSources?:
+    | ("chapter" | "note" | "character" | "world-info" | "agent-message" | "agent-input")[]
+    | null;
 }
 export interface PluginSetting {
   key: string;

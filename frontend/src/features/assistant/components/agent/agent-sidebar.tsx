@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import type React from "react";
 
 import { toast } from "@/components";
+import { pluginsQueryOptions } from "@/features/plugins/api";
 import i18n from "@/i18n";
 import type {
   AgentAttachment,
@@ -14,6 +16,7 @@ import type {
 
 import { useAgentSession } from "../../hooks/use-agent-session";
 import type { PendingAgentAttachment } from "../../lib/agent-file-attachments";
+import { getMentionPluginQuote, parseAssistantMarkup } from "../../lib/mention-text";
 import { AgentMessages } from "./agent-messages";
 import { AgentSpecialPanels } from "./agent-special-panels";
 import { getAgentSpecialPanels, type AgentSpecialPanel } from "./agent-special-panels-state";
@@ -85,6 +88,7 @@ export function useAgentSidebar({
   historyStatusHost,
   scrollToBottomFnRef,
 }: AgentSidebarProps) {
+  const { data: plugins, isError: isPluginQueryError } = useQuery(pluginsQueryOptions);
   const {
     messages: agentMessages,
     changes: agentChanges,
@@ -161,6 +165,41 @@ export function useAgentSidebar({
         return;
       }
 
+      const quotes = parseAssistantMarkup(messageToSend).flatMap((segment) => {
+        if (typeof segment === "string" || segment.markup !== "mention") return [];
+        const quote = getMentionPluginQuote(segment);
+        return quote ? [quote] : [];
+      });
+      if (quotes.length) {
+        const target = document.querySelector<HTMLElement>('[data-plugin-agent-active="true"]');
+        if (
+          quotes.some(
+            (quote) =>
+              quote.target.projectId !== projectId ||
+              quote.target.tabId !== target?.dataset.pluginAgentTab ||
+              quote.target.taskId !== (target?.dataset.pluginAgentTask || null),
+          )
+        ) {
+          toast.error(i18n.t("writing.aiSidebar.quoteConversationChanged"));
+          return;
+        }
+        if (!plugins || isPluginQueryError) {
+          toast.error(i18n.t("writing.aiSidebar.quotePluginCheckFailed"));
+          return;
+        }
+        if (
+          quotes.some(
+            (quote) =>
+              !plugins.some(
+                (plugin) => plugin.id === quote.pluginId && plugin.status === "enabled",
+              ),
+          )
+        ) {
+          toast.error(i18n.t("writing.aiSidebar.quotePluginUnavailable"));
+          return;
+        }
+      }
+
       const attachmentsToSend = attachments;
 
       scrollToBottomFnRef?.current?.();
@@ -173,6 +212,7 @@ export function useAgentSidebar({
     },
     [
       isStopping,
+      projectId,
       inputValue,
       agentStatus,
       modelId,
@@ -182,6 +222,8 @@ export function useAgentSidebar({
       startAgentSession,
       pendingMessage,
       attachments,
+      plugins,
+      isPluginQueryError,
       onClearAttachments,
       scrollToBottomFnRef,
     ],

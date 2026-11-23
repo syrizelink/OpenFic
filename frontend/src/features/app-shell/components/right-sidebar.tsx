@@ -234,6 +234,39 @@ export const RightSidebar = forwardRef<AssistantSidebarHandle, RightSidebarProps
     useImperativeHandle(ref, () => ({ appendToComposer: handleAppend }), [handleAppend]);
 
     useEffect(() => {
+      const listener = (event: Event) => {
+        const detail = (
+          event as CustomEvent<{
+            projectId: string;
+            tabId: string;
+            taskId: string | null;
+            markup: string;
+            handled: boolean;
+          }>
+        ).detail;
+        if (
+          detail.projectId !== projectId ||
+          !tabsRef.current.some(
+            (tab) =>
+              tab.kind === "agent" &&
+              tab.id === detail.tabId &&
+              (tab.taskId ?? null) === detail.taskId,
+          )
+        )
+          return;
+        const agent = agentRefs.current.get(detail.tabId);
+        if (!agent) return;
+        agent.appendToComposer(detail.markup);
+        detail.handled = true;
+        lastAgentId.current = detail.tabId;
+        if (!isMobile) activateTab(detail.tabId);
+        openAssistantSidebar();
+      };
+      window.addEventListener("openfic:assistant-quote", listener);
+      return () => window.removeEventListener("openfic:assistant-quote", listener);
+    }, [activateTab, isMobile, openAssistantSidebar, projectId]);
+
+    useEffect(() => {
       const agent = agentRefs.current.get(visibleTabId);
       if (!agent || pendingMarkup.current.length === 0) return;
       pendingMarkup.current.splice(0).forEach((markup) => agent.appendToComposer(markup));
@@ -426,6 +459,10 @@ function SidebarTabPanel({
       hidden={!isActive}
       className="right-sidebar-tab-panel"
       inert={!isActive}
+      data-plugin-agent-tab={tab.kind === "agent" ? tab.id : undefined}
+      data-plugin-agent-project={tab.kind === "agent" ? projectId : undefined}
+      data-plugin-agent-active={tab.kind === "agent" && isActive ? "true" : undefined}
+      data-plugin-agent-task={tab.kind === "agent" ? (tab.taskId ?? "") : undefined}
     >
       {tab.kind === "agent" ? (
         <AssistantSidebar
@@ -441,6 +478,7 @@ function SidebarTabPanel({
         <SidebarEntityEditor
           kind={tab.kind}
           entityId={tab.entityId!}
+          projectId={projectId}
           isAgentLocked={isAgentLocked}
           onTitleChange={handleTitleChange}
           onAddToConversation={onAddToConversation}

@@ -1,5 +1,5 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "statusbar" | "settings";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "selection.menu" | "statusbar" | "settings";
 export type StatusBarPart = { type: "text"; text: string } | { type: "icon"; name: UIIconName } | { type: "asset"; path: string };
 export interface StatusBarContent { items: StatusBarPart[] }
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
@@ -10,6 +10,7 @@ export type PluginView = { id: string; title: string } & (
     { renderer: "declarative"; entry?: never; render: string; action?: string }
   )) |
   { slot: "editor.toolbar"; renderer: "declarative"; presentation: "action"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; action: string; entry?: never; render?: never; showCloseButton?: never; height?: number } |
+  { slot: "selection.menu"; renderer: "declarative"; presentation: "action"; action: string; selectionTriggers: ("selection" | "contextmenu")[]; selectionSources: SelectionSnapshot["source"]["kind"][]; icon?: UIIconName; entry?: never; render?: never } |
   ({ height?: number; presentation?: "popover" | "dialog" } & (
   /** Sidebar icons are image paths relative to plugin.json. */
   { slot?: "sidebar.extensions"; icon?: string } |
@@ -2328,15 +2329,16 @@ export interface UIEventRequest extends UIRenderRequest {
  * At most 16 effects/batch and 4 batches; next receives results as its event value. */
 export interface UIActionResult {
   effects: { method: "editor.read" | "editor.insert" | "editor.replaceSelection" | "editor.setContent" |
-    "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" |
+    "editor.setSelection" | "editor.focus" | "editor.save" | "editor.undo" | "editor.redo" | "selection.read" |
     "ui.navigate" | "ui.openExternal" | "ui.toast" | "ui.confirm" | "ui.copy" | "ui.download" |
-    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "ui.openOverlay" | "ui.closeOverlay" | "assistant.fill"; params?: Record<string, Json>; discardResult?: boolean }[];
+    "ui.invalidate" | "ui.context" | "ui.tools" | "ui.close" | "ui.openOverlay" | "ui.closeOverlay" | "assistant.fill" | "assistant.quote"; params?: Record<string, Json>; discardResult?: boolean }[];
   next?: string;
 }
 export interface Context {
   pluginId: string; projectId: string | null; chapterId?: string; noteId?: string; kind?: "chapter" | "note";
   language: string; theme: "light" | "dark"; settings: Record<string, Json>;
   capabilities: string[]; slot: UIAction; sdkVersion: string; viewport?: { width: number; height: number };
+  selection?: SelectionSnapshot;
 }
 export interface RequestOptions {
   json?: Json; query?: Record<string, string | number | boolean | undefined>;
@@ -2355,6 +2357,12 @@ export interface Store {
 export interface EditorSnapshot {
   kind: "chapter" | "note"; id: string; projectId: string; title: string; content: string;
   selection: { from: number; to: number; text: string }; locked: boolean;
+}
+export interface SelectionSnapshot {
+  text: string;
+  source: { kind: "chapter" | "note" | "character" | "world-info" | "agent-message" | "agent-input"; id?: string; projectId?: string };
+  bounds: { x: number; y: number; width: number; height: number };
+  target?: { projectId: string; tabId: string; taskId: string | null };
 }
 export interface ChatMessage { role: "system" | "user" | "assistant" | "tool"; content: string | Json[]; tool_call_id?: string; tool_calls?: Json[]; }
 export interface HTTPResponse { status: number; ok: boolean; headers: Record<string, string>; text: string; json: Json; base64: string; }
@@ -2375,6 +2383,7 @@ export interface OpenFicSDK {
   hooks: { preview(event: string, data: Record<string, Json>): Promise<Json> };
   events: { on: OpenFicSDK["on"]; emit(event: string, data?: Record<string, Json>): Promise<void> };
   editor: { read(): Promise<EditorSnapshot>; insert(text: string): Promise<EditorSnapshot>; replaceSelection(text: string): Promise<EditorSnapshot>; setContent(text: string): Promise<EditorSnapshot>; setSelection(from: number, to: number): Promise<EditorSnapshot>; focus(): Promise<void>; save(): Promise<void>; undo(): Promise<void>; redo(): Promise<void> };
+  selection: { read(): Promise<SelectionSnapshot | null> };
   ui: { close(): Promise<void>; openOverlay(viewId: string, anchor?: { x: number; y: number; width: number; height: number }): Promise<void>; closeOverlay(): Promise<void>; resize(height: number): Promise<number>; setOverlayBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<{ x: number; y: number; width: number; height: number }>; navigate(path: string): Promise<void>; openExternal(url: string): Promise<void>; toast(text: string): Promise<void>; confirm(text: string): Promise<boolean>; copy(text: string): Promise<void>; download(name: string, text: string, mime?: string): Promise<void>; context(): Promise<{ editor: EditorSnapshot | null; pathname: string }>; invalidate(viewId?: string): Promise<void> };
   assistant: { fill(text: string): Promise<void> }; log(message: string, level?: "info" | "warning" | "error"): Promise<void>;
   agent: { tools(): Promise<{name:string;description:string;access_level:string;inputSchema:Json}[]>; start(projectId:string,modelId:string,options?:Record<string,Json>):Promise<Json>; send(sessionId:string,message:string,options?:Record<string,Json>):Promise<Json>; cancel(sessionId:string):Promise<Json> };

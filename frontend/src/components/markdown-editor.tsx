@@ -38,6 +38,8 @@ export interface MarkdownEditorProps {
   lockedBanner?: React.ReactNode;
   maxWidth?: number;
   editorRef?: React.MutableRefObject<Editor | null>;
+  onEditorChange?: (editor: Editor | null) => void;
+  selectionSource?: { kind: "note" | "character" | "world-info"; id: string; projectId?: string };
   scrollTop?: number;
   onScrollPositionChange?: (scrollTop: number) => void;
 }
@@ -94,6 +96,8 @@ export function MarkdownEditor({
   lockedBanner,
   maxWidth = 800,
   editorRef: externalEditorRef,
+  onEditorChange,
+  selectionSource,
   scrollTop = 0,
   onScrollPositionChange,
 }: MarkdownEditorProps) {
@@ -198,7 +202,9 @@ export function MarkdownEditor({
     if (externalEditorRef) {
       externalEditorRef.current = editor;
     }
-  }, [editor, externalEditorRef]);
+    onEditorChange?.(editor);
+    return () => onEditorChange?.(null);
+  }, [editor, externalEditorRef, onEditorChange]);
 
   useEffect(() => {
     if (!editor) return;
@@ -359,6 +365,10 @@ export function MarkdownEditor({
           <Box
             py="5"
             ref={editorContentRef}
+            data-plugin-selection-source={selectionSource?.kind}
+            data-plugin-selection-id={selectionSource?.id}
+            data-plugin-selection-project={selectionSource?.projectId}
+            data-plugin-editor-context-menu={!isLocked ? "true" : undefined}
             onMouseOver={handleEditorLinkMouseOver}
             onMouseOut={handleEditorLinkMouseOut}
           >

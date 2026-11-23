@@ -1,21 +1,167 @@
 """Public native plugin SDK contracts through business APIs."""
 
 import io
+import html
 import json
 import zipfile
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from urllib.parse import quote
+from pathlib import Path
 
 import httpx
 import pytest
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.plugins.host import PluginError
-from app.plugins.runtime import dispatch, model_messages, plugin_tools
+from app.plugins.package_builder import build_package
+from app.plugins.runtime import dispatch, expand_quotes, model_messages, plugin_tools
 from tests.plugins import test_host as host_tests
 
 plugin_api = host_tests.plugin_api
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
+
+
+async def test_quote_prompt_is_applied_only_to_its_own_message(monkeypatch):
+    from app.agent_runtime.graph.orchestrator.graph import _primary_messages
+    from app.agent_runtime.context.helpers.canonical_mentions import compile_canonical_mentions
+
+    plugin = SimpleNamespace(enabled=True, registration=object())
+    monkeypatch.setattr(
+        "app.plugins.host.active_host",
+        lambda: SimpleNamespace(plugins={"quote-test": plugin}),
+    )
+    captured = AsyncMock(side_effect=lambda event, payload, session, runtime: payload)
+    monkeypatch.setattr("app.plugins.runtime.dispatch", captured)
+    payload = {
+        "text": "第一行\n第二行",
+        "prompt": "分析这段内容",
+        "pluginId": "quote-test",
+        "source": {"kind": "chapter", "id": "c1"},
+    }
+    assert expand_quotes("普通消息") == ("普通消息", [])
+
+    metadata = {key: value for key, value in payload.items() if key != "text"}
+    encoded = quote(json.dumps(metadata, ensure_ascii=False))
+    mention = f'<of-mention kind="selection" chapter_id="c1" label="引用" plugin_data="{encoded}">{html.escape(payload["text"])}</of-mention>'
+    compiled = await compile_canonical_mentions(f"请看 {mention}")
+    assert mention in compiled
+    messages = await _primary_messages({"user_request": compiled, "messages": []})
+    assert messages[-1].content == "请看 分析这段内容\n\n@selection:引用\n```\n第一行\n第二行\n```\n"
+    assert captured.await_args.args[1]["quotes"] == [payload]
+
+    mixed = await compile_canonical_mentions(
+        f'<of-mention chapter_id="c2" label="已有章节" /> {mention}'
+    )
+    messages = await _primary_messages({"user_request": mixed, "messages": []})
+    assert messages[-1].content.count("@chapter:已有章节") == 1
+    assert messages[-1].content.count("@selection:引用") == 1
+
+    payload["text"] = '<of-skill id="not-a-command" />'
+    unsafe_mention = f'<of-mention kind="selection" label="引用" plugin_data="{encoded}">{html.escape(payload["text"])}</of-mention>'
+    messages = await _primary_messages({"user_request": unsafe_mention, "messages": []})
+    assert '&lt;of-skill id="not-a-command" />' in messages[-1].content
+
+    plugin.enabled = False
+    with pytest.raises(ValueError, match="Quote plugin is unavailable"):
+        expand_quotes(mention)
+
+
+async def test_selection_menu_dispatches_selected_text_to_bound_command(plugin_api):
+    host, api, _ = plugin_api
+    package = bundle(
+        {
+            "capabilities": ["ui", "selection.read"],
+            "views": [
+                {
+                    "id": "quote",
+                    "title": "Quote",
+                    "slot": "selection.menu",
+                    "renderer": "declarative",
+                    "presentation": "action",
+                    "action": "quote.create",
+                    "selectionTriggers": ["selection"],
+                    "selectionSources": ["chapter"],
+                }
+            ],
+        },
+        backend="""
+async def quote(context, params):
+    assert params["value"]["text"] == "选中文字"
+    return {"effects": [{"method": "assistant.quote", "params": {"prompt": "分析"}}]}
+def register(host):
+    host.register_command("quote.create", quote)
+""",
+    )
+    await host.install(package)
+    await host.set_enabled("sdk-test", True)
+    response = await api.post(
+        "/api/v1/plugins/sdk-test/views/quote/action",
+        json={"id": "quote", "event": "press", "value": {"text": "选中文字"}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["effects"][0]["method"] == "assistant.quote"
+
+
+async def test_selection_example_package_and_effect_chain(plugin_api):
+    host, api, _ = plugin_api
+    source = Path(__file__).resolve().parents[3] / "examples/plugins/selection-demo"
+    await host.install(build_package(source))
+    await host.set_enabled("selection-demo", True)
+    await host.configure("selection-demo", {"quotePrompt": "测试专用提示词"})
+    views = {view.id: view for view in host.get("selection-demo").manifest.views}
+    sources = {"chapter", "note", "character", "world-info", "agent-message", "agent-input"}
+    assert set(views["inspect-selection"].selectionSources) == sources - {"agent-message"}
+    assert views["inspect-message"].selectionSources == ["agent-message"]
+    assert views["inspect-message"].icon == "Search"
+    assert views["quote"].icon == "Quote"
+    assert all(set(views[name].selectionSources) == sources for name in ("inspect-contextmenu", "quote"))
+    assert views["inspect-selection"].selectionTriggers == ["selection"]
+    assert views["inspect-contextmenu"].selectionTriggers == ["contextmenu"]
+    assert set(views["quote"].selectionTriggers) == {"selection", "contextmenu"}
+    selection = {
+        "text": "被选中的文字",
+        "source": {"kind": "chapter", "id": "chapter-1", "projectId": "project-1"},
+        "bounds": {"x": 1, "y": 2, "width": 30, "height": 40},
+        "target": {"projectId": "project-1", "tabId": "tab-1", "taskId": "task-1"},
+    }
+    context = {"selection": selection, "projectId": "project-1"}
+
+    for view_id in ("inspect-selection", "inspect-message", "inspect-contextmenu", "quote"):
+        current_selection = (
+            {**selection, "source": {"kind": "agent-message", "id": "message-1"}}
+            if view_id == "inspect-message"
+            else selection
+        )
+        current_context = {"selection": current_selection, "projectId": "project-1"}
+        url = f"/api/v1/plugins/selection-demo/views/{view_id}/action"
+        response = await api.post(url, json={"id": view_id, "event": "press", "value": current_selection, "context": current_context})
+        assert response.status_code == 200, response.text
+        first = response.json()["result"]
+        assert first["effects"] == [{"method": "selection.read"}]
+        followup = await api.post(url, json={"id": first["next"], "event": "change", "value": [current_selection], "context": current_context})
+        assert followup.status_code == 200, followup.text
+        effects = followup.json()["result"]["effects"]
+        if view_id == "quote":
+            assert effects[0] == {"method": "assistant.quote", "params": {"prompt": "测试专用提示词"}}
+        else:
+            assert current_selection["source"]["id"] in effects[0]["params"]["text"]
+            assert "被选中的文字" in effects[0]["params"]["text"]
+
+    no_target = {key: value for key, value in selection.items() if key != "target"}
+    rejected = await api.post(
+        "/api/v1/plugins/selection-demo/views/quote/action",
+        json={"id": "quote-ready", "event": "change", "value": [no_target], "context": {"selection": no_target}},
+    )
+    assert rejected.status_code == 422
+    assert "目标 Agent 会话" in rejected.text
+    mismatch = await api.post(
+        "/api/v1/plugins/selection-demo/views/quote/action",
+        json={"id": "quote-ready", "event": "change", "value": [{**selection, "text": "不同"}], "context": context},
+    )
+    assert mismatch.status_code == 422
+    assert "快照不一致" in mismatch.text
 
 
 def bundle(manifest, backend="def register(host): pass", files=None):

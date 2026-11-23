@@ -41,7 +41,7 @@ def register(host):
 
 UI 插槽：`sidebar.extensions`、`app.overlay`、`editor.toolbar`、`statusbar`、`settings`。视图可以返回声明式组件树，或引用已构建的 HTML（可使用任意前端框架）。编辑器插槽只允许工具栏按钮，点击后直接执行操作，或通过浮层、对话框显示内容，不允许常驻面板挤占正文区域。
 
-`OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持正文读取、设置、追加和保存；不支持的选择区/撤销操作明确报错。
+`OpenFic.editor` 访问当前打开的编辑器，支持读取内容/选择区、插入、替换、选区设置、保存和撤销重做。章节编辑器使用原有 Tiptap 和工作副本保存链；Agent 锁定期间拒绝修改。笔记编辑器支持读取选区及订阅选区变化，并支持正文读取、设置、追加和保存；选区写入和撤销等不支持的操作明确报错。
 
 ## 插件包格式
 
@@ -134,6 +134,7 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `app.overlay` | 应用全局浮层；不占布局，需 `ui` 和 `ui.overlay`，支持声明式视图和 iframe |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
+| `selection.menu` | 对指定来源的选中文本提供操作，按插件声明选择选中后显示、右键显示或两者 |
 | `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
 | `settings` | 设置分类列表末尾的插件入口，选择后在设置面板中显示插件页面 |
 
@@ -142,6 +143,35 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 `settings` 视图必须声明非空 `title` 和 `icon`，作为设置分类的标题和图标。`icon` 支持 Lucide 图标名或插件包内的 PNG、JPEG、WebP、SVG 图片路径，图片须通过宿主的安全校验。插件负责页面内容；设置面板右上角的关闭按钮由宿主管理，不能隐藏或由插件控制。支持声明式和 iframe 页面。
 
 `editor.toolbar` 还支持 `renderer: "declarative"` 配合 `presentation: "action"`。这类按钮只绑定 `action` 命令，不声明 `render` 或 `entry`。点击时以视图的 `id` 作为操作 ID，发送 `press` 事件和当前编辑器上下文，不打开浮层或对话框。
+
+`selection.menu` 要求 `ui` 和 `selection.read` 权限，使用声明式 `action` 命令。`selectionTriggers` 支持 `selection`、`contextmenu`；`selectionSources` 支持 `chapter`、`note`、`character`、`world-info`、`agent-message` 和 `agent-input`。提示词链编辑器不接入。仅非空且未跨来源的选区会显示菜单；系统触屏选区菜单的行为受设备限制。
+
+```json
+{
+  "id": "quote",
+  "title": "引用",
+  "slot": "selection.menu",
+  "renderer": "declarative",
+  "presentation": "action",
+  "action": "quote.create",
+  "selectionTriggers": ["selection", "contextmenu"],
+  "selectionSources": ["chapter", "note", "character", "world-info", "agent-message", "agent-input"]
+}
+```
+
+菜单命令的 `value` 和 `context.selection` 包含 `text`、`source`、视口坐标 `bounds`，以及有可用目标时的 `target`。只有选中菜单项后才会将快照发送给对应插件；`selection.read` effect 在该操作期间返回相同快照，其他上下文返回 `null`。插件可执行其他操作，或返回以下 effect 插入关联引用：
+
+```python
+async def quote(context, params):
+    return {"effects": [{"method": "assistant.quote", "params": {"prompt": "请分析这段内容"}}]}
+
+def register(host):
+    host.register_command("quote.create", quote)
+```
+
+`assistant.quote` 使用宿主捕获的选区和插件身份，`prompt` 最大 4000 字符；引用包含的编码数据最大 48000 字符。目标项目和 Agent 标签必须可确定且未改变，否则返回错误。引用内容和提示词在发送时作为用户消息内容处理，不提升为系统指令。插件停用或卸载后草稿中的引用不能发送；历史消息仍可显示和恢复。引用绑定原目标标签与任务，会话改变时应重新选择引用。
+
+插件引用复用会话已有的 `of-mention` 引用节点及文本快照，插件标识、提示词和目标会话随引用保存。
 
 `statusbar` 视图必须声明已注册的 `status` 命令和 `presentation`：`none` 不可点击，`popover` 和 `dialog` 打开对应的插件视图。不可点击的视图不声明 `entry`、`render` 或 `action`；可点击视图按 iframe 或声明式视图的常规方式声明内容。`status` 命令返回 `{"items": [...]}`，每一项只能是 `{"type": "text", "text": "..."}`、`{"type": "icon", "name": "Activity"}` 或 `{"type": "asset", "path": "images/icon.svg"}`，按数组顺序显示，不支持自定义组件或样式。包内图片须在 `resources` 范围内，支持 PNG、JPEG、WebP 和安全 SVG，最大 256 KiB。插件状态变化后调用 `context.invalidate_ui(view_id)` 刷新指定视图，省略视图 ID 则刷新该插件全部视图；连接恢复后也会刷新。
 

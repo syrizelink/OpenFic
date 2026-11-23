@@ -1,4 +1,7 @@
+import { buildSelectionMentionTag } from "@/features/assistant/lib/mention-text";
 import { apiClient } from "@/lib/api-client";
+
+import type { SelectionSnapshot } from "./selection";
 
 export interface EditorSnapshot {
   kind: "chapter" | "note";
@@ -58,13 +61,37 @@ export async function frontendCall(
   navigate: (path: string) => void,
   pluginId: string,
   onRequestClose?: () => void,
+  selectionContext?: SelectionSnapshot,
 ) {
-  const required = method.startsWith("editor.")
-    ? method === "editor.read"
-      ? "editor.read"
-      : "editor.write"
-    : "ui";
+  const required =
+    method === "selection.read"
+      ? "selection.read"
+      : method.startsWith("editor.")
+        ? method === "editor.read"
+          ? "editor.read"
+          : "editor.write"
+        : "ui";
   if (!capabilities.includes(required)) throw new Error(`Plugin has not declared ${required}`);
+  if (method === "selection.read") return selectionContext ?? null;
+  if (method === "assistant.quote") {
+    if (!capabilities.includes("selection.read"))
+      throw new Error("Plugin has not declared selection.read");
+    if (!selectionContext?.target) throw new Error("No matching Agent conversation is available");
+    const prompt = params.prompt;
+    if (typeof prompt !== "string" || prompt.length > 4000) throw new Error("Invalid quote prompt");
+    const data = {
+      pluginId,
+      prompt,
+      source: selectionContext.source,
+      target: selectionContext.target,
+    };
+    const markup = buildSelectionMentionTag(selectionContext.text, data);
+    if (markup.length > 48_000) throw new Error("Selection is too large to quote");
+    const detail = { ...selectionContext.target, markup, handled: false };
+    window.dispatchEvent(new CustomEvent("openfic:assistant-quote", { detail }));
+    if (!detail.handled) throw new Error("The selected Agent conversation is no longer available");
+    return null;
+  }
   if (method === "ui.close") {
     if (!onRequestClose) throw new Error("Closing requires an editor plugin overlay");
     onRequestClose();

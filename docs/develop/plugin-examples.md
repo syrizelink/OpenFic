@@ -14,8 +14,19 @@
 | `examples/plugins/dist/deepseek-whale-iframe-1.0.0.zip` | 独立 iframe 版小鲸鱼，复刻经典气泡、拖动与吸附；[安装和功能说明](../../examples/plugins/deepseek-whale-iframe/README.md) |
 | `examples/plugins/dist/declarative-showcase-1.1.0.zip` | 原生组件目录、项目组件、事件、CSS 和移动端选择器 |
 | `examples/plugins/dist/devtools-demo-1.1.0.zip` | 多文件相对导入、原生/iframe 混合 UI、检查与热重载示例；[开发说明](../../examples/plugins/devtools-demo/README.md) |
+| `examples/plugins/dist/selection-demo-1.0.0.zip` | 选区来源、两种菜单触发方式、选区读取和带插件提示词的 Agent 引用 |
 
 这些插件只使用公共 SDK、Python 标准库及后端已有的 LangGraph/LangChain/regex 依赖；没有直接操作应用 ORM 或导入内部业务模块。
+
+## 选区与引用
+
+安装并启用 `selection-demo`，在插件配置中可修改「引用提示词」。打开项目和目标 Agent 标签，在章节、笔记、角色、世界书条目、Agent 消息或输入框中选中文字：
+
+1. 松开后选择「示例：检查选区（松开）」，查看 `selection.read` 返回的来源、坐标、目标和文本预览。
+2. 右键选择「示例：检查选区（右键）」，验证右键触发；编辑器原有的复制和粘贴菜单仍可使用。
+3. 通过任一菜单选择「示例：引用到 Agent」，检查输入框中的引用块，发送后确认模型收到配置的提示词和引用内容。
+
+提示词链编辑器不接入选区菜单；跨来源或空选区不显示菜单。引用需要同一项目中可确定的 Agent 标签，会话变化或插件停用后不能发送原引用。示例不存储选区，检查提示最多展示前 80 个字符。移动设备的系统选区菜单行为取决于浏览器。
 
 ## Google Drive
 
@@ -61,6 +72,7 @@
 ## 打包与本地验证
 
 ```bash
+uv run python examples/plugins/build_package.py examples/plugins/selection-demo examples/plugins/dist/selection-demo-1.0.0.zip
 python examples/plugins/build_package.py examples/plugins/google-drive-sync examples/plugins/dist/google-drive-sync-1.3.0.zip
 python examples/plugins/build_package.py examples/plugins/handoff-workflow examples/plugins/dist/handoff-workflow-1.2.0.zip
 python examples/plugins/build_package.py examples/plugins/prompt-elements examples/plugins/dist/prompt-elements-1.3.0.zip

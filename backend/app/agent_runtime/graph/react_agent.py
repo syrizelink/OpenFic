@@ -884,12 +884,18 @@ def create_react_agent(
                         compiled_content = content
                         if (
                             db_session is not None
-                            and isinstance(content, str)
-                            and ("<of-mention" in content or "<of-skill" in content)
+                            and isinstance(compiled_content, str)
+                            and ("<of-mention" in compiled_content or "<of-skill" in compiled_content)
                         ):
                             compiled_content = await compile_canonical_mentions(
-                                content, db_session
+                                compiled_content, db_session
                             )
+                        if isinstance(compiled_content, str) and "plugin_data=" in compiled_content:
+                            from app.plugins.runtime import expand_quotes
+
+                            compiled_content, quotes = expand_quotes(compiled_content)
+                            if quotes and "<of-mention" in compiled_content:
+                                compiled_content = await compile_canonical_mentions(compiled_content, db_session)
                         drained_injected_user_message = True
                         attachment_metadata = (
                             inject_message_attachments(message_id)
