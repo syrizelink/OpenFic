@@ -8,9 +8,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+COPY packages/plugin-devtools/ /packages/plugin-devtools/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --store-dir /pnpm/store
 COPY frontend/ ./
+COPY backend/app/plugins/ui-catalog.json /backend/app/plugins/ui-catalog.json
 RUN pnpm build
 
 # ---- 后端运行：按目标平台构建（amd64 / arm64）----

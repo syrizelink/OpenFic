@@ -40,6 +40,7 @@
     "@nivo/line": "^0.99.0",
     "@nivo/pie": "^0.99.0",
     "@number-flow/react": "^0.6.0",
+    "@openfic/plugin-devtools": "file:../packages/plugin-devtools",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/themes": "^3.3.0",
     "@streamdown/cjk": "^1.0.3",
@@ -118,8 +119,7 @@
     "uuid": "^13.0.2",
     "words-count": "^2.0.2",
     "zod": "^3.25.76",
-    "zustand": "^5.0.13",
-    "@openfic/plugin-devtools": "file:../packages/plugin-devtools"
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

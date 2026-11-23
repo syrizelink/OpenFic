@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { usePortalContainer } from "@/components/portal-container";
+import { usePortalContainer } from "./portal-container";
 
 const TOUCH_MEDIA_QUERY = "(hover: none), (pointer: coarse)";
 const INFO_TOOLTIP_OPENED_EVENT = "info-tooltip:opened";
