@@ -32,6 +32,7 @@ import { useTranslation } from "react-i18next";
 
 import { ProjectSelectField, Spinner } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
+import { usePluginMenuItems } from "@/features/plugins/menu-items";
 import type { CharacterGraph, CharacterListItem } from "@/lib/character.types";
 import type { Project } from "@/lib/project.types";
 import { formatRelativeTime } from "@/lib/time-utils";
@@ -154,6 +155,15 @@ export function CharacterList({
   const [menuCharacterId, setMenuCharacterId] = useState<string | null>(null);
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const pluginMenuItems = usePluginMenuItems(
+    menuCharacterId
+      ? {
+          kind: "menu.character",
+          ids: isMultiSelect ? Array.from(selectedIds) : [menuCharacterId],
+          projectId,
+        }
+      : null,
+  );
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -872,7 +882,7 @@ export function CharacterList({
 
       <ContextMenu
         position={menuPosition}
-        items={menuItems}
+        items={[...menuItems, ...pluginMenuItems]}
         onClose={handleCloseContextMenu}
       />
 

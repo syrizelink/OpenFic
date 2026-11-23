@@ -24,7 +24,7 @@ async def test_selection_menu_requires_explicit_source_trigger_and_permission():
     view = {
         "id": "quote",
         "title": "Quote",
-        "slot": "selection.menu",
+        "slot": "menu.selection",
         "renderer": "declarative",
         "presentation": "action",
         "action": "quote",
@@ -51,6 +51,21 @@ async def test_selection_menu_requires_explicit_source_trigger_and_permission():
         View.model_validate({**view, "selectionTriggers": ["unknown"]})
     with pytest.raises(ValidationError):
         View.model_validate({**view, "slot": "editor.toolbar"})
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "slot": "selection.menu"})
+
+
+@pytest.mark.parametrize("slot", [
+    "menu.character", "menu.chapter", "menu.volume", "menu.note",
+    "menu.note-category", "menu.world-info-entry",
+])
+async def test_list_menu_requires_bound_declarative_action(slot):
+    view = {"id": "action", "title": "Action", "slot": slot, "renderer": "declarative", "presentation": "action", "action": "handle"}
+    assert View.model_validate(view).slot == slot
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "presentation": "dialog"})
+    with pytest.raises(ValidationError):
+        View.model_validate({**view, "selectionSources": ["chapter"]})
 
 
 def bundle():

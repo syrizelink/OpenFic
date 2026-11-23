@@ -10,9 +10,18 @@
   "capabilities": ["ui", "selection.read"],
   "views": [
     {
+      "id": "inspect-chapter",
+      "title": "示例：查看章节信息",
+      "icon": "BookOpen",
+      "slot": "menu.chapter",
+      "renderer": "declarative",
+      "presentation": "action",
+      "action": "chapter.inspect"
+    },
+    {
       "id": "inspect-selection",
       "title": "示例：检查选区（松开）",
-      "slot": "selection.menu",
+      "slot": "menu.selection",
       "renderer": "declarative",
       "presentation": "action",
       "action": "selection.action",
@@ -23,7 +32,7 @@
       "id": "inspect-message",
       "title": "示例：检查选区（松开）",
       "icon": "Search",
-      "slot": "selection.menu",
+      "slot": "menu.selection",
       "renderer": "declarative",
       "presentation": "action",
       "action": "selection.action",
@@ -33,7 +42,7 @@
     {
       "id": "inspect-contextmenu",
       "title": "示例：检查选区（右键）",
-      "slot": "selection.menu",
+      "slot": "menu.selection",
       "renderer": "declarative",
       "presentation": "action",
       "action": "selection.action",
@@ -44,7 +53,7 @@
       "id": "quote",
       "title": "示例：引用到 Agent",
       "icon": "Quote",
-      "slot": "selection.menu",
+      "slot": "menu.selection",
       "renderer": "declarative",
       "presentation": "action",
       "action": "selection.action",

@@ -77,7 +77,7 @@ async def test_selection_menu_dispatches_selected_text_to_bound_command(plugin_a
                 {
                     "id": "quote",
                     "title": "Quote",
-                    "slot": "selection.menu",
+                    "slot": "menu.selection",
                     "renderer": "declarative",
                     "presentation": "action",
                     "action": "quote.create",
@@ -184,6 +184,23 @@ def bundle(manifest, backend="def register(host): pass", files=None):
         for name, content in (files or {}).items():
             archive.writestr(name, content)
     return buffer.getvalue()
+
+
+async def test_list_menu_action_receives_target(plugin_api):
+    host, api, _ = plugin_api
+    package = bundle(
+        {"capabilities": ["ui"], "views": [{"id": "inspect", "title": "Inspect", "slot": "menu.character", "renderer": "declarative", "presentation": "action", "action": "inspect"}]},
+        "def register(host):\n    host.register_command('inspect', lambda context, params: params['context']['menuTarget'])\n",
+    )
+    await host.install(package)
+    await host.set_enabled("sdk-test", True)
+    target = {"kind": "menu.character", "ids": ["c1", "c2"], "projectId": "p1"}
+    response = await api.post(
+        "/api/v1/plugins/sdk-test/views/inspect/action",
+        json={"id": "inspect", "event": "press", "value": target, "context": {"projectId": "p1", "menuTarget": target}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"] == target
 
 
 async def test_business_crud_catalogue_validation_and_capabilities(

@@ -24,7 +24,13 @@ UI_SLOTS = (
     "sidebar.extensions",
     "app.overlay",
     "editor.toolbar",
-    "selection.menu",
+    "menu.selection",
+    "menu.character",
+    "menu.chapter",
+    "menu.volume",
+    "menu.note",
+    "menu.note-category",
+    "menu.world-info-entry",
     "statusbar",
     "settings",
 )
@@ -118,13 +124,15 @@ class View(Contract):
     def known_slot(self):
         if self.slot not in UI_SLOTS:
             raise ValueError(f"Unknown UI slot: {self.slot}")
-        if self.slot == "selection.menu":
+        if self.slot == "menu.selection":
             if not self.selectionTriggers or not self.selectionSources:
                 raise ValueError("Selection menu requires triggers and sources")
             if self.presentation != "action":
                 raise ValueError("Selection menu requires action presentation")
-        elif self.selectionTriggers is not None or self.selectionSources is not None:
-            raise ValueError("Selection menu options require selection.menu")
+        elif self.slot.startswith("menu.") and self.presentation != "action":
+            raise ValueError("Menu views require action presentation")
+        if self.slot != "menu.selection" and (self.selectionTriggers is not None or self.selectionSources is not None):
+            raise ValueError("Selection menu options require menu.selection")
         if self.placement is not None and self.slot != "editor.toolbar":
             raise ValueError("placement is only supported in editor.toolbar")
         if self.slot == "settings" and (not self.icon or not self.title.strip()):
@@ -150,7 +158,9 @@ class View(Contract):
             self.icon = normalize_icon(self.icon)
         if self.presentation is not None and self.slot not in {
             "editor.toolbar",
-            "selection.menu",
+            "menu.selection",
+            "menu.character", "menu.chapter", "menu.volume", "menu.note",
+            "menu.note-category", "menu.world-info-entry",
             "statusbar",
             "app.overlay",
         }:
@@ -191,11 +201,11 @@ class View(Contract):
             )
         if self.presentation == "action":
             if (
-                self.slot not in {"editor.toolbar", "selection.menu"}
+                self.slot != "editor.toolbar" and not self.slot.startswith("menu.")
                 or self.renderer != "declarative"
             ):
                 raise ValueError(
-                    "Action buttons require a declarative editor.toolbar or selection.menu view"
+                    "Action buttons require a declarative editor.toolbar or menu view"
                 )
             if self.entry is not None or self.render is not None or not self.action:
                 raise ValueError(
@@ -431,7 +441,7 @@ class Manifest(Contract):
         ):
             raise ValueError("Application overlays require ui.overlay capability")
         if (
-            any(view.slot == "selection.menu" for view in self.views)
+            any(view.slot == "menu.selection" for view in self.views)
             and "selection.read" not in self.capabilities
         ):
             raise ValueError("Selection menus require selection.read capability")

@@ -1,5 +1,6 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "selection.menu" | "statusbar" | "settings";
+export type MenuSlot = "menu.character" | "menu.chapter" | "menu.volume" | "menu.note" | "menu.note-category" | "menu.world-info-entry";
+export type UIAction = "sidebar.extensions" | "app.overlay" | "editor.toolbar" | "menu.selection" | MenuSlot | "statusbar" | "settings";
 export type StatusBarPart = { type: "text"; text: string } | { type: "icon"; name: UIIconName } | { type: "asset"; path: string };
 export interface StatusBarContent { items: StatusBarPart[] }
 /** Omitted renderer is iframe for backwards compatibility. Declarative commands run in the backend. */
@@ -10,13 +11,14 @@ export type PluginView = { id: string; title: string } & (
     { renderer: "declarative"; entry?: never; render: string; action?: string }
   )) |
   { slot: "editor.toolbar"; renderer: "declarative"; presentation: "action"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; action: string; entry?: never; render?: never; showCloseButton?: never; height?: number } |
-  { slot: "selection.menu"; renderer: "declarative"; presentation: "action"; action: string; selectionTriggers: ("selection" | "contextmenu")[]; selectionSources: SelectionSnapshot["source"]["kind"][]; icon?: UIIconName; entry?: never; render?: never } |
+  { slot: "menu.selection"; renderer: "declarative"; presentation: "action"; action: string; selectionTriggers: ("selection" | "contextmenu")[]; selectionSources: SelectionSnapshot["source"]["kind"][]; icon?: UIIconName; entry?: never; render?: never } |
+  { slot: MenuSlot; renderer: "declarative"; presentation: "action"; action: string; icon?: UIIconName; entry?: never; render?: never } |
   ({ height?: number; presentation?: "popover" | "dialog" } & (
   /** Sidebar icons are image paths relative to plugin.json. */
   { slot?: "sidebar.extensions"; icon?: string } |
   { slot: "editor.toolbar"; icon?: UIIconName; placement?: "left-end" | "right-start" | "right-end"; showCloseButton?: boolean } |
   { slot: "settings"; icon: UIIconName | `${string}.${string}`; presentation?: never } |
-  { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar" | "statusbar" | "settings">; icon?: UIIconName }
+  { slot: Exclude<UIAction, "sidebar.extensions" | "editor.toolbar" | "menu.selection" | MenuSlot | "statusbar" | "settings">; icon?: UIIconName }
 ) & (
   { renderer?: "iframe"; entry: string; render?: never; action?: never } |
   { renderer: "declarative"; entry?: never; render: string; action?: string }
@@ -2339,6 +2341,7 @@ export interface Context {
   language: string; theme: "light" | "dark"; settings: Record<string, Json>;
   capabilities: string[]; slot: UIAction; sdkVersion: string; viewport?: { width: number; height: number };
   selection?: SelectionSnapshot;
+  menuTarget?: { kind: MenuSlot; ids: string[]; projectId: string | null };
 }
 export interface RequestOptions {
   json?: Json; query?: Record<string, string | number | boolean | undefined>;

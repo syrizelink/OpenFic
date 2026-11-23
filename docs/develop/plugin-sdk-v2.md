@@ -134,7 +134,9 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 | `app.overlay` | 应用全局浮层；不占布局，需 `ui` 和 `ui.overlay`，支持声明式视图和 iframe |
 | `sidebar.extensions` | 全局侧栏入口，点击进入独立页面 |
 | `editor.toolbar` | 章节和笔记编辑器工具栏的图标按钮，默认打开浮层。`views[].placement` 可设为 `left-end`（左侧末尾）、`right-start`（右侧开头、撤销前）或 `right-end`（右侧末尾、保存后，默认） |
-| `selection.menu` | 对指定来源的选中文本提供操作，按插件声明选择选中后显示、右键显示或两者 |
+| `menu.selection` | 对指定来源的选中文本提供操作，按插件声明选择选中后显示、右键显示或两者 |
+| `menu.character`、`menu.chapter`、`menu.volume` | 角色、章节和卷列表的右键操作 |
+| `menu.note`、`menu.note-category`、`menu.world-info-entry` | 笔记、笔记文件夹和世界书条目的右键操作 |
 | `statusbar` | 状态栏文本和图标，可设为不可点击、浮层或对话框 |
 | `settings` | 设置分类列表末尾的插件入口，选择后在设置面板中显示插件页面 |
 
@@ -144,13 +146,15 @@ Graph factory 签名为 `factory(context, model)`，返回编译后的 StateGrap
 
 `editor.toolbar` 还支持 `renderer: "declarative"` 配合 `presentation: "action"`。这类按钮只绑定 `action` 命令，不声明 `render` 或 `entry`。点击时以视图的 `id` 作为操作 ID，发送 `press` 事件和当前编辑器上下文，不打开浮层或对话框。
 
-`selection.menu` 要求 `ui` 和 `selection.read` 权限，使用声明式 `action` 命令。`selectionTriggers` 支持 `selection`、`contextmenu`；`selectionSources` 支持 `chapter`、`note`、`character`、`world-info`、`agent-message` 和 `agent-input`。提示词链编辑器不接入。仅非空且未跨来源的选区会显示菜单；系统触屏选区菜单的行为受设备限制。
+`menu.selection` 要求 `ui` 和 `selection.read` 权限，使用声明式 `action` 命令。`selectionTriggers` 支持 `selection`、`contextmenu`；`selectionSources` 支持 `chapter`、`note`、`character`、`world-info`、`agent-message` 和 `agent-input`。提示词链编辑器不接入。仅非空且未跨来源的选区会显示菜单；系统触屏选区菜单的行为受设备限制。
+
+列表菜单要求 `ui` 权限，使用 `renderer: "declarative"`、`presentation: "action"` 和已注册的 `action` 命令。菜单动作的 `value` 和 `context.menuTarget` 包含 `kind`（插槽名）、`ids`（单项或多选 ID）和 `projectId`（无所属项目时为 `null`）。插件访问实体内容仍须声明对应的数据权限。原 `selection.menu` 插槽已改名为 `menu.selection`，插件须更新声明并重新加载。
 
 ```json
 {
   "id": "quote",
   "title": "引用",
-  "slot": "selection.menu",
+  "slot": "menu.selection",
   "renderer": "declarative",
   "presentation": "action",
   "action": "quote.create",

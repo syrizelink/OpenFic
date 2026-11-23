@@ -54,5 +54,23 @@ async def selection_action(context, params):
     return {"effects": [{"method": "ui.toast", "params": {"text": summary}}]}
 
 
+async def inspect_chapter(context, params):
+    target = (params.get("context") or {}).get("menuTarget")
+    if (
+        not isinstance(target, dict)
+        or target.get("kind") != "menu.chapter"
+        or params.get("value") != target
+    ):
+        raise ValueError("无效的章节菜单目标")
+    chapter_ids = target.get("ids") or []
+    if len(chapter_ids) != 1:
+        raise ValueError("请选择一个章节")
+    return {"effects": [{
+        "method": "ui.toast",
+        "params": {"text": f"章节 ID: {chapter_ids[0]}\n项目 ID: {target.get('projectId') or '-'}"},
+    }]}
+
+
 def register(host):
     host.register_command("selection.action", selection_action)
+    host.register_command("chapter.inspect", inspect_chapter)

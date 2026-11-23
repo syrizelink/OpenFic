@@ -35,7 +35,7 @@ function matchingEntries(
       plugin.views
         .filter(
           (view) =>
-            view.slot === "selection.menu" &&
+            view.slot === "menu.selection" &&
             view.selectionTriggers?.includes(trigger) &&
             view.selectionSources?.includes(selection.source.kind),
         )
