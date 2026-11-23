@@ -13,7 +13,6 @@ import { apiClient } from "@/lib/api-client";
 import { pluginError, pluginsQueryOptions, type InstalledPlugin, type PluginView } from "./api";
 import { runUIEffects } from "./declarative-effects";
 import { frontendCall } from "./frontend-host";
-import { diagnosticCall } from "./plugin-diagnostics";
 import { PluginIcon } from "./plugin-icon";
 import { PluginFrame } from "./plugin-page";
 
@@ -101,25 +100,10 @@ export function EditorPluginCommandButton({ plugin, view, context }: EditorPlugi
       return data.result;
     }
     try {
-      const result = await diagnosticCall(
-        plugin.id,
-        "action",
-        view.id,
-        { event: "press" },
-        () => send(view.id, null, "press"),
-        view.id,
-      );
+      const result = await send(view.id, null, "press");
       await runUIEffects(
         result,
-        (method, params) =>
-          diagnosticCall(
-            plugin.id,
-            "effect",
-            method,
-            params,
-            () => frontendCall(method, params, plugin.capabilities, navigate, plugin.id),
-            view.id,
-          ),
+        (method, params) => frontendCall(method, params, plugin.capabilities, navigate, plugin.id),
         (next, values) => send(next, values, "change"),
         () => !signal.aborted,
       );

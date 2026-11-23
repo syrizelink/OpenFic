@@ -2774,7 +2774,6 @@
     "expandDescription": "Expand",
     "collapseDescription": "Collapse",
     "noConfiguration": "This plugin has no configurable settings.",
-    "devtools": "Plugin developer tools",
     "installation": {
       "file": "Install from file",
       "fileDescription": "Select a plugin export file in a supported format",

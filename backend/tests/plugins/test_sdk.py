@@ -393,18 +393,18 @@ def register(host):
             session,
         )
 
-    host.diagnostics.enabled = True
     assert (
         await host.call("sdk-test", "reveal", {"provider_id": provider.id}, session)
         == key
     )
-    assert key not in json.dumps(list(host.diagnostics.entries))
     provider.api_key_encrypted = cipher.encrypt("rotated-sdk-test-key")
     await session.flush()
     assert await ctx.providers.get_credential(provider.id) == "rotated-sdk-test-key"
 
 
 async def test_secret_settings_are_encrypted_and_redacted(plugin_api):
+    from app.plugins.host import redact_plugin_error
+
     host, _, _ = plugin_api
     await host.install(
         bundle(
@@ -422,6 +422,11 @@ async def test_secret_settings_are_encrypted_and_redacted(plugin_api):
         )
     )
     await host.configure("sdk-test", {"token": "hidden-setting"})
+    message = redact_plugin_error(
+        '{"password":"other-secret","detail":"hidden-setting"}', host.get("sdk-test")
+    )
+    assert "hidden-setting" not in message
+    assert "other-secret" not in message
     assert "hidden-setting" not in (host.root / ".registry.json").read_text()
     assert host.describe(host.get("sdk-test"))["configuration"]["token"] == ""
     await host.close()

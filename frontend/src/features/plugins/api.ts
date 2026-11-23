@@ -44,7 +44,6 @@ export interface InstalledPlugin {
   homepage?: string | null;
   icon?: string | null;
   author: string;
-  development_revision?: number;
   reload_revision?: number;
   enabled: boolean;
   status: "enabled" | "disabled" | "error";
@@ -146,18 +145,4 @@ function savePluginDownload(data: Blob, filename: string) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
-}
-
-export interface PluginDevelopmentStatus {
-  enabled: boolean;
-  inspector: boolean;
-  pluginId?: string;
-  source?: string;
-  revision?: number;
-  status?: string;
-  checks?: { name: string; status: string; reason?: string }[];
-  diagnostics?: { code: string; severity: string; file: string; line?: number; message: string }[];
-}
-export async function fetchPluginDevelopment(): Promise<PluginDevelopmentStatus> {
-  return (await apiClient.get<PluginDevelopmentStatus>("/plugins/development")).data;
 }

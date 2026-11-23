@@ -228,8 +228,7 @@
   font-size: var(--font-size-1);
   color: var(--gray-11);
 }
-.plugin-list-empty,
-.plugin-list-footer {
+.plugin-list-empty {
   padding: 12px;
 }
 .plugin-detail-panel {

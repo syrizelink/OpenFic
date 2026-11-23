@@ -50,7 +50,6 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 import { defaultUrlTransform } from "streamdown";
 
 import {
@@ -68,7 +67,6 @@ import { openExternalLink } from "@/lib/desktop-appearance-bridge";
 import {
   downloadPlugin,
   pluginsQueryOptions,
-  fetchPluginDevelopment,
   pluginError,
   savePluginOrder,
   PLUGINS_QUERY_KEY,
@@ -95,25 +93,18 @@ function getPluginHomepage(value: string | null | undefined): URL | null {
 }
 
 interface PluginManagerProps {
-  onOpenView?: () => void;
   mobilePage: "list" | "detail";
   onMobileDetailTitleChange: (title: string | null) => void;
   onMobilePageChange: (page: "list" | "detail") => void;
 }
 
 export function PluginManager({
-  onOpenView,
   mobilePage,
   onMobileDetailTitleChange,
   onMobilePageChange,
 }: PluginManagerProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: development } = useQuery({
-    queryKey: ["plugin-development"],
-    queryFn: fetchPluginDevelopment,
-    staleTime: 30000,
-  });
   const {
     data: plugins = [],
     isLoading,
@@ -140,7 +131,6 @@ export function PluginManager({
       "plugin-detail",
       plugin?.id,
       plugin?.version,
-      plugin?.development_revision,
       plugin?.reload_revision,
       plugin?.detail,
     ],
@@ -415,23 +405,6 @@ export function PluginManager({
               </DndContext>
             )}
           </div>
-          {development?.inspector && (
-            <div className="plugin-list-footer">
-              <Button
-                asChild
-                variant="soft"
-                color="gray"
-                size="1"
-              >
-                <Link
-                  to="/extensions/devtools"
-                  onClick={onOpenView}
-                >
-                  {t("plugins.devtools")}
-                </Link>
-              </Button>
-            </div>
-          )}
         </div>
         <div className="plugin-detail-panel">
           {plugin ? (

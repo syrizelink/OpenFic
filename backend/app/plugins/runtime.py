@@ -78,10 +78,6 @@ def expand_quotes(text: str, *, require_enabled: bool = True) -> tuple[str, list
 
 
 async def sdk_call(context, method: str, params: dict):
-    return await context.host.diagnostics.run(context.plugin, "sdk", method, params, lambda: _sdk_call(context, method, params))
-
-
-async def _sdk_call(context, method: str, params: dict):
     if method == "ui.invalidate":
         return context.invalidate_ui(params.get("viewId"))
     if method == "assets.read":
@@ -198,7 +194,7 @@ async def observe(event: str, payload: dict, *, runtime=None, host=None):
                         return copy.deepcopy(payload)
 
                     async with asyncio.timeout(3):
-                        await current.diagnostics.run(plugin, "observer", event, payload, lambda: handler(context, copy.deepcopy(payload), next_handler))
+                        await handler(context, copy.deepcopy(payload), next_handler)
             except Exception:
                 current._log(
                     plugin.manifest.id, "observer", event + ": observer failed", "error"
@@ -253,7 +249,7 @@ async def dispatch(
         )
         try:
             async with asyncio.timeout(30):
-                result = await host.diagnostics.run(context.plugin, "hook", event, data, lambda: handler(context, copy.deepcopy(data), next_handler))
+                result = await handler(context, copy.deepcopy(data), next_handler)
             baseline = next_result if called else data
             if (
                 event == "editor.change"

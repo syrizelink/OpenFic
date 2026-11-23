@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router";
 
 import { pluginsQueryOptions, type InstalledPlugin, type PluginView } from "./api";
 import { PluginFrame, type OverlayRequest } from "./plugin-page";
@@ -21,9 +20,7 @@ interface ActiveOverlay {
 }
 
 export function PluginOverlays() {
-  const { pathname } = useLocation();
   const { data: plugins = [] } = useQuery(pluginsQueryOptions);
-  if (pathname === "/extensions/devtools") return null;
   return (
     <div
       className="plugin-overlays"
@@ -36,7 +33,7 @@ export function PluginOverlays() {
             .filter((view) => view.slot === "app.overlay" && !view.presentation)
             .map((view) => (
               <OverlayOwner
-                key={`${plugin.id}:${plugin.version}:${plugin.development_revision ?? 0}:${plugin.reload_revision ?? 0}:${view.id}`}
+                key={`${plugin.id}:${plugin.version}:${plugin.reload_revision ?? 0}:${view.id}`}
                 plugin={plugin}
                 view={view}
               />

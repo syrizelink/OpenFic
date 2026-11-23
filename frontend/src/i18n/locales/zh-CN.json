@@ -2774,7 +2774,6 @@
     "expandDescription": "展开",
     "collapseDescription": "收起",
     "noConfiguration": "此插件没有可配置项。",
-    "devtools": "插件开发工具",
     "installation": {
       "file": "从文件安装",
       "fileDescription": "选择符合格式的插件导出文件",

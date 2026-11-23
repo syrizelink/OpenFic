@@ -116,7 +116,6 @@ class PluginContext:
             self.data._session,
             self.plugin.manifest.capabilities,
             lambda event, data: self.host.emit(event, data, self.plugin_id),
-            trace_context=self,
         )
 
     def resource(self, name: str):

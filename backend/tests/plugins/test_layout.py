@@ -222,28 +222,3 @@ async def test_sdk_injection_parses_real_markup_and_precedes_application(documen
     if "<script" in document:
         assert result.index(injected) <= document.index("<script")
 
-
-async def test_watch_scripts_use_root_or_explicit_project_directories(tmp_path):
-    from app.plugin_cli import resolve_script_directory
-    from app.cli import build_parser
-
-    for relative in ("tools", "another"):
-        directory = tmp_path / relative
-        directory.mkdir()
-        (directory / "package.json").write_text(
-            json.dumps({"scripts": {"watch": "a-build-tool"}})
-        )
-    with pytest.raises(ValueError, match="--script-dir"):
-        resolve_script_directory(tmp_path, "watch")
-    assert resolve_script_directory(tmp_path, "watch", "tools") == tmp_path / "tools"
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"watch": "root-build"}})
-    )
-    assert resolve_script_directory(tmp_path, "watch") == tmp_path
-    with pytest.raises(ValueError, match="inside"):
-        resolve_script_directory(tmp_path, "watch", "..")
-    args = build_parser().parse_args(
-        ["plugin", "dev", str(tmp_path), "--frontend-script", "watch"]
-    )
-    assert args.watch_script == "watch"
-

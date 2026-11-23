@@ -24,7 +24,6 @@ export function useExtensionNavItems() {
                     view_icon: view.icon ?? "",
                     plugin_icon: plugin.icon ?? "",
                     version: plugin.version,
-                    revision: String(plugin.development_revision ?? 0),
                     reload: String(plugin.reload_revision ?? 0),
                   },
                 )}`

@@ -3,7 +3,6 @@
 import asyncio
 import importlib.util
 import inspect
-import os
 import json
 import re
 import secrets
@@ -180,6 +179,38 @@ async def _await_result(value):
     return value
 
 
+def redact_plugin_error(error: str, plugin: Installed | None = None) -> str:
+    sensitive = re.compile(
+        r"authorization|cookie|password|secret|credential|api[-_]?key|access[-_]?token|refresh[-_]?token|id[-_]?token|client[-_]?secret",
+        re.I,
+    )
+
+    def redact(value, depth=0):
+        if depth > 24:
+            return "[depth limit]"
+        if isinstance(value, dict):
+            return {
+                str(key): "[redacted]" if sensitive.search(str(key)) else redact(item, depth + 1)
+                for key, item in list(value.items())[:250]
+            }
+        if isinstance(value, list):
+            return [redact(item, depth + 1) for item in value[:250]]
+        return value
+
+    if plugin:
+        for setting in plugin.manifest.settings:
+            value = plugin.settings.get(setting.key)
+            if setting.secret and value:
+                error = error.replace(str(value), "[redacted]")
+    error = re.sub(r"(?i)Bearer\s+[^\s\"',}]+", "Bearer [redacted]", error)
+    if error.lstrip().startswith(("{", "[")) and len(error) < 64000:
+        try:
+            error = json.dumps(redact(json.loads(error)), ensure_ascii=False)
+        except ValueError:
+            pass
+    return error[:24000] + ("…[truncated]" if len(error) > 24000 else "")
+
+
 class PluginHost:
     def __init__(self, root: Path):
         self.root = root
@@ -194,10 +225,6 @@ class PluginHost:
         self.http_transport = None
         self.application = None
         self.oauth_flows: dict[str, dict] = {}
-        from app.plugins.diagnostics import Diagnostics
-
-        self.diagnostics = Diagnostics(os.getenv("OPENFIC_PLUGIN_DEVTOOLS") == "1")
-        self.development = None
 
     def _log(
         self, plugin_id: str, action: str, message: str, level: str = "info"
@@ -414,9 +441,6 @@ class PluginHost:
         return {
             **plugin.manifest.model_dump(),
             "reload_revision": plugin.reload_revision,
-            "development_revision": self.development.revision
-            if self.development and self.development.plugin_id == plugin.manifest.id
-            else 0,
             "enabled": plugin.enabled,
             "status": "error"
             if plugin.error
@@ -619,9 +643,6 @@ class PluginHost:
                     raise PluginError("Plugin already installed; use Update", 409)
                 if (
                     old
-                    and not (
-                        self.development and self.development.plugin_id == manifest.id
-                    )
                     and tuple(map(int, manifest.version.split(".")))
                     <= tuple(map(int, old.manifest.version.split(".")))
                 ):
@@ -771,7 +792,7 @@ class PluginHost:
                 if plugin.enabled:
                     await self._activate(plugin)
             except Exception as error:
-                plugin.error = self.diagnostics.redact(str(error), plugin)
+                plugin.error = redact_plugin_error(str(error), plugin)
                 self._log(plugin_id, "reload", plugin.error, "error")
                 raise PluginError(
                     f"Plugin activation failed: {plugin.error}"
@@ -846,13 +867,7 @@ class PluginHost:
                         result = await sdk_call(context, method[4:], params)
                     else:
                         assert handler is not None
-                        result = await self.diagnostics.run(
-                            plugin,
-                            "command",
-                            method,
-                            params,
-                            lambda: _await_result(handler(context, params)),
-                        )
+                        result = await _await_result(handler(context, params))
                 encoded = json.dumps(result, allow_nan=False)
                 if len(encoded.encode()) > 4 * 1024 * 1024:
                     raise ValueError("Plugin response exceeds 4 MiB")

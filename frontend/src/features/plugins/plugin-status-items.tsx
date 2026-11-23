@@ -51,7 +51,6 @@ export function PluginStatusItem({ plugin, view }: { plugin: InstalledPlugin; vi
       plugin.id,
       plugin.version,
       plugin.reload_revision,
-      plugin.development_revision,
       view.id,
       context.language,
       context.theme,

@@ -11,11 +11,6 @@ import { apiClient, resolveBackendUrl } from "@/lib/api-client";
 import { pluginsQueryOptions, pluginError, type InstalledPlugin, type PluginView } from "./api";
 import { DeclarativeView } from "./declarative-view";
 import { frontendCall } from "./frontend-host";
-import {
-  diagnosticCall,
-  addPluginDiagnostic,
-  pluginDiagnosticsEnabled,
-} from "./plugin-diagnostics";
 
 import "./plugins.css";
 
@@ -82,7 +77,7 @@ export function PluginFrame({
   if (view.renderer === "declarative")
     return (
       <DeclarativeView
-        key={`${plugin.development_revision ?? 0}:${plugin.reload_revision ?? 0}`}
+        key={`${plugin.reload_revision ?? 0}`}
         plugin={plugin}
         view={view}
         context={context}
@@ -94,7 +89,7 @@ export function PluginFrame({
     );
   return (
     <IframeView
-      key={`${plugin.development_revision ?? 0}:${plugin.reload_revision ?? 0}`}
+      key={`${plugin.reload_revision ?? 0}`}
       plugin={plugin}
       view={view}
       context={context}
@@ -216,7 +211,6 @@ function IframeView({
           projectId,
           language,
           theme,
-          devtools: pluginDiagnosticsEnabled(),
           settings: JSON.parse(configuration),
           ...JSON.parse(extraContext),
           sdkVersion: "2.0.0",
@@ -239,16 +233,6 @@ function IframeView({
       if (message.type === "ready") {
         initialized.current = true;
         initialize();
-      } else if (message.type === "diagnostic" && message.channel === channel) {
-        addPluginDiagnostic({
-          pluginId: plugin.id,
-          viewId: view.id,
-          kind: "iframe",
-          method: "runtime.error",
-          request: message.details,
-          status: "error",
-          error: String(message.error).slice(0, 4000),
-        });
       } else if (
         message.type === "call" &&
         message.channel === channel &&
@@ -339,14 +323,7 @@ function IframeView({
                         params: message.params,
                       })
                       .then(({ data }) => data.result);
-        void diagnosticCall(
-          plugin.id,
-          "iframe",
-          message.method,
-          message.params,
-          () => operation,
-          view.id,
-        )
+        void operation
           .then((result) => {
             if (!disposed) reply({ type: "result", id: message.id, result });
           })
@@ -385,14 +362,7 @@ function IframeView({
     onOverlayRequest,
   ]);
   const { data: viewUrl, error: viewError } = useQuery({
-    queryKey: [
-      "plugin-view-url",
-      plugin.id,
-      plugin.version,
-      plugin.development_revision,
-      view.id,
-      configuration,
-    ],
+    queryKey: ["plugin-view-url", plugin.id, plugin.version, view.id, configuration],
     queryFn: async () => {
       const { data } = await apiClient.post<{ url: string }>(
         `/plugins/${plugin.id}/views/${view.id}`,

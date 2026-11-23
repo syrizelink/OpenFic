@@ -16,7 +16,6 @@ import { useDeclarativeLocalState } from "./declarative-local-state";
 import { type UIDocument, type UIAction } from "./declarative-schema";
 import { DeclarativeErrorBoundary, renderTree } from "./declarative-tree";
 import { frontendCall } from "./frontend-host";
-import { diagnosticCall, addPluginDiagnostic } from "./plugin-diagnostics";
 import type { OverlayRequest } from "./plugin-page";
 import { shouldRefreshPluginView } from "./plugin-refresh";
 
@@ -82,7 +81,6 @@ export function DeclarativeView({
     "plugin-declarative",
     plugin.id,
     plugin.version,
-    plugin.development_revision,
     plugin.reload_revision,
     view.id,
     contextKey,
@@ -90,7 +88,6 @@ export function DeclarativeView({
   const {
     data,
     error: renderError,
-    isPlaceholderData,
     refetch,
   } = useQuery<UIDocument>({
     queryKey: [...renderKey, columns],
@@ -116,27 +113,6 @@ export function DeclarativeView({
     data?.state ?? {},
     data?.localActions ?? {},
   );
-  useEffect(() => {
-    if (data && !isPlaceholderData)
-      addPluginDiagnostic({
-        pluginId: plugin.id,
-        viewId: view.id,
-        kind: "render",
-        method: "ui.render",
-        status: "ok",
-        request: JSON.parse(contextKey),
-        result: { document: data, compiledCSS: styles.css, warnings: styles.warnings },
-      });
-    if (renderError)
-      addPluginDiagnostic({
-        pluginId: plugin.id,
-        viewId: view.id,
-        kind: "render",
-        method: "ui.render",
-        status: "error",
-        error: pluginError(renderError),
-      });
-  }, [data, styles, renderError, isPlaceholderData, plugin.id, view.id, contextKey]);
   const actions = useRef<UIAction>(() => {});
   const run: UIAction = (id, value = null, event = "press") => {
     if (!id) return;
@@ -162,51 +138,36 @@ export function DeclarativeView({
               },
             )
           ).data.result;
-        const response = await diagnosticCall(
-          plugin.id,
-          "action",
-          id,
-          { value, event },
-          () => send(id, value, event),
-          view.id,
-        );
+        const response = await send(id, value, event);
         const result = await runUIEffects(
           response,
           (method, args) =>
-            diagnosticCall(
-              plugin.id,
-              "effect",
-              method,
-              args,
-              () =>
-                method === "ui.openOverlay" || method === "ui.closeOverlay"
-                  ? Promise.resolve().then(() => {
-                      if (
-                        view.slot !== "app.overlay" ||
-                        view.presentation ||
-                        !onOverlayRequest ||
-                        !plugin.capabilities.includes("ui") ||
-                        !plugin.capabilities.includes("ui.overlay")
-                      )
-                        throw new Error(
-                          "Opening overlays requires a mounted app.overlay view with ui and ui.overlay",
-                        );
-                      onOverlayRequest(method, args);
-                    })
-                  : frontendCall(
-                      method,
-                      args,
-                      plugin.capabilities,
-                      navigate,
-                      plugin.id,
-                      onRequestClose &&
-                        (() => {
-                          current.active = false;
-                          onRequestClose();
-                        }),
-                    ),
-              view.id,
-            ),
+            method === "ui.openOverlay" || method === "ui.closeOverlay"
+              ? Promise.resolve().then(() => {
+                  if (
+                    view.slot !== "app.overlay" ||
+                    view.presentation ||
+                    !onOverlayRequest ||
+                    !plugin.capabilities.includes("ui") ||
+                    !plugin.capabilities.includes("ui.overlay")
+                  )
+                    throw new Error(
+                      "Opening overlays requires a mounted app.overlay view with ui and ui.overlay",
+                    );
+                  onOverlayRequest(method, args);
+                })
+              : frontendCall(
+                  method,
+                  args,
+                  plugin.capabilities,
+                  navigate,
+                  plugin.id,
+                  onRequestClose &&
+                    (() => {
+                      current.active = false;
+                      onRequestClose();
+                    }),
+                ),
           (next, values) => send(next, values, "change"),
           () => current.active,
         );

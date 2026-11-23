@@ -7,7 +7,6 @@ operation carries a resource capability, including nested project routes.
 import base64
 import importlib
 from copy import copy
-from app.plugins.diagnostics import traced
 from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any
@@ -100,15 +99,11 @@ def build_gateway() -> tuple[FastAPI, list[tuple[APIRoute, str]]]:
 
 
 class BusinessAPI:
-    def __init__(
-        self, session: AsyncSession, capabilities, emit=None, *, trace_context=None
-    ):
-        self.trace_context = trace_context
+    def __init__(self, session: AsyncSession, capabilities, emit=None):
         self.session = session
         self.capabilities = frozenset(capabilities)
         self.emit = emit
 
-    @traced("api.request")
     async def request(
         self, method: str, path: str, *, json=None, query=None, form=None, files=None
     ) -> Any:

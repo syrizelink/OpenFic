@@ -142,7 +142,7 @@ export function SettingsContent({
           title: view.title,
           icon: view.icon!,
           iconUrl: /\.(?:png|jpe?g|webp|svg)$/i.test(view.icon!)
-            ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(plugin.id)}/icon?${new URLSearchParams({ view_id: view.id, version: plugin.version, revision: String(plugin.development_revision ?? 0), reload: String(plugin.reload_revision ?? 0) })}`
+            ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(plugin.id)}/icon?${new URLSearchParams({ view_id: view.id, version: plugin.version, reload: String(plugin.reload_revision ?? 0) })}`
             : undefined,
           plugin,
           view,
@@ -491,7 +491,6 @@ export function SettingsContent({
           <>
             {activeCategory === "plugins" ? (
               <PluginManager
-                onOpenView={onClose}
                 mobilePage={mobileSubpage}
                 onMobileDetailTitleChange={setMobileSubpageTitle}
                 onMobilePageChange={handleMobileSubpageChange}

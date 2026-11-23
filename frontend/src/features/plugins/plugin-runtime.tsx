@@ -5,14 +5,13 @@ import { toast } from "@/components";
 import { apiClient, fetchChapter, fetchNote } from "@/lib/api-client";
 import { getSocket } from "@/lib/socket-client";
 
-import { pluginsQueryOptions, fetchPluginDevelopment, PLUGINS_QUERY_KEY } from "./api";
+import { pluginsQueryOptions, PLUGINS_QUERY_KEY } from "./api";
 import {
   publishLocalEvent,
   applyEditorChange,
   setEditorEventsEnabled,
   type EditorSnapshot,
 } from "./frontend-host";
-import { enablePluginDiagnostics } from "./plugin-diagnostics";
 import { SelectionMenu } from "./selection-menu";
 
 const DATA_QUERY_PREFIXES: Record<string, readonly string[]> = {
@@ -87,14 +86,6 @@ interface PluginEvent {
 }
 
 export function PluginRuntime() {
-  const { data: development } = useQuery({
-    queryKey: ["plugin-development"],
-    queryFn: fetchPluginDevelopment,
-    staleTime: 30000,
-  });
-  useEffect(() => {
-    enablePluginDiagnostics(Boolean(development?.inspector));
-  }, [development?.inspector]);
   const queryClient = useQueryClient();
   const { data: plugins = [] } = useQuery(pluginsQueryOptions);
   const editorReads = plugins.some(
@@ -150,7 +141,6 @@ export function PluginRuntime() {
       if (resync) {
         resync = false;
         void queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
-        void queryClient.invalidateQueries({ queryKey: ["plugin-development"] });
         void queryClient.invalidateQueries({ queryKey: ["plugin-view-url"] });
         void queryClient.invalidateQueries({ queryKey: ["plugin-component-data"] });
       }
