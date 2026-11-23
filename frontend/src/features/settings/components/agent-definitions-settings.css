@@ -2,6 +2,28 @@
   width: 100%;
 }
 
+.agent-definition-tool-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--gray-a5);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+}
+
+.agent-definition-tool-option[data-disabled] {
+  cursor: not-allowed;
+}
+
+.agent-definition-tool-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: inherit;
+}
+
 .agent-definitions-settings__model-row {
   width: 100%;
   max-width: 100%;

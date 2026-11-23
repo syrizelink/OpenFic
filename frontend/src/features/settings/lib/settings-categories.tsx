@@ -2,6 +2,7 @@ import {
   Mic,
   Brain,
   Bell,
+  Blocks,
   Bot,
   Cable,
   Database,
@@ -38,7 +39,8 @@ export type SettingsCategory =
   | "rules"
   | "skills"
   | "agents"
-  | "advanced";
+  | "advanced"
+  | "plugins";
 
 interface SettingsCategoryItem {
   id: SettingsCategory;
@@ -128,6 +130,12 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "tunnels",
     icon: <Network size={16} />,
     labelKey: "settings.tunnels",
+    badgeKey: "settings.experimental",
+  },
+  {
+    id: "plugins",
+    icon: <Blocks size={16} />,
+    labelKey: "plugins.management",
     badgeKey: "settings.experimental",
   },
   {

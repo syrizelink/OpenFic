@@ -7,7 +7,11 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
+import { pluginsQueryOptions } from "@/features/plugins/api";
+import { PluginManager } from "@/features/plugins/plugin-manager";
+import { PluginFrame } from "@/features/plugins/plugin-page";
 import { saveLanguagePreference } from "@/i18n";
+import { getApiBaseUrl } from "@/lib/api-client";
 import {
   applyBaseFontSize,
   applyCodeFontFamily,
@@ -35,7 +39,7 @@ import { NotificationSettings } from "../components/notification-settings";
 import { PersonalizationSettings } from "../components/personalization-settings";
 import { RulesSettings } from "../components/rules-settings";
 import { SessionSettings } from "../components/session-settings";
-import { SettingsSidebar } from "../components/settings-sidebar";
+import { SettingsPluginIcon, SettingsSidebar } from "../components/settings-sidebar";
 import { SkillsSettings } from "../components/skills-settings";
 import { SummarySettings } from "../components/summary-settings";
 import { WebSearchSettings } from "../components/web-search-settings";
@@ -98,6 +102,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   skills: "settings.skills",
   agents: "settings.agents",
   advanced: "settings.advanced",
+  plugins: "plugins.management",
 };
 
 export function SettingsContent({
@@ -112,6 +117,7 @@ export function SettingsContent({
   const queryClient = useQueryClient();
   const initialCategory = route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY;
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory);
+  const [activePluginId, setActivePluginId] = useState<string | null>(null);
   const [activeModelTab, setActiveModelTab] = useState<ModelSettingsTab>(
     route?.category === "models"
       ? (route.modelTab ?? DEFAULT_MODEL_SETTINGS_TAB)
@@ -125,6 +131,24 @@ export function SettingsContent({
 
   const [editedSettings, setEditedSettings] = useState<Partial<Settings>>({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const { data: plugins = [] } = useQuery(pluginsQueryOptions);
+  const pluginEntries = plugins
+    .filter((plugin) => plugin.status === "enabled")
+    .flatMap((plugin) =>
+      plugin.views
+        .filter((view) => view.slot === "settings" && view.icon)
+        .map((view) => ({
+          id: `${plugin.id}/${view.id}`,
+          title: view.title,
+          icon: view.icon!,
+          iconUrl: /\.(?:png|jpe?g|webp|svg)$/i.test(view.icon!)
+            ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(plugin.id)}/icon?${new URLSearchParams({ view_id: view.id, version: plugin.version, reload: String(plugin.reload_revision ?? 0) })}`
+            : undefined,
+          plugin,
+          view,
+        })),
+    );
+  const activePlugin = pluginEntries.find((item) => item.id === activePluginId);
 
   const { data: serverSettings, isLoading } = useQuery({
     queryKey: ["settings"],
@@ -278,7 +302,11 @@ export function SettingsContent({
   );
 
   const isSplitPanelCategory =
-    activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
+    !activePlugin &&
+    (activeCategory === "agents" ||
+      activeCategory === "skills" ||
+      activeCategory === "rules" ||
+      activeCategory === "plugins");
   const shouldUseFormPagePadding =
     activeCategory === "audio" ||
     activeCategory === "general" ||
@@ -302,7 +330,7 @@ export function SettingsContent({
     ? t("topbar.settings")
     : isMobileSubpageDetail && mobileSubpageTitle
       ? mobileSubpageTitle
-      : t(CATEGORY_TITLE_KEY_MAP[activeCategory]);
+      : (activePlugin?.title ?? t(CATEGORY_TITLE_KEY_MAP[activeCategory]));
 
   const clearCategoryQueries = useCallback(
     (category: SettingsCategory) => {
@@ -370,6 +398,7 @@ export function SettingsContent({
   const handleMobileCategorySelect = useCallback(
     (category: SettingsCategory) => {
       clearCategoryQueries(category);
+      setActivePluginId(null);
       setMobileDirection(1);
       setActiveCategory(category);
       setMobileSubpage("list");
@@ -383,6 +412,7 @@ export function SettingsContent({
   const handleDesktopCategorySelect = useCallback(
     (category: SettingsCategory) => {
       clearCategoryQueries(category);
+      setActivePluginId(null);
       setActiveCategory(category);
     },
     [clearCategoryQueries],
@@ -410,6 +440,14 @@ export function SettingsContent({
     setMobileView("list");
   }, [isMobileListView, isMobileSubpageDetail, mobileRefDocEdit, onClose]);
 
+  const handlePluginSelect = (id: string) => {
+    setActivePluginId(id);
+    setMobileDirection(1);
+    setMobileSubpage("list");
+    setMobileRefDocEdit(false);
+    setMobileView("detail");
+  };
+
   const handleMobileSubpageChange = useCallback((page: MobileSubpage) => {
     setMobileDirection(page === "detail" ? 1 : -1);
     setMobileRefDocEdit(false);
@@ -421,7 +459,16 @@ export function SettingsContent({
     setMobileRefDocEdit(active);
   }, []);
 
-  const detailPageContent = (
+  const detailPageContent = activePlugin ? (
+    <div className="plugin-page settings-plugin-page">
+      <PluginFrame
+        key={`${activePlugin.id}:${activePlugin.plugin.version}:${activePlugin.plugin.reload_revision}`}
+        plugin={activePlugin.plugin}
+        view={activePlugin.view}
+        fullPage
+      />
+    </div>
+  ) : (
     <>
       <Box
         className={
@@ -442,6 +489,13 @@ export function SettingsContent({
           </Flex>
         ) : displaySettings ? (
           <>
+            {activeCategory === "plugins" ? (
+              <PluginManager
+                mobilePage={mobileSubpage}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                onMobilePageChange={handleMobileSubpageChange}
+              />
+            ) : null}
             {activeCategory === "general" ? (
               <GeneralSettings
                 settings={displaySettings}
@@ -553,6 +607,9 @@ export function SettingsContent({
           <SettingsSidebar
             activeCategory={activeCategory}
             onCategoryChange={handleDesktopCategorySelect}
+            pluginItems={pluginEntries}
+            activePluginId={activePlugin?.id ?? null}
+            onPluginChange={handlePluginSelect}
           />
         </Box>
       ) : null}
@@ -561,7 +618,7 @@ export function SettingsContent({
         direction="column"
         className="settings-dialog-main"
       >
-        {isMobile ? (
+        {isMobile && (!activePlugin || isMobileListView) ? (
           <Flex
             align="center"
             className="settings-dialog-mobile-topbar"
@@ -680,11 +737,40 @@ export function SettingsContent({
                           </button>
                         );
                       })}
+                      {pluginEntries.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="settings-dialog-mobile-category-item"
+                          onClick={() => handlePluginSelect(item.id)}
+                        >
+                          <Flex
+                            align="center"
+                            gap="3"
+                            className="settings-dialog-mobile-category-item-content"
+                          >
+                            <span
+                              className="settings-dialog-mobile-category-item-icon"
+                              aria-hidden="true"
+                            >
+                              <SettingsPluginIcon
+                                key={item.iconUrl ?? item.icon}
+                                item={item}
+                              />
+                            </span>
+                            <Text size="2">{item.title}</Text>
+                          </Flex>
+                          <ChevronRight
+                            size={16}
+                            className="settings-dialog-mobile-category-item-arrow"
+                          />
+                        </button>
+                      ))}
                     </Box>
                   </MotionBox>
                 ) : (
                   <MotionBox
-                    key={`settings-category-detail-${activeCategory}`}
+                    key={`settings-category-detail-${activePlugin?.id ?? activeCategory}`}
                     custom={mobileDirection}
                     variants={mobilePageVariants}
                     initial="enter"

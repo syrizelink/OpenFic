@@ -26,6 +26,7 @@ import {
   buildNoteCategoryMentionTag,
   buildNoteMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { usePluginMenuItems } from "@/features/plugins/menu-items";
 import { getNoteCategoryExportUrl, getNoteExportUrl } from "@/lib/api-client";
 import type { NoteCategoryItem, NoteListItem, NoteTreeResponse } from "@/lib/note.types";
 import { createToastThrottler } from "@/lib/ui-utils";
@@ -81,6 +82,15 @@ export function NoteSidebar({
     type: "category" | "note";
     title: string;
   } | null>(null);
+  const pluginMenuItems = usePluginMenuItems(
+    contextMenuTarget && !isAgentLocked
+      ? {
+          kind: contextMenuTarget.type === "note" ? "menu.note" : "menu.note-category",
+          ids: [contextMenuTarget.id],
+          projectId,
+        }
+      : null,
+  );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -607,7 +617,7 @@ export function NoteSidebar({
 
       <ContextMenu
         position={contextMenuPos}
-        items={contextMenuItems}
+        items={[...contextMenuItems, ...pluginMenuItems]}
         onClose={handleCloseContextMenu}
       />
 

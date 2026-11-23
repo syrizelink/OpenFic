@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from uuid import uuid4
 from typing import Any, AsyncIterator, Literal, cast
 
 from langchain_core.messages import BaseMessage
@@ -142,6 +143,7 @@ class SessionRunner:
         self._cancel_event = asyncio.Event()
         self._translator = EventTranslator(session_id)
         self._persister: MessagePersister | None = None
+        self._active_revision_id: str | None = None
 
     @property
     def _room(self) -> str:
@@ -532,6 +534,17 @@ class SessionRunner:
             usage_payload, delta_payload = await self._persist_task_usage_and_build_payload(
                 event_data
             )
+            from app.plugins.runtime import observe
+
+            await observe("usage.recorded", {
+                **delta_payload, "event_id": uuid4().hex,
+                "revision_id": getattr(self, "_active_revision_id", None),
+                "project_id": self.project_id,
+                "model_id": (None if event_data.get("usage_kind") == "compaction"
+                             else self.model_config.get("model_id")), "currency": "USD",
+                "usage_kind": event_data.get("usage_kind", "model"),
+                "created_at": datetime.now(UTC).isoformat(),
+            })
             await self._emit_agent_event(
                 "agent:task_usage_delta",
                 delta_payload,
@@ -885,6 +898,7 @@ class SessionRunner:
                 state_user_request = ""
 
             audit_context.set_revision_id(revision.id)
+            self._active_revision_id = revision.id
 
             initial_state = {
                 "session_id": self.session_id,
@@ -1002,6 +1016,14 @@ class SessionRunner:
             if not finalized:
                 await self._clear_replay_session()
                 return
+            from app.plugins.runtime import observe
+
+            await observe("turn.settled", {
+                "session_id": self.session_id, "task_id": self.task_id,
+                "project_id": self.project_id, "status": "completed",
+                "revision_id": getattr(self, "_active_revision_id", None),
+                "created_at": datetime.now(UTC).isoformat(),
+            })
             await emit(
                 "agent:done",
                 {
@@ -1186,6 +1208,7 @@ class SessionRunner:
         values = snapshot.values if isinstance(getattr(snapshot, "values", None), dict) else {}
         revision_id = values.get("current_revision_id")
         revision_id = revision_id if isinstance(revision_id, str) and revision_id else None
+        self._active_revision_id = revision_id
         runtime_context: dict[str, Any] = {}
         audit_context = AuditContext(
             session_id=self.session_id,
@@ -1379,6 +1402,14 @@ class SessionRunner:
             if not finalized:
                 await self._clear_replay_session()
                 return
+            from app.plugins.runtime import observe
+
+            await observe("turn.settled", {
+                "session_id": self.session_id, "task_id": self.task_id,
+                "project_id": self.project_id, "status": "completed",
+                "revision_id": getattr(self, "_active_revision_id", None),
+                "created_at": datetime.now(UTC).isoformat(),
+            })
             await emit(
                 "agent:done",
                 {

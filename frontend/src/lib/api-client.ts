@@ -62,6 +62,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
     if (error.response?.status === 401 && !isAuthenticationRequest(error.config?.url)) {
       handleAuthenticationFailure();
     }

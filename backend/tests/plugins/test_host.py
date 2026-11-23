@@ -1,0 +1,1224 @@
+"""Contract and lifecycle tests using actual installable plugin packages."""
+
+import asyncio
+import io
+import json
+import stat
+import sys
+import zipfile
+from pathlib import Path
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+import pytest_asyncio
+import socketio
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
+from app.api.routers.plugins import router, asset_router
+from app.auth import AuthMiddleware, AuthService
+from app.plugins.host import PluginError, PluginHost
+from app.socket.handlers import register_handlers
+from app.storage.database import get_session
+
+pytestmark = pytest.mark.asyncio(loop_scope="module")
+REPOSITORY_COMMIT = "a" * 40
+REPOSITORY_ARCHIVE = f"https://codeload.github.com/owner/repo/zip/{REPOSITORY_COMMIT}"
+
+
+def mock_repository_manifest(
+    respx_mock, *, manifest=None, status_code=200, branch=None
+):
+    api_url = "https://api.github.com/repos/owner/repo"
+    if branch:
+        respx_mock.get(f"{api_url}/git/ref/heads/{branch}").respond(
+            json={"object": {"type": "commit", "sha": REPOSITORY_COMMIT}}
+        )
+    else:
+        respx_mock.get(f"{api_url}/commits/HEAD").respond(
+            json={"sha": REPOSITORY_COMMIT}
+        )
+    return respx_mock.get(
+        f"https://raw.githubusercontent.com/owner/repo/{REPOSITORY_COMMIT}/plugin.json"
+    ).respond(
+        status_code=status_code,
+        content=json.dumps(package_manifest()).encode()
+        if manifest is None
+        else manifest,
+    )
+
+
+def package_manifest():
+    return {
+        "id": "project-statistics",
+        "name": "Test plugin",
+        "version": "1.0.0",
+        "api_version": 1,
+        "entry": "main.py",
+        "capabilities": ["projects.read", "ui", "storage"],
+        "settings": [
+            {
+                "key": "targetWords",
+                "label": "Target",
+                "type": "integer",
+                "default": 100000,
+                "minimum": 1,
+                "maximum": 100000000,
+            }
+        ],
+    }
+
+
+def package(
+    version="1.0.0",
+    backend=None,
+    capabilities=None,
+    *,
+    plugin_id="project-statistics",
+    settings=None,
+    detail=None,
+    extra_files=None,
+    icon=None,
+    homepage=None,
+    sidebar_icon=None,
+    settings_icon=None,
+):
+    output = io.BytesIO()
+    manifest = package_manifest()
+    manifest["version"] = version
+    manifest["id"] = plugin_id
+    if settings is not None:
+        manifest["settings"] = settings
+    if detail is not None:
+        manifest["detail"] = detail
+    if icon is not None:
+        manifest["icon"] = icon
+    if homepage is not None:
+        manifest["homepage"] = homepage
+    manifest["views"] = [
+        {
+            "id": "overview",
+            "title": "项目统计",
+            "entry": "panel/index.html",
+            "slot": "sidebar.extensions",
+        }
+    ]
+    manifest["resources"] = ["panel"]
+    if sidebar_icon is not None:
+        manifest["views"][0]["icon"] = sidebar_icon
+    if settings_icon is not None:
+        manifest["views"].append(
+            {
+                "id": "settings",
+                "title": "Settings",
+                "slot": "settings",
+                "entry": "panel/index.html",
+                "icon": settings_icon,
+            }
+        )
+    if capabilities is not None:
+        manifest["capabilities"] = capabilities
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, content in (extra_files or {}).items():
+            archive.writestr(name, content)
+        archive.writestr(
+            manifest["views"][0]["entry"],
+            "<!doctype html><main>Test plugin</main>",
+        )
+        archive.writestr("plugin.json", json.dumps(manifest))
+        archive.writestr(
+            "main.py",
+            backend
+            if backend is not None
+            else (
+                "async def projects(ctx, params): return await ctx.data.list_projects()\n"
+                'def register(host): host.register_command("projects.list", projects)\n'
+            ),
+        )
+    return output.getvalue()
+
+
+@pytest_asyncio.fixture
+async def plugin_api(tmp_path, session):
+    manager = PluginHost(tmp_path / "plugins")
+    await manager.start()
+    app = FastAPI()
+    app.state.plugin_host = manager
+    app.include_router(router, prefix="/api/v1")
+    app.include_router(asset_router)
+
+    async def get_db():
+        yield session
+
+    app.dependency_overrides[get_session] = get_db
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield manager, client, app
+    await manager.close()
+
+
+async def install(client, content=None):
+    return await client.post(
+        "/api/v1/plugins",
+        files={"file": ("plugin.zip", content or package(), "application/zip")},
+        data={"trusted": "true"},
+    )
+
+
+async def test_plugin_log_filters_download_and_clear(plugin_api):
+    host, client, _ = plugin_api
+    assert (await install(client)).status_code == 201
+    plugin_id = "project-statistics"
+    path = f"/api/v1/plugins/{plugin_id}/logs"
+    for index in range(220):
+        host._log(plugin_id, "plugin", f"record {index}")
+
+    recent = (await client.get(path, params={"minutes": 10, "limit": 100})).json()
+    assert len(recent) == 100
+    assert recent[0]["message"] == "record 120"
+    assert recent[-1]["message"] == "record 219"
+    all_recent = (await client.get(path, params={"minutes": 10})).json()
+    assert len(all_recent) == 221
+    assert len((await client.get(path)).json()) == 221
+
+    downloaded = await client.get(f"{path}/download")
+    assert downloaded.status_code == 200
+    assert f"{plugin_id}.log" in downloaded.headers["content-disposition"]
+    assert "record 219" in downloaded.text
+
+    assert (await client.delete(path)).status_code == 204
+    assert (await client.get(path)).json() == []
+    host._log(plugin_id, "plugin", "after clear")
+    assert [entry["message"] for entry in (await client.get(path)).json()] == [
+        "after clear"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("suffix", "branch"),
+    [
+        (".git/", None),
+        ("/tree/main", "main"),
+        ("/tree/feat/extension-host", "feat/extension-host"),
+        ("/tree/feat%2Fextension-host/", "feat/extension-host"),
+    ],
+)
+async def test_install_repository_downloads_and_reports_progress(
+    plugin_api, monkeypatch, respx_mock, suffix, branch
+):
+    manager, client, _ = plugin_api
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("repo-default/", "")
+        with zipfile.ZipFile(io.BytesIO(package())) as source:
+            for name in source.namelist():
+                archive.writestr(f"repo-default/{name}", source.read(name))
+    preflight = mock_repository_manifest(respx_mock, branch=branch)
+    download = respx_mock.get(REPOSITORY_ARCHIVE).respond(content=output.getvalue())
+    operation_id = str(uuid4())
+    sio = socketio.AsyncServer(async_mode="asgi")
+    register_handlers(sio)
+    sio.emit = AsyncMock()
+    reconnect_sid = None
+
+    async def reconnect_on_first_progress(*args, **kwargs):
+        nonlocal reconnect_sid
+        if reconnect_sid is None:
+            reconnect_sid = await sio.manager.connect("reconnected", "/")
+            await sio.handlers["/"]["plugins:watch-install"](
+                reconnect_sid, operation_id
+            )
+
+    emit = AsyncMock(side_effect=reconnect_on_first_progress)
+    monkeypatch.setattr("app.socket.emitter.emit", emit)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={
+            "url": f"https://github.com/owner/repo{suffix}",
+            "trusted": True,
+            "operation_id": operation_id,
+        },
+    )
+    assert response.status_code == 201
+    assert preflight.called and download.called
+    assert respx_mock.calls[1].request.url.host == "raw.githubusercontent.com"
+    assert respx_mock.calls[2].request.url == REPOSITORY_ARCHIVE
+    assert "project-statistics" in manager.plugins
+    events = [call.args[1] for call in emit.await_args_list]
+    assert [event["stage"] for event in events] == [
+        "downloading",
+        "downloading",
+        "validating",
+        "installing",
+        "complete",
+    ]
+    assert all(event["operation_id"] == operation_id for event in events)
+    assert all(
+        call.kwargs["room"] == f"plugins:install:{operation_id}"
+        for call in emit.await_args_list
+    )
+    assert reconnect_sid is not None
+    assert f"plugins:install:{operation_id}" in sio.rooms(reconnect_sid)
+    sio.emit.assert_awaited_once_with(
+        "plugins:install-progress", events[0], to=reconnect_sid
+    )
+    sio.emit.reset_mock()
+    await sio.handlers["/"]["plugins:watch-install"](reconnect_sid, operation_id)
+    sio.emit.assert_not_awaited()
+    await sio.handlers["/"]["plugins:watch-install"](reconnect_sid, None)
+    assert f"plugins:install:{operation_id}" not in sio.rooms(reconnect_sid)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com.evil.test/a/b",
+        "https://github.com/a/b/blob/main/plugin.json",
+        "https://github.com/a/b/tree/main/%2e%2e",
+        "https://github.com/a/b/tree/",
+    ],
+)
+async def test_install_repository_rejects_non_repository_urls(
+    plugin_api, respx_mock, url
+):
+    _, client, _ = plugin_api
+    response = await client.post(
+        "/api/v1/plugins/repository", json={"url": url, "trusted": True}
+    )
+    assert response.status_code == 422
+    assert not respx_mock.calls
+
+
+async def test_install_repository_does_not_fallback_for_missing_branch(
+    plugin_api, respx_mock
+):
+    manager, client, _ = plugin_api
+    respx_mock.get(
+        "https://api.github.com/repos/owner/repo/git/ref/heads/missing"
+    ).respond(status_code=404)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo/tree/missing", "trusted": True},
+    )
+    assert response.status_code == 404
+    assert "branch not found" in response.text
+    assert len(respx_mock.calls) == 1
+    assert not manager.plugins
+
+
+@pytest.mark.parametrize(
+    ("status_code", "manifest", "message"),
+    [(404, b"", "root plugin.json"), (200, b"{}", "Invalid manifest")],
+)
+async def test_install_repository_skips_archive_for_invalid_manifest(
+    plugin_api, respx_mock, status_code, manifest, message
+):
+    manager, client, _ = plugin_api
+    mock_repository_manifest(respx_mock, manifest=manifest, status_code=status_code)
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 422
+    assert message in response.text
+    assert len(respx_mock.calls) == 2
+    assert not manager.plugins
+
+
+async def test_install_repository_does_not_follow_redirect(plugin_api, respx_mock):
+    manager, client, _ = plugin_api
+    mock_repository_manifest(respx_mock)
+    respx_mock.get(REPOSITORY_ARCHIVE).respond(
+        status_code=302, headers={"location": "https://example.org/other.zip"}
+    )
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 502
+    assert len(respx_mock.calls) == 3
+    assert not manager.plugins
+
+
+@pytest.mark.parametrize(
+    "name", ["other-root/plugin.json", "repo-default/../plugin.json"]
+)
+async def test_install_repository_rejects_invalid_archive_paths(
+    plugin_api, respx_mock, name
+):
+    manager, client, _ = plugin_api
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        archive.writestr("repo-default/", "")
+        archive.writestr(name, "{}")
+    mock_repository_manifest(respx_mock)
+    respx_mock.get(REPOSITORY_ARCHIVE).respond(content=output.getvalue())
+    response = await client.post(
+        "/api/v1/plugins/repository",
+        json={"url": "https://github.com/owner/repo", "trusted": True},
+    )
+    assert response.status_code == 400
+    assert not manager.plugins
+
+
+async def test_file_install_succeeds_when_socket_emission_fails(
+    plugin_api, monkeypatch
+):
+    manager, client, _ = plugin_api
+    emit = AsyncMock(side_effect=RuntimeError)
+    monkeypatch.setattr("app.socket.emitter.emit", emit)
+    response = await client.post(
+        "/api/v1/plugins",
+        files={"file": ("plugin.zip", package(), "application/zip")},
+        data={"trusted": "true", "operation_id": str(uuid4())},
+    )
+    assert response.status_code == 201
+    assert "project-statistics" in manager.plugins
+    assert emit.await_count >= 1
+
+
+async def test_plugin_homepage_and_local_icon(plugin_api):
+    host, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20"/></svg>'
+    response = await install(
+        api,
+        package(
+            icon="images/icon.svg",
+            homepage="https://github.com/example/plugin",
+            extra_files={"images/icon.svg": svg},
+        ),
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["icon"] == "images/icon.svg"
+    assert response.json()["homepage"] == "https://github.com/example/plugin"
+    image = await api.get("/api/v1/plugins/project-statistics/icon")
+    assert image.status_code == 200 and image.content == svg
+    assert image.headers["content-type"].startswith("image/svg+xml")
+    assert "sandbox" in image.headers["content-security-policy"]
+    sidebar_image = await api.get(
+        "/api/v1/plugins/project-statistics/icon", params={"view_id": "overview"}
+    )
+    assert sidebar_image.status_code == 200 and sidebar_image.content == svg
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+@pytest.mark.parametrize(
+    "sidebar_icon",
+    [
+        "images/default.svg",
+        "images/missing.svg",
+        "images/invalid.png",
+        "../external.svg",
+        "https://example.com/icon.svg",
+    ],
+)
+async def test_sidebar_icon_uses_declared_package_image(plugin_api, sidebar_icon):
+    _, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>'
+    response = await install(
+        api,
+        package(
+            sidebar_icon=sidebar_icon,
+            extra_files={
+                "images/default.svg": svg,
+                "images/invalid.png": b"invalid image",
+            },
+        ),
+    )
+    if sidebar_icon.startswith(("../", "https:")):
+        assert response.status_code == 400, response.text
+        return
+    assert response.status_code == 201, response.text
+    assert response.json()["views"][0]["icon"] == sidebar_icon
+    url = "/api/v1/plugins/project-statistics/icon"
+    image = await api.get(url, params={"view_id": "overview"})
+    if sidebar_icon == "images/default.svg":
+        assert image.status_code == 200 and image.content == svg
+        assert "sandbox" in image.headers["content-security-policy"]
+    else:
+        assert image.status_code == 404
+    assert (
+        await api.get(url, params={"view_id": "images/default.svg"})
+    ).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "icon",
+    [
+        "images/settings.svg",
+        "images/missing.svg",
+        "images/invalid.png",
+        "../outside.svg",
+        "https://example.com/icon.svg",
+    ],
+)
+async def test_settings_view_icon_uses_package_image(plugin_api, icon):
+    _, api, _ = plugin_api
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>'
+    response = await install(
+        api,
+        package(
+            settings_icon=icon,
+            icon="images/settings.svg",
+            extra_files={"images/settings.svg": svg, "images/invalid.png": b"invalid"},
+        ),
+    )
+    if icon.startswith(("../", "https:")):
+        assert response.status_code == 400
+        return
+    assert response.status_code == 201, response.text
+    image = await api.get(
+        "/api/v1/plugins/project-statistics/icon", params={"view_id": "settings"}
+    )
+    if icon == "images/settings.svg":
+        assert image.status_code == 200 and image.content == svg
+        assert "sandbox" in image.headers["content-security-policy"]
+    else:
+        assert image.status_code == 404
+
+
+async def test_plugin_icon_accepts_self_contained_svg_at_size_limit(plugin_api):
+    _, api, _ = plugin_api
+    svg = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-label="author@example.org">
+    <style>/* local styles */ @media (prefers-color-scheme: dark) { .shape { fill: url(#gradient); } }</style>
+    <defs><linearGradient id="gradient"><stop stop-color="red"/></linearGradient></defs>
+    <rect class="shape" width="16" height="16"><animate attributeName="opacity" values="0;1" dur="1s"/></rect></svg>"""
+    svg += b" " * (256 * 1024 - len(svg))
+    response = await install(
+        api, package(icon="icon.svg", extra_files={"icon.svg": svg})
+    )
+    assert response.status_code == 201
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+async def test_plugin_icon_accepts_embedded_raster_image(plugin_api):
+    import base64
+
+    from PIL import Image
+
+    _, api, _ = plugin_api
+    image = io.BytesIO()
+    Image.new("RGB", (2, 1), "red").save(image, format="PNG")
+    embedded = base64.b64encode(image.getvalue()).decode()
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,{embedded}" width="2" height="1"/></svg>'.encode()
+    response = await install(
+        api, package(icon="icon.svg", extra_files={"icon.svg": svg})
+    )
+    assert response.status_code == 201
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).content == svg
+
+
+@pytest.mark.parametrize(
+    ("icon", "content"),
+    [
+        ("../outside.svg", b""),
+        ("https://example.com/icon.svg", b""),
+        ("icon.txt", b"text"),
+        ("icon.png", b"not a PNG"),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><style>@import "https://example.com/a.css";</style></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:url(https://example.com/a)"/></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><style>.x { fill: image-set("https://example.com/a.png" 1x) }</style></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><image><set attributeName="href" to="https://example.com/a.png"/></image></svg>',
+        ),
+        (
+            "icon.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"/>' + b" " * (256 * 1024),
+        ),
+    ],
+    ids=[
+        "traversal",
+        "remote",
+        "extension",
+        "invalid-png",
+        "external-image",
+        "external-css",
+        "external-paint",
+        "script",
+        "external-image-set",
+        "animated-external-reference",
+        "oversized",
+    ],
+)
+async def test_invalid_icon_does_not_prevent_installation(plugin_api, icon, content):
+    _, api, _ = plugin_api
+    extra_files = {icon: content} if not icon.startswith(("..", "https:")) else {}
+    response = await install(api, package(icon=icon, extra_files=extra_files))
+    assert response.status_code == 201, response.text
+    assert (await api.get("/api/v1/plugins/project-statistics/icon")).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("suffix", "format"),
+    [
+        ("png", "PNG"),
+        ("PNG", "PNG"),
+        ("jpg", "JPEG"),
+        ("jpeg", "JPEG"),
+        ("webp", "WEBP"),
+    ],
+)
+async def test_raster_plugin_icon_formats(plugin_api, suffix, format):
+    from PIL import Image
+
+    _, api, _ = plugin_api
+    image = io.BytesIO()
+    Image.new("RGB", (8, 4), "red").save(image, format=format)
+    response = await install(
+        api,
+        package(
+            icon=f"icon.{suffix}", extra_files={f"icon.{suffix}": image.getvalue()}
+        ),
+    )
+    assert response.status_code == 201, response.text
+    result = await api.get("/api/v1/plugins/project-statistics/icon")
+    assert result.status_code == 200 and result.content == image.getvalue()
+
+
+async def test_plugin_detail_readme_and_images(plugin_api):
+    host, api, _ = plugin_api
+    content = package(
+        extra_files={
+            "ReadMe.MD": "# Details\n![pic](assets/pic.png)",
+            "assets/pic.png": b"image",
+        }
+    )
+    response = await install(api, content)
+    assert response.status_code == 201, response.text
+    assert response.json()["detail"] == "ReadMe.MD"
+    assert (await api.get("/api/v1/plugins/project-statistics/detail")).text.startswith(
+        "# Details"
+    )
+    image = await api.get(
+        "/api/v1/plugins/project-statistics/detail-images/assets/pic.png"
+    )
+    assert image.status_code == 200 and image.content == b"image"
+    assert "sandbox" in image.headers["content-security-policy"]
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail-images/main.py")
+    ).status_code == 404
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins")).json()["plugins"][0][
+        "detail"
+    ] == "ReadMe.MD"
+
+
+@pytest.mark.parametrize("detail", ["../README.md", "docs/missing.md", "main.py"])
+async def test_plugin_detail_rejects_invalid_path(plugin_api, detail):
+    _, api, _ = plugin_api
+    response = await install(api, package(detail=detail))
+    assert response.status_code == 400
+
+
+async def test_plugin_detail_explicit_file_takes_precedence(plugin_api):
+    _, api, _ = plugin_api
+    response = await install(
+        api,
+        package(
+            detail="docs/guide.md",
+            extra_files={"README.md": "default", "docs/guide.md": "# Guide"},
+        ),
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["detail"] == "docs/guide.md"
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail")
+    ).text == "# Guide"
+
+
+async def test_plugin_without_detail_has_no_detail_endpoint(plugin_api):
+    _, api, _ = plugin_api
+    response = await install(api, package())
+    assert response.status_code == 201
+    assert response.json()["detail"] is None
+    assert (
+        await api.get("/api/v1/plugins/project-statistics/detail")
+    ).status_code == 404
+
+
+async def test_required_settings_allow_install_but_validate_saves(plugin_api):
+    host, api, _ = plugin_api
+    settings = [
+        {
+            "key": "name",
+            "label": "Name",
+            "type": "string",
+            "default": "",
+            "required": True,
+        },
+        {
+            "key": "token",
+            "label": "Token",
+            "type": "string",
+            "default": "",
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "payload",
+            "label": "Payload",
+            "type": "json",
+            "default": None,
+            "required": True,
+        },
+        {
+            "key": "count",
+            "label": "Count",
+            "type": "integer",
+            "default": 0,
+            "required": True,
+        },
+        {
+            "key": "enabled",
+            "label": "Enabled",
+            "type": "boolean",
+            "default": False,
+            "required": True,
+        },
+        {
+            "key": "secretCount",
+            "label": "Secret count",
+            "type": "integer",
+            "default": 0,
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "secretFlag",
+            "label": "Secret flag",
+            "type": "boolean",
+            "default": False,
+            "secret": True,
+            "required": True,
+        },
+        {
+            "key": "mode",
+            "label": "Mode",
+            "type": "select",
+            "default": "fast",
+            "required": True,
+            "options": [{"value": "fast", "label": "Fast"}],
+        },
+        {"key": "optional", "label": "Optional", "type": "string", "default": ""},
+    ]
+    response = await install(api, package(settings=settings))
+    assert response.status_code == 201, response.text
+    assert response.json()["settings"][0]["required"] is True
+    assert {"secretCount", "secretFlag"} <= set(response.json()["configured_secrets"])
+    await host.close()
+    await host.start()
+    assert len((await api.get("/api/v1/plugins")).json()["plugins"]) == 1
+    path = "/api/v1/plugins/project-statistics/settings"
+    valid = {
+        "name": "Ready",
+        "token": "secret",
+        "payload": {},
+        "count": 0,
+        "enabled": False,
+        "mode": "fast",
+        "optional": "",
+    }
+    for changes in ({"name": "  "}, {"token": ""}, {"payload": None}):
+        result = await api.put(path, json={"settings": valid | changes})
+        assert result.status_code == 400
+    assert (await api.put(path, json={"settings": valid})).status_code == 200
+    preserved = await api.put(path, json={"settings": valid | {"token": ""}})
+    assert preserved.status_code == 200
+    assert "token" in preserved.json()["configured_secrets"]
+    assert preserved.json()["configuration"]["token"] == ""
+
+
+async def test_select_setting_validation_and_persistence(plugin_api):
+    host, api, _ = plugin_api
+    setting = {
+        "key": "mode",
+        "label": "Mode",
+        "type": "select",
+        "default": "fast",
+        "options": [
+            {"value": "fast", "label": "Fast"},
+            {"value": "precise", "label": "Precise"},
+        ],
+    }
+    response = await install(api, package(settings=[setting]))
+    assert response.status_code == 201, response.text
+    assert response.json()["settings"][0]["options"] == setting["options"]
+    assert (
+        await api.put(
+            "/api/v1/plugins/project-statistics/settings",
+            json={"settings": {"mode": "precise"}},
+        )
+    ).status_code == 200
+    assert (
+        await api.put(
+            "/api/v1/plugins/project-statistics/settings",
+            json={"settings": {"mode": "invalid"}},
+        )
+    ).status_code == 400
+    await host.close()
+    await host.start()
+    assert (await api.get("/api/v1/plugins")).json()["plugins"][0]["configuration"][
+        "mode"
+    ] == "precise"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"options": []},
+        {
+            "options": [
+                {"value": "fast", "label": "Fast"},
+                {"value": "fast", "label": "Duplicate"},
+            ]
+        },
+        {"default": "missing"},
+    ],
+)
+async def test_select_rejects_invalid_definitions(plugin_api, changes):
+    _, api, _ = plugin_api
+    setting = {
+        "key": "mode",
+        "label": "Mode",
+        "type": "select",
+        "default": "fast",
+        "options": [{"value": "fast", "label": "Fast"}],
+    } | changes
+    response = await install(api, package(settings=[setting]))
+    assert response.status_code == 400
+
+
+async def test_plugin_changes_are_pushed_after_lifecycle_writes(
+    plugin_api, monkeypatch
+):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+
+    async def changed(action):
+        await action
+        await asyncio.wait_for(host._notifications.join(), 5)
+        assert any(
+            call.args == ("plugins:changed", {}) for call in send.await_args_list
+        )
+        send.reset_mock()
+
+    await changed(host.install(package()))
+    await changed(host.set_enabled("project-statistics", True))
+    await changed(host.configure("project-statistics", {"targetWords": 1234}))
+    await changed(host.set_order(["project-statistics"]))
+    await changed(host.install(package("1.1.0"), update_id="project-statistics"))
+    await changed(host.set_enabled("project-statistics", False))
+    await changed(host.uninstall("project-statistics"))
+    assert not any(route.path == "/plugins/events" for route in router.routes)
+
+
+async def test_plugin_events_push_live_and_stop_cleanly(plugin_api, monkeypatch):
+    host, _, _ = plugin_api
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host.emit("ui.invalidate", {"viewId": "panel"}, "example")
+    await asyncio.wait_for(host._notifications.join(), 5)
+    send.assert_awaited_once_with(
+        "plugins:event",
+        {
+            "event": "ui.invalidate",
+            "data": {"viewId": "panel"},
+            "pluginId": "example",
+        },
+    )
+    task = host._notification_task
+    await host.close()
+    assert task.done()
+    send.reset_mock()
+    host.emit("ui.toast", {"text": "closed"})
+    await host.start()
+    await asyncio.wait_for(host._notifications.join(), 5)
+    send.assert_not_awaited()
+
+
+async def test_plugin_logs_notify_only_the_watch_room(plugin_api, monkeypatch):
+    host, client, _ = plugin_api
+    assert (await install(client)).status_code == 201
+    await asyncio.wait_for(host._notifications.join(), 5)
+
+    sio = socketio.AsyncServer(async_mode="asgi")
+    register_handlers(sio)
+    sid = await sio.manager.connect("log-watcher", "/")
+    watch = sio.handlers["/"]["plugins:watch-logs"]
+    await watch(sid, True)
+    assert "plugins:logs" in sio.rooms(sid)
+
+    send = AsyncMock()
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host._log("project-statistics", "plugin", "live entry")
+    assert (
+        await client.delete("/api/v1/plugins/project-statistics/logs")
+    ).status_code == 204
+    await asyncio.wait_for(host._notifications.join(), 5)
+    assert send.await_count == 2
+    for event in send.await_args_list:
+        assert event.args == (
+            "plugins:logs-changed",
+            {"pluginId": "project-statistics"},
+        )
+        assert event.kwargs == {"room": "plugins:logs"}
+
+    await watch(sid, False)
+    assert "plugins:logs" not in sio.rooms(sid)
+
+
+async def test_plugin_notification_overflow_requests_resync(plugin_api, monkeypatch):
+    host, _, _ = plugin_api
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    sent = []
+
+    async def send(event, data):
+        entered.set()
+        await release.wait()
+        sent.append((event, data))
+
+    monkeypatch.setattr("app.socket.emitter.emit", send)
+    host.emit("ui.invalidate", {})
+    await asyncio.wait_for(entered.wait(), 5)
+    for index in range(host._notifications.maxsize + 1):
+        host.emit("ui.invalidate", {"index": index})
+    assert host._notifications.qsize() <= host._notifications.maxsize
+    release.set()
+    await asyncio.wait_for(host._notifications.join(), 5)
+    assert ("plugins:resync", {}) in sent
+    assert sent[-1][1]["data"]["index"] == host._notifications.maxsize
+
+
+async def test_plugin_order_survives_update_install_restart_and_uninstall(
+    plugin_api, monkeypatch
+):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        assert (await install(api, package(plugin_id=plugin_id))).status_code == 201
+        await host.set_enabled(plugin_id, True)
+    response = await api.put(
+        "/api/v1/plugins/order", json={"plugin_ids": ["zeta", "alpha"]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"plugin_ids": ["zeta", "alpha"]}
+    assert [p["id"] for p in (await api.get("/api/v1/plugins")).json()["plugins"]] == [
+        "zeta",
+        "alpha",
+    ]
+    await host.install(package("1.1.0", plugin_id="alpha"), update_id="alpha")
+    await host.install(package(plugin_id="beta"))
+    assert list(host.plugins) == ["zeta", "alpha", "beta"]
+    await host.close()
+    activation_order = []
+    activate = host._activate
+
+    async def record_activation(plugin):
+        activation_order.append(plugin.manifest.id)
+        await activate(plugin)
+
+    monkeypatch.setattr(host, "_activate", record_activation)
+    await host.start()
+    assert list(host.plugins) == ["zeta", "alpha", "beta"]
+    assert activation_order == ["zeta", "alpha"]
+    assert host.get("alpha").manifest.version == "1.1.0"
+    await host.uninstall("alpha")
+    await host.close()
+    await host.start()
+    assert list(host.plugins) == ["zeta", "beta"]
+
+
+@pytest.mark.parametrize(
+    "plugin_ids", [["alpha"], ["alpha", "alpha"], ["alpha", "unknown"]]
+)
+async def test_invalid_plugin_order_leaves_registry_unchanged(plugin_api, plugin_ids):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        await install(api, package(plugin_id=plugin_id))
+    registry = (host.root / ".registry.json").read_bytes()
+    response = await api.put("/api/v1/plugins/order", json={"plugin_ids": plugin_ids})
+    assert response.status_code == 400, response.text
+    assert list(host.plugins) == ["alpha", "zeta"]
+    assert (host.root / ".registry.json").read_bytes() == registry
+
+
+async def test_plugin_order_write_failure_restores_memory(plugin_api, monkeypatch):
+    host, api, _ = plugin_api
+    for plugin_id in ["alpha", "zeta"]:
+        await install(api, package(plugin_id=plugin_id))
+    registry = (host.root / ".registry.json").read_bytes()
+
+    def fail_persist():
+        raise OSError("disk full")
+
+    monkeypatch.setattr(host, "_persist", fail_persist)
+    with pytest.raises(OSError, match="disk full"):
+        await host.set_order(["zeta", "alpha"])
+    assert list(host.plugins) == ["alpha", "zeta"]
+    assert (host.root / ".registry.json").read_bytes() == registry
+
+
+async def test_reload_installed_plugin_reads_manifest_and_preserves_configuration(
+    plugin_api,
+):
+    host, api, _ = plugin_api
+    url = "/api/v1/plugins/project-statistics"
+    assert (await install(api)).status_code == 201
+    assert (
+        await api.patch(f"{url}/enabled", json={"enabled": True})
+    ).status_code == 200
+    assert (
+        await api.put(f"{url}/settings", json={"settings": {"targetWords": 800}})
+    ).status_code == 200
+
+    previous = host.get("project-statistics")
+    manifest_path = host.root / "project-statistics" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["views"][0]["title"] = "Reloaded"
+    manifest_path.write_text(json.dumps(manifest))
+
+    assert (await api.post(f"{url}/reload")).status_code == 204
+    current = host.get("project-statistics")
+    assert current.registration is not None and previous.registration is None
+    description = host.describe(current)
+    assert description["reload_revision"] == 1
+    assert description["configuration"]["targetWords"] == 800
+    assert description["views"][0]["title"] == "Reloaded"
+
+    manifest_path.write_text("{")
+    assert (await api.post(f"{url}/reload")).status_code == 400
+    assert host.get("project-statistics") is current
+    assert current.registration is not None
+
+    manifest_path.write_text(json.dumps(manifest))
+    assert (
+        await api.patch(f"{url}/enabled", json={"enabled": False})
+    ).status_code == 200
+    assert (await api.post(f"{url}/reload")).status_code == 204
+    assert host.describe(host.get("project-statistics"))["status"] == "disabled"
+
+
+async def test_toolbar_button_executes_without_render(plugin_api):
+    host, api, _ = plugin_api
+    source = 'def register(host):\n    host.register_command("run", lambda ctx, args: args)\n'
+    assert (await install(api, package(backend=source))).status_code == 201
+    path = host.root / "project-statistics" / "plugin.json"
+    manifest = json.loads(path.read_text())
+    manifest["views"] = [
+        {
+            "id": "execute",
+            "title": "Execute",
+            "slot": "editor.toolbar",
+            "renderer": "declarative",
+            "presentation": "action",
+            "action": "run",
+        }
+    ]
+    path.write_text(json.dumps(manifest))
+    base = "/api/v1/plugins/project-statistics"
+    assert (await api.post(f"{base}/reload")).status_code == 204
+    assert (
+        await api.patch(f"{base}/enabled", json={"enabled": True})
+    ).status_code == 200
+    view = f"{base}/views/execute"
+    assert (await api.post(f"{view}/render", json={})).status_code == 404
+    response = await api.post(
+        f"{view}/action", json={"id": "execute", "context": {"chapterId": "sample"}}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["context"]["chapterId"] == "sample"
+
+
+async def test_update_failure_rolls_back_and_disposes_commands(plugin_api, session):
+    host, api, _ = plugin_api
+    await install(api)
+    await host.set_enabled("project-statistics", True)
+    old_module = host.get("project-statistics").module_name
+    assert old_module in sys.modules
+    failed = await api.put(
+        "/api/v1/plugins/project-statistics/package",
+        files={
+            "file": (
+                "update.zip",
+                package(
+                    "1.1.0",
+                    "def register(host):\n    raise RuntimeError('broken update')\n",
+                ),
+            )
+        },
+        data={"trusted": "true"},
+    )
+    assert failed.status_code == 400
+    assert host.get("project-statistics").manifest.version == "1.0.0"
+    assert host.get("project-statistics").registration is not None
+    assert old_module not in sys.modules
+    success = await api.put(
+        "/api/v1/plugins/project-statistics/package",
+        files={"file": ("update.zip", package("1.1.0"))},
+        data={"trusted": "true"},
+    )
+    assert success.status_code == 200, success.text
+    assert success.json()["version"] == "1.1.0"
+    assert len(host.get("project-statistics").registration.commands) == 1
+    assert (await api.get("/api/v1/plugins/project-statistics/logs")).json()[-1][
+        "action"
+    ] == "update"
+    assert (
+        await api.put(
+            "/api/v1/plugins/project-statistics/package",
+            files={"file": ("old.zip", package())},
+            data={"trusted": "true"},
+        )
+    ).status_code == 409
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../escape",
+        "/absolute",
+        "frontend/../../escape",
+        "frontend\\escape",
+        "C:/escape",
+    ],
+)
+async def test_archive_traversal_rejected(plugin_api, name):
+    host, api, _ = plugin_api
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        archive.writestr(name, "bad")
+    response = await install(api, output.getvalue())
+    assert response.status_code == 400
+    assert not host.plugins
+    assert not list(host.root.glob(".install-*"))
+
+
+async def test_invalid_contract_symlink_and_missing_capability(plugin_api, session):
+    host, api, _ = plugin_api
+    assert (
+        await api.post("/api/v1/plugins", files={"file": ("plugin.zip", package())})
+    ).status_code == 400
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        link = zipfile.ZipInfo("frontend/link")
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(link, "../main.py")
+    assert (await install(api, output.getvalue())).status_code == 400
+    assert (await install(api, b"invalid zip")).status_code == 400
+    await install(api, package(capabilities=[]))
+    await host.set_enabled("project-statistics", True)
+    with pytest.raises(PluginError, match="projects.read"):
+        await host.call("project-statistics", "projects.list", {}, session)
+    assert host.logs("project-statistics")[-1]["level"] == "error"
+
+
+async def test_authentication_protects_management_rpc_and_assets(plugin_api):
+    _, _, app = plugin_api
+    auth = AuthService("test-password")
+    app.add_middleware(AuthMiddleware, auth_service=auth, api_prefix="/api/v1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        for path in [
+            "/api/v1/plugins",
+            "/api/v1/plugins/sdk.js",
+            "/api/v1/plugins/project-statistics/assets/panel/index.html",
+        ]:
+            assert (await client.get(path)).status_code == 401
+        client.cookies.set("openfic_auth", auth.create_cookie_value())
+        assert (await client.get("/api/v1/plugins")).status_code == 200
+        await install(client)
+        await client.patch(
+            "/api/v1/plugins/project-statistics/enabled", json={"enabled": True}
+        )
+        opened = await client.post("/api/v1/plugins/project-statistics/views/overview")
+        url = opened.json()["url"]
+        client.cookies.clear()
+        assert (await client.get(url)).status_code == 200
+        token = url.split("/")[2]
+        assert (await client.get(f"/plugin-assets/{token}/sdk.js")).status_code == 200
+        assert (
+            await client.get(f"/plugin-assets/{token}/other/assets/index.html")
+        ).status_code == 404
+        assert (await client.get("/plugin-assets/invalid/sdk.js")).status_code == 404
+        assert (
+            await client.post(
+                "/api/v1/plugins/project-statistics/rpc",
+                json={"method": "projects.list"},
+            )
+        ).status_code == 401
+        host = app.state.plugin_host
+        await host.set_enabled("project-statistics", False)
+        assert (await client.get(url)).status_code == 404
+
+
+async def test_asset_tickets_are_redacted_from_access_logs():
+    from app.api.middleware.access_log import redact_plugin_asset_path
+
+    assert (
+        redact_plugin_asset_path("/plugin-assets/secret/id/assets/index.html")
+        == "/plugin-assets/[ticket]/id/assets/index.html"
+    )
+    assert redact_plugin_asset_path("/api/v1/plugins") == "/api/v1/plugins"
+
+
+async def test_update_file_swap_failure_restores_active_plugin(plugin_api, monkeypatch):
+    host, api, _ = plugin_api
+    await install(api)
+    await host.set_enabled("project-statistics", True)
+    original_replace = Path.replace
+
+    def fail_stage_swap(path, target):
+        if path.name.startswith(".install-"):
+            raise OSError("simulated file swap failure")
+        return original_replace(path, target)
+
+    monkeypatch.setattr(Path, "replace", fail_stage_swap)
+    with pytest.raises(PluginError, match="previous state restored"):
+        await host.install(package("1.1.0"), update_id="project-statistics")
+    restored = host.get("project-statistics")
+    assert restored.manifest.version == "1.0.0"
+    assert restored.registration is not None
+    assert (host.root / "project-statistics/plugin.json").exists()
+    assert not list(host.root.glob(".backup-*"))
+    assert not list(host.root.glob(".install-*"))
+
+
+async def test_expired_view_ticket_and_oversized_rpc_rejected(plugin_api):
+    host, api, _ = plugin_api
+    await install(api)
+    await host.set_enabled("project-statistics", True)
+    opened = await api.post("/api/v1/plugins/project-statistics/views/overview")
+    url = opened.json()["url"]
+    token = url.split("/")[2]
+    host._view_tickets[token] = ("project-statistics", 0)
+    assert (await api.get(url)).status_code == 404
+    response = await api.post(
+        "/api/v1/plugins/project-statistics/rpc",
+        json={"method": "projects.list", "params": {"payload": "x" * 64001}},
+    )
+    assert response.status_code == 422

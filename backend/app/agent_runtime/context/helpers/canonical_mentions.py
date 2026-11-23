@@ -75,6 +75,8 @@ def _parse_attrs(raw_attrs: str) -> dict[str, str]:
 
 
 def _infer_kind(attrs: dict[str, str]) -> str:
+    if attrs.get("kind") == "selection":
+        return "selection"
     for attr_name, kind in _KIND_ATTR_BY_ID_ATTR:
         if attrs.get(attr_name, "").strip():
             return kind
@@ -82,7 +84,7 @@ def _infer_kind(attrs: dict[str, str]) -> str:
 
 
 def _is_expanded_mention(mention: CanonicalMention) -> bool:
-    return bool(
+    return bool(mention.kind == "selection" and mention.body) or bool(
         mention.attrs.get("line_start", "").strip()
         and mention.attrs.get("line_end", "").strip()
     )
@@ -222,6 +224,10 @@ async def compile_canonical_mentions(
             compiled.append(part)
             continue
 
+        if part.kind == "selection" and part.attrs.get("plugin_data"):
+            compiled.append(part.raw)
+            continue
+
         if _is_expanded_mention(part):
             if not compiled:
                 compiled.append("\n")
@@ -259,7 +265,11 @@ async def _compile_expanded_mention(
     anchor = await _build_anchor(mention, resolver, include_line_range=True)
     if anchor is None:
         return mention.raw
-    body = re.sub(r"\s+", " ", mention.body).strip()
+    body = (
+        mention.body.strip().replace("<of-", "&lt;of-")
+        if mention.kind == "selection"
+        else re.sub(r"\s+", " ", mention.body).strip()
+    )
     return f"{anchor}\n```\n{body}\n```\n"
 
 

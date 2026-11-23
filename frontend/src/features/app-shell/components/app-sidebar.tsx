@@ -26,10 +26,10 @@ import {
   SIDEBAR_EXPANDED_WIDTH,
   type AppSidebarNavItem,
 } from "./app-sidebar.constants";
-import { RecentProjectsNav } from "./recent-projects-nav";
 import { SidebarActions } from "./sidebar-actions";
 import { SidebarBrand } from "./sidebar-brand";
-import { SidebarNav } from "./sidebar-nav";
+import { SidebarDivider } from "./sidebar-nav";
+import { SidebarNavigation } from "./sidebar-navigation";
 
 const MotionBox = motion.create(Box);
 const MotionFlex = motion.create(Flex);
@@ -336,48 +336,24 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
               onPointerMove={handleLogoPointerMove}
             />
 
-            <Box
-              style={{
-                width: "100%",
-                height: 13,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                margin: "6px 0",
-                flexShrink: 0,
-              }}
-            >
-              <MotionBox
-                initial={false}
-                animate={{
-                  width: isMobile || isExpanded ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
-                  marginLeft: isMobile || isExpanded ? 8 : 4,
-                }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                style={{
-                  height: 1,
-                  background: "var(--gray-a5)",
-                }}
-              />
-            </Box>
+            <SidebarDivider isExpanded={isMobile || isExpanded} />
 
-            <SidebarNav
+            <SidebarNavigation
               items={navItems}
               isExpanded={isMobile || isExpanded}
-            />
-
-            <RecentProjectsNav
-              projects={recentProjects}
-              currentProjectId={projectId}
-              isExpanded={isMobile || isExpanded}
-              ariaLabel={t("topbar.recentProjects")}
-              closeLabel={t("common.close")}
-              onRemove={handleRemoveRecentProject}
+              recentProjects={{
+                projects: recentProjects,
+                currentProjectId: projectId,
+                ariaLabel: t("topbar.recentProjects"),
+                closeLabel: t("common.close"),
+                onRemove: handleRemoveRecentProject,
+              }}
+              onNavigate={closeSidebar}
             />
 
             <MotionFlex
               layout
-              mt="auto"
+              flexShrink="0"
               direction={isMobile || isExpanded ? "row" : "column"}
               align="center"
               justify={isMobile || isExpanded ? "end" : "center"}

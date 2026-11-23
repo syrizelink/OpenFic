@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 import respx
 from fastapi import FastAPI
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlmodel import SQLModel
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -42,6 +43,7 @@ async def credential_database_template(tmp_path_factory):
     )]
     path = tmp_path_factory.mktemp("oauth-schema") / "template.db"
     engine = create_async_engine(f"sqlite+aiosqlite:///{path}")
+    event.listen(engine.sync_engine, "connect", lambda conn, _: conn.execute("PRAGMA synchronous=OFF"))
     try:
         async with engine.begin() as connection:
             await connection.run_sync(lambda sync_connection: SQLModel.metadata.create_all(sync_connection, tables=required_tables))
@@ -51,7 +53,7 @@ async def credential_database_template(tmp_path_factory):
 
 
 @pytest_asyncio.fixture
-async def credential_runtime(tmp_path, credential_database_template, monkeypatch):
+async def credential_runtime(tmp_path, credential_database_template, monkeypatch, fast_checkpoint_sqlite):
     from app.api.routers.openai_codex import router
     from app.api.routers.model_providers import router as provider_router
 

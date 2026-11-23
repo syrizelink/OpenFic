@@ -9,6 +9,8 @@ import type {
   TransitionEvent as ReactTransitionEvent,
 } from "react";
 
+import { usePortalContainer } from "@/components/portal-container";
+
 import "./mobile-select-sheet.css";
 
 export interface MobileSelectSheetProps {
@@ -38,6 +40,7 @@ export function MobileSelectSheet({
   children,
   contentClassName,
 }: MobileSelectSheetProps) {
+  const portalContainer = usePortalContainer();
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isSwipeClosing, setIsSwipeClosing] = useState(false);
@@ -150,6 +153,7 @@ export function MobileSelectSheet({
     >
       <Dialog.Trigger>{trigger}</Dialog.Trigger>
       <Dialog.Content
+        container={portalContainer}
         maxWidth="none"
         className={clsx("mobile-select-sheet-content", contentClassName)}
         aria-describedby={undefined}

@@ -152,6 +152,13 @@
   overflow: hidden;
 }
 
+.settings-plugin-page {
+  min-height: 0;
+  flex: 1 1 auto;
+  isolation: isolate;
+  z-index: 0;
+}
+
 .settings-dialog-lock-notice {
   width: 100%;
   margin: 0 0 20px;
@@ -556,7 +563,7 @@
 }
 
 .settings-sidebar {
-  height: 100%;
+  min-height: 100%;
   padding: 12px 8px;
 }
 
@@ -606,6 +613,11 @@
   justify-content: center;
   flex-shrink: 0;
   color: currentColor;
+}
+
+.settings-sidebar-item-icon img,
+.settings-dialog-mobile-category-item-icon img {
+  object-fit: contain;
 }
 
 .settings-sidebar-item-label,

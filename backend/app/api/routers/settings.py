@@ -278,6 +278,11 @@ def _merge_default_agent_tool_permissions(
                 mode=configured_items.get(tool_name, default_mode),
             )
         )
+    merged_items.extend(
+        AgentToolPermissionItem(tool_name=tool_name, mode=mode)
+        for tool_name, mode in configured_items.items()
+        if tool_name.startswith("plugin_") and tool_name not in default_items
+    )
     return merged_items
 
 

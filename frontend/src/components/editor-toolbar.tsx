@@ -71,9 +71,13 @@ export interface EditorToolbarProps {
   onOpenReplace?: () => void;
   extraActions?: EditorToolbarExtraAction[];
   toolbarPrefix?: React.ReactNode;
+  toolbarActions?: EditorToolbarActions;
   showMarkdownTools?: boolean;
   showChapterTools?: boolean;
 }
+
+export type EditorToolbarPlacement = "left-end" | "right-start" | "right-end";
+export type EditorToolbarActions = (placement: EditorToolbarPlacement) => React.ReactNode;
 
 interface ToolbarButtonProps {
   icon: React.ReactNode;
@@ -250,6 +254,7 @@ export function EditorToolbar({
   onOpenReplace,
   extraActions,
   toolbarPrefix,
+  toolbarActions,
   showMarkdownTools = false,
   showChapterTools = false,
 }: EditorToolbarProps) {
@@ -442,6 +447,8 @@ export function EditorToolbar({
       if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
 
       const target = event.target;
+      if (target instanceof Node && !toolbarRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-editor-plugin-action]")) return;
       if (target instanceof Element && target.closest(".select-trigger--icon")) return;
 
       event.preventDefault();
@@ -455,7 +462,12 @@ export function EditorToolbar({
       if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
 
       const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".select-trigger--icon")) return;
+      if (
+        !(target instanceof Element) ||
+        !toolbarRef.current?.contains(target) ||
+        !target.closest(".select-trigger--icon")
+      )
+        return;
 
       event.preventDefault();
       editor?.view.dom.focus({ preventScroll: true });
@@ -897,6 +909,7 @@ export function EditorToolbar({
                   />
                 </>
               )}
+              {toolbarActions?.("left-end")}
               <Flex
                 className="editor-toolbar__right"
                 gap="1"
@@ -915,6 +928,7 @@ export function EditorToolbar({
                   gap="1"
                   align="center"
                 >
+                  {toolbarActions?.("right-start")}
                   <ToolbarButton
                     icon={<Undo size={18} />}
                     label={t("editor.undo")}
@@ -934,6 +948,7 @@ export function EditorToolbar({
                     disabled={isSaving || !hasChanges}
                     onClick={() => runEditorAction(() => onSave(true))}
                   />
+                  {toolbarActions?.("right-end")}
                 </Flex>
               </Flex>
             </Flex>

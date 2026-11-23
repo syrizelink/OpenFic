@@ -56,54 +56,12 @@
   font-size: var(--font-size-base);
 }
 
-.dashboard-tab-nav {
+.dashboard-tabs,
+.dashboard-records-content[data-state="active"] {
   display: flex;
-  align-items: flex-end;
-  gap: 26px;
-  border-bottom: 1px solid var(--gray-a5);
-}
-
-.dashboard-tab-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 0 12px;
-  border: 0;
-  color: var(--gray-11);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-
-.dashboard-tab-button:hover {
-  color: var(--gray-12);
-}
-
-.dashboard-tab-button[data-active="true"] {
-  color: var(--gray-12);
-}
-
-.dashboard-tab-button[data-active="true"]::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  border-radius: 999px 999px 0 0;
-  background: var(--gray-12);
-  content: "";
-}
-
-.dashboard-tab-button span {
-  font-size: var(--font-size-lg);
-  font-weight: 400;
-}
-
-.dashboard-tab-icon {
-  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
 }
 
 .dashboard-filter-card,
@@ -1246,18 +1204,6 @@
 
   .dashboard-title-row {
     gap: 10px;
-  }
-
-  .dashboard-tab-nav {
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px 18px;
-    overflow: visible;
-  }
-
-  .dashboard-tab-button {
-    flex: 0 0 auto;
-    padding-bottom: 10px;
   }
 
   .dashboard-writing-calendar-card {

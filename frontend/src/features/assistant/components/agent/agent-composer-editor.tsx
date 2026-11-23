@@ -543,6 +543,8 @@ export function AgentComposerEditor({
   return (
     <div
       className="agent-composer-editor"
+      data-plugin-selection-source="agent-input"
+      data-plugin-selection-project={projectId}
       data-disabled={disabled}
       onKeyDownCapture={handleEditorKeyDownCapture}
       onPasteCapture={handlePasteCapture}

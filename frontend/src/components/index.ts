@@ -50,3 +50,5 @@ export type { UnitTextFieldProps } from "./unit-text-field";
 export { StepperNumberInput } from "./stepper-number-input";
 export type { StepperNumberInputProps } from "./stepper-number-input";
 export { InfoTooltip } from "./info-tooltip";
+export { Tabs } from "./tabs";
+export type { TabsListProps } from "./tabs-list";

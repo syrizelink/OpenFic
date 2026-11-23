@@ -1,0 +1,9473 @@
+{
+  "version": 2,
+  "lucideIcons": [
+    "AArrowDown",
+    "AArrowUp",
+    "ALargeSmall",
+    "Accessibility",
+    "Activity",
+    "Ad",
+    "AirVent",
+    "Airplay",
+    "AlarmClock",
+    "AlarmClockCheck",
+    "AlarmClockMinus",
+    "AlarmClockOff",
+    "AlarmClockPlus",
+    "AlarmSmoke",
+    "Album",
+    "AlignCenterHorizontal",
+    "AlignCenterVertical",
+    "AlignEndHorizontal",
+    "AlignEndVertical",
+    "AlignHorizontalDistributeCenter",
+    "AlignHorizontalDistributeEnd",
+    "AlignHorizontalDistributeStart",
+    "AlignHorizontalJustifyCenter",
+    "AlignHorizontalJustifyEnd",
+    "AlignHorizontalJustifyStart",
+    "AlignHorizontalSpaceAround",
+    "AlignHorizontalSpaceBetween",
+    "AlignStartHorizontal",
+    "AlignStartVertical",
+    "AlignVerticalDistributeCenter",
+    "AlignVerticalDistributeEnd",
+    "AlignVerticalDistributeStart",
+    "AlignVerticalJustifyCenter",
+    "AlignVerticalJustifyEnd",
+    "AlignVerticalJustifyStart",
+    "AlignVerticalSpaceAround",
+    "AlignVerticalSpaceBetween",
+    "Ambulance",
+    "Ampersand",
+    "Ampersands",
+    "Amphora",
+    "Anchor",
+    "Angry",
+    "Annoyed",
+    "Antenna",
+    "Anvil",
+    "Aperture",
+    "AppWindow",
+    "AppWindowMac",
+    "Apple",
+    "Archive",
+    "ArchiveRestore",
+    "ArchiveX",
+    "Armchair",
+    "ArrowBigDown",
+    "ArrowBigDownDash",
+    "ArrowBigLeft",
+    "ArrowBigLeftDash",
+    "ArrowBigRight",
+    "ArrowBigRightDash",
+    "ArrowBigUp",
+    "ArrowBigUpDash",
+    "ArrowDown",
+    "ArrowDown01",
+    "ArrowDown10",
+    "ArrowDownAZ",
+    "ArrowDownFromLine",
+    "ArrowDownLeft",
+    "ArrowDownNarrowWide",
+    "ArrowDownRight",
+    "ArrowDownToDot",
+    "ArrowDownToLine",
+    "ArrowDownUp",
+    "ArrowDownWideNarrow",
+    "ArrowDownZA",
+    "ArrowLeft",
+    "ArrowLeftFromLine",
+    "ArrowLeftRight",
+    "ArrowLeftToLine",
+    "ArrowRight",
+    "ArrowRightFromLine",
+    "ArrowRightLeft",
+    "ArrowRightToLine",
+    "ArrowUp",
+    "ArrowUp01",
+    "ArrowUp10",
+    "ArrowUpAZ",
+    "ArrowUpDown",
+    "ArrowUpFromDot",
+    "ArrowUpFromLine",
+    "ArrowUpLeft",
+    "ArrowUpNarrowWide",
+    "ArrowUpRight",
+    "ArrowUpToLine",
+    "ArrowUpWideNarrow",
+    "ArrowUpZA",
+    "ArrowsUpFromLine",
+    "Asterisk",
+    "Astroid",
+    "AtSign",
+    "Atom",
+    "AudioLines",
+    "AudioWaveform",
+    "Award",
+    "Axe",
+    "Axis3d",
+    "Baby",
+    "Backpack",
+    "Badge",
+    "BadgeAlert",
+    "BadgeCent",
+    "BadgeCheck",
+    "BadgeDollarSign",
+    "BadgeEuro",
+    "BadgeIndianRupee",
+    "BadgeInfo",
+    "BadgeJapaneseYen",
+    "BadgeMinus",
+    "BadgePercent",
+    "BadgePlus",
+    "BadgePoundSterling",
+    "BadgeQuestionMark",
+    "BadgeRussianRuble",
+    "BadgeSwissFranc",
+    "BadgeTurkishLira",
+    "BadgeX",
+    "BaggageClaim",
+    "Balloon",
+    "Ban",
+    "Banana",
+    "Bandage",
+    "Banknote",
+    "BanknoteArrowDown",
+    "BanknoteArrowUp",
+    "BanknoteCheck",
+    "BanknoteX",
+    "Barcode",
+    "Barrel",
+    "Baseline",
+    "Bath",
+    "Battery",
+    "BatteryCharging",
+    "BatteryFull",
+    "BatteryLow",
+    "BatteryMedium",
+    "BatteryPlus",
+    "BatteryWarning",
+    "Beaker",
+    "Bean",
+    "BeanOff",
+    "Bed",
+    "BedDouble",
+    "BedSingle",
+    "Beef",
+    "BeefOff",
+    "Beer",
+    "BeerOff",
+    "Bell",
+    "BellCheck",
+    "BellDot",
+    "BellElectric",
+    "BellMinus",
+    "BellOff",
+    "BellPlus",
+    "BellRing",
+    "BetweenHorizontalEnd",
+    "BetweenHorizontalStart",
+    "BetweenVerticalEnd",
+    "BetweenVerticalStart",
+    "BicepsFlexed",
+    "Bike",
+    "Binary",
+    "Binoculars",
+    "Biohazard",
+    "Bird",
+    "Birdhouse",
+    "Bitcoin",
+    "Blend",
+    "Blender",
+    "Blinds",
+    "Blocks",
+    "Bluetooth",
+    "BluetoothConnected",
+    "BluetoothOff",
+    "BluetoothSearching",
+    "Bold",
+    "Bolt",
+    "Bomb",
+    "Bone",
+    "BoneFracture",
+    "Book",
+    "BookA",
+    "BookAlert",
+    "BookAudio",
+    "BookCheck",
+    "BookCopy",
+    "BookDashed",
+    "BookDown",
+    "BookHeadphones",
+    "BookHeart",
+    "BookImage",
+    "BookKey",
+    "BookLock",
+    "BookMarked",
+    "BookMinus",
+    "BookOpen",
+    "BookOpenCheck",
+    "BookOpenText",
+    "BookPlus",
+    "BookSearch",
+    "BookText",
+    "BookType",
+    "BookUp",
+    "BookUp2",
+    "BookUser",
+    "BookX",
+    "Bookmark",
+    "BookmarkCheck",
+    "BookmarkMinus",
+    "BookmarkOff",
+    "BookmarkPlus",
+    "BookmarkX",
+    "BoomBox",
+    "Bot",
+    "BotMessageSquare",
+    "BotOff",
+    "BottleWine",
+    "BowArrow",
+    "Box",
+    "Boxes",
+    "Braces",
+    "Brackets",
+    "Brain",
+    "BrainCircuit",
+    "BrainCog",
+    "BrickWall",
+    "BrickWallFire",
+    "BrickWallShield",
+    "Briefcase",
+    "BriefcaseBusiness",
+    "BriefcaseConveyorBelt",
+    "BriefcaseMedical",
+    "BringToFront",
+    "Broccoli",
+    "Brush",
+    "BrushCleaning",
+    "Bubbles",
+    "Bug",
+    "BugOff",
+    "BugPlay",
+    "Building",
+    "Building2",
+    "Bus",
+    "BusFront",
+    "Cable",
+    "CableCar",
+    "Cake",
+    "CakeSlice",
+    "Calculator",
+    "Calendar",
+    "Calendar1",
+    "CalendarArrowDown",
+    "CalendarArrowUp",
+    "CalendarCheck",
+    "CalendarCheck2",
+    "CalendarClock",
+    "CalendarCog",
+    "CalendarDays",
+    "CalendarFold",
+    "CalendarHeart",
+    "CalendarMinus",
+    "CalendarMinus2",
+    "CalendarOff",
+    "CalendarPlus",
+    "CalendarPlus2",
+    "CalendarRange",
+    "CalendarSearch",
+    "CalendarSync",
+    "CalendarX",
+    "CalendarX2",
+    "Calendars",
+    "Camera",
+    "CameraOff",
+    "Candy",
+    "CandyCane",
+    "CandyOff",
+    "Cannabis",
+    "CannabisOff",
+    "Captions",
+    "CaptionsOff",
+    "Car",
+    "CarFront",
+    "CarTaxiFront",
+    "Caravan",
+    "CardSim",
+    "Carrot",
+    "CaseLower",
+    "CaseSensitive",
+    "CaseUpper",
+    "CassetteTape",
+    "Cast",
+    "Castle",
+    "Cat",
+    "Cctv",
+    "CctvOff",
+    "ChartArea",
+    "ChartBar",
+    "ChartBarBig",
+    "ChartBarDecreasing",
+    "ChartBarIncreasing",
+    "ChartBarStacked",
+    "ChartCandlestick",
+    "ChartColumn",
+    "ChartColumnBig",
+    "ChartColumnDecreasing",
+    "ChartColumnIncreasing",
+    "ChartColumnStacked",
+    "ChartGantt",
+    "ChartLine",
+    "ChartNetwork",
+    "ChartNoAxesColumn",
+    "ChartNoAxesColumnDecreasing",
+    "ChartNoAxesColumnIncreasing",
+    "ChartNoAxesCombined",
+    "ChartNoAxesGantt",
+    "ChartPie",
+    "ChartScatter",
+    "ChartSpline",
+    "Check",
+    "CheckCheck",
+    "CheckLine",
+    "ChefHat",
+    "Cherry",
+    "ChessBishop",
+    "ChessKing",
+    "ChessKnight",
+    "ChessPawn",
+    "ChessQueen",
+    "ChessRook",
+    "ChevronDown",
+    "ChevronFirst",
+    "ChevronLast",
+    "ChevronLeft",
+    "ChevronRight",
+    "ChevronUp",
+    "ChevronsDown",
+    "ChevronsDownUp",
+    "ChevronsLeft",
+    "ChevronsLeftRight",
+    "ChevronsLeftRightEllipsis",
+    "ChevronsRight",
+    "ChevronsRightLeft",
+    "ChevronsUp",
+    "ChevronsUpDown",
+    "Church",
+    "Cigarette",
+    "CigaretteOff",
+    "Circle",
+    "CircleAlert",
+    "CircleArrowDown",
+    "CircleArrowLeft",
+    "CircleArrowOutDownLeft",
+    "CircleArrowOutDownRight",
+    "CircleArrowOutUpLeft",
+    "CircleArrowOutUpRight",
+    "CircleArrowRight",
+    "CircleArrowUp",
+    "CircleCheck",
+    "CircleCheckBig",
+    "CircleChevronDown",
+    "CircleChevronLeft",
+    "CircleChevronRight",
+    "CircleChevronUp",
+    "CircleDashed",
+    "CircleDivide",
+    "CircleDollarSign",
+    "CircleDot",
+    "CircleDotDashed",
+    "CircleEllipsis",
+    "CircleEqual",
+    "CircleEuro",
+    "CircleFadingArrowUp",
+    "CircleFadingPlus",
+    "CircleGauge",
+    "CircleMinus",
+    "CircleOff",
+    "CircleParking",
+    "CircleParkingOff",
+    "CirclePause",
+    "CirclePercent",
+    "CirclePile",
+    "CirclePlay",
+    "CirclePlus",
+    "CirclePoundSterling",
+    "CirclePower",
+    "CircleQuestionMark",
+    "CircleSlash",
+    "CircleSlash2",
+    "CircleSmall",
+    "CircleStar",
+    "CircleStop",
+    "CircleUser",
+    "CircleUserRound",
+    "CircleX",
+    "CircuitBoard",
+    "Citrus",
+    "Clapperboard",
+    "Clipboard",
+    "ClipboardCheck",
+    "ClipboardClock",
+    "ClipboardCopy",
+    "ClipboardList",
+    "ClipboardMinus",
+    "ClipboardPaste",
+    "ClipboardPen",
+    "ClipboardPenLine",
+    "ClipboardPlus",
+    "ClipboardType",
+    "ClipboardX",
+    "Clock",
+    "Clock1",
+    "Clock10",
+    "Clock11",
+    "Clock12",
+    "Clock2",
+    "Clock3",
+    "Clock4",
+    "Clock5",
+    "Clock6",
+    "Clock7",
+    "Clock8",
+    "Clock9",
+    "ClockAlert",
+    "ClockArrowDown",
+    "ClockArrowLeft",
+    "ClockArrowRight",
+    "ClockArrowUp",
+    "ClockCheck",
+    "ClockFading",
+    "ClockPlus",
+    "ClosedCaption",
+    "Cloud",
+    "CloudAlert",
+    "CloudBackup",
+    "CloudCheck",
+    "CloudCog",
+    "CloudDownload",
+    "CloudDrizzle",
+    "CloudFog",
+    "CloudHail",
+    "CloudLightning",
+    "CloudMoon",
+    "CloudMoonRain",
+    "CloudOff",
+    "CloudRain",
+    "CloudRainWind",
+    "CloudSnow",
+    "CloudSun",
+    "CloudSunRain",
+    "CloudSync",
+    "CloudUpload",
+    "Cloudy",
+    "Clover",
+    "Club",
+    "Code",
+    "CodeXml",
+    "Coffee",
+    "Cog",
+    "Coins",
+    "Columns2",
+    "Columns3",
+    "Columns3Cog",
+    "Columns4",
+    "Combine",
+    "Command",
+    "Compass",
+    "Component",
+    "Computer",
+    "ConciergeBell",
+    "Cone",
+    "Construction",
+    "Contact",
+    "ContactRound",
+    "Container",
+    "Contrast",
+    "Cookie",
+    "CookingPot",
+    "Copy",
+    "CopyCheck",
+    "CopyMinus",
+    "CopyPlus",
+    "CopySlash",
+    "CopyX",
+    "Copyleft",
+    "Copyright",
+    "CornerDownLeft",
+    "CornerDownRight",
+    "CornerLeftDown",
+    "CornerLeftUp",
+    "CornerRightDown",
+    "CornerRightUp",
+    "CornerUpLeft",
+    "CornerUpRight",
+    "Cpu",
+    "CreativeCommons",
+    "CreditCard",
+    "Croissant",
+    "Crop",
+    "Cross",
+    "Crosshair",
+    "Crown",
+    "Cuboid",
+    "CupSoda",
+    "Currency",
+    "Cylinder",
+    "Dam",
+    "Database",
+    "DatabaseArrowDown",
+    "DatabaseArrowUp",
+    "DatabaseBackup",
+    "DatabaseCheck",
+    "DatabaseMinus",
+    "DatabasePlus",
+    "DatabaseSearch",
+    "DatabaseX",
+    "DatabaseZap",
+    "DecimalsArrowLeft",
+    "DecimalsArrowRight",
+    "Delete",
+    "Dessert",
+    "Diameter",
+    "Diamond",
+    "DiamondMinus",
+    "DiamondPercent",
+    "DiamondPlus",
+    "Dice1",
+    "Dice2",
+    "Dice3",
+    "Dice4",
+    "Dice5",
+    "Dice6",
+    "Dices",
+    "Diff",
+    "Disc",
+    "Disc2",
+    "Disc3",
+    "DiscAlbum",
+    "Divide",
+    "Dna",
+    "DnaOff",
+    "Dock",
+    "Dog",
+    "DollarSign",
+    "Donut",
+    "DoorClosed",
+    "DoorClosedLocked",
+    "DoorOpen",
+    "Dot",
+    "Download",
+    "DraftingCompass",
+    "Drama",
+    "Drill",
+    "Drone",
+    "Droplet",
+    "DropletOff",
+    "Droplets",
+    "Drum",
+    "Drumstick",
+    "Dumbbell",
+    "Ear",
+    "EarOff",
+    "Earth",
+    "EarthLock",
+    "Eclipse",
+    "Egg",
+    "EggFried",
+    "EggOff",
+    "Ellipse",
+    "Ellipsis",
+    "EllipsisVertical",
+    "Equal",
+    "EqualApproximately",
+    "EqualNot",
+    "Eraser",
+    "EthernetPort",
+    "Euro",
+    "EvCharger",
+    "Expand",
+    "ExternalLink",
+    "Eye",
+    "EyeClosed",
+    "EyeDashed",
+    "EyeOff",
+    "Factory",
+    "Fan",
+    "FastForward",
+    "Feather",
+    "Fence",
+    "FerrisWheel",
+    "File",
+    "FileArchive",
+    "FileAxis3d",
+    "FileBadge",
+    "FileBox",
+    "FileBraces",
+    "FileBracesCorner",
+    "FileChartColumn",
+    "FileChartColumnIncreasing",
+    "FileChartLine",
+    "FileChartPie",
+    "FileCheck",
+    "FileCheckCorner",
+    "FileClock",
+    "FileCode",
+    "FileCodeCorner",
+    "FileCog",
+    "FileDiff",
+    "FileDigit",
+    "FileDown",
+    "FileExclamationPoint",
+    "FileHeadphone",
+    "FileHeart",
+    "FileImage",
+    "FileInput",
+    "FileKey",
+    "FileLock",
+    "FileMinus",
+    "FileMinusCorner",
+    "FileMusic",
+    "FileOutput",
+    "FilePen",
+    "FilePenLine",
+    "FilePlay",
+    "FilePlus",
+    "FilePlusCorner",
+    "FileQuestionMark",
+    "FileScan",
+    "FileSearch",
+    "FileSearchCorner",
+    "FileSignal",
+    "FileSliders",
+    "FileSpreadsheet",
+    "FileStack",
+    "FileSymlink",
+    "FileTerminal",
+    "FileText",
+    "FileType",
+    "FileTypeCorner",
+    "FileUp",
+    "FileUser",
+    "FileVideoCamera",
+    "FileVolume",
+    "FileX",
+    "FileXCorner",
+    "Files",
+    "Film",
+    "FingerprintPattern",
+    "FireExtinguisher",
+    "Fish",
+    "FishOff",
+    "FishSymbol",
+    "FishingHook",
+    "FishingRod",
+    "Flag",
+    "FlagOff",
+    "FlagTriangleLeft",
+    "FlagTriangleRight",
+    "Flame",
+    "FlameKindling",
+    "Flashlight",
+    "FlashlightOff",
+    "FlaskConical",
+    "FlaskConicalOff",
+    "FlaskRound",
+    "FlipHorizontal2",
+    "FlipVertical2",
+    "Flower",
+    "Flower2",
+    "Focus",
+    "FoldHorizontal",
+    "FoldVertical",
+    "Folder",
+    "FolderArchive",
+    "FolderBookmark",
+    "FolderCheck",
+    "FolderClock",
+    "FolderClosed",
+    "FolderCode",
+    "FolderCog",
+    "FolderDot",
+    "FolderDown",
+    "FolderGit",
+    "FolderGit2",
+    "FolderHeart",
+    "FolderInput",
+    "FolderKanban",
+    "FolderKey",
+    "FolderLock",
+    "FolderMinus",
+    "FolderOpen",
+    "FolderOpenDot",
+    "FolderOutput",
+    "FolderPen",
+    "FolderPlus",
+    "FolderRoot",
+    "FolderSearch",
+    "FolderSearch2",
+    "FolderSymlink",
+    "FolderSync",
+    "FolderTree",
+    "FolderUp",
+    "FolderX",
+    "Folders",
+    "Footprints",
+    "Forklift",
+    "Form",
+    "Forward",
+    "Frame",
+    "Frown",
+    "Fuel",
+    "Fullscreen",
+    "Funnel",
+    "FunnelPlus",
+    "FunnelX",
+    "GalleryHorizontal",
+    "GalleryHorizontalEnd",
+    "GalleryThumbnails",
+    "GalleryVertical",
+    "GalleryVerticalEnd",
+    "Gamepad",
+    "Gamepad2",
+    "GamepadDirectional",
+    "Gauge",
+    "Gavel",
+    "Gem",
+    "GeorgianLari",
+    "Ghost",
+    "Gift",
+    "GitBranch",
+    "GitBranchMinus",
+    "GitBranchPlus",
+    "GitCommitHorizontal",
+    "GitCommitVertical",
+    "GitCompare",
+    "GitCompareArrows",
+    "GitFork",
+    "GitGraph",
+    "GitMerge",
+    "GitMergeConflict",
+    "GitPullRequest",
+    "GitPullRequestArrow",
+    "GitPullRequestClosed",
+    "GitPullRequestCreate",
+    "GitPullRequestCreateArrow",
+    "GitPullRequestDraft",
+    "GlassWater",
+    "Glasses",
+    "Globe",
+    "GlobeCheck",
+    "GlobeLock",
+    "GlobeOff",
+    "GlobeX",
+    "Goal",
+    "Gpu",
+    "GraduationCap",
+    "Grape",
+    "Grid2x2",
+    "Grid2x2Check",
+    "Grid2x2Plus",
+    "Grid2x2X",
+    "Grid3x2",
+    "Grid3x3",
+    "Grip",
+    "GripHorizontal",
+    "GripVertical",
+    "Group",
+    "Guitar",
+    "Ham",
+    "Hamburger",
+    "Hammer",
+    "Hand",
+    "HandCoins",
+    "HandFist",
+    "HandGrab",
+    "HandHeart",
+    "HandHelping",
+    "HandMetal",
+    "HandPlatter",
+    "Handbag",
+    "Handshake",
+    "HardDrive",
+    "HardDriveDownload",
+    "HardDriveUpload",
+    "HardHat",
+    "Hash",
+    "HatGlasses",
+    "Haze",
+    "Hd",
+    "HdmiPort",
+    "Heading",
+    "Heading1",
+    "Heading2",
+    "Heading3",
+    "Heading4",
+    "Heading5",
+    "Heading6",
+    "HeadphoneOff",
+    "Headphones",
+    "Headset",
+    "Heart",
+    "HeartCrack",
+    "HeartHandshake",
+    "HeartMinus",
+    "HeartOff",
+    "HeartPlus",
+    "HeartPulse",
+    "HeartX",
+    "Heater",
+    "Helicopter",
+    "Hexagon",
+    "Highlighter",
+    "History",
+    "Hop",
+    "HopOff",
+    "Hospital",
+    "Hotel",
+    "Hourglass",
+    "House",
+    "HouseHeart",
+    "HousePlug",
+    "HousePlus",
+    "HouseWifi",
+    "IceCreamBowl",
+    "IceCreamCone",
+    "IdCard",
+    "IdCardLanyard",
+    "Image",
+    "ImageDown",
+    "ImageMinus",
+    "ImageOff",
+    "ImagePlay",
+    "ImagePlus",
+    "ImageUp",
+    "ImageUpscale",
+    "Images",
+    "Import",
+    "Inbox",
+    "IndianRupee",
+    "Infinity",
+    "Info",
+    "InspectionPanel",
+    "Italic",
+    "IterationCcw",
+    "IterationCw",
+    "JapaneseYen",
+    "Joystick",
+    "Kanban",
+    "Kayak",
+    "Key",
+    "KeyRound",
+    "KeySquare",
+    "Keyboard",
+    "KeyboardMusic",
+    "KeyboardOff",
+    "Lamp",
+    "LampCeiling",
+    "LampDesk",
+    "LampFloor",
+    "LampWallDown",
+    "LampWallUp",
+    "LandPlot",
+    "Landmark",
+    "Languages",
+    "Laptop",
+    "LaptopMinimal",
+    "LaptopMinimalCheck",
+    "Lasso",
+    "LassoSelect",
+    "Laugh",
+    "Layers",
+    "Layers2",
+    "LayersMinus",
+    "LayersPlus",
+    "LayoutDashboard",
+    "LayoutGrid",
+    "LayoutList",
+    "LayoutPanelLeft",
+    "LayoutPanelTop",
+    "LayoutTemplate",
+    "Leaf",
+    "LeafyGreen",
+    "Lectern",
+    "LensConcave",
+    "LensConvex",
+    "Library",
+    "LibraryBig",
+    "LifeBuoy",
+    "Ligature",
+    "Lightbulb",
+    "LightbulbOff",
+    "LineDotRightHorizontal",
+    "LineSquiggle",
+    "LineStyle",
+    "Link",
+    "Link2",
+    "Link2Off",
+    "List",
+    "ListCheck",
+    "ListChecks",
+    "ListChevronsDownUp",
+    "ListChevronsUpDown",
+    "ListCollapse",
+    "ListEnd",
+    "ListFilter",
+    "ListFilterPlus",
+    "ListIndentDecrease",
+    "ListIndentIncrease",
+    "ListMinus",
+    "ListMusic",
+    "ListOrdered",
+    "ListPlus",
+    "ListRestart",
+    "ListSortAscending",
+    "ListSortDescending",
+    "ListStart",
+    "ListTodo",
+    "ListTree",
+    "ListVideo",
+    "ListX",
+    "Loader",
+    "LoaderCircle",
+    "LoaderPinwheel",
+    "Locate",
+    "LocateFixed",
+    "LocateOff",
+    "Lock",
+    "LockKeyhole",
+    "LockKeyholeOpen",
+    "LockOpen",
+    "LogIn",
+    "LogOut",
+    "Logs",
+    "Lollipop",
+    "Luggage",
+    "Magnet",
+    "Mail",
+    "MailCheck",
+    "MailMinus",
+    "MailOpen",
+    "MailPlus",
+    "MailQuestionMark",
+    "MailSearch",
+    "MailWarning",
+    "MailX",
+    "Mailbox",
+    "Mails",
+    "Map",
+    "MapMinus",
+    "MapPin",
+    "MapPinCheck",
+    "MapPinCheckInside",
+    "MapPinHouse",
+    "MapPinMinus",
+    "MapPinMinusInside",
+    "MapPinOff",
+    "MapPinPen",
+    "MapPinPlus",
+    "MapPinPlusInside",
+    "MapPinSearch",
+    "MapPinX",
+    "MapPinXInside",
+    "MapPinned",
+    "MapPlus",
+    "Mars",
+    "MarsStroke",
+    "Martini",
+    "Maximize",
+    "Maximize2",
+    "Medal",
+    "Megaphone",
+    "MegaphoneOff",
+    "Meh",
+    "MemoryStick",
+    "Menu",
+    "Merge",
+    "MessageCircle",
+    "MessageCircleCheck",
+    "MessageCircleCode",
+    "MessageCircleDashed",
+    "MessageCircleHeart",
+    "MessageCircleMore",
+    "MessageCircleOff",
+    "MessageCirclePlus",
+    "MessageCircleQuestionMark",
+    "MessageCircleReply",
+    "MessageCircleWarning",
+    "MessageCircleX",
+    "MessageSquare",
+    "MessageSquareCheck",
+    "MessageSquareCode",
+    "MessageSquareDashed",
+    "MessageSquareDiff",
+    "MessageSquareDot",
+    "MessageSquareHeart",
+    "MessageSquareLock",
+    "MessageSquareMore",
+    "MessageSquareOff",
+    "MessageSquarePlus",
+    "MessageSquareQuote",
+    "MessageSquareReply",
+    "MessageSquareShare",
+    "MessageSquareText",
+    "MessageSquareWarning",
+    "MessageSquareX",
+    "MessagesSquare",
+    "Metronome",
+    "Mic",
+    "MicOff",
+    "MicVocal",
+    "Microchip",
+    "Microscope",
+    "Microwave",
+    "Milestone",
+    "Milk",
+    "MilkOff",
+    "Minimize",
+    "Minimize2",
+    "Minus",
+    "MirrorRectangular",
+    "MirrorRound",
+    "Monitor",
+    "MonitorCheck",
+    "MonitorCloud",
+    "MonitorCog",
+    "MonitorDot",
+    "MonitorDown",
+    "MonitorOff",
+    "MonitorPause",
+    "MonitorPlay",
+    "MonitorSmartphone",
+    "MonitorSpeaker",
+    "MonitorStop",
+    "MonitorUp",
+    "MonitorX",
+    "Moon",
+    "MoonStar",
+    "Motorbike",
+    "Mountain",
+    "MountainSnow",
+    "Mouse",
+    "MouseLeft",
+    "MouseOff",
+    "MousePointer",
+    "MousePointer2",
+    "MousePointer2Off",
+    "MousePointerBan",
+    "MousePointerClick",
+    "MouseRight",
+    "Move",
+    "Move3d",
+    "MoveDiagonal",
+    "MoveDiagonal2",
+    "MoveDown",
+    "MoveDownLeft",
+    "MoveDownRight",
+    "MoveHorizontal",
+    "MoveLeft",
+    "MoveRight",
+    "MoveUp",
+    "MoveUpLeft",
+    "MoveUpRight",
+    "MoveVertical",
+    "Music",
+    "Music2",
+    "Music3",
+    "Music4",
+    "Navigation",
+    "Navigation2",
+    "Navigation2Off",
+    "NavigationOff",
+    "Network",
+    "Newspaper",
+    "Nfc",
+    "NonBinary",
+    "Notebook",
+    "NotebookPen",
+    "NotebookTabs",
+    "NotebookText",
+    "NotepadText",
+    "NotepadTextDashed",
+    "Nut",
+    "NutOff",
+    "Octagon",
+    "OctagonAlert",
+    "OctagonMinus",
+    "OctagonPause",
+    "OctagonX",
+    "Omega",
+    "Option",
+    "Orbit",
+    "Origami",
+    "Package",
+    "Package2",
+    "PackageCheck",
+    "PackageMinus",
+    "PackageOpen",
+    "PackagePlus",
+    "PackageSearch",
+    "PackageX",
+    "PaintBucket",
+    "PaintRoller",
+    "Paintbrush",
+    "PaintbrushVertical",
+    "Palette",
+    "Panda",
+    "PanelBottom",
+    "PanelBottomClose",
+    "PanelBottomDashed",
+    "PanelBottomOpen",
+    "PanelLeft",
+    "PanelLeftClose",
+    "PanelLeftDashed",
+    "PanelLeftOpen",
+    "PanelLeftRightDashed",
+    "PanelRight",
+    "PanelRightClose",
+    "PanelRightDashed",
+    "PanelRightOpen",
+    "PanelTop",
+    "PanelTopBottomDashed",
+    "PanelTopClose",
+    "PanelTopDashed",
+    "PanelTopOpen",
+    "PanelsLeftBottom",
+    "PanelsRightBottom",
+    "PanelsTopLeft",
+    "PaperBag",
+    "Paperclip",
+    "Parasol",
+    "Parentheses",
+    "ParkingMeter",
+    "PartyPopper",
+    "Pause",
+    "PawPrint",
+    "PcCase",
+    "Pen",
+    "PenLine",
+    "PenOff",
+    "PenTool",
+    "Pencil",
+    "PencilLine",
+    "PencilOff",
+    "PencilRuler",
+    "PencilSparkles",
+    "Pentagon",
+    "Percent",
+    "PersonStanding",
+    "Phi",
+    "PhilippinePeso",
+    "Phone",
+    "PhoneCall",
+    "PhoneForwarded",
+    "PhoneIncoming",
+    "PhoneMissed",
+    "PhoneOff",
+    "PhoneOutgoing",
+    "Pi",
+    "Piano",
+    "Pickaxe",
+    "PictureInPicture",
+    "PictureInPicture2",
+    "PiggyBank",
+    "Pilcrow",
+    "PilcrowLeft",
+    "PilcrowRight",
+    "Pill",
+    "PillBottle",
+    "Pin",
+    "PinOff",
+    "Pipette",
+    "Pizza",
+    "Plane",
+    "PlaneLanding",
+    "PlaneTakeoff",
+    "Play",
+    "PlayOff",
+    "Plug",
+    "Plug2",
+    "PlugZap",
+    "Plus",
+    "PocketKnife",
+    "Podcast",
+    "Podium",
+    "Pointer",
+    "PointerOff",
+    "Popcorn",
+    "Popsicle",
+    "PoundSterling",
+    "Power",
+    "PowerOff",
+    "Presentation",
+    "Printer",
+    "PrinterCheck",
+    "PrinterX",
+    "Projector",
+    "Proportions",
+    "Puzzle",
+    "Pyramid",
+    "QrCode",
+    "Quote",
+    "Rabbit",
+    "Radar",
+    "Radiation",
+    "Radical",
+    "Radio",
+    "RadioOff",
+    "RadioReceiver",
+    "RadioTower",
+    "Radius",
+    "Rainbow",
+    "Rat",
+    "Ratio",
+    "Receipt",
+    "ReceiptCent",
+    "ReceiptEuro",
+    "ReceiptIndianRupee",
+    "ReceiptJapaneseYen",
+    "ReceiptPoundSterling",
+    "ReceiptRussianRuble",
+    "ReceiptSwissFranc",
+    "ReceiptText",
+    "ReceiptTurkishLira",
+    "RectangleCircle",
+    "RectangleEllipsis",
+    "RectangleGoggles",
+    "RectangleHorizontal",
+    "RectangleVertical",
+    "Recycle",
+    "Redo",
+    "Redo2",
+    "RedoDot",
+    "RefreshCcw",
+    "RefreshCcwDot",
+    "RefreshCw",
+    "RefreshCwOff",
+    "Refrigerator",
+    "Regex",
+    "RemoveFormatting",
+    "Repeat",
+    "Repeat1",
+    "Repeat2",
+    "RepeatOff",
+    "Replace",
+    "ReplaceAll",
+    "Reply",
+    "ReplyAll",
+    "Rewind",
+    "Ribbon",
+    "Road",
+    "Rocket",
+    "RockingChair",
+    "RollerCoaster",
+    "Rose",
+    "Rotate3d",
+    "RotateCcw",
+    "RotateCcwKey",
+    "RotateCcwSquare",
+    "RotateCw",
+    "RotateCwSquare",
+    "Route",
+    "RouteOff",
+    "Router",
+    "Rows2",
+    "Rows3",
+    "Rows4",
+    "Rss",
+    "Ruler",
+    "RulerDimensionLine",
+    "RussianRuble",
+    "Sailboat",
+    "Salad",
+    "Sandwich",
+    "Satellite",
+    "SatelliteDish",
+    "SaudiRiyal",
+    "Save",
+    "SaveAll",
+    "SaveCheck",
+    "SaveOff",
+    "SavePen",
+    "SavePlus",
+    "Scale",
+    "Scale3d",
+    "Scaling",
+    "Scan",
+    "ScanBarcode",
+    "ScanBox",
+    "ScanEye",
+    "ScanFace",
+    "ScanHeart",
+    "ScanLine",
+    "ScanQrCode",
+    "ScanSearch",
+    "ScanText",
+    "School",
+    "Scissors",
+    "ScissorsLineDashed",
+    "Scooter",
+    "ScreenShare",
+    "ScreenShareOff",
+    "Scroll",
+    "ScrollText",
+    "Search",
+    "SearchAlert",
+    "SearchCheck",
+    "SearchCode",
+    "SearchSlash",
+    "SearchX",
+    "Section",
+    "Send",
+    "SendHorizontal",
+    "SendToBack",
+    "SeparatorHorizontal",
+    "SeparatorVertical",
+    "Server",
+    "ServerCog",
+    "ServerCrash",
+    "ServerOff",
+    "ServerPlus",
+    "Settings",
+    "Settings2",
+    "Shapes",
+    "Share",
+    "Share2",
+    "Sheet",
+    "Shell",
+    "ShelvingUnit",
+    "Shield",
+    "ShieldAlert",
+    "ShieldBan",
+    "ShieldCheck",
+    "ShieldCog",
+    "ShieldCogCorner",
+    "ShieldEllipsis",
+    "ShieldHalf",
+    "ShieldMinus",
+    "ShieldOff",
+    "ShieldPlus",
+    "ShieldQuestionMark",
+    "ShieldUser",
+    "ShieldX",
+    "Ship",
+    "ShipWheel",
+    "Shirt",
+    "ShoppingBag",
+    "ShoppingBasket",
+    "ShoppingCart",
+    "Shovel",
+    "ShowerHead",
+    "Shredder",
+    "Shrimp",
+    "Shrink",
+    "Shrub",
+    "Shuffle",
+    "Sigma",
+    "Signal",
+    "SignalHigh",
+    "SignalLow",
+    "SignalMedium",
+    "SignalZero",
+    "Signature",
+    "Signpost",
+    "SignpostBig",
+    "Siren",
+    "SkipBack",
+    "SkipForward",
+    "Skull",
+    "Slash",
+    "Slice",
+    "SlidersHorizontal",
+    "SlidersVertical",
+    "Smartphone",
+    "SmartphoneCharging",
+    "SmartphoneNfc",
+    "Smile",
+    "SmilePlus",
+    "Snail",
+    "Snowflake",
+    "SoapDispenserDroplet",
+    "Sofa",
+    "SolarPanel",
+    "Soup",
+    "Space",
+    "Spade",
+    "Sparkle",
+    "Sparkles",
+    "Speaker",
+    "Speech",
+    "SpellCheck",
+    "SpellCheck2",
+    "Spline",
+    "SplinePointer",
+    "Split",
+    "Spool",
+    "SportShoe",
+    "Spotlight",
+    "SprayCan",
+    "Sprout",
+    "Square",
+    "SquareActivity",
+    "SquareArrowDown",
+    "SquareArrowDownLeft",
+    "SquareArrowDownRight",
+    "SquareArrowLeft",
+    "SquareArrowOutDownLeft",
+    "SquareArrowOutDownRight",
+    "SquareArrowOutUpLeft",
+    "SquareArrowOutUpRight",
+    "SquareArrowRight",
+    "SquareArrowRightEnter",
+    "SquareArrowRightExit",
+    "SquareArrowUp",
+    "SquareArrowUpLeft",
+    "SquareArrowUpRight",
+    "SquareAsterisk",
+    "SquareBottomDashedScissors",
+    "SquareCenterlineDashedHorizontal",
+    "SquareCenterlineDashedVertical",
+    "SquareChartGantt",
+    "SquareCheck",
+    "SquareCheckBig",
+    "SquareChevronDown",
+    "SquareChevronLeft",
+    "SquareChevronRight",
+    "SquareChevronUp",
+    "SquareCode",
+    "SquareDashed",
+    "SquareDashedBottom",
+    "SquareDashedBottomCode",
+    "SquareDashedKanban",
+    "SquareDashedMousePointer",
+    "SquareDashedText",
+    "SquareDashedTopSolid",
+    "SquareDivide",
+    "SquareDot",
+    "SquareEqual",
+    "SquareFunction",
+    "SquareKanban",
+    "SquareLibrary",
+    "SquareM",
+    "SquareMenu",
+    "SquareMinus",
+    "SquareMousePointer",
+    "SquareParking",
+    "SquareParkingOff",
+    "SquarePause",
+    "SquarePen",
+    "SquarePercent",
+    "SquarePi",
+    "SquarePilcrow",
+    "SquarePlay",
+    "SquarePlus",
+    "SquarePower",
+    "SquareRadical",
+    "SquareRoundCorner",
+    "SquareScissors",
+    "SquareSigma",
+    "SquareSlash",
+    "SquareSplitHorizontal",
+    "SquareSplitVertical",
+    "SquareSquare",
+    "SquareStack",
+    "SquareStar",
+    "SquareStop",
+    "SquareTerminal",
+    "SquareUser",
+    "SquareUserRound",
+    "SquareX",
+    "SquaresExclude",
+    "SquaresIntersect",
+    "SquaresSubtract",
+    "SquaresUnite",
+    "Squircle",
+    "SquircleDashed",
+    "Squirrel",
+    "Stamp",
+    "Star",
+    "StarCheck",
+    "StarHalf",
+    "StarMinus",
+    "StarOff",
+    "StarPlus",
+    "StarX",
+    "StepBack",
+    "StepForward",
+    "Stethoscope",
+    "Sticker",
+    "StickyNote",
+    "StickyNoteCheck",
+    "StickyNoteMinus",
+    "StickyNoteOff",
+    "StickyNotePlus",
+    "StickyNoteX",
+    "StickyNotes",
+    "Stone",
+    "Store",
+    "StretchHorizontal",
+    "StretchVertical",
+    "Strikethrough",
+    "Subscript",
+    "Summary",
+    "Sun",
+    "SunDim",
+    "SunMedium",
+    "SunMoon",
+    "SunSnow",
+    "Sunrise",
+    "Sunset",
+    "Superscript",
+    "SwatchBook",
+    "SwissFranc",
+    "SwitchCamera",
+    "Sword",
+    "Swords",
+    "Syringe",
+    "Table",
+    "Table2",
+    "TableCellsMerge",
+    "TableCellsSplit",
+    "TableColumnsSplit",
+    "TableOfContents",
+    "TableProperties",
+    "TableRowsSplit",
+    "Tablet",
+    "TabletSmartphone",
+    "Tablets",
+    "Tag",
+    "TagPlus",
+    "TagX",
+    "Tags",
+    "Tally1",
+    "Tally2",
+    "Tally3",
+    "Tally4",
+    "Tally5",
+    "Tangent",
+    "Target",
+    "Telescope",
+    "Tent",
+    "TentTree",
+    "Terminal",
+    "TestTube",
+    "TestTubeDiagonal",
+    "TestTubes",
+    "TextAlignCenter",
+    "TextAlignEnd",
+    "TextAlignJustify",
+    "TextAlignStart",
+    "TextCursor",
+    "TextCursorInput",
+    "TextInitial",
+    "TextQuote",
+    "TextSearch",
+    "TextWrap",
+    "Theater",
+    "Thermometer",
+    "ThermometerSnowflake",
+    "ThermometerSun",
+    "ThumbsDown",
+    "ThumbsUp",
+    "Ticket",
+    "TicketCheck",
+    "TicketMinus",
+    "TicketPercent",
+    "TicketPlus",
+    "TicketSlash",
+    "TicketX",
+    "Tickets",
+    "TicketsPlane",
+    "Timeline",
+    "Timer",
+    "TimerOff",
+    "TimerReset",
+    "ToggleLeft",
+    "ToggleRight",
+    "Toilet",
+    "ToolCase",
+    "Toolbox",
+    "Tornado",
+    "Torus",
+    "Touchpad",
+    "TouchpadOff",
+    "TowelRack",
+    "TowerControl",
+    "ToyBrick",
+    "Tractor",
+    "TrafficCone",
+    "TrainFront",
+    "TrainFrontTunnel",
+    "TrainTrack",
+    "TramFront",
+    "Transgender",
+    "Trash",
+    "Trash2",
+    "TreeDeciduous",
+    "TreePalm",
+    "TreePine",
+    "Trees",
+    "TrendingDown",
+    "TrendingUp",
+    "TrendingUpDown",
+    "Triangle",
+    "TriangleAlert",
+    "TriangleDashed",
+    "TriangleRight",
+    "Trophy",
+    "Truck",
+    "TruckElectric",
+    "TurkishLira",
+    "Turntable",
+    "Turtle",
+    "Tv",
+    "TvMinimal",
+    "TvMinimalPlay",
+    "Type",
+    "TypeOutline",
+    "Umbrella",
+    "UmbrellaOff",
+    "Underline",
+    "Undo",
+    "Undo2",
+    "UndoDot",
+    "UnfoldHorizontal",
+    "UnfoldVertical",
+    "Ungroup",
+    "University",
+    "Unlink",
+    "Unlink2",
+    "Unplug",
+    "Upload",
+    "Usb",
+    "User",
+    "UserCheck",
+    "UserCog",
+    "UserKey",
+    "UserLock",
+    "UserMinus",
+    "UserPen",
+    "UserPlus",
+    "UserRound",
+    "UserRoundArrowLeft",
+    "UserRoundCheck",
+    "UserRoundCog",
+    "UserRoundKey",
+    "UserRoundMinus",
+    "UserRoundPen",
+    "UserRoundPlus",
+    "UserRoundSearch",
+    "UserRoundX",
+    "UserSearch",
+    "UserStar",
+    "UserX",
+    "Users",
+    "UsersRound",
+    "Utensils",
+    "UtensilsCrossed",
+    "UtilityPole",
+    "Van",
+    "Variable",
+    "Vault",
+    "VectorSquare",
+    "Vegan",
+    "VenetianMask",
+    "Venus",
+    "VenusAndMars",
+    "Vibrate",
+    "VibrateOff",
+    "Video",
+    "VideoOff",
+    "Videotape",
+    "View",
+    "Voicemail",
+    "Volleyball",
+    "Volume",
+    "Volume1",
+    "Volume2",
+    "VolumeOff",
+    "VolumeX",
+    "Vote",
+    "Wallet",
+    "WalletCards",
+    "WalletMinimal",
+    "Wallpaper",
+    "Wand",
+    "WandSparkles",
+    "Warehouse",
+    "WashingMachine",
+    "Watch",
+    "WavesArrowDown",
+    "WavesArrowUp",
+    "WavesHorizontal",
+    "WavesLadder",
+    "WavesVertical",
+    "Waypoints",
+    "Webcam",
+    "WebcamOff",
+    "Webhook",
+    "WebhookOff",
+    "Weight",
+    "WeightTilde",
+    "Wheat",
+    "WheatOff",
+    "WholeWord",
+    "Wifi",
+    "WifiCog",
+    "WifiHigh",
+    "WifiLow",
+    "WifiOff",
+    "WifiPen",
+    "WifiSync",
+    "WifiZero",
+    "Wind",
+    "WindArrowDown",
+    "Wine",
+    "WineOff",
+    "Workflow",
+    "Worm",
+    "Wrench",
+    "WrenchOff",
+    "X",
+    "XLineTop",
+    "Zap",
+    "ZapOff",
+    "ZodiacAquarius",
+    "ZodiacAries",
+    "ZodiacCancer",
+    "ZodiacCapricorn",
+    "ZodiacGemini",
+    "ZodiacLeo",
+    "ZodiacLibra",
+    "ZodiacOphiuchus",
+    "ZodiacPisces",
+    "ZodiacSagittarius",
+    "ZodiacScorpio",
+    "ZodiacTaurus",
+    "ZodiacVirgo",
+    "ZoomIn",
+    "ZoomOut"
+  ],
+  "common": {
+    "id": {
+      "type": "string"
+    },
+    "className": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "tabIndex": {
+      "type": "number"
+    },
+    "dir": {
+      "type": "enum",
+      "values": [
+        "ltr",
+        "rtl"
+      ]
+    },
+    "lang": {
+      "type": "string"
+    },
+    "hidden": {
+      "type": "boolean"
+    },
+    "style": {
+      "type": "style"
+    },
+    "text": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "children": {
+      "type": "node"
+    },
+    "onPress": {
+      "type": "event"
+    },
+    "onClick": {
+      "type": "event"
+    },
+    "onFocus": {
+      "type": "event"
+    },
+    "onBlur": {
+      "type": "event"
+    },
+    "hotkey": {
+      "type": "string"
+    },
+    "autoFocus": {
+      "type": "boolean"
+    }
+  },
+  "radixCommon": {
+    "p": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "px": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "py": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pt": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pr": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pb": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "pl": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "responsive": true
+    },
+    "width": {
+      "type": "string",
+      "responsive": true
+    },
+    "minWidth": {
+      "type": "string",
+      "responsive": true
+    },
+    "maxWidth": {
+      "type": "string",
+      "responsive": true
+    },
+    "height": {
+      "type": "string",
+      "responsive": true
+    },
+    "minHeight": {
+      "type": "string",
+      "responsive": true
+    },
+    "maxHeight": {
+      "type": "string",
+      "responsive": true
+    },
+    "position": {
+      "type": "enum",
+      "values": [
+        "static",
+        "relative",
+        "absolute",
+        "fixed",
+        "sticky"
+      ],
+      "responsive": true
+    },
+    "inset": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "top": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "right": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "bottom": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "left": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "overflow": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "overflowX": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "overflowY": {
+      "type": "enum",
+      "values": [
+        "visible",
+        "hidden",
+        "clip",
+        "scroll",
+        "auto"
+      ],
+      "responsive": true
+    },
+    "flexBasis": {
+      "type": "string",
+      "responsive": true
+    },
+    "flexShrink": {
+      "type": "string",
+      "values": [
+        "0",
+        "1"
+      ],
+      "responsive": true
+    },
+    "flexGrow": {
+      "type": "string",
+      "values": [
+        "0",
+        "1"
+      ],
+      "responsive": true
+    },
+    "gridArea": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumn": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumnStart": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridColumnEnd": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRow": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRowStart": {
+      "type": "string",
+      "responsive": true
+    },
+    "gridRowEnd": {
+      "type": "string",
+      "responsive": true
+    },
+    "alignSelf": {
+      "type": "enum",
+      "values": [
+        "start",
+        "center",
+        "end",
+        "baseline",
+        "stretch"
+      ],
+      "responsive": true
+    },
+    "justifySelf": {
+      "type": "enum",
+      "values": [
+        "start",
+        "center",
+        "end",
+        "baseline",
+        "stretch"
+      ],
+      "responsive": true
+    },
+    "m": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mx": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "my": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mt": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mr": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "mb": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "ml": {
+      "type": "string",
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "-1",
+        "-2",
+        "-3",
+        "-4",
+        "-5",
+        "-6",
+        "-7",
+        "-8",
+        "-9"
+      ],
+      "responsive": true
+    },
+    "bold": {
+      "type": "boolean"
+    },
+    "italic": {
+      "type": "boolean"
+    },
+    "dimColor": {
+      "type": "boolean"
+    },
+    "inverse": {
+      "type": "boolean"
+    },
+    "plain": {
+      "type": "boolean"
+    },
+    "flexDirection": {
+      "type": "enum",
+      "values": [
+        "row",
+        "column"
+      ]
+    },
+    "justifyContent": {
+      "type": "string"
+    },
+    "alignItems": {
+      "type": "string"
+    },
+    "marginTop": {
+      "type": "number"
+    },
+    "paddingX": {
+      "type": "number"
+    },
+    "paddingY": {
+      "type": "number"
+    },
+    "padding": {
+      "type": "number"
+    },
+    "borderStyle": {
+      "type": "string"
+    },
+    "borderColor": {
+      "type": "string"
+    },
+    "gap": {
+      "type": "spacing"
+    },
+    "wrap": {
+      "type": "string"
+    },
+    "asChild": {
+      "type": "boolean"
+    }
+  },
+  "radix": {
+    "AccessibleIcon": {
+      "props": {}
+    },
+    "AlertDialog.Action": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Cancel": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Content": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AlertDialog.Description": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Title": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "AlertDialog.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AspectRatio": {
+      "props": {
+        "ratio": {
+          "type": "number"
+        }
+      }
+    },
+    "Avatar": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "fallback": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        }
+      }
+    },
+    "Badge": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft",
+            "surface",
+            "outline"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        }
+      }
+    },
+    "Blockquote": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Box": {
+      "props": {
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline",
+            "inline-block",
+            "block",
+            "contents"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Button": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "solid",
+            "soft",
+            "surface",
+            "outline",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "Callout.Icon": {
+      "props": {}
+    },
+    "Callout.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "soft",
+            "surface",
+            "outline"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Callout.Text": {
+      "props": {}
+    },
+    "Card": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic",
+            "ghost"
+          ]
+        }
+      }
+    },
+    "Checkbox": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CheckboxCards.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "CheckboxCards.Root": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "strings"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CheckboxGroup.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "CheckboxGroup.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "strings"
+        },
+        "defaultValue": {
+          "type": "strings"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Code": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft",
+            "outline",
+            "ghost"
+          ]
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Container": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "initial"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "ContextMenu.CheckboxItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContextMenu.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Item": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "ContextMenu.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.RadioGroup": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.RadioItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Sub": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.SubContent": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContextMenu.SubTrigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ContextMenu.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DataList.Item": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "DataList.Label": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DataList.Root": {
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "DataList.Value": {
+      "props": {}
+    },
+    "Dialog.Close": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Content": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Dialog.Description": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Title": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Dialog.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.CheckboxItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "checked": {
+          "type": "enum",
+          "values": [
+            true,
+            false,
+            "indeterminate"
+          ]
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Item": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "DropdownMenu.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.RadioGroup": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.RadioItem": {
+      "props": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Sub": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.SubContent": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        }
+      }
+    },
+    "DropdownMenu.SubTrigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "DropdownMenu.TriggerIcon": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Em": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Flex": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline-flex",
+            "flex"
+          ],
+          "responsive": true
+        },
+        "direction": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column",
+            "row-reverse",
+            "column-reverse"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ],
+          "responsive": true
+        },
+        "gapX": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "gapY": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Grid": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "div",
+            "span"
+          ]
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "inline-grid",
+            "grid"
+          ],
+          "responsive": true
+        },
+        "areas": {
+          "type": "string",
+          "responsive": true
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "rows": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "flow": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column",
+            "dense",
+            "row-dense",
+            "column-dense"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ],
+          "responsive": true
+        },
+        "alignContent": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "between",
+            "around",
+            "evenly",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justifyItems": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "gapX": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "gapY": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Heading": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HoverCard.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HoverCard.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        }
+      }
+    },
+    "HoverCard.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "openDelay": {
+          "type": "number"
+        },
+        "closeDelay": {
+          "type": "number"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "IconButton": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "solid",
+            "soft",
+            "surface",
+            "outline",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "button",
+            "submit",
+            "reset"
+          ]
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "Inset": {
+      "props": {
+        "p": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "px": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "py": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pt": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pr": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pb": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "pl": {
+          "type": "enum",
+          "values": [
+            "current",
+            "0"
+          ],
+          "responsive": true
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "all",
+            "x",
+            "y",
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ],
+          "responsive": true
+        },
+        "clip": {
+          "type": "enum",
+          "values": [
+            "border-box",
+            "padding-box"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Kbd": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "soft"
+          ]
+        }
+      }
+    },
+    "Link": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "underline": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "always",
+            "hover",
+            "none"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Popover.Anchor": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Close": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Content": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Popover.Root": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        }
+      }
+    },
+    "Popover.Trigger": {
+      "props": {
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Progress": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "duration": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "Quote": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Radio": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "RadioCards.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "RadioCards.Root": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "columns": {
+          "type": "string",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "RadioGroup.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "RadioGroup.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ScrollArea": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "scrollbars": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal",
+            "both"
+          ]
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "always",
+            "scroll",
+            "hover"
+          ]
+        },
+        "scrollHideDelay": {
+          "type": "number"
+        }
+      }
+    },
+    "Section": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "display": {
+          "type": "enum",
+          "values": [
+            "none",
+            "initial"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "SegmentedControl.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "SegmentedControl.Root": {
+      "props": {
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "classic"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Select.Content": {
+      "props": {
+        "position": {
+          "type": "enum",
+          "values": [
+            "item-aligned",
+            "popper"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "collisionPadding": {
+          "type": "number"
+        }
+      }
+    },
+    "Select.Group": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Item": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "shortcut": {
+          "type": "string"
+        },
+        "textValue": {
+          "type": "string"
+        }
+      }
+    },
+    "Select.Label": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Select.Separator": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Select.Trigger": {
+      "props": {
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft",
+            "ghost"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "Separator": {
+      "props": {
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "decorative": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Skeleton": {
+      "props": {
+        "loading": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Slider": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "numbers"
+        },
+        "defaultValue": {
+          "type": "numbers"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minStepsBetweenThumbs": {
+          "type": "number"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "inverted": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onValueCommit": {
+          "type": "event"
+        }
+      }
+    },
+    "Spinner": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "loading": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Strong": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Switch": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "defaultChecked": {
+          "type": "boolean"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onCheckedChange": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TabNav.Link": {
+      "props": {
+        "active": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        }
+      }
+    },
+    "TabNav.Root": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string"
+        },
+        "target": {
+          "type": "enum",
+          "values": [
+            "_blank",
+            "_self"
+          ]
+        },
+        "download": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Table.Body": {
+      "props": {}
+    },
+    "Table.Cell": {
+      "props": {
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.ColumnHeaderCell": {
+      "props": {}
+    },
+    "Table.Header": {
+      "props": {}
+    },
+    "Table.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "surface",
+            "ghost"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "fixed"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.Row": {
+      "props": {
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ],
+          "responsive": true
+        }
+      }
+    },
+    "Table.RowHeaderCell": {
+      "props": {}
+    },
+    "Tabs.Content": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.List": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "nowrap",
+            "wrap",
+            "wrap-reverse"
+          ],
+          "responsive": true
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2"
+          ],
+          "responsive": true
+        },
+        "justify": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.Root": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Tabs.Trigger": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "orientation": {
+          "type": "enum",
+          "values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "activationMode": {
+          "type": "enum",
+          "values": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Text": {
+      "props": {
+        "wrap": {
+          "type": "enum",
+          "values": [
+            "wrap",
+            "nowrap",
+            "pretty",
+            "balance"
+          ],
+          "responsive": true
+        },
+        "as": {
+          "type": "enum",
+          "values": [
+            "span",
+            "div",
+            "label",
+            "p"
+          ]
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "weight": {
+          "type": "enum",
+          "values": [
+            "light",
+            "regular",
+            "medium",
+            "bold"
+          ],
+          "responsive": true
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "left",
+            "center",
+            "right"
+          ],
+          "responsive": true
+        },
+        "trim": {
+          "type": "enum",
+          "values": [
+            "normal",
+            "start",
+            "end",
+            "both"
+          ],
+          "responsive": true
+        },
+        "truncate": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "highContrast": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TextArea": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "resize": {
+          "type": "enum",
+          "values": [
+            "none",
+            "vertical",
+            "horizontal",
+            "both"
+          ],
+          "responsive": true
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        }
+      }
+    },
+    "TextField.Root": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        }
+      }
+    },
+    "TextField.Slot": {
+      "props": {
+        "gap": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        }
+      }
+    },
+    "Theme": {
+      "props": {
+        "hasBackground": {
+          "type": "boolean"
+        },
+        "appearance": {
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "inherit"
+          ]
+        },
+        "accentColor": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky"
+          ]
+        },
+        "grayColor": {
+          "type": "string"
+        },
+        "panelBackground": {
+          "type": "enum",
+          "values": [
+            "solid",
+            "translucent"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "scaling": {
+          "type": "enum",
+          "values": [
+            "90%",
+            "95%",
+            "100%",
+            "105%",
+            "110%"
+          ]
+        }
+      }
+    },
+    "Tooltip": {
+      "props": {
+        "content": {
+          "type": "string"
+        },
+        "open": {
+          "type": "boolean"
+        },
+        "defaultOpen": {
+          "type": "boolean"
+        },
+        "modal": {
+          "type": "boolean"
+        },
+        "onOpenChange": {
+          "type": "event"
+        },
+        "side": {
+          "type": "enum",
+          "values": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        },
+        "align": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        "sideOffset": {
+          "type": "number"
+        },
+        "alignOffset": {
+          "type": "number"
+        },
+        "collisionPadding": {
+          "type": "number"
+        },
+        "avoidCollisions": {
+          "type": "boolean"
+        },
+        "sticky": {
+          "type": "enum",
+          "values": [
+            "partial",
+            "always"
+          ]
+        },
+        "hideWhenDetached": {
+          "type": "boolean"
+        },
+        "delayDuration": {
+          "type": "number"
+        }
+      }
+    },
+    "VisuallyHidden": {
+      "props": {}
+    }
+  },
+  "project": {
+    "Image": {
+      "props": {
+        "asset": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "fit": {
+          "type": "enum",
+          "values": [
+            "contain",
+            "cover",
+            "fill"
+          ]
+        },
+        "loading": {
+          "type": "enum",
+          "values": [
+            "lazy",
+            "eager"
+          ]
+        }
+      },
+      "capabilities": [
+        "ui"
+      ]
+    },
+    "FloatingPanel": {
+      "props": {
+        "position": {
+          "type": "json"
+        },
+        "width": {
+          "type": "number"
+        },
+        "dragLabel": {
+          "type": "string"
+        }
+      },
+      "capabilities": [
+        "ui.overlay"
+      ]
+    },
+    "Icon": {
+      "props": {
+        "name": {
+          "type": "icon"
+        },
+        "size": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "strokeWidth": {
+          "type": "number"
+        },
+        "absoluteStrokeWidth": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Spinner": {
+      "props": {
+        "size": {
+          "type": "enum",
+          "values": [
+            12,
+            18,
+            24,
+            32
+          ]
+        }
+      }
+    },
+    "CircularProgress": {
+      "props": {
+        "value": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "size": {
+          "type": "number"
+        },
+        "strokeWidth": {
+          "type": "number"
+        },
+        "ariaLabel": {
+          "type": "string"
+        }
+      }
+    },
+    "UnitTextField": {
+      "props": {
+        "p": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "px": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "py": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pt": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pr": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pb": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "pl": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "responsive": true
+        },
+        "width": {
+          "type": "string",
+          "responsive": true
+        },
+        "minWidth": {
+          "type": "string",
+          "responsive": true
+        },
+        "maxWidth": {
+          "type": "string",
+          "responsive": true
+        },
+        "height": {
+          "type": "string",
+          "responsive": true
+        },
+        "minHeight": {
+          "type": "string",
+          "responsive": true
+        },
+        "maxHeight": {
+          "type": "string",
+          "responsive": true
+        },
+        "position": {
+          "type": "enum",
+          "values": [
+            "static",
+            "relative",
+            "absolute",
+            "fixed",
+            "sticky"
+          ],
+          "responsive": true
+        },
+        "inset": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "top": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "right": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "bottom": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "left": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "overflow": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "overflowX": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "overflowY": {
+          "type": "enum",
+          "values": [
+            "visible",
+            "hidden",
+            "clip",
+            "scroll",
+            "auto"
+          ],
+          "responsive": true
+        },
+        "flexBasis": {
+          "type": "string",
+          "responsive": true
+        },
+        "flexShrink": {
+          "type": "string",
+          "values": [
+            "0",
+            "1"
+          ],
+          "responsive": true
+        },
+        "flexGrow": {
+          "type": "string",
+          "values": [
+            "0",
+            "1"
+          ],
+          "responsive": true
+        },
+        "gridArea": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumn": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumnStart": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridColumnEnd": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRow": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRowStart": {
+          "type": "string",
+          "responsive": true
+        },
+        "gridRowEnd": {
+          "type": "string",
+          "responsive": true
+        },
+        "alignSelf": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "justifySelf": {
+          "type": "enum",
+          "values": [
+            "start",
+            "center",
+            "end",
+            "baseline",
+            "stretch"
+          ],
+          "responsive": true
+        },
+        "m": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mx": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "my": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mt": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mr": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "mb": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "ml": {
+          "type": "string",
+          "values": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "-1",
+            "-2",
+            "-3",
+            "-4",
+            "-5",
+            "-6",
+            "-7",
+            "-8",
+            "-9"
+          ],
+          "responsive": true
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "dimColor": {
+          "type": "boolean"
+        },
+        "inverse": {
+          "type": "boolean"
+        },
+        "plain": {
+          "type": "boolean"
+        },
+        "flexDirection": {
+          "type": "enum",
+          "values": [
+            "row",
+            "column"
+          ]
+        },
+        "justifyContent": {
+          "type": "string"
+        },
+        "alignItems": {
+          "type": "string"
+        },
+        "marginTop": {
+          "type": "number"
+        },
+        "paddingX": {
+          "type": "number"
+        },
+        "paddingY": {
+          "type": "number"
+        },
+        "padding": {
+          "type": "number"
+        },
+        "borderStyle": {
+          "type": "string"
+        },
+        "borderColor": {
+          "type": "string"
+        },
+        "gap": {
+          "type": "spacing"
+        },
+        "wrap": {
+          "type": "string"
+        },
+        "asChild": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "responsive": true
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "classic",
+            "surface",
+            "soft"
+          ]
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "gray",
+            "gold",
+            "bronze",
+            "brown",
+            "yellow",
+            "amber",
+            "orange",
+            "tomato",
+            "red",
+            "ruby",
+            "crimson",
+            "pink",
+            "plum",
+            "purple",
+            "violet",
+            "iris",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "jade",
+            "green",
+            "grass",
+            "lime",
+            "mint",
+            "sky",
+            "magenta",
+            "white",
+            "black"
+          ]
+        },
+        "radius": {
+          "type": "enum",
+          "values": [
+            "none",
+            "small",
+            "medium",
+            "large",
+            "full"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "enum",
+          "values": [
+            "text",
+            "number",
+            "email",
+            "password",
+            "search",
+            "tel",
+            "url",
+            "date",
+            "datetime-local",
+            "time",
+            "month",
+            "week",
+            "color",
+            "range"
+          ]
+        },
+        "inputMode": {
+          "type": "enum",
+          "values": [
+            "none",
+            "text",
+            "tel",
+            "url",
+            "email",
+            "numeric",
+            "decimal",
+            "search"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "spellCheck": {
+          "type": "boolean"
+        },
+        "autoCapitalize": {
+          "type": "string"
+        },
+        "enterKeyHint": {
+          "type": "enum",
+          "values": [
+            "enter",
+            "done",
+            "go",
+            "next",
+            "previous",
+            "search",
+            "send"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "number"
+        },
+        "autoComplete": {
+          "type": "string"
+        },
+        "onInput": {
+          "type": "event"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSubmit": {
+          "type": "event"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "unitSide": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        },
+        "leftUnit": {
+          "type": "string"
+        },
+        "rightUnit": {
+          "type": "string"
+        }
+      }
+    },
+    "StepperNumberInput": {
+      "props": {
+        "value": {
+          "type": "json"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "increaseAriaLabel": {
+          "type": "string"
+        },
+        "decreaseAriaLabel": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onCommit": {
+          "type": "event"
+        }
+      }
+    },
+    "LabeledSelect": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "options": {
+          "type": "options"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "default",
+            "icon"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "gap": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "labelSize": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "labelWeight": {
+          "type": "enum",
+          "values": [
+            "regular",
+            "medium",
+            "bold"
+          ]
+        },
+        "labelColor": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "triggerLabelVisible": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        }
+      }
+    },
+    "SearchableSelect": {
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "options": {
+          "type": "options"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "variant": {
+          "type": "enum",
+          "values": [
+            "default",
+            "icon"
+          ]
+        },
+        "layout": {
+          "type": "enum",
+          "values": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "gap": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "labelSize": {
+          "type": "enum",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "labelWeight": {
+          "type": "enum",
+          "values": [
+            "regular",
+            "medium",
+            "bold"
+          ]
+        },
+        "labelColor": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "triggerLabelVisible": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        },
+        "searchPlaceholder": {
+          "type": "string"
+        },
+        "emptyMessage": {
+          "type": "string"
+        },
+        "contentHeight": {
+          "type": "number"
+        }
+      }
+    },
+    "ModelIdSelect": {
+      "capabilities": [
+        "models.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "taskType": {
+          "type": "enum",
+          "values": [
+            "llm",
+            "embedding",
+            "rerank"
+          ]
+        },
+        "editable": {
+          "type": "boolean"
+        },
+        "allowCustomValue": {
+          "type": "boolean"
+        },
+        "compact": {
+          "type": "boolean"
+        },
+        "compactTrigger": {
+          "type": "boolean"
+        },
+        "hideTriggerChevron": {
+          "type": "boolean"
+        },
+        "emptyOptionLabel": {
+          "type": "string"
+        },
+        "triggerClassName": {
+          "type": "string"
+        },
+        "contentClassName": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        },
+        "onValueChange": {
+          "type": "event"
+        }
+      }
+    },
+    "ProjectSelectField": {
+      "capabilities": [
+        "projects.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "showNoneOption": {
+          "type": "boolean"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "ProjectGridSelector": {
+      "capabilities": [
+        "projects.read"
+      ],
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "showNoneOption": {
+          "type": "boolean"
+        },
+        "onChange": {
+          "type": "event"
+        },
+        "onSelect": {
+          "type": "event"
+        }
+      }
+    },
+    "InfoTooltip": {
+      "props": {
+        "content": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "aliases": {
+    "LucideIcon": "Project.Icon",
+    "Input": "Radix.TextField.Root",
+    "Markdown": "Radix.Code",
+    "Select": "Project.LabeledSelect",
+    "Tooltip": "Project.InfoTooltip",
+    "ModelSelector": "Project.ModelIdSelect",
+    "ProjectSelector": "Project.ProjectSelectField"
+  }
+}

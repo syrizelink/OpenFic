@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
+import { usePortalContainer } from "@/components/portal-container";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
@@ -109,8 +110,12 @@ function formatModelPriceLine(
 }
 
 function ToolCallWarningBadge({ message }: { message: string }) {
+  const portalContainer = usePortalContainer();
   return (
-    <Tooltip content={message}>
+    <Tooltip
+      container={portalContainer}
+      content={message}
+    >
       <Box
         aria-label={message}
         role="img"
@@ -158,6 +163,7 @@ export function ModelIdSelect({
   triggerClassName,
   contentClassName,
 }: ModelIdSelectProps) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
@@ -700,6 +706,7 @@ export function ModelIdSelect({
     >
       <Popover.Trigger>{trigger}</Popover.Trigger>
       <Popover.Content
+        container={portalContainer}
         className={contentClassName}
         onOpenAutoFocus={(event) => {
           if (isMobile) event.preventDefault();

@@ -29,6 +29,7 @@ import { useShallow } from "zustand/react/shallow";
 import "./grouped-volume-list.css";
 import { ContextMenu, type ContextMenuItem } from "@/components";
 import { buildChapterMentionTag } from "@/features/assistant/lib/mention-text";
+import { usePluginMenuItems } from "@/features/plugins/menu-items";
 import type { SummaryStatusItem } from "@/lib/api-client";
 import type {
   ChapterListItem as ChapterListItemData,
@@ -425,6 +426,11 @@ export function GroupedVolumeList({
   const [measuredProjectId, setMeasuredProjectId] = useState<string | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuChapterId, setContextMenuChapterId] = useState<string | null>(null);
+  const pluginMenuItems = usePluginMenuItems(
+    contextMenuChapterId && !isAgentLocked
+      ? { kind: "menu.chapter", ids: [contextMenuChapterId], projectId }
+      : null,
+  );
   const [contextMenuChapterTitle, setContextMenuChapterTitle] = useState<string | null>(null);
   const [renamingChapterId, setRenamingChapterId] = useState<string | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
@@ -1342,7 +1348,7 @@ export function GroupedVolumeList({
       </DndContext>
       <ContextMenu
         position={isDragMode ? null : contextMenuPos}
-        items={menuItems}
+        items={[...menuItems, ...pluginMenuItems]}
         onClose={handleCloseContextMenu}
       />
     </>

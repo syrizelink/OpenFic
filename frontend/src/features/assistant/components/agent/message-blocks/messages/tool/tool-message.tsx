@@ -1,5 +1,6 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { AlertTriangle, CircleAlert } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, CircleAlert, Puzzle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -12,8 +13,11 @@ import {
   type ChapterDiffSection,
   type ChapterDiffSectionType,
 } from "@/features/assistant/lib/chapter-tool-preview";
+import { PluginIcon } from "@/features/plugins/plugin-icon";
+import { fetchAgentTools } from "@/features/settings/lib/settings-api";
 import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
+import { getApiBaseUrl } from "@/lib/api-client";
 
 import { useMessageDisclosure } from "../../shared/message-disclosure";
 import {
@@ -183,6 +187,22 @@ function getWorldEntryDiffPreview(message: AgentMessage): {
 
 export function ToolMessage({ message }: ToolMessageProps) {
   const descriptor = getToolDescriptor(message.toolName);
+  const snapshot = isRecord(message.payload?.plugin_tool_display)
+    ? message.payload.plugin_tool_display
+    : undefined;
+  const { data: tools = [] } = useQuery({
+    queryKey: ["agent-tools"],
+    queryFn: fetchAgentTools,
+    enabled: Boolean(message.toolName?.startsWith("plugin_") && !snapshot),
+    staleTime: Infinity,
+  });
+  const pluginTool = tools.find((tool) => tool.key === message.toolName && tool.pluginId);
+  const pluginId = asString(snapshot?.plugin_id) ?? pluginTool?.pluginId;
+  const pluginTitle = asString(snapshot?.title) ?? pluginTool?.title ?? pluginTool?.displayName;
+  const pluginIcon = asString(snapshot?.icon) ?? pluginTool?.icon;
+  const pluginDetail = asString(snapshot?.detail) ?? pluginTool?.detail;
+  const isPluginTool = Boolean(message.toolName?.startsWith("plugin_") && pluginId && pluginTitle);
+  const isPluginAsset = Boolean(pluginIcon?.match(/\.(png|jpe?g|webp|svg)$/i));
   const errorMessage = getToolErrorMessage(message);
   const isIncompleteAskUser =
     message.toolName === "ask_user" && message.status !== "completed" && message.status !== "error";
@@ -200,24 +220,34 @@ export function ToolMessage({ message }: ToolMessageProps) {
   );
   const contentMode = usesDiffHeader ? "expandable" : (descriptor?.contentMode ?? "static");
   const { isExpanded, toggleExpanded } = useMessageDisclosure(message.id);
-  const content = !descriptor ? (
-    <UnregisteredToolMessage
-      toolName={message.toolName}
-      errorMessage={errorMessage}
-    />
-  ) : contentMode === "hidden" ? null : !descriptor.render ? null : (
-    descriptor.render(message)
-  );
-  const Icon = descriptor?.icon ?? AlertTriangle;
-  const iconUrl = descriptor?.getIconUrl?.(message);
+  const content =
+    !descriptor && !isPluginTool ? (
+      <UnregisteredToolMessage
+        toolName={message.toolName}
+        errorMessage={errorMessage}
+      />
+    ) : contentMode === "hidden" ? null : !descriptor?.render ? null : (
+      descriptor.render(message)
+    );
+  const Icon = descriptor?.icon ?? (isPluginTool ? Puzzle : AlertTriangle);
+  const iconUrl =
+    descriptor?.getIconUrl?.(message) ??
+    (isPluginTool && isPluginAsset && pluginIcon && pluginId
+      ? `${getApiBaseUrl()}/plugins/${encodeURIComponent(pluginId)}/status-icon?${new URLSearchParams({ path: pluginIcon })}`
+      : undefined);
   const [loadedIconUrl, setLoadedIconUrl] = useState<string>();
   const [failedIconUrl, setFailedIconUrl] = useState<string>();
   const isIconLoaded =
     iconUrl !== undefined && loadedIconUrl === iconUrl && failedIconUrl !== iconUrl;
-  const title = descriptor?.getTitle(message) ?? i18n.t("assistant.tools.unregisteredTool");
+  const title =
+    descriptor?.getTitle(message) ??
+    (isPluginTool ? pluginTitle : undefined) ??
+    i18n.t("assistant.tools.unregisteredTool");
   const detail = descriptor
     ? descriptor.getDetail?.(message)
-    : (message.toolName ?? i18n.t("assistant.tools.unknown"));
+    : isPluginTool
+      ? pluginDetail
+      : (message.toolName ?? i18n.t("assistant.tools.unknown"));
   const chapterDiffBodySection = getChapterDiffBodySection(chapterDiffPreview);
   const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.type === "content") ?? null;
   const worldEntryDiffBodySection =
@@ -269,7 +299,15 @@ export function ToolMessage({ message }: ToolMessageProps) {
     "agent-message-shell-icon",
     visibilityState.showErrorIndicator && "agent-message-shell-icon--error",
   );
-  const renderedIcon = descriptor?.renderIcon?.(message, iconClassName);
+  const renderedIcon =
+    descriptor?.renderIcon?.(message, iconClassName) ??
+    (isPluginTool && pluginIcon && !isPluginAsset ? (
+      <PluginIcon
+        name={pluginIcon}
+        size={16}
+        className={iconClassName}
+      />
+    ) : undefined);
   const showMeta =
     visibilityState.showErrorIndicator ||
     usesDiffHeader ||
@@ -288,10 +326,10 @@ export function ToolMessage({ message }: ToolMessageProps) {
       status={message.status ?? "completed"}
       flush
       data-tool-name={message.toolName ?? "tool"}
-      data-tool-group={descriptor?.group ?? "unknown"}
-      data-tool-tag={descriptor?.tag ?? "unknown"}
+      data-tool-group={descriptor?.group ?? (isPluginTool ? "plugin" : "unknown")}
+      data-tool-tag={descriptor?.tag ?? (isPluginTool ? "plugin" : "unknown")}
       data-tool-explore={descriptor?.isExplore ? "true" : "false"}
-      data-tool-registered={descriptor ? "true" : "false"}
+      data-tool-registered={descriptor || isPluginTool ? "true" : "false"}
     >
       <MessageBlockHeader
         expandable={visibilityState.canExpand}

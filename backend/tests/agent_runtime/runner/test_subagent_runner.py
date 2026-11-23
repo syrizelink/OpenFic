@@ -1911,6 +1911,17 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
 ):
     from app.agent_runtime.runner.subagent_runner import SubagentRunner
 
+    observed = []
+
+    async def observe_committed(name, payload):
+        assert name == "usage.recorded"
+        async with db_session_factory() as session:
+            task = await session.get(Task, "task-1")
+            assert task is not None and task.cost == pytest.approx(0.25 + cost)
+        observed.append(payload)
+
+    monkeypatch.setattr("app.plugins.runtime.observe", observe_committed)
+
     async with db_session_factory() as session:
         task = await session.get(Task, "task-1")
         assert task is not None
@@ -2006,6 +2017,13 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
         project_id="project-1",
     )
     await runner.run(row.id)
+
+    assert len(observed) == 1
+    assert observed[0]["session_id"] == "child-thread-usage"
+    assert observed[0]["parent_session_id"] == "parent-session"
+    assert observed[0]["project_id"] == "project-1"
+    assert observed[0]["currency"] == "USD" and observed[0]["usage_kind"] == "model"
+    assert observed[0]["cost"] == pytest.approx(cost)
 
     async with db_session_factory() as session:
         task = await session.get(Task, "task-1")

@@ -9,9 +9,12 @@
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",
     "lint": "oxlint .",
+    "plugin-ui:check": "node scripts/generate-plugin-ui-catalog.mjs --check && node scripts/generate-plugin-css.mjs --check",
+    "plugin-ui:generate": "node scripts/generate-plugin-ui-catalog.mjs && node scripts/generate-plugin-css.mjs",
     "preview": "vp preview",
     "test:e2e": "playwright test",
-    "type-check": "oxlint . --type-aware --type-check"
+    "test:plugin-css": "playwright test e2e/declarative-css.spec.ts",
+    "type-check": "npm run plugin-ui:check && oxlint . --type-aware --type-check"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -37,6 +40,7 @@
     "@nivo/line": "^0.99.0",
     "@nivo/pie": "^0.99.0",
     "@number-flow/react": "^0.6.0",
+    "@openfic/plugin-devtools": "file:../packages/plugin-devtools",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/themes": "^3.3.0",
     "@streamdown/cjk": "^1.0.3",
@@ -83,6 +87,10 @@
     "lowlight": "^3.3.0",
     "lucide-react": "^1.25.0",
     "motion": "^12.38.0",
+    "postcss": "^8.5.30",
+    "postcss-nesting": "^14.0.3",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0",
     "posthog-js": "^1.417.1",
     "qr-code-styling": "^1.9.2",
     "radix-ui": "^1.4.3",

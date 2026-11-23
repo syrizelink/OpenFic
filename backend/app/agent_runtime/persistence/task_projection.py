@@ -400,6 +400,11 @@ def _project_rows(
                         "tool_args": tool_args,
                         "tool_args_text": json.dumps(tool_args, ensure_ascii=False),
                         "tool_result": tool_result,
+                        **(
+                            {"plugin_tool_display": row.metadata["plugin_tool_display"]}
+                            if isinstance(row.metadata.get("plugin_tool_display"), dict)
+                            else {}
+                        ),
                         "success": bool(tool_result.get("success"))
                         if isinstance(tool_result.get("success"), bool)
                         else row.status != "aborted",

@@ -136,6 +136,7 @@ export function CharacterEditor({
 
   return (
     <MarkdownEditor
+      selectionSource={{ kind: "character", id: character.id, projectId: character.projectId }}
       title={name}
       onTitleChange={handleTitleChange}
       content={description}

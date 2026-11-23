@@ -368,14 +368,12 @@ async def test_orchestrator_resumes_all_parallel_tool_approvals_once() -> None:
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_sqlite_checkpoint_survives_batch_approval_completion(
-    tmp_path,
-) -> None:
+async def test_orchestrator_sqlite_checkpoint_survives_batch_approval_completion() -> None:
     from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
 
     registered_tools = dict(ToolRegistry._tools)
     ToolRegistry._tools[_ORCHESTRATOR_APPROVAL_TOOL_NAME] = _OrchestratorApprovalTool
-    connection = await aiosqlite.connect(tmp_path / "checkpoints.db")
+    connection = await aiosqlite.connect(":memory:")
     checkpointer = AsyncSqliteSaver(
         connection,
         serde=JsonPlusSerializer(

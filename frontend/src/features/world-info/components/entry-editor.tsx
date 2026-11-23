@@ -31,6 +31,7 @@ interface EntryEditorProps {
   entry: WorldInfoEntry;
   /** 世界书 ID（用于刷新缓存） */
   worldInfoId: string;
+  projectId?: string;
   /** 同一世界书中的条目列表，用于名称唯一性校验 */
   entries: WorldInfoEntryBrief[];
   /** 滚动到指定行（1-based） */
@@ -45,6 +46,7 @@ interface EntryEditorProps {
 export function EntryEditor({
   entry,
   worldInfoId,
+  projectId,
   entries,
   scrollToLine,
   onScrollComplete,
@@ -180,6 +182,7 @@ export function EntryEditor({
 
   return (
     <MarkdownEditor
+      selectionSource={{ kind: "world-info", id: entry.id, projectId }}
       title={name}
       onTitleChange={handleTitleChange}
       content={content}

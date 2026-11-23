@@ -1,28 +1,70 @@
 import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { motion } from "motion/react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import "./sidebar-nav.css";
 import {
   SIDEBAR_ICON_SIZE,
+  SIDEBAR_EXPANDED_WIDTH,
   SIDEBAR_ITEM_HEIGHT,
   type AppSidebarNavItem,
 } from "./app-sidebar.constants";
 
 const MotionFlex = motion.create(Flex);
+const MotionBox = motion.create(Box);
 
 interface SidebarNavProps {
   items: AppSidebarNavItem[];
   isExpanded: boolean;
+  onNavigate?: () => void;
 }
 
-function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpanded: boolean }) {
-  const Icon = item.icon;
+export function SidebarDivider({
+  isExpanded,
+  inPopover = false,
+}: {
+  isExpanded: boolean;
+  inPopover?: boolean;
+}) {
+  return (
+    <Box
+      className="app-sidebar-divider"
+      data-popover={inPopover || undefined}
+      aria-hidden="true"
+    >
+      <MotionBox
+        className="app-sidebar-divider__line"
+        initial={false}
+        animate={{
+          width: inPopover ? "calc(100% - 16px)" : isExpanded ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
+          marginLeft: isExpanded ? 8 : 4,
+        }}
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      />
+    </Box>
+  );
+}
+
+interface SidebarNavItemProps extends Omit<AppSidebarNavItem, "icon"> {
+  icon: ReactNode;
+  isExpanded: boolean;
+  onNavigate?: () => void;
+}
+
+export function SidebarNavItem({
+  href,
+  label,
+  active,
+  icon,
+  isExpanded,
+  onNavigate,
+}: SidebarNavItemProps) {
   const content = (
     <MotionFlex
       align="center"
       className="app-sidebar-nav-item"
-      data-active={item.active ? "true" : "false"}
+      data-active={active ? "true" : "false"}
       style={{
         display: "flex",
         alignItems: "center",
@@ -42,11 +84,7 @@ function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpan
           flexShrink: 0,
         }}
       >
-        <Icon
-          size={SIDEBAR_ICON_SIZE}
-          color="currentColor"
-          className="app-sidebar-nav-item__icon"
-        />
+        {icon}
       </Box>
       <motion.div
         initial={false}
@@ -60,9 +98,9 @@ function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpan
       >
         <Text
           size="2"
-          weight={item.active ? "bold" : "medium"}
+          weight={active ? "bold" : "medium"}
         >
-          {item.label}
+          {label}
         </Text>
       </motion.div>
     </MotionFlex>
@@ -70,27 +108,22 @@ function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpan
 
   const linked = (
     <Link
-      to={item.href}
-      aria-label={item.label}
-      aria-current={item.active ? "page" : undefined}
+      to={href}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
       className="app-sidebar-nav-link"
       style={{ display: "block", width: "100%" }}
+      onClick={onNavigate}
     >
       {content}
     </Link>
   );
 
   return isExpanded ? (
-    <Box
-      key={item.href}
-      width="100%"
-    >
-      {linked}
-    </Box>
+    <Box width="100%">{linked}</Box>
   ) : (
     <Tooltip
-      key={item.href}
-      content={item.label}
+      content={label}
       side="right"
     >
       <Box width="100%">{linked}</Box>
@@ -98,7 +131,7 @@ function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpan
   );
 }
 
-export function SidebarNav({ items, isExpanded }: SidebarNavProps) {
+export function SidebarNav({ items, isExpanded, onNavigate }: SidebarNavProps) {
   return (
     <Flex
       direction="column"
@@ -106,11 +139,19 @@ export function SidebarNav({ items, isExpanded }: SidebarNavProps) {
       gap="1"
       width="100%"
     >
-      {items.map((item) => (
+      {items.map(({ icon: Icon, ...item }) => (
         <SidebarNavItem
           key={item.href}
-          item={item}
+          {...item}
+          icon={
+            <Icon
+              size={SIDEBAR_ICON_SIZE}
+              color="currentColor"
+              className="app-sidebar-nav-item__icon"
+            />
+          }
           isExpanded={isExpanded}
+          onNavigate={onNavigate}
         />
       ))}
     </Flex>

@@ -12,7 +12,10 @@ export default defineConfig({
   },
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:9000",
+    baseURL: process.env.OPENFIC_E2E_BASE_URL ?? "http://127.0.0.1:9000",
+    launchOptions: process.env.OPENFIC_E2E_CHROMIUM_PATH
+      ? { executablePath: process.env.OPENFIC_E2E_CHROMIUM_PATH }
+      : undefined,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

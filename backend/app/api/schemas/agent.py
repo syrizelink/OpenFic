@@ -193,6 +193,14 @@ class AgentToolMetadataResponse(BaseModel):
 
     key: str = Field(..., description="权限配置键")
     is_readonly: bool = Field(..., description="是否只读")
+    display_name: str | None = Field(default=None, description="插件工具显示名称")
+    category: str | None = Field(default=None, description="插件工具分类")
+    description: str | None = Field(default=None, description="插件工具描述")
+    plugin_id: str | None = Field(default=None, description="提供工具的插件 ID")
+    plugin_name: str | None = Field(default=None, description="提供工具的插件名称")
+    title: str | None = Field(default=None, description="插件工具消息标题")
+    icon: str | None = Field(default=None, description="插件工具消息图标")
+    detail: str | None = Field(default=None, description="插件工具消息的静态详情")
 
 
 class AgentCurrentErrorResponse(BaseModel):

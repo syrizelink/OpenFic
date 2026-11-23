@@ -25,6 +25,67 @@ def _stream_event(event: str, **data) -> dict:
 
 
 @pytest.mark.asyncio
+async def test_plugin_tool_presentation_survives_history_without_changing_model_content(
+    db_session_factory, sample_task
+):
+    from app.agent_runtime.persistence.task_projection import (
+        load_task_messages_for_agent_session,
+    )
+    from app.agent_runtime.tools.errors import ToolResult
+
+    sid = "session_plugin_tool_display"
+    display = {
+        "plugin_id": "sample",
+        "title": "同步",
+        "icon": "CloudUpload",
+        "detail": "上传 3 章",
+    }
+    result = ToolResult(
+        '{"success": true, "uploaded": 3}',
+        {"success": True, "uploaded": 3, "_openfic_plugin_tool": display},
+    )
+    persister = MessagePersister(
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    await persister.handle(
+        {"event": "on_chat_model_start", "run_id": "model", "data": {}}
+    )
+    await persister.handle(
+        {
+            "event": "on_chat_model_end",
+            "run_id": "model",
+            "data": {
+                "output": AIMessage(
+                    content="",
+                    tool_calls=[
+                        {"id": "call_display", "name": "plugin_sample_sync", "args": {}}
+                    ],
+                )
+            },
+        }
+    )
+    await persister.handle(
+        {
+            "event": "on_tool_end",
+            "name": "plugin_sample_sync",
+            "metadata": {"tool_call_id": "call_display"},
+            "data": {"output": result},
+        }
+    )
+    async with db_session_factory() as restored:
+        rows = await repo.list_by_session(restored, sid)
+        messages = await load_task_messages_for_agent_session(restored, sid)
+        history = await load_history(restored, sid)
+    assert rows[-1].metadata["plugin_tool_display"] == display
+    assert messages[-1].payload["plugin_tool_display"] == display
+    assert history[-1].content == '{"success": true, "uploaded": 3}'
+    assert "_openfic_plugin_tool" not in history[-1].content
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("has_second_result", [True, False])
 @respx.mock
 async def test_codex_output_survives_database_history_and_payload(

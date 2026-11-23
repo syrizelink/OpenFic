@@ -192,7 +192,6 @@ async def test_commit_hydration_batches_blob_fetches(
 
 
 async def test_blob_put_is_atomic_across_sessions(tmp_path):
-    register_sqlmodel_models()
     database_path = tmp_path / "concurrent-blobs.db"
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{database_path.as_posix()}",
@@ -203,7 +202,7 @@ async def test_blob_put_is_atomic_across_sessions(tmp_path):
         await connection.execute(text("PRAGMA journal_mode=WAL"))
         await connection.commit()
     async with engine.begin() as connection:
-        await connection.run_sync(SQLModel.metadata.create_all)
+        await connection.run_sync(RevisionContentBlob.__table__.create)
 
     long_shared = "并发写入的共享长正文。" * 200
     first_session = factory()

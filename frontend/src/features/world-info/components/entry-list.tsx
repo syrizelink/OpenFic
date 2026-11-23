@@ -48,6 +48,7 @@ import { Virtuoso } from "react-virtuoso";
 
 import { ProjectSelectField } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
+import { usePluginMenuItems } from "@/features/plugins/menu-items";
 import type { Project } from "@/lib/project.types";
 import type { WorldInfoEntryBrief } from "@/lib/world-info.types";
 
@@ -138,6 +139,15 @@ export function EntryList({
   const [contextMenuEntryId, setContextMenuEntryId] = useState<string | null>(null);
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const pluginMenuItems = usePluginMenuItems(
+    contextMenuEntryId
+      ? {
+          kind: "menu.world-info-entry",
+          ids: isMultiSelect ? Array.from(selectedIds) : [contextMenuEntryId],
+          projectId: currentProjectId || null,
+        }
+      : null,
+  );
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -1006,7 +1016,7 @@ export function EntryList({
 
       <ContextMenu
         position={contextMenuPos}
-        items={menuItems}
+        items={[...menuItems, ...pluginMenuItems]}
         onClose={handleCloseContextMenu}
       />
 

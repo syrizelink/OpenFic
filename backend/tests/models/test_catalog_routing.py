@@ -45,84 +45,6 @@ def _payload(provider, model, overrides=None, npm="@ai-sdk/openai-compatible"):
 
 
 @pytest.mark.parametrize(
-    ("provider", "model_id", "overrides", "expected_path", "body"),
-    [
-        (
-            "opencode",
-            "claude-haiku-5-5",
-            {
-                "npm": "@ai-sdk/anthropic",
-                "api": "https://opencode.ai/inference/anthropic/v1/",
-            },
-            "/inference/anthropic/v1/messages",
-            {
-                "id": "msg_test",
-                "type": "message",
-                "role": "assistant",
-                "model": "claude-haiku-5-5",
-                "content": [{"type": "text", "text": "ok"}],
-                "stop_reason": "end_turn",
-                "usage": {"input_tokens": 1, "output_tokens": 1},
-            },
-        ),
-        (
-            "opencode-go",
-            "gemini-4-argon-contributor",
-            {
-                "npm": "@ai-sdk/google",
-                "api": "https://opencode.ai/inference/go/google/v1beta/",
-            },
-            "/inference/go/google/v1beta/models/gemini-4-argon-contributor:generateContent",
-            {
-                "candidates": [
-                    {
-                        "content": {"role": "model", "parts": [{"text": "ok"}]},
-                        "finishReason": "STOP",
-                    }
-                ],
-                "usageMetadata": {
-                    "promptTokenCount": 1,
-                    "candidatesTokenCount": 1,
-                    "totalTokenCount": 2,
-                },
-            },
-        ),
-        (
-            "opencode",
-            "gemini-custom",
-            {"npm": "@ai-sdk/google", "api": "https://opencode.ai/zen/v1"},
-            "/zen/v1/models/gemini-custom:generateContent",
-            {
-                "candidates": [
-                    {
-                        "content": {"role": "model", "parts": [{"text": "ok"}]},
-                        "finishReason": "STOP",
-                    }
-                ]
-            },
-        ),
-    ],
-)
-def test_catalog_native_requests(
-    catalog, provider, model_id, overrides, expected_path, body
-):
-    catalog(_payload(provider, model_id, overrides))
-    config = ModelConfig(
-        provider, "https://opencode.ai/inference/openai/v1", "test-key", model_id
-    )
-    model = create_chat_model(config)
-    with respx.mock as router:
-        route = router.post("https://opencode.ai" + expected_path).mock(
-            return_value=httpx.Response(200, json=body)
-        )
-        response = model.invoke("hello")
-        assert response.text == "ok"
-        assert route.calls[0].request.headers["x-opencode-session"] == config.session_id
-    assert config.provider_type == provider
-    assert config.base_url == "https://opencode.ai/inference/openai/v1"
-
-
-@pytest.mark.parametrize(
     ("npm", "shape", "responses"),
     [
         ("@ai-sdk/openai", None, True),
@@ -208,13 +130,7 @@ def test_shape_without_any_sdk_metadata_uses_generic_openai_client(catalog):
 
 
 @pytest.mark.parametrize("npm", [None, "@ai-sdk/openai-compatible"])
-def test_old_catalog_preserves_native_clients_and_opencode_fallback(catalog, npm):
-    catalog(_payload("opencode", "gpt-5.5", npm=npm))
-    route = resolve_chat_model_route(
-        "opencode", "gpt-5.5", "https://opencode.ai/zen/v1"
-    )
-    assert route.provider_type == "openai-compatible-responses"
-    assert route.base_url == "https://opencode.ai/zen/v1"
+def test_old_catalog_preserves_native_clients(catalog, npm):
     catalog(_payload("openai", "gpt-4o", npm=npm))
     route = resolve_chat_model_route(
         "openai", "gpt-4o", "https://user-gateway.example/v1"
@@ -236,12 +152,6 @@ def test_unavailable_catalog_does_not_block_legacy_calls(monkeypatch):
         ).provider_type
         == "openai"
     )
-    assert (
-        resolve_chat_model_route(
-            "opencode-go", "gemini-4-argon-contributor", "https://opencode.ai/zen/go/v1"
-        ).base_url
-        == "https://opencode.ai/inference/go/google"
-    )
 
 
 def test_responses_request_drops_unsupported_penalties(catalog):
@@ -259,66 +169,6 @@ def test_responses_request_drops_unsupported_penalties(catalog):
     payload = model._get_request_payload("hello")
     assert "frequency_penalty" not in payload
     assert "presence_penalty" not in payload
-
-
-@pytest.mark.parametrize(
-    ("provider", "base_url", "model_id", "expected_url", "version"),
-    [
-        (
-            "opencode",
-            "https://opencode.ai/inference/openai/v1",
-            "gemini-4-argon",
-            "https://opencode.ai/inference/google",
-            "v1beta",
-        ),
-        (
-            "opencode",
-            "https://opencode.ai/zen/v1",
-            "gemini-4-argon",
-            "https://opencode.ai/zen",
-            "v1",
-        ),
-        (
-            "opencode-go",
-            "https://opencode.ai/zen/go/v1",
-            "gemini-4-argon-contributor",
-            "https://opencode.ai/inference/go/google",
-            "v1beta",
-        ),
-        (
-            "opencode-go",
-            "https://opencode.ai/inference/go/openai/v1",
-            "claude-haiku-5-5",
-            "https://opencode.ai/inference/go/anthropic",
-            "v1beta",
-        ),
-        (
-            "opencode",
-            "https://opencode.ai/inference/openai/v1",
-            "claude-haiku-5-5",
-            "https://opencode.ai/inference/anthropic",
-            "v1beta",
-        ),
-    ],
-)
-def test_snapshot_without_new_fields_routes_old_and_new_opencode_urls(
-    catalog,
-    provider,
-    base_url,
-    model_id,
-    expected_url,
-    version,
-):
-    service = catalog(_payload(provider, model_id))
-    snapshot = json.loads(service.bundled_snapshot_path.read_text())
-    for entry in snapshot["providers"]:
-        entry.pop("npm", None)
-        for model in entry.get("models", []):
-            model.pop("provider", None)
-    service.bundled_snapshot_path.write_text(json.dumps(snapshot))
-    route = resolve_chat_model_route(provider, model_id, base_url)
-    assert route.base_url == expected_url
-    assert route.google_api_version == version
 
 
 @pytest.mark.asyncio
@@ -346,49 +196,8 @@ async def test_catalog_overrides_are_exposed_and_survive_failed_refresh(catalog)
     [
         (
             "opencode",
-            "https://opencode.ai/inference/openai/v1",
-            "https://opencode.ai/inference/v1/models",
-        ),
-        (
-            "opencode",
-            "https://opencode.ai/inference/anthropic/v1/",
-            "https://opencode.ai/inference/v1/models",
-        ),
-        (
-            "opencode",
-            "https://opencode.ai/inference/google/v1beta",
-            "https://opencode.ai/inference/v1/models",
-        ),
-        (
-            "opencode-go",
-            "https://opencode.ai/inference/go/openai/v1",
-            "https://opencode.ai/inference/go/v1/models",
-        ),
-        (
-            "opencode-go",
-            "https://opencode.ai/inference/go/anthropic/v1",
-            "https://opencode.ai/inference/go/v1/models",
-        ),
-        (
-            "opencode-go",
-            "https://opencode.ai/inference/go/google/v1beta",
-            "https://opencode.ai/inference/go/v1/models",
-        ),
-        ("opencode", "https://opencode.ai/zen/v1", "https://opencode.ai/zen/v1/models"),
-        (
-            "opencode-go",
-            "https://opencode.ai/zen/go/v1",
-            "https://opencode.ai/zen/go/v1/models",
-        ),
-        (
-            "opencode",
             "https://proxy.example/inference/openai/v1",
             "https://proxy.example/inference/openai/v1/models",
-        ),
-        (
-            "openai-compatible",
-            "https://opencode.ai/inference/openai/v1",
-            "https://opencode.ai/inference/openai/v1/models",
         ),
     ],
 )
