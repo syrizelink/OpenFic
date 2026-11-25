@@ -78,25 +78,28 @@ async def test_builtin_skill_cannot_be_updated_or_deleted(client: AsyncClient) -
 
 
 @pytest.mark.asyncio
-async def test_create_skill_rejects_empty_required_fields(client: AsyncClient) -> None:
+async def test_create_skill_allows_incomplete_draft(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "",
+            "name": "测试技能",
             "summary": "",
             "content": "",
         },
     )
-    assert response.status_code == 400
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "测试技能"
+    assert data["summary"] == ""
+    assert data["content"] == ""
+    assert data["is_complete"] is False
+    assert data["is_enabled"] is False
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("field", ["name", "summary", "content"])
-async def test_create_skill_rejects_whitespace_required_fields(
-    client: AsyncClient, field: str
-) -> None:
+async def test_create_skill_rejects_whitespace_name(client: AsyncClient) -> None:
     body = {"name": "技能", "summary": "简述", "content": "内容"}
-    body[field] = " \n\t "
+    body["name"] = " \n\t "
     response = await client.post("/api/v1/skills", json=body)
 
     assert response.status_code == 400
