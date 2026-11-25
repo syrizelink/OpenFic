@@ -84,6 +84,17 @@ _LOCAL_PROVIDERS: tuple[dict[str, Any], ...] = (
         "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
         "models": [],
     },
+    {
+        "provider_type": "runcrate",
+        "display_name": "Runcrate",
+        "default_url": "https://api.runcrate.ai/v1",
+        "api": "https://api.runcrate.ai/v1",
+        "icon_path": "/icons/model/catalog/runcrate.svg",
+        "models_dev_provider_id": None,
+        "supported_task_types": ["embedding", "llm"],
+        "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
+        "models": [],
+    },
 )
 _EMBEDDING_FAMILIES = {
     "text-embedding",

@@ -48,6 +48,24 @@ async def test_create_infistar_provider(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_create_runcrate_provider(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/model-providers",
+        data={
+            "name": "Runcrate",
+            "url": "https://ignored.example/v1",
+            "api_key": "test-key",
+            "provider_type": "runcrate",
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["url"] == "https://api.runcrate.ai/v1"
+    assert {"embedding", "llm"} <= set(payload["supported_task_types"])
+    assert payload["catalog_match"]["display_name"] == "Runcrate"
+
+
+@pytest.mark.asyncio
 async def test_create_provider(client: AsyncClient, session: AsyncSession):
     """测试创建提供商。"""
     request_data = {
