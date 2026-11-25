@@ -12,8 +12,10 @@ import {
   useCreateChapter,
   useUpdateChapter,
   useDeleteChapter,
+  useDeleteChapters,
   useReorderChapters,
   useMoveChapterToVolume,
+  useMoveChaptersToVolume,
 } from "../hooks/use-chapters";
 import { useSummaryStatuses } from "../hooks/use-summaries";
 import {
@@ -26,6 +28,7 @@ import {
 import { useTabsStore } from "../store/use-tabs-store";
 import { useWritingStore } from "../store/use-writing-store";
 import { ChapterExportDialog } from "./chapter-export-dialog";
+import type { ChapterSelectionAction } from "./grouped-volume-list";
 import {
   findVolumeIdForChapter,
   getInitialCurrentChapterVolumeIdToExpand,
@@ -61,8 +64,10 @@ export function ChapterSidebar({
   const createChapterMutation = useCreateChapter(projectId);
   const updateChapterMutation = useUpdateChapter();
   const deleteChapterMutation = useDeleteChapter(projectId);
+  const deleteChaptersMutation = useDeleteChapters(projectId);
   const reorderChaptersMutation = useReorderChapters(projectId);
   const moveChapterToVolumeMutation = useMoveChapterToVolume(projectId);
+  const moveChaptersToVolumeMutation = useMoveChaptersToVolume(projectId);
   const createVolumeMutation = useCreateVolume(projectId);
   const updateVolumeMutation = useUpdateVolume();
   const deleteVolumeMutation = useDeleteVolume(projectId);
@@ -106,10 +111,18 @@ export function ChapterSidebar({
   const [cancelOrderDialogOpen, setCancelOrderDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [movingChapter, setMovingChapter] = useState<ChapterListItem | null>(null);
+  const [batchMovingChapters, setBatchMovingChapters] = useState<ChapterListItem[]>([]);
+  const [batchDeletingChapters, setBatchDeletingChapters] = useState<ChapterListItem[]>([]);
+  const [isBatchPending, setIsBatchPending] = useState(false);
+  const isBatchPendingRef = useRef(false);
   const [renamingVolumeId, setRenamingVolumeId] = useState<string | null>(null);
   const [editingVolume, setEditingVolume] = useState<VolumeWithChapters | null>(null);
   const [editingVolumeDescription, setEditingVolumeDescription] = useState("");
   const [chapterExportOpen, setChapterExportOpen] = useState(false);
+  const [exportSelection, setExportSelection] = useState<Set<string> | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
+  const selectionAnchorRef = useRef<string | null>(null);
   const [localTitleOverrides, setLocalTitleOverrides] = useState<Record<string, string>>({});
   const [scrollRequest, setScrollRequest] = useState<GroupedVolumeListScrollRequest | null>(null);
   const defaultExpansionAppliedProjectRef = useRef<string | null>(null);
@@ -197,6 +210,106 @@ export function ChapterSidebar({
   ]);
 
   const allChapters = useMemo(() => volumes.flatMap((volume) => volume.chapters), [volumes]);
+  const selectedChapters = useMemo(
+    () => allChapters.filter((chapter) => selectedChapterIds.has(chapter.id)),
+    [allChapters, selectedChapterIds],
+  );
+  const chaptersToMove = useMemo(
+    () => (batchMovingChapters.length ? batchMovingChapters : movingChapter ? [movingChapter] : []),
+    [batchMovingChapters, movingChapter],
+  );
+
+  const handleToggleSelectMode = useCallback(() => {
+    setIsSelectMode((previous) => !previous);
+    setSelectedChapterIds(new Set());
+    selectionAnchorRef.current = null;
+  }, []);
+
+  const handleToggleChapter = useCallback(
+    (chapterId: string) => {
+      if (isBatchPending) return;
+      selectionAnchorRef.current = chapterId;
+      setSelectedChapterIds((previous) => {
+        const next = new Set(previous);
+        if (next.has(chapterId)) next.delete(chapterId);
+        else next.add(chapterId);
+        return next;
+      });
+    },
+    [isBatchPending],
+  );
+
+  const handleSelectionAction = useCallback(
+    (action: ChapterSelectionAction, chapterId: string) => {
+      if (isBatchPending) return;
+      const ids = allChapters.map((chapter) => chapter.id);
+      const index = ids.indexOf(chapterId);
+      if (index < 0) return;
+      if (action === "all" && ids.every((id) => selectedChapterIds.has(id))) {
+        selectionAnchorRef.current = null;
+        setSelectedChapterIds(new Set());
+        return;
+      }
+      const anchorIndex = selectionAnchorRef.current ? ids.indexOf(selectionAnchorRef.current) : -1;
+      let affectedIds: string[];
+      if (action === "all") affectedIds = ids;
+      else if (action === "above") affectedIds = ids.slice(0, index + 1);
+      else if (action === "below") affectedIds = ids.slice(index);
+      else if (action === "range" && anchorIndex >= 0) {
+        affectedIds = ids.slice(Math.min(index, anchorIndex), Math.max(index, anchorIndex) + 1);
+      } else affectedIds = [chapterId];
+
+      if (action !== "all" && (action !== "range" || anchorIndex < 0)) {
+        selectionAnchorRef.current = chapterId;
+      }
+      setSelectedChapterIds((previous) => {
+        const next = new Set(previous);
+        for (const id of affectedIds) {
+          if (action === "deselect") next.delete(id);
+          else next.add(id);
+        }
+        return next;
+      });
+    },
+    [allChapters, isBatchPending, selectedChapterIds],
+  );
+
+  const handleOpenBatchDelete = useCallback(() => {
+    if (isAgentLocked) return showLockedToast();
+    setBatchDeletingChapters(selectedChapters);
+  }, [isAgentLocked, selectedChapters, showLockedToast]);
+
+  const handleOpenBatchMove = useCallback(() => {
+    if (isAgentLocked) return showLockedToast();
+    setBatchMovingChapters(selectedChapters);
+    setMovingChapter(null);
+    setMoveDialogOpen(true);
+  }, [isAgentLocked, selectedChapters, showLockedToast]);
+
+  const handleOpenBatchExport = useCallback(() => {
+    setExportSelection(new Set(selectedChapters.map((chapter) => chapter.id)));
+    setChapterExportOpen(true);
+  }, [selectedChapters]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (isAgentLocked) {
+      showLockedToast();
+      return;
+    }
+    isBatchPendingRef.current = true;
+    setIsBatchPending(true);
+    try {
+      await deleteChaptersMutation.mutateAsync(batchDeletingChapters.map((chapter) => chapter.id));
+      setSelectedChapterIds(new Set());
+      setBatchDeletingChapters([]);
+      toast.success(t("writing.batchDeleteSuccess"));
+    } catch {
+      toast.error(t("writing.batchDeleteFailed"));
+    } finally {
+      isBatchPendingRef.current = false;
+      setIsBatchPending(false);
+    }
+  }, [batchDeletingChapters, deleteChaptersMutation, isAgentLocked, showLockedToast, t]);
 
   const createScrollRequestKey = useCallback((prefix: string, id: string) => {
     scrollRequestSequenceRef.current += 1;
@@ -525,6 +638,29 @@ export function ChapterSidebar({
 
   const handleConfirmMoveChapter = useCallback(
     async (volumeId: string) => {
+      if (batchMovingChapters.length) {
+        if (isAgentLocked) {
+          showLockedToast();
+          return;
+        }
+        setIsBatchPending(true);
+        try {
+          await moveChaptersToVolumeMutation.mutateAsync({
+            chapterIds: batchMovingChapters.map((chapter) => chapter.id),
+            volumeId,
+          });
+          setSelectedChapterIds(new Set());
+          setVolumeExpanded(volumeId, true);
+          setMoveDialogOpen(false);
+          setBatchMovingChapters([]);
+          toast.success(t("writing.batchMoveSuccess"));
+        } catch {
+          toast.error(t("writing.batchMoveFailed"));
+        } finally {
+          setIsBatchPending(false);
+        }
+        return;
+      }
       if (!movingChapter) return;
       await moveChapterToVolumeMutation.mutateAsync({
         chapterId: movingChapter.id,
@@ -534,7 +670,16 @@ export function ChapterSidebar({
       setMoveDialogOpen(false);
       setMovingChapter(null);
     },
-    [moveChapterToVolumeMutation, movingChapter, setVolumeExpanded],
+    [
+      batchMovingChapters,
+      isAgentLocked,
+      moveChapterToVolumeMutation,
+      moveChaptersToVolumeMutation,
+      movingChapter,
+      setVolumeExpanded,
+      showLockedToast,
+      t,
+    ],
   );
 
   return (
@@ -553,9 +698,19 @@ export function ChapterSidebar({
         onCreateChapter={handleCreateChapter}
         onCreateVolume={handleCreateVolume}
         onOpenSummary={onOpenSummary}
-        onExport={() => setChapterExportOpen(true)}
+        onExport={() => {
+          setExportSelection(null);
+          setChapterExportOpen(true);
+        }}
         onSaveOrder={handleSaveOrder}
         onCancelOrder={handleCancelOrder}
+        isSelectMode={isSelectMode}
+        onToggleSelectMode={handleToggleSelectMode}
+        selectedCount={selectedChapters.length}
+        isBatchPending={isBatchPending}
+        onBatchDelete={handleOpenBatchDelete}
+        onBatchMove={handleOpenBatchMove}
+        onBatchExport={handleOpenBatchExport}
         isSavingOrder={reorderChaptersMutation.isPending}
         isAgentLocked={isAgentLocked}
         onLockedAction={showLockedToast}
@@ -583,6 +738,14 @@ export function ChapterSidebar({
         onMoveVolumeDown={(volume) => void handleMoveVolume(volume, 1)}
         onDeleteVolume={handleOpenDeleteVolume}
         onChapterSelect={handleChapterSelect}
+        isSelectMode={isSelectMode}
+        selectedChapterIds={selectedChapterIds}
+        onToggleChapter={handleToggleChapter}
+        onSelectionAction={handleSelectionAction}
+        onBatchDelete={handleOpenBatchDelete}
+        onBatchMove={handleOpenBatchMove}
+        onBatchExport={handleOpenBatchExport}
+        isBatchPending={isBatchPending}
         onOpenInNewTab={handleOpenInNewTab}
         onDuplicate={handleDuplicate}
         onRenameChapter={handleRenameChapter}
@@ -608,6 +771,17 @@ export function ChapterSidebar({
       />
 
       <ConfirmDialog
+        open={batchDeletingChapters.length > 0}
+        onOpenChange={(open) => {
+          if (!open && !isBatchPendingRef.current) setBatchDeletingChapters([]);
+        }}
+        title={t("writing.batchDelete")}
+        description={t("writing.batchDeleteConfirm", { count: batchDeletingChapters.length })}
+        onConfirm={handleBatchDelete}
+        loading={isBatchPending}
+      />
+
+      <ConfirmDialog
         open={saveOrderDialogOpen}
         onOpenChange={setSaveOrderDialogOpen}
         title={t("writing.saveOrder")}
@@ -625,14 +799,15 @@ export function ChapterSidebar({
 
       <MoveChapterToVolumeDialog
         open={moveDialogOpen}
-        chapter={movingChapter}
+        chapters={chaptersToMove}
         volumes={volumes}
         onOpenChange={(open) => {
           setMoveDialogOpen(open);
           if (!open) setMovingChapter(null);
+          if (!open) setBatchMovingChapters([]);
         }}
         onConfirm={handleConfirmMoveChapter}
-        loading={moveChapterToVolumeMutation.isPending}
+        loading={isBatchPending || moveChapterToVolumeMutation.isPending}
       />
 
       <ChapterExportDialog
@@ -640,6 +815,7 @@ export function ChapterSidebar({
         onOpenChange={setChapterExportOpen}
         projectId={projectId}
         volumes={volumes}
+        initialSelectedChapterIds={exportSelection}
       />
 
       <Dialog.Root

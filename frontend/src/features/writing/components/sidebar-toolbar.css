@@ -1,0 +1,15 @@
+.chapter-sidebar-select-mode,
+.chapter-sidebar-selected-count,
+.chapter-sidebar-toolbar-actions[data-select-mode="true"] {
+  flex-shrink: 0;
+}
+
+.radix-themes .chapter-sidebar-toolbar-actions .rt-BaseButton:disabled {
+  background-color: transparent;
+}
+
+.chapter-sidebar-selected-count[data-hidden="true"] {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}

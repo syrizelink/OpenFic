@@ -45,6 +45,14 @@ class ChapterMoveToVolume(BaseModel):
     volume_id: str = Field(description="目标卷 ID")
 
 
+class ChapterBatchSelection(BaseModel):
+    chapter_ids: list[str] = Field(min_length=1, description="章节 ID 列表")
+
+
+class ChapterBatchMove(ChapterBatchSelection):
+    volume_id: str = Field(description="目标卷 ID")
+
+
 class ChapterResponse(BaseModel):
     """章节响应（完整版，包含正文）。"""
 

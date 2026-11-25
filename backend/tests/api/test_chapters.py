@@ -339,6 +339,66 @@ async def test_delete_chapter_updates_orders_and_stats(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_batch_delete_is_atomic_and_updates_orders_and_stats(client: AsyncClient) -> None:
+    project_id, volume_id = await _create_project(client)
+    chapters = [
+        await _create_chapter(client, project_id, volume_id, title=str(i), word_count=10)
+        for i in range(5)
+    ]
+    url = f"/api/v1/projects/{project_id}/chapters/batch-delete"
+    invalid = await client.post(url, json={"chapter_ids": [chapters[0]["id"], "missing"]})
+    assert invalid.status_code == 404
+    assert (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()["total_chapters"] == 5
+    response = await client.post(url, json={"chapter_ids": [chapters[1]["id"], chapters[3]["id"]]})
+    assert response.status_code == 204
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    assert [item["id"] for item in tree["volumes"][0]["chapters"]] == [chapters[i]["id"] for i in (0, 2, 4)]
+    assert [item["order"] for item in tree["volumes"][0]["chapters"]] == [1, 2, 3]
+    assert tree["volumes"][0]["chapter_count"] == 3
+    project = (await client.get(f"/api/v1/projects/{project_id}")).json()
+    assert (project["chapter_count"], project["word_count"]) == (3, 30)
+
+
+@pytest.mark.asyncio
+async def test_batch_move_preserves_project_order_and_skips_target_chapters(client: AsyncClient) -> None:
+    project_id, source = await _create_project(client)
+    target = (await client.post(f"/api/v1/projects/{project_id}/volumes", json={"title": "第二卷"})).json()["id"]
+    chapters = [await _create_chapter(client, project_id, source, title=str(i)) for i in range(4)]
+    existing = await _create_chapter(client, project_id, target, title="已有")
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/chapters/batch-move",
+        json={"chapter_ids": [chapters[3]["id"], existing["id"], chapters[1]["id"]], "volume_id": target},
+    )
+    assert response.status_code == 204
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    source_items, target_items = [volume["chapters"] for volume in tree["volumes"]]
+    assert [item["id"] for item in source_items] == [chapters[0]["id"], chapters[2]["id"]]
+    assert [item["order"] for item in source_items] == [1, 2]
+    assert [item["id"] for item in target_items] == [existing["id"], chapters[1]["id"], chapters[3]["id"]]
+    assert [item["order"] for item in target_items] == [1, 2, 3]
+    assert [volume["chapter_count"] for volume in tree["volumes"]] == [2, 3]
+
+
+@pytest.mark.asyncio
+async def test_batch_delete_one_thousand_chapters(client: AsyncClient, session) -> None:
+    project_id, volume_id = await _create_project(client)
+    chapters = [
+        Chapter(project_id=project_id, volume_id=volume_id, title=str(i), order=i, word_count=1)
+        for i in range(1, 1002)
+    ]
+    session.add_all(chapters)
+    await session.commit()
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/chapters/batch-delete",
+        json={"chapter_ids": [chapter.id for chapter in chapters[:1000]]},
+    )
+    assert response.status_code == 204
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    assert tree["total_chapters"] == 1
+    assert tree["volumes"][0]["chapters"][0]["order"] == 1
+
+
+@pytest.mark.asyncio
 async def test_delete_reordered_chapter_updates_orders(client: AsyncClient) -> None:
     """测试删除章节时能安全收紧已重排章节的顺序。"""
     project_id, volume_id = await _create_project(client)
@@ -368,8 +428,9 @@ async def test_delete_reordered_chapter_updates_orders(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("batch", [False, True])
 async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
-    client: AsyncClient, session
+    client: AsyncClient, session, batch: bool
 ) -> None:
     project_id, volume_id = await _create_project(client)
     chapters = [
@@ -412,7 +473,13 @@ async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
         )
     await session.commit()
 
-    response = await client.delete(f"/api/v1/chapters/{chapters[10]['id']}")
+    if batch:
+        response = await client.post(
+            f"/api/v1/projects/{project_id}/chapters/batch-delete",
+            json={"chapter_ids": [chapters[10]["id"], chapters[20]["id"]]},
+        )
+    else:
+        response = await client.delete(f"/api/v1/chapters/{chapters[10]['id']}")
 
     assert response.status_code == 204
 
@@ -424,6 +491,8 @@ async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
         item["chapter_id"] != chapters[10]["id"]
         for item in chapter_list.json()["items"]
     )
+    if batch:
+        assert all(item["chapter_id"] != chapters[20]["id"] for item in chapter_list.json()["items"])
 
     long_term_list = await client.get(
         f"/api/v1/projects/{project_id}/chapter-context/summaries/long-term"

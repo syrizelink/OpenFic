@@ -6,7 +6,7 @@
  */
 
 import { useDraggable } from "@dnd-kit/core";
-import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Checkbox, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { GripVertical, MoreHorizontal } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,6 +90,7 @@ function RenameInput({
 interface ChapterListItemBaseProps {
   chapter: ChapterListItemType;
   isActive: boolean;
+  isSelected?: boolean;
   isRenaming?: boolean;
   onSelectChapter: (chapterId: string) => void;
   onLongPressStart?: () => void;
@@ -118,6 +119,7 @@ interface ChapterRowContentProps {
   onOpenMenu?: (triggerElement: HTMLElement) => void;
   textColor?: string;
   dragHandle?: React.ReactNode;
+  selectionControl?: React.ReactNode;
 }
 
 function ChapterRowContent({
@@ -132,17 +134,20 @@ function ChapterRowContent({
   onOpenMenu,
   textColor,
   dragHandle,
+  selectionControl,
 }: ChapterRowContentProps) {
   const { t } = useTranslation();
   const showMenuTrigger = Boolean(onOpenMenu);
 
   return (
     <Flex
-      gap="2"
+      className="chapter-list-item-content"
+      data-select-mode={selectionControl ? "true" : undefined}
+      gap={selectionControl ? "4" : "2"}
       align="center"
-      style={{ minWidth: 0, padding: "12px 18px" }}
     >
       {dragHandle}
+      {selectionControl}
 
       <Box style={{ flex: 1, minWidth: 0 }}>
         {isRenaming && onRenameConfirm && onRenameCancel ? (
@@ -252,6 +257,7 @@ function ChapterRowContent({
 function ChapterListItemComponent({
   chapter,
   isActive,
+  isSelected,
   isRenaming = false,
   onSelectChapter,
   onLongPressStart,
@@ -263,6 +269,7 @@ function ChapterListItemComponent({
   summaryIsStale = false,
   onOpenSummary,
 }: ChapterListItemBaseProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isLongPressPending, setIsLongPressPending] = useState(false);
   const [isLongPressActive, setIsLongPressActive] = useState(false);
@@ -479,8 +486,20 @@ function ChapterListItemComponent({
         summaryIsStale={summaryIsStale}
         onOpenSummary={onOpenSummary}
         isMenuButtonVisible={isMenuButtonVisible}
-        onOpenMenu={onRequestContextMenu ? handleOpenMenuFromButton : undefined}
+        onOpenMenu={
+          onRequestContextMenu && isSelected === undefined ? handleOpenMenuFromButton : undefined
+        }
         textColor={textColor}
+        selectionControl={
+          isSelected !== undefined ? (
+            <Checkbox
+              checked={isSelected}
+              aria-label={chapter.title || t("writing.untitledChapter")}
+              onClick={(event) => event.stopPropagation()}
+              onCheckedChange={handleSelect}
+            />
+          ) : undefined
+        }
       />
     </Box>
   );
@@ -592,6 +611,7 @@ function areBaseRowPropsEqual(prev: ChapterListItemBaseProps, next: ChapterListI
     prev.chapter.wordCount === next.chapter.wordCount &&
     prev.chapter.updatedAt === next.chapter.updatedAt &&
     prev.isActive === next.isActive &&
+    prev.isSelected === next.isSelected &&
     prev.isRenaming === next.isRenaming &&
     prev.isMenuOpen === next.isMenuOpen &&
     prev.summaryStatus === next.summaryStatus &&

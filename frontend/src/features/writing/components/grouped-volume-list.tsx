@@ -10,7 +10,22 @@ import {
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { Box, Text } from "@radix-ui/themes";
-import { AtSign, Copy, ExternalLink, MoveRight, Pencil, Trash2 } from "lucide-react";
+import {
+  AtSign,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  ListChecks,
+  ListEnd,
+  ListX,
+  MoveRight,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -327,6 +342,8 @@ function VirtuosoFallbackMeasuredItem() {
   );
 }
 
+export type ChapterSelectionAction = "select" | "deselect" | "all" | "range" | "above" | "below";
+
 interface GroupedVolumeListProps {
   projectId: string;
   volumes: VolumeWithChapters[];
@@ -348,6 +365,14 @@ interface GroupedVolumeListProps {
   onMoveVolumeDown: (volume: VolumeWithChapters) => void;
   onDeleteVolume: (volume: VolumeWithChapters) => void;
   onChapterSelect: (chapterId: string) => void;
+  isSelectMode: boolean;
+  selectedChapterIds: Set<string>;
+  onToggleChapter: (chapterId: string) => void;
+  onSelectionAction: (action: ChapterSelectionAction, chapterId: string) => void;
+  onBatchMove: () => void;
+  onBatchExport: () => void;
+  onBatchDelete: () => void;
+  isBatchPending: boolean;
   onOpenInNewTab: (chapterId: string, title: string) => void;
   onDuplicate: (chapterId: string, title: string) => void;
   onRenameChapter: (chapterId: string, title: string) => void;
@@ -391,6 +416,14 @@ export function GroupedVolumeList({
   onMoveVolumeDown,
   onDeleteVolume,
   onChapterSelect,
+  isSelectMode,
+  selectedChapterIds,
+  onToggleChapter,
+  onSelectionAction,
+  onBatchMove,
+  onBatchExport,
+  onBatchDelete,
+  isBatchPending,
   onOpenInNewTab,
   onDuplicate,
   onRenameChapter,
@@ -427,7 +460,7 @@ export function GroupedVolumeList({
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuChapterId, setContextMenuChapterId] = useState<string | null>(null);
   const pluginMenuItems = usePluginMenuItems(
-    contextMenuChapterId && !isAgentLocked
+    contextMenuChapterId && !isAgentLocked && !isSelectMode
       ? { kind: "menu.chapter", ids: [contextMenuChapterId], projectId }
       : null,
   );
@@ -994,7 +1027,8 @@ export function GroupedVolumeList({
 
   const handleRequestContextMenu = useCallback(
     (chapterId: string, chapterTitle: string, position: { x: number; y: number }) => {
-      if (isAgentLocked) {
+      if (isBatchPending) return;
+      if (isAgentLocked && !isSelectMode) {
         onLockedAction?.();
         return;
       }
@@ -1002,7 +1036,7 @@ export function GroupedVolumeList({
       setContextMenuChapterId(chapterId);
       setContextMenuChapterTitle(chapterTitle);
     },
-    [isAgentLocked, onLockedAction],
+    [isAgentLocked, isBatchPending, isSelectMode, onLockedAction],
   );
 
   const handleLongPressStart = useCallback(() => {
@@ -1092,7 +1126,70 @@ export function GroupedVolumeList({
   );
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
-    if (!contextMenuChapterId || isAgentLocked) return [];
+    if (!contextMenuChapterId) return [];
+
+    if (isSelectMode) {
+      const chapterId = contextMenuChapterId;
+      const isSelected = selectedChapterIds.has(chapterId);
+      const isAllSelected = volumes.every((volume) =>
+        volume.chapters.every((chapter) => selectedChapterIds.has(chapter.id)),
+      );
+      const noSelection = selectedChapterIds.size === 0 || isBatchPending;
+      return [
+        {
+          id: "toggleSelection",
+          label: t(isSelected ? "writing.selectionMenu.deselect" : "writing.selectionMenu.select"),
+          icon: isSelected ? X : Check,
+          disabled: isBatchPending,
+          onClick: () => onSelectionAction(isSelected ? "deselect" : "select", chapterId),
+        },
+        {
+          id: "all",
+          label: t(
+            isAllSelected ? "writing.selectionMenu.deselectAll" : "writing.selectionMenu.all",
+          ),
+          icon: isAllSelected ? ListX : ListChecks,
+          disabled: isBatchPending,
+          onClick: () => onSelectionAction("all", chapterId),
+        },
+        ...(
+          [
+            { action: "range", icon: ListEnd },
+            { action: "above", icon: ArrowUpToLine },
+            { action: "below", icon: ArrowDownToLine },
+          ] as const
+        ).map(({ action, icon }) => ({
+          id: action,
+          label: t(`writing.selectionMenu.${action}`),
+          icon,
+          disabled: isBatchPending,
+          onClick: () => onSelectionAction(action, chapterId),
+        })),
+        {
+          id: "batchMove",
+          label: t("writing.batchMove"),
+          icon: MoveRight,
+          disabled: noSelection,
+          onClick: onBatchMove,
+        },
+        {
+          id: "batchExport",
+          label: t("writing.batchExport"),
+          icon: Download,
+          disabled: noSelection,
+          onClick: onBatchExport,
+        },
+        {
+          id: "batchDelete",
+          label: t("writing.batchDelete"),
+          icon: Trash2,
+          danger: true,
+          disabled: noSelection,
+          onClick: onBatchDelete,
+        },
+      ];
+    }
+    if (isAgentLocked) return [];
 
     const items: ContextMenuItem[] = [];
 
@@ -1159,6 +1256,14 @@ export function GroupedVolumeList({
     handleOpenInNewTab,
     handleStartRename,
     isAgentLocked,
+    isBatchPending,
+    isSelectMode,
+    selectedChapterIds,
+    onSelectionAction,
+    onBatchMove,
+    onBatchExport,
+    onBatchDelete,
+    volumes,
     t,
   ]);
 
@@ -1219,17 +1324,22 @@ export function GroupedVolumeList({
       return (
         <ChapterListItem
           chapter={row.chapter}
-          isActive={currentChapterId === row.chapter.id}
-          isRenaming={renamingChapterId === row.chapter.id}
+          isActive={
+            isSelectMode
+              ? selectedChapterIds.has(row.chapter.id)
+              : currentChapterId === row.chapter.id
+          }
+          isSelected={isSelectMode ? selectedChapterIds.has(row.chapter.id) : undefined}
+          isRenaming={!isSelectMode && renamingChapterId === row.chapter.id}
           isMenuOpen={contextMenuChapterId === row.chapter.id && contextMenuPos !== null}
-          onSelectChapter={onChapterSelect}
+          onSelectChapter={isSelectMode ? onToggleChapter : onChapterSelect}
           onLongPressStart={handleLongPressStart}
           onRequestContextMenu={handleRequestContextMenu}
           onRenameChapter={handleRenameConfirm}
           onRenameCancel={handleRenameCancel}
           summaryStatus={summaryStatusMap[row.chapter.id]?.status}
           summaryIsStale={summaryStatusMap[row.chapter.id]?.isStale}
-          onOpenSummary={onOpenSummary}
+          onOpenSummary={isSelectMode ? undefined : onOpenSummary}
         />
       );
     },
@@ -1244,9 +1354,12 @@ export function GroupedVolumeList({
       handleRenameConfirm,
       handleRequestContextMenu,
       isDragMode,
+      isSelectMode,
       listModel,
       onChapterSelect,
+      onToggleChapter,
       renamingChapterId,
+      selectedChapterIds,
       summaryStatusMap,
       onOpenSummary,
       t,
@@ -1348,7 +1461,7 @@ export function GroupedVolumeList({
       </DndContext>
       <ContextMenu
         position={isDragMode ? null : contextMenuPos}
-        items={[...menuItems, ...pluginMenuItems]}
+        items={isSelectMode ? menuItems : [...menuItems, ...pluginMenuItems]}
         onClose={handleCloseContextMenu}
       />
     </>
