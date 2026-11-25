@@ -39,6 +39,7 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
         "searxng": False,
         "serper": False,
         "tavily": False,
+        "youcom": False,
         "zhipu": False,
     }
     assert data["max_results"] == 10
@@ -67,12 +68,14 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
         "searxng",
         "serper",
         "tavily",
+        "youcom",
         "zhipu",
     ]
     by_name = {item["name"]: item for item in data}
     assert by_name["ddgs"]["requires_api_key"] is False
     assert by_name["keenable"]["requires_api_key"] is False
     assert by_name["searxng"]["requires_api_key"] is False
+    assert by_name["youcom"]["requires_api_key"] is False
     assert by_name["tavily"]["requires_api_key"] is True
 
 

@@ -67,6 +67,7 @@ const PROVIDER_LABEL_KEY_MAP: Record<string, string> = {
   searxng: "settings.webSearchProviderSearxng",
   serper: "settings.webSearchProviderSerper",
   tavily: "settings.webSearchProviderTavily",
+  youcom: "settings.webSearchProviderYoucom",
   zhipu: "settings.webSearchProviderZhipu",
 };
 
@@ -80,6 +81,7 @@ const PROVIDER_ICON_PATH_MAP: Record<string, string> = {
   searxng: "/provider-icons/web-search/searxng.svg",
   serper: "/provider-icons/web-search/serper.svg",
   tavily: "/provider-icons/web-search/tavily.svg",
+  youcom: "/provider-icons/web-search/youcom.svg",
   zhipu: "/provider-icons/web-search/zhipu.svg",
 };
 const MASKED_API_KEY_VALUE = "••••••••";
