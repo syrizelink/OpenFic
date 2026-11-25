@@ -595,8 +595,11 @@ function transformSkillReferenceDoc(raw: Record<string, unknown>): SkillReferenc
   };
 }
 
-export async function fetchSkillReferenceDocs(skillDbId: string): Promise<SkillReferenceDoc[]> {
-  const response = await apiClient.get(`/skills/${skillDbId}/reference-docs`);
+export async function fetchSkillReferenceDocs(
+  skillDbId: string,
+  signal?: AbortSignal,
+): Promise<SkillReferenceDoc[]> {
+  const response = await apiClient.get(`/skills/${skillDbId}/reference-docs`, { signal });
   return (response.data as Record<string, unknown>[]).map(transformSkillReferenceDoc);
 }
 

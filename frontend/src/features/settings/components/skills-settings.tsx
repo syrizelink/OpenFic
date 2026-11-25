@@ -35,7 +35,7 @@ import {
   type ContextMenuItem,
   type ContextMenuPosition,
 } from "@/components/context-menu";
-import { toast } from "@/components/toast";
+import { showErrorToast, toast } from "@/components/toast";
 import {
   createSkill,
   createSkillReferenceDoc,
@@ -121,6 +121,7 @@ export function SkillsSettings({
   const queryClient = useQueryClient();
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [pendingForkSkillId, setPendingForkSkillId] = useState<string | null>(null);
+  const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<ContextMenuPosition | null>(null);
@@ -221,7 +222,7 @@ export function SkillsSettings({
 
   const { data: refDocsData } = useQuery({
     queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
-    queryFn: () => fetchSkillReferenceDocs(effectiveSelectedSkillId as string),
+    queryFn: ({ signal }) => fetchSkillReferenceDocs(effectiveSelectedSkillId as string, signal),
     enabled: !!effectiveSelectedSkillId,
   });
   const refDocs = useMemo(() => refDocsData ?? [], [refDocsData]);
@@ -278,6 +279,7 @@ export function SkillsSettings({
   useEffect(() => {
     if (!isAgentSettingsLocked) return;
     setDeleteDialogOpen(false);
+    setDeletingSkillId(null);
     setImportDialogOpen(false);
     setEditingRefDoc(null);
     setRenamingRefDocId(null);
@@ -291,10 +293,10 @@ export function SkillsSettings({
     onSuccess: (createdSkill) => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
       setSelectedSkillId(createdSkill.id);
-      toast.success(t("settingsExtra.skills.newSkill"));
+      toast.success(t("settingsExtra.skills.skillCreated"));
     },
-    onError: () => {
-      toast.error(t("common.error"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.skillCreateFailed"), error);
     },
   });
 
@@ -308,8 +310,8 @@ export function SkillsSettings({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
-    onError: () => {
-      toast.error(t("common.error"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.skillSaveFailed"), error);
     },
   });
 
@@ -340,11 +342,11 @@ export function SkillsSettings({
 
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["skills"], context.previous);
       }
-      toast.error(t("common.error"));
+      showErrorToast(t("settingsExtra.skills.skillToggleFailed"), error);
     },
     onSuccess: (updatedSkill) => {
       queryClient.setQueryData<SkillListResponse>(["skills"], (current) => {
@@ -354,7 +356,11 @@ export function SkillsSettings({
           items: current.items.map((item) => (item.id === updatedSkill.id ? updatedSkill : item)),
         };
       });
-      toast.success(updatedSkill.isEnabled ? t("worldInfo.enabled") : t("worldInfo.disabled"));
+      toast.success(
+        updatedSkill.isEnabled
+          ? t("settingsExtra.skills.skillEnabled")
+          : t("settingsExtra.skills.skillDisabled"),
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
@@ -363,13 +369,31 @@ export function SkillsSettings({
 
   const deleteMutation = useMutation({
     mutationFn: (skillDbId: string) => deleteSkill(skillDbId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["skills"] });
-      setDeleteDialogOpen(false);
-      toast.success(t("common.delete"));
+    onMutate: async (skillDbId) => {
+      await queryClient.cancelQueries({
+        queryKey: ["skill-reference-docs", skillDbId],
+        exact: true,
+      });
     },
-    onError: () => {
-      toast.error(t("common.error"));
+    onSuccess: (_data, deletedSkillId) => {
+      queryClient.removeQueries({
+        queryKey: ["skill-reference-docs", deletedSkillId],
+        exact: true,
+      });
+      queryClient.setQueryData<SkillListResponse>(["skills"], (current) => {
+        if (!current) return current;
+        const items = current.items.filter((skill) => skill.id !== deletedSkillId);
+        if (items.length === current.items.length) return current;
+        return { ...current, items, total: Math.max(0, current.total - 1) };
+      });
+      setSelectedSkillId((current) => (current === deletedSkillId ? null : current));
+      setDeletingSkillId(null);
+      void queryClient.invalidateQueries({ queryKey: ["skills"] });
+      setDeleteDialogOpen(false);
+      toast.success(t("settingsExtra.skills.skillDeleted"));
+    },
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.skillDeleteFailed"), error);
     },
   });
 
@@ -381,8 +405,8 @@ export function SkillsSettings({
       setPendingForkSkillId(forkedSkill.id);
       toast.success(t("settingsExtra.skills.forkedSkill"));
     },
-    onError: () => {
-      toast.error(t("common.error"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.skillForkFailed"), error);
     },
   });
 
@@ -397,8 +421,8 @@ export function SkillsSettings({
       }
       toast.success(t("settingsExtra.skills.referenceDocCreated"));
     },
-    onError: () => {
-      toast.error(t("common.error"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.referenceDocCreateFailed"), error);
     },
   });
 
@@ -422,11 +446,11 @@ export function SkillsSettings({
       );
       return { previous, skillDbId };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["skill-reference-docs", context.skillDbId], context.previous);
       }
-      toast.error(t("settingsExtra.skills.referenceDocRenameFailed"));
+      showErrorToast(t("settingsExtra.skills.referenceDocRenameFailed"), error);
     },
     onSuccess: () => {
       toast.success(t("settingsExtra.skills.referenceDocRenamed"));
@@ -454,10 +478,10 @@ export function SkillsSettings({
           queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
         });
       }
-      toast.success(t("common.saveSuccess"));
+      toast.success(t("settingsExtra.skills.referenceDocSaved"));
     },
-    onError: () => {
-      toast.error(t("common.saveFailed"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.referenceDocSaveFailed"), error);
     },
   });
 
@@ -471,10 +495,10 @@ export function SkillsSettings({
         });
       }
       setDeletingRefDoc(null);
-      toast.success(t("common.deleteSuccess"));
+      toast.success(t("settingsExtra.skills.referenceDocDeleted"));
     },
-    onError: () => {
-      toast.error(t("common.deleteFailed"));
+    onError: (error) => {
+      showErrorToast(t("settingsExtra.skills.referenceDocDeleteFailed"), error);
     },
   });
 
@@ -509,6 +533,11 @@ export function SkillsSettings({
     setContextMenuSkillId(null);
   }, []);
 
+  const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
+    setDeleteDialogOpen(open);
+    if (!open) setDeletingSkillId(null);
+  }, []);
+
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
     if (!contextMenuSkillId || isAgentSettingsLocked) return [];
     const skill = skills.find((s) => s.id === contextMenuSkillId);
@@ -533,7 +562,7 @@ export function SkillsSettings({
       icon: Trash2,
       danger: true,
       onClick: () => {
-        setSelectedSkillId(contextMenuSkillId);
+        setDeletingSkillId(skill.id);
         setDeleteDialogOpen(true);
         handleCloseContextMenu();
       },
@@ -964,7 +993,7 @@ export function SkillsSettings({
 
         <Dialog.Root
           open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
+          onOpenChange={handleDeleteDialogOpenChange}
         >
           <Dialog.Content style={{ maxWidth: 420 }}>
             <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
@@ -982,16 +1011,14 @@ export function SkillsSettings({
               <Button
                 variant="soft"
                 color="gray"
-                onClick={() => setDeleteDialogOpen(false)}
+                onClick={() => handleDeleteDialogOpenChange(false)}
               >
                 {t("common.cancel")}
               </Button>
               <Button
                 color="red"
-                disabled={isAgentSettingsLocked || selectedSkill?.source === "builtin"}
-                onClick={() =>
-                  effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
-                }
+                disabled={isAgentSettingsLocked || !deletingSkillId}
+                onClick={() => deletingSkillId && deleteMutation.mutate(deletingSkillId)}
               >
                 {t("common.delete")}
               </Button>
@@ -1042,7 +1069,7 @@ export function SkillsSettings({
 
       <Dialog.Root
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={handleDeleteDialogOpenChange}
       >
         <Dialog.Content style={{ maxWidth: 420 }}>
           <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
@@ -1060,16 +1087,14 @@ export function SkillsSettings({
             <Button
               variant="soft"
               color="gray"
-              onClick={() => setDeleteDialogOpen(false)}
+              onClick={() => handleDeleteDialogOpenChange(false)}
             >
               {t("common.cancel")}
             </Button>
             <Button
               color="red"
-              disabled={isAgentSettingsLocked}
-              onClick={() =>
-                effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
-              }
+              disabled={isAgentSettingsLocked || !deletingSkillId}
+              onClick={() => deletingSkillId && deleteMutation.mutate(deletingSkillId)}
             >
               {t("common.delete")}
             </Button>
