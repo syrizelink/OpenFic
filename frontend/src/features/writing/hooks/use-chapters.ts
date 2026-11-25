@@ -11,8 +11,10 @@ import {
   createChapter,
   updateChapter,
   deleteChapter,
+  deleteChapters,
   reorderChapters,
   moveChapterToVolume,
+  moveChaptersToVolume,
 } from "@/lib/api-client";
 import type { ChapterCreate, ChapterUpdate } from "@/lib/chapter.types";
 
@@ -87,6 +89,33 @@ export function useDeleteChapter(projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+export function useDeleteChapters(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (chapterIds: string[]) => deleteChapters(projectId, chapterIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["chapter-summary-list", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["long-term-summaries-page", projectId] });
+    },
+  });
+}
+
+export function useMoveChaptersToVolume(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ chapterIds, volumeId }: { chapterIds: string[]; volumeId: string }) =>
+      moveChaptersToVolume(projectId, chapterIds, volumeId),
+    onSuccess: (_data, { chapterIds }) => {
+      queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
+      for (const chapterId of chapterIds) {
+        queryClient.invalidateQueries({ queryKey: ["chapter", chapterId] });
+      }
     },
   });
 }

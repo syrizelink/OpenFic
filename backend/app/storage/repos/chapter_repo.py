@@ -454,6 +454,36 @@ async def delete_by_volume(session: AsyncSession, volume_id: str) -> None:
     await session.flush()
 
 
+async def delete_by_ids(session: AsyncSession, chapter_ids: list[str]) -> None:
+    await session.execute(sql_delete(Chapter).where(col(Chapter.id).in_(chapter_ids)))
+    await session.flush()
+
+
+async def move_batch(
+    session: AsyncSession, chapter_ids: list[str], volume_id: str, start_order: int
+) -> None:
+    if not chapter_ids:
+        return
+    now = datetime.now(UTC)
+    await session.execute(
+        update(Chapter),
+        [
+            {"id": chapter_id, "volume_id": volume_id, "order": -index, "updated_at": now}
+            for index, chapter_id in enumerate(chapter_ids, 1)
+        ],
+        execution_options={"synchronize_session": False},
+    )
+    await session.execute(
+        update(Chapter),
+        [
+            {"id": chapter_id, "order": start_order + index}
+            for index, chapter_id in enumerate(chapter_ids, 1)
+        ],
+        execution_options={"synchronize_session": False},
+    )
+    await session.flush()
+
+
 async def update_orders(
     session: AsyncSession,
     orders: dict[str, int],

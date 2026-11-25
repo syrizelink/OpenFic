@@ -1031,6 +1031,21 @@ export async function deleteChapter(chapterId: string): Promise<void> {
   await apiClient.delete(`/chapters/${chapterId}`);
 }
 
+export async function deleteChapters(projectId: string, chapterIds: string[]): Promise<void> {
+  await apiClient.post(`/projects/${projectId}/chapters/batch-delete`, { chapter_ids: chapterIds });
+}
+
+export async function moveChaptersToVolume(
+  projectId: string,
+  chapterIds: string[],
+  volumeId: string,
+): Promise<void> {
+  await apiClient.post(`/projects/${projectId}/chapters/batch-move`, {
+    chapter_ids: chapterIds,
+    volume_id: volumeId,
+  });
+}
+
 /**
  * 批量重排章节顺序
  */

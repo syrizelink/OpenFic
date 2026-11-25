@@ -146,7 +146,9 @@ class OpenFicRetrievalService:
     ) -> None:
         if not document_ids:
             return
-        row = await self._get_index(session, index_key)
+        row = await retrieval_index_repo.get_by_index_key(session, index_key)
+        if row is None:
+            return
         await self._engine_for(row).delete_documents(document_ids)
 
     async def index_chunk_batch(

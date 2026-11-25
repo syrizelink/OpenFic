@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { SummaryStatusItem } from "@/lib/api-client";
 import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
 
-import { GroupedVolumeList } from "./grouped-volume-list";
+import { GroupedVolumeList, type ChapterSelectionAction } from "./grouped-volume-list";
 import type { GroupedVolumeListScrollRequest } from "./grouped-volume-list-focus";
 
 interface VolumeListProps {
@@ -31,6 +31,14 @@ interface VolumeListProps {
   onMoveVolumeDown: (volume: VolumeWithChapters) => void;
   onDeleteVolume: (volume: VolumeWithChapters) => void;
   onChapterSelect: (chapterId: string) => void;
+  isSelectMode: boolean;
+  selectedChapterIds: Set<string>;
+  onToggleChapter: (chapterId: string) => void;
+  onSelectionAction: (action: ChapterSelectionAction, chapterId: string) => void;
+  onBatchMove: () => void;
+  onBatchExport: () => void;
+  onBatchDelete: () => void;
+  isBatchPending: boolean;
   onOpenInNewTab: (chapterId: string, title: string) => void;
   onDuplicate: (chapterId: string, title: string) => void;
   onRenameChapter: (chapterId: string, title: string) => void;
@@ -62,6 +70,14 @@ export function VolumeList({
   onMoveVolumeDown,
   onDeleteVolume,
   onChapterSelect,
+  isSelectMode,
+  selectedChapterIds,
+  onToggleChapter,
+  onSelectionAction,
+  onBatchMove,
+  onBatchExport,
+  onBatchDelete,
+  isBatchPending,
   onOpenInNewTab,
   onDuplicate,
   onRenameChapter,
@@ -137,6 +153,14 @@ export function VolumeList({
       onMoveVolumeDown={onMoveVolumeDown}
       onDeleteVolume={onDeleteVolume}
       onChapterSelect={onChapterSelect}
+      isSelectMode={isSelectMode}
+      selectedChapterIds={selectedChapterIds}
+      onToggleChapter={onToggleChapter}
+      onSelectionAction={onSelectionAction}
+      onBatchMove={onBatchMove}
+      onBatchExport={onBatchExport}
+      onBatchDelete={onBatchDelete}
+      isBatchPending={isBatchPending}
       onOpenInNewTab={onOpenInNewTab}
       onDuplicate={onDuplicate}
       onRenameChapter={onRenameChapter}

@@ -4,15 +4,20 @@ import {
   Check,
   Download,
   FilePlus,
+  FolderInput,
   GripVertical,
+  ListChecks,
   Search,
   Summary,
+  Trash2,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
+
+import "./sidebar-toolbar.css";
 
 import type { ChapterListItem } from "@/lib/chapter.types";
 
@@ -29,6 +34,13 @@ interface SidebarToolbarProps {
   onExport: () => void;
   onSaveOrder: () => void;
   onCancelOrder: () => void;
+  isSelectMode: boolean;
+  onToggleSelectMode: () => void;
+  selectedCount: number;
+  isBatchPending: boolean;
+  onBatchDelete: () => void;
+  onBatchMove: () => void;
+  onBatchExport: () => void;
   isSavingOrder?: boolean;
   isAgentLocked?: boolean;
   onLockedAction?: () => void;
@@ -44,6 +56,13 @@ export function SidebarToolbar({
   onExport,
   onSaveOrder,
   onCancelOrder,
+  isSelectMode,
+  onToggleSelectMode,
+  selectedCount,
+  isBatchPending,
+  onBatchDelete,
+  onBatchMove,
+  onBatchExport,
   isSavingOrder,
   isAgentLocked = false,
   onLockedAction,
@@ -61,6 +80,34 @@ export function SidebarToolbar({
   const [contentSearchExpanded, setContentSearchExpanded] = useState(false);
   const [contentSearchQuery, setContentSearchQuery] = useState("");
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const toolbarContentRef = useRef<HTMLDivElement | null>(null);
+  const selectModeBadgeRef = useRef<HTMLSpanElement | null>(null);
+  const selectedCountBadgeRef = useRef<HTMLSpanElement | null>(null);
+  const toolbarActionsRef = useRef<HTMLDivElement | null>(null);
+  const [isSelectedCountHidden, setIsSelectedCountHidden] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!isSelectMode) return;
+    const toolbar = toolbarContentRef.current;
+    const modeBadge = selectModeBadgeRef.current;
+    const countBadge = selectedCountBadgeRef.current;
+    const actions = toolbarActionsRef.current;
+    if (!toolbar || !modeBadge || !countBadge || !actions) return;
+
+    const updateVisibility = () => {
+      const countMargin = parseFloat(getComputedStyle(countBadge).marginLeft) || 0;
+      const requiredWidth =
+        modeBadge.getBoundingClientRect().width +
+        countBadge.getBoundingClientRect().width +
+        countMargin +
+        actions.getBoundingClientRect().width;
+      setIsSelectedCountHidden(requiredWidth > toolbar.clientWidth);
+    };
+    const observer = new ResizeObserver(updateVisibility);
+    [toolbar, modeBadge, countBadge, actions].forEach((element) => observer.observe(element));
+    updateVisibility();
+    return () => observer.disconnect();
+  }, [isSelectMode, selectedCount, t]);
 
   const handleEnterDragMode = () => {
     if (isAgentLocked) {
@@ -164,6 +211,7 @@ export function SidebarToolbar({
       }}
     >
       <Flex
+        ref={toolbarContentRef}
         gap="0"
         align="center"
         justify={contentSearchExpanded ? "start" : "between"}
@@ -173,7 +221,7 @@ export function SidebarToolbar({
           align="center"
           style={contentSearchExpanded ? { flex: 1 } : undefined}
         >
-          {!isDragMode && (
+          {!isDragMode && !isSelectMode && (
             <Box
               ref={searchContainerRef}
               style={{
@@ -259,7 +307,29 @@ export function SidebarToolbar({
 
           {!contentSearchExpanded && (
             <>
-              {!isDragMode ? (
+              {isSelectMode ? (
+                <>
+                  <Badge
+                    ref={selectModeBadgeRef}
+                    className="chapter-sidebar-select-mode"
+                    color="blue"
+                    variant="soft"
+                  >
+                    {t("writing.selectMode")}
+                  </Badge>
+                  <Badge
+                    ref={selectedCountBadgeRef}
+                    className="chapter-sidebar-selected-count"
+                    data-hidden={isSelectedCountHidden ? "true" : undefined}
+                    color="gray"
+                    variant="soft"
+                    ml="2"
+                    aria-label={t("writing.selectedChapters", { count: selectedCount })}
+                  >
+                    {t("writing.selectedCount", { count: selectedCount })}
+                  </Badge>
+                </>
+              ) : !isDragMode ? (
                 <Tooltip content={t("writing.dragModeOn")}>
                   <IconButton
                     variant="ghost"
@@ -279,12 +349,30 @@ export function SidebarToolbar({
                   {t("writing.dragModeOn")}
                 </Badge>
               )}
+              {!isDragMode && !isSelectMode && (
+                <Tooltip content={t("writing.selectMode")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    highContrast
+                    size="2"
+                    aria-label={t("writing.selectMode")}
+                    aria-pressed={false}
+                    onClick={onToggleSelectMode}
+                  >
+                    <ListChecks size={16} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </>
           )}
         </Flex>
 
         {!contentSearchExpanded && (
           <Flex
+            ref={toolbarActionsRef}
+            className="chapter-sidebar-toolbar-actions"
+            data-select-mode={isSelectMode ? "true" : undefined}
             gap="0"
             align="center"
           >
@@ -304,12 +392,64 @@ export function SidebarToolbar({
 
                 <Tooltip content={t("writing.saveOrder")}>
                   <IconButton
-                    variant="solid"
+                    variant="ghost"
+                    color="gray"
                     size="2"
                     onClick={handleSaveCurrentOrder}
                     disabled={!hasUnsavedDragChanges || isSavingOrder}
                   >
                     <Check size={16} />
+                  </IconButton>
+                </Tooltip>
+              </>
+            ) : isSelectMode ? (
+              <>
+                <Tooltip content={t("common.cancel")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="2"
+                    aria-label={t("common.cancel")}
+                    disabled={isBatchPending}
+                    onClick={onToggleSelectMode}
+                  >
+                    <X size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("writing.batchMove")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="2"
+                    aria-label={t("writing.batchMove")}
+                    disabled={!selectedCount || isBatchPending}
+                    onClick={onBatchMove}
+                  >
+                    <FolderInput size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("writing.batchExport")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="2"
+                    aria-label={t("writing.batchExport")}
+                    disabled={!selectedCount || isBatchPending}
+                    onClick={onBatchExport}
+                  >
+                    <Download size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("writing.batchDelete")}>
+                  <IconButton
+                    variant="ghost"
+                    color="red"
+                    size="2"
+                    aria-label={t("writing.batchDelete")}
+                    disabled={!selectedCount || isBatchPending}
+                    onClick={onBatchDelete}
+                  >
+                    <Trash2 size={16} />
                   </IconButton>
                 </Tooltip>
               </>

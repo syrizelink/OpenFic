@@ -10,6 +10,8 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.chapter import (
+    ChapterBatchMove,
+    ChapterBatchSelection,
     ChapterCreate,
     ChapterListItem,
     ChapterMoveToVolume,
@@ -28,6 +30,38 @@ from app.storage.database import get_session
 from app.storage.services import chapter_service
 
 router = APIRouter(tags=["chapters"])
+
+
+@router.post("/projects/{project_id}/chapters/batch-delete", status_code=204, summary="批量删除章节")
+async def batch_delete_chapters(
+    project_id: str,
+    data: ChapterBatchSelection,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    try:
+        await chapter_service.batch_chapters(session, project_id, data.chapter_ids)
+        await background_service.commit_and_notify(session)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/projects/{project_id}/chapters/batch-move", status_code=204, summary="批量移动章节")
+async def batch_move_chapters(
+    project_id: str,
+    data: ChapterBatchMove,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    try:
+        await chapter_service.batch_chapters(
+            session, project_id, data.chapter_ids, target_volume_id=data.volume_id
+        )
+        await background_service.commit_and_notify(session)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post(

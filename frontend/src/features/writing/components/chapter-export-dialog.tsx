@@ -48,6 +48,7 @@ interface ChapterExportDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   volumes: VolumeWithChapters[];
+  initialSelectedChapterIds?: Set<string> | null;
 }
 
 interface ChapterExportTreeRow {
@@ -92,6 +93,7 @@ export function ChapterExportDialog({
   onOpenChange,
   projectId,
   volumes,
+  initialSelectedChapterIds,
 }: ChapterExportDialogProps) {
   const { t } = useTranslation();
   const { data: project } = useQuery({
@@ -114,6 +116,8 @@ export function ChapterExportDialog({
   const downloadedExportIdRef = useRef<string | null>(null);
   const exportableVolumesRef = useRef(exportableVolumes);
   exportableVolumesRef.current = exportableVolumes;
+  const initialSelectedChapterIdsRef = useRef(initialSelectedChapterIds);
+  initialSelectedChapterIdsRef.current = initialSelectedChapterIds;
 
   const selectedChapterIds = useMemo(
     () => getSelectedChapterIds(exportableVolumes, selection),
@@ -150,7 +154,10 @@ export function ChapterExportDialog({
   useEffect(() => {
     if (!open) return;
     previewRequestIdRef.current += 1;
-    setSelection(createChapterExportSelection());
+    setSelection({
+      ...createChapterExportSelection(),
+      includedChapterIds: new Set(initialSelectedChapterIdsRef.current ?? []),
+    });
     setExpandedVolumeIds(new Set(exportableVolumesRef.current.map((volume) => volume.id)));
     setPreviewChapter(null);
     setStep("selecting");

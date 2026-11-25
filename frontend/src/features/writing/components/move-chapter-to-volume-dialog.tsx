@@ -7,7 +7,7 @@ import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
 
 interface MoveChapterToVolumeDialogProps {
   open: boolean;
-  chapter: ChapterListItem | null;
+  chapters: ChapterListItem[];
   volumes: VolumeWithChapters[];
   onOpenChange: (open: boolean) => void;
   onConfirm: (volumeId: string) => void;
@@ -16,7 +16,7 @@ interface MoveChapterToVolumeDialogProps {
 
 export function MoveChapterToVolumeDialog({
   open,
-  chapter,
+  chapters,
   volumes,
   onOpenChange,
   onConfirm,
@@ -26,8 +26,10 @@ export function MoveChapterToVolumeDialog({
   const [selectedVolumeId, setSelectedVolumeId] = useState("");
 
   useEffect(() => {
-    if (!open || !chapter) return;
-    const firstTarget = volumes.find((volume) => volume.id !== chapter.volumeId);
+    if (!open || chapters.length === 0) return;
+    const firstTarget = volumes.find((volume) =>
+      chapters.some((chapter) => volume.id !== chapter.volumeId),
+    );
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -36,22 +38,24 @@ export function MoveChapterToVolumeDialog({
     return () => {
       cancelled = true;
     };
-  }, [chapter, open, volumes]);
+  }, [chapters, open, volumes]);
 
   const options = useMemo(
     () =>
       volumes.map((volume) => ({
         value: volume.id,
         label: volume.title || t("volume.untitled"),
-        disabled: volume.id === chapter?.volumeId,
+        disabled: chapters.every((chapter) => volume.id === chapter.volumeId),
       })),
-    [chapter?.volumeId, t, volumes],
+    [chapters, t, volumes],
   );
 
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!loading) onOpenChange(nextOpen);
+      }}
     >
       <Dialog.Content maxWidth="420px">
         <Dialog.Title>{t("writing.moveToVolumeDialog.title")}</Dialog.Title>
@@ -71,7 +75,9 @@ export function MoveChapterToVolumeDialog({
             size="2"
             weight="medium"
           >
-            {chapter?.title ?? t("writing.untitledChapter")}
+            {chapters.length === 1
+              ? chapters[0]?.title || t("writing.untitledChapter")
+              : t("writing.selectedChapters", { count: chapters.length })}
           </Text>
           <SimpleSelect
             value={selectedVolumeId}
@@ -97,7 +103,10 @@ export function MoveChapterToVolumeDialog({
           </Dialog.Close>
           <Button
             loading={loading}
-            disabled={!selectedVolumeId || selectedVolumeId === chapter?.volumeId}
+            disabled={
+              !selectedVolumeId ||
+              chapters.every((chapter) => selectedVolumeId === chapter.volumeId)
+            }
             onClick={() => onConfirm(selectedVolumeId)}
           >
             {t("common.confirm")}

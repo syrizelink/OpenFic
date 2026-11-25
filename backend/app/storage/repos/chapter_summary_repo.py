@@ -342,6 +342,18 @@ async def delete_long_term_summaries_by_ranges(
     await session.flush()
 
 
+async def delete_long_term_summaries_from_order(
+    session: AsyncSession, project_id: str, first_order: int
+) -> None:
+    await session.execute(
+        sql_delete(ChapterSummary).where(
+            col(ChapterSummary.summary_type) == SUMMARY_TYPE_LONG_TERM,
+            col(ChapterSummary.project_id) == project_id,
+            col(ChapterSummary.end_order) >= first_order,
+        )
+    )
+
+
 async def delete_all_long_term_summaries_by_project(
     session: AsyncSession, project_id: str
 ) -> None:

@@ -138,6 +138,30 @@ async def delete_by_chapter_id(session: AsyncSession, chapter_id: str) -> None:
     await session.flush()
 
 
+async def delete_by_chapter_ids(session: AsyncSession, chapter_ids: list[str]) -> None:
+    await session.execute(
+        delete(RetrievalChapterIndexState).where(
+            col(RetrievalChapterIndexState.chapter_id).in_(chapter_ids)
+        )
+    )
+
+
+async def mark_chapters_stale(
+    session: AsyncSession, project_id: str, index_key: str, chapter_ids: list[str]
+) -> None:
+    await session.execute(
+        update(RetrievalChapterIndexState)
+        .where(
+            col(RetrievalChapterIndexState.project_id) == project_id,
+            col(RetrievalChapterIndexState.index_key) == index_key,
+            col(RetrievalChapterIndexState.chapter_id).in_(chapter_ids),
+            col(RetrievalChapterIndexState.source_hash).is_not(None),
+            col(RetrievalChapterIndexState.status).not_in(["queued", "indexing", "needs_rebuild"]),
+        )
+        .values(status="stale", job_id=None, item_id=None, updated_at=datetime.now(UTC))
+    )
+
+
 async def mark_all_needs_rebuild(session: AsyncSession) -> None:
     await session.execute(
         update(RetrievalChapterIndexState).values(
