@@ -602,14 +602,13 @@ export function ModelIdSelect({
                     >
                       <Flex
                         align="start"
-                        justify="between"
                         gap="2"
                         style={{ minWidth: 0 }}
                       >
                         <Flex
                           align="center"
                           gap="1"
-                          style={{ minWidth: 0, flex: "1 1 auto" }}
+                          style={{ minWidth: 0, flex: "0 1 auto" }}
                         >
                           {compact && model.providerIconPath ? (
                             <ProviderIcon
@@ -623,7 +622,7 @@ export function ModelIdSelect({
                             weight="medium"
                             style={{
                               minWidth: 0,
-                              flex: "1 1 auto",
+                              flex: "0 1 auto",
                               color: showToolCallWarning ? "#c64545" : undefined,
                             }}
                           >
@@ -638,8 +637,7 @@ export function ModelIdSelect({
                             align="center"
                             gap="1"
                             wrap="wrap"
-                            justify="end"
-                            style={{ marginLeft: "auto", flexShrink: 0 }}
+                            style={{ flexShrink: 0 }}
                           >
                             {capabilityKeys.map((capability) => (
                               <CapabilityIcon

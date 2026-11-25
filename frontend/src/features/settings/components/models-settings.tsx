@@ -609,15 +609,6 @@ export function ModelsSettings({
                         >
                           {model.name}
                         </Text>
-                        {model.isBuiltin ? (
-                          <Badge
-                            size="1"
-                            color="green"
-                            variant="soft"
-                          >
-                            {t("models.builtin")}
-                          </Badge>
-                        ) : null}
                         {(() => {
                           const metadata = llmModelMetadataMap.get(model.id);
                           if (!metadata) return null;
@@ -639,6 +630,15 @@ export function ModelsSettings({
                             </Flex>
                           );
                         })()}
+                        {model.isBuiltin ? (
+                          <Badge
+                            size="1"
+                            color="green"
+                            variant="soft"
+                          >
+                            {t("models.builtin")}
+                          </Badge>
+                        ) : null}
                       </Flex>
 
                       {/* 提供商和模型 ID */}
