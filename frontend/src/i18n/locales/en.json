@@ -2904,6 +2904,7 @@
       "ui_overlay": "UI overlays",
       "editor_read": "Read editor",
       "editor_write": "Modify editor",
+      "selection_read": "Read selection",
       "agent_tools": "Agent tools",
       "agent_hooks": "Agent hooks",
       "agent_graph": "Agent workflows",

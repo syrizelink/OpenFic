@@ -2902,6 +2902,7 @@
       "ui_overlay": "界面浮层",
       "editor_read": "读取编辑器",
       "editor_write": "修改编辑器",
+      "selection_read": "读取选区内容",
       "agent_tools": "智能体工具",
       "agent_hooks": "智能体钩子",
       "agent_graph": "智能体工作流",
