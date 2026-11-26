@@ -4,5 +4,6 @@ const config: CapacitorConfig = {
   appName: "OpenFic",
   webDir: "dist",
   android: { allowMixedContent: false },
+  server: { iosScheme: "openfic" },
 };
 export default config;

@@ -5,7 +5,10 @@ interface RemoteInstancePlugin {
   open(options: { url: string; name: string }): Promise<void>;
 }
 const RemoteInstance = registerPlugin<RemoteInstancePlugin>("RemoteInstance");
-export const supportsInstanceScanning = Capacitor.getPlatform() === "android";
+const platform = Capacitor.getPlatform(); // "android" | "ios" | "web"
+// The RemoteInstance native plugin is currently Android-only.
+const hasRemoteInstancePlugin = platform === "android";
+export const supportsInstanceScanning = platform === "android";
 
 export async function scanInstanceUrl(): Promise<string | null> {
   if (!supportsInstanceScanning) throw new Error("请在 Android APP 中扫描二维码。");
@@ -29,9 +32,10 @@ interface AppUpdatePlugin {
 }
 
 export const AppUpdate = registerPlugin<AppUpdatePlugin>("AppUpdate");
-export const supportsAppUpdates = Capacitor.getPlatform() === "android";
+export const supportsAppUpdates = platform === "android";
 export async function checkInstance(url: string): Promise<{ version: string }> {
-  if (Capacitor.isNativePlatform()) return RemoteInstance.check({ url });
+  if (hasRemoteInstancePlugin) return RemoteInstance.check({ url });
+  // iOS / web fallback: plain fetch (the ATS local-network exemption covers LAN http).
   const response = await fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
   const data = await response.json();
@@ -42,7 +46,11 @@ export async function checkInstance(url: string): Promise<{ version: string }> {
   return { version: data.version };
 }
 export async function openInstance(url: string, name: string): Promise<void> {
-  if (!Capacitor.isNativePlatform())
-    throw new Error("请在 Android APP 中打开实例；浏览器预览仅用于检查连接界面。");
-  await RemoteInstance.open({ url, name });
+  if (hasRemoteInstancePlugin) return RemoteInstance.open({ url, name });
+  if (platform === "ios") {
+    // TODO: add a native iOS plugin (dedicated view controller) in a follow-up.
+    window.location.href = url;
+    return;
+  }
+  throw new Error("请在 Android APP 中打开实例；浏览器预览仅用于检查连接界面。");
 }

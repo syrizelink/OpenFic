@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@capacitor/core':
-        specifier: ^7.4.3
+        specifier: ^7.6.9
         version: 7.6.9
       '@radix-ui/themes':
         specifier: ^3.3.0
@@ -25,11 +25,14 @@ importers:
         version: 19.3.0(react@19.3.0)
     devDependencies:
       '@capacitor/android':
-        specifier: ^7.4.3
+        specifier: ^7.6.9
         version: 7.6.9(@capacitor/core@7.6.9)
       '@capacitor/cli':
-        specifier: ^7.4.3
+        specifier: ^7.6.9
         version: 7.6.9
+      '@capacitor/ios':
+        specifier: 7.6.9
+        version: 7.6.9(@capacitor/core@7.6.9)
       '@types/node':
         specifier: ^24.12.2
         version: 24.19.2
@@ -63,6 +66,11 @@ packages:
 
   '@capacitor/core@7.6.9':
     resolution: {integrity: sha512-4DOh/xySC9S5ryhUIqpOppasIyi2WiTdF0JuZ/2DEs+vf5eunRzHDdNYBp1snA3faHciTw/3SVGXfR+WkYxsMA==}
+
+  '@capacitor/ios@7.6.9':
+    resolution: {integrity: sha512-LANP81TfwuJk1zq9EuF+J5AJK71rKDgXB5XD+VFJQHC7BxSH4Dsma6DSMyrjFT03jtqc/0JTMEfSMBE7go3ZjA==}
+    peerDependencies:
+      '@capacitor/core': ^7.6.0
 
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
@@ -1557,6 +1565,10 @@ snapshots:
   '@capacitor/core@7.6.9':
     dependencies:
       tslib: 2.8.1
+
+  '@capacitor/ios@7.6.9(@capacitor/core@7.6.9)':
+    dependencies:
+      '@capacitor/core': 7.6.9
 
   '@floating-ui/core@1.8.0':
     dependencies:
