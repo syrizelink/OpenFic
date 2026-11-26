@@ -38,6 +38,7 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
         "perplexity": False,
         "searxng": False,
         "serper": False,
+        "specstream": False,
         "tavily": False,
         "youcom": False,
         "zhipu": False,
@@ -67,6 +68,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
         "perplexity",
         "searxng",
         "serper",
+        "specstream",
         "tavily",
         "youcom",
         "zhipu",
@@ -77,6 +79,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
     assert by_name["searxng"]["requires_api_key"] is False
     assert by_name["youcom"]["requires_api_key"] is False
     assert by_name["tavily"]["requires_api_key"] is True
+    assert by_name["specstream"]["requires_api_key"] is True
 
 
 @pytest.mark.asyncio
