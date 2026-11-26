@@ -46,7 +46,7 @@ export function getProviderDisplayName(providerType: string): string {
     cohere: "Cohere",
     openrouter: "OpenRouter",
     requesty: "Requesty",
-    uberllm: "UberLLM",
+    martllm: "MartLLM",
     "amazon-nova": "Amazon Nova",
     deepseek: "DeepSeek",
     infistar: "Infistar",

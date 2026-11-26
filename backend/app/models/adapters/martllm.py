@@ -1,5 +1,5 @@
 """
-UberLLM Adapter - UberLLM API适配器。
+MartLLM Adapter - MartLLM API适配器。
 """
 
 from collections.abc import Mapping
@@ -8,18 +8,18 @@ import httpx
 from loguru import logger
 
 from app.models.adapters.base import BaseAdapter
-from app.models.helpers.uberllm_attribution import get_uberllm_attribution_headers
+from app.models.helpers.martllm_attribution import get_martllm_attribution_headers
 
 
-class UberLLMAdapter(BaseAdapter):
-    """UberLLM API适配器，仅支持LLM（/models 只列出对话模型）。"""
+class MartLLMAdapter(BaseAdapter):
+    """MartLLM API适配器，仅支持LLM（/models 只列出对话模型）。"""
 
     @property
     def provider_type(self) -> str:
-        return "uberllm"
+        return "martllm"
 
     def supports_embedding(self) -> bool:
-        """UberLLM 不提供 Embedding 模型。"""
+        """MartLLM 不提供 Embedding 模型。"""
         return False
 
     async def get_llm_models(
@@ -33,7 +33,7 @@ class UberLLMAdapter(BaseAdapter):
         """获取LLM模型列表（/models端点；带 Key 请求时无效 Key 返回 401）。"""
         url = f"{self._normalize_url(base_url)}/models"
         request_headers = {
-            **get_uberllm_attribution_headers(),
+            **get_martllm_attribution_headers(),
             **self._build_auth_header(api_key, headers),
         }
 
@@ -42,7 +42,7 @@ class UberLLMAdapter(BaseAdapter):
             response.raise_for_status()
             data = response.json()
         except Exception as e:
-            logger.error(f"Failed to fetch UberLLM LLM models: {e}")
+            logger.error(f"Failed to fetch MartLLM LLM models: {e}")
             raise
 
         return [
@@ -59,5 +59,5 @@ class UberLLMAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """UberLLM 不提供 Embedding 模型。"""
+        """MartLLM 不提供 Embedding 模型。"""
         return []
