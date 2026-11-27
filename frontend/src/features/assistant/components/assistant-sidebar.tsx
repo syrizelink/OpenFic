@@ -690,6 +690,18 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       return getAgentSpecialPanels(approvalMessages);
     }, [activeSubagents, isViewingSubagent]);
 
+    const handleRestoreAttachments = useCallback(
+      (attachments: Parameters<typeof createRestoredPendingAgentAttachments>[0]) => {
+        setPendingAttachments((current) => {
+          current.forEach((attachment) => {
+            if (attachment.file) URL.revokeObjectURL(attachment.previewUrl);
+          });
+          return createRestoredPendingAgentAttachments(attachments);
+        });
+      },
+      [],
+    );
+
     const agentSidebar = useAgentSidebar({
       onLoadingChange: setIsMessagesLoading,
       historyStatusHost,
@@ -707,15 +719,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         });
         setPendingAttachments([]);
       },
-      onRestoreAttachments: (attachments) => {
-        setPendingAttachments((current) => {
-          current.forEach((attachment) => {
-            if (attachment.file) URL.revokeObjectURL(attachment.previewUrl);
-          });
-          return createRestoredPendingAgentAttachments(attachments);
-        });
-      },
-      onSetInputValue: (value) => setInputValue(value),
+      onRestoreAttachments: handleRestoreAttachments,
+      onSetInputValue: setInputValue,
       onOpenMentionChapter,
       onOpenChanges: handleOpenChangeSummary,
       onTokenUsage: handleConversationTokenUsage,

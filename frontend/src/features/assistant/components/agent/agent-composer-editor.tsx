@@ -207,6 +207,8 @@ export function AgentComposerEditor({
   onHistoryNavigate,
 }: AgentComposerEditorProps) {
   const isApplyingExternalValueRef = useRef(false);
+  const lastEditorValueRef = useRef(value);
+  const [initialContent] = useState(() => mentionTextToHtml(value));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionQuery, setMentionQuery] = useState<MentionQueryState>(
     createClosedMentionQueryState,
@@ -294,7 +296,7 @@ export function AgentComposerEditor({
 
   const editor = useEditor({
     extensions,
-    content: mentionTextToHtml(value),
+    content: initialContent,
     editable: !disabled,
     editorProps: {
       attributes: {
@@ -308,10 +310,13 @@ export function AgentComposerEditor({
         instance.commands.setContent(mentionTextToHtml(value), { emitUpdate: false });
         isApplyingExternalValueRef.current = false;
       }
+      lastEditorValueRef.current = value;
     },
     onUpdate: ({ editor: instance }) => {
       if (isApplyingExternalValueRef.current) return;
-      onChange(docToCanonicalText(instance.state.doc));
+      const nextValue = docToCanonicalText(instance.state.doc);
+      lastEditorValueRef.current = nextValue;
+      onChange(nextValue);
       updateMentionQuery(instance);
     },
     onSelectionUpdate: ({ editor: instance }) => {
@@ -374,11 +379,11 @@ export function AgentComposerEditor({
 
   useEffect(() => {
     if (!editor) return;
-    const nextCanonicalText = docToCanonicalText(editor.state.doc);
-    if (nextCanonicalText === value) return;
+    if (lastEditorValueRef.current === value) return;
     isApplyingExternalValueRef.current = true;
     editor.commands.setContent(mentionTextToHtml(value), { emitUpdate: false });
     isApplyingExternalValueRef.current = false;
+    lastEditorValueRef.current = value;
     updateMentionQuery(editor);
   }, [editor, updateMentionQuery, value]);
 
