@@ -14,6 +14,7 @@ from app.background.jobs.models import (
 from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
+from app.storage.models.quick_prompt import QuickPrompt
 from app.agent_runtime.persistence.model import AgentAttachment, AgentContextCompaction, AgentRunMessage
 from app.storage.models.character import Character, CharacterRelationship, RevisionCharacterRelationshipSnapshot
 from app.storage.models.chapter import Chapter
@@ -48,6 +49,7 @@ __all__ = [
     "LLMAuditLog",
     "AgentMemory",
     "AgentRule",
+    "QuickPrompt",
     "AgentAttachment",
     "AgentContextCompaction",
     "AgentRunMessage",

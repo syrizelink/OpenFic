@@ -41,6 +41,35 @@ export const apiClient = axios.create({
   },
 });
 
+export interface QuickPrompt {
+  id: string;
+  command: string;
+  content: string;
+  scope: "global" | "project";
+  project_id: string | null;
+}
+
+export async function fetchQuickPrompts(projectId?: string): Promise<QuickPrompt[]> {
+  const response = await apiClient.get<QuickPrompt[]>("/quick-prompts", {
+    params: projectId ? { project_id: projectId } : undefined,
+  });
+  return response.data;
+}
+
+export async function saveQuickPrompt(
+  prompt: Omit<QuickPrompt, "id">,
+  id?: string,
+): Promise<QuickPrompt> {
+  const response = id
+    ? await apiClient.put<QuickPrompt>(`/quick-prompts/${id}`, prompt)
+    : await apiClient.post<QuickPrompt>("/quick-prompts", prompt);
+  return response.data;
+}
+
+export async function deleteQuickPrompt(id: string): Promise<void> {
+  await apiClient.delete(`/quick-prompts/${id}`);
+}
+
 let isAuthenticationRedirecting = false;
 
 export function handleAuthenticationFailure(): void {

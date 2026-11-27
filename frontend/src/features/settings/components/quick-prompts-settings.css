@@ -1,0 +1,8 @@
+.quick-prompts-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-prompts-list-empty {
+  height: 100%;
+}

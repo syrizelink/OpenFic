@@ -37,6 +37,7 @@ import { IndexSettings } from "../components/index-settings";
 import { ModelsSettings } from "../components/models-settings";
 import { NotificationSettings } from "../components/notification-settings";
 import { PersonalizationSettings } from "../components/personalization-settings";
+import { QuickPromptsSettings } from "../components/quick-prompts-settings";
 import { RulesSettings } from "../components/rules-settings";
 import { SessionSettings } from "../components/session-settings";
 import { SettingsPluginIcon, SettingsSidebar } from "../components/settings-sidebar";
@@ -98,6 +99,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   summary: "settings.summary",
   "agent-tools": "settings.agentTools",
   "web-search": "settings.webSearch",
+  "quick-prompts": "settingsExtra.quickPrompts.title",
   rules: "settings.rules",
   skills: "settings.skills",
   agents: "settings.agents",
@@ -305,6 +307,7 @@ export function SettingsContent({
     !activePlugin &&
     (activeCategory === "agents" ||
       activeCategory === "skills" ||
+      activeCategory === "quick-prompts" ||
       activeCategory === "rules" ||
       activeCategory === "plugins");
   const shouldUseFormPagePadding =
@@ -558,6 +561,16 @@ export function SettingsContent({
               />
             ) : null}
             {activeCategory === "web-search" ? <WebSearchSettings /> : null}
+            {activeCategory === "quick-prompts" ? (
+              <QuickPromptsSettings
+                mobilePage={mobileSubpage}
+                mobileDirection={mobileDirection}
+                onMobilePageChange={handleMobileSubpageChange}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
+              />
+            ) : null}
             {activeCategory === "rules" ? (
               <RulesSettings
                 mobilePage={mobileSubpage}

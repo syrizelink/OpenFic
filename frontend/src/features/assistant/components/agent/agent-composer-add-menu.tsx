@@ -5,6 +5,7 @@ import {
   Image as ImageIcon,
   NotebookText,
   Package,
+  PencilSparkles,
   Paperclip,
   ScrollText,
 } from "lucide-react";
@@ -14,12 +15,14 @@ import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
-import type { AgentComposerItems, AssistantCommandCandidate } from "@/lib/command.types";
+import type { AgentComposerItems } from "@/lib/command.types";
 import type { AssistantMentionCandidate } from "@/lib/mention.types";
+
+import type { AgentComposerSuggestionItem } from "./agent-composer-editor";
 
 import "./agent-composer-add-menu.css";
 
-type AgentComposerItem = AssistantCommandCandidate | AssistantMentionCandidate;
+type AgentComposerItem = AgentComposerSuggestionItem;
 type AgentComposerTrigger = "/" | "@";
 type AgentComposerMenuStatus = "loading" | "ready" | "error";
 type AgentComposerReferenceAction = "image" | "file" | "skillTrigger" | "contentTrigger";
@@ -57,6 +60,7 @@ interface AgentComposerAddMenuProps {
   visible: boolean;
   triggerRef: RefObject<HTMLButtonElement | null>;
   items: AgentComposerItems | null;
+  quickPrompts: Extract<AgentComposerItem, { kind: "quick_prompt" }>[];
   status: AgentComposerMenuStatus;
   errorMessage: string;
   onClose: () => void;
@@ -132,6 +136,7 @@ function getItemMeta(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   if (item.kind === "skill") return item.description;
+  if (item.kind === "quick_prompt") return item.content;
 
   const base =
     item.kind === "note"
@@ -179,14 +184,20 @@ function ComposerItemList({
               className="agent-composer-add-item-icon"
               aria-hidden="true"
             >
-              {item.kind === "skill" ? <Package size={14} /> : getMentionIcon(item.kind)}
+              {item.kind === "skill" ? (
+                <Package size={14} />
+              ) : item.kind === "quick_prompt" ? (
+                <PencilSparkles size={14} />
+              ) : (
+                getMentionIcon(item.kind)
+              )}
             </span>
             <span
               className="agent-composer-add-item-copy"
               data-item-kind={item.kind}
             >
               <span className="agent-composer-add-item-title">
-                {item.kind === "skill" ? item.name : item.title}
+                {item.kind === "skill" || item.kind === "quick_prompt" ? item.name : item.title}
               </span>
               <span className="agent-composer-add-item-kind">{getItemMeta(item, t)}</span>
             </span>
@@ -202,6 +213,7 @@ export function AgentComposerAddMenu({
   visible,
   triggerRef,
   items,
+  quickPrompts,
   status,
   errorMessage,
   onClose,
@@ -227,6 +239,7 @@ export function AgentComposerAddMenu({
             ...resolvedItems.chapters,
             ...resolvedItems.notes,
             ...resolvedItems.worldInfoEntries,
+            ...quickPrompts,
           ].map((item) => ({
             key: `${item.kind}-${item.id}`,
             type: "item" as const,
@@ -239,6 +252,7 @@ export function AgentComposerAddMenu({
       resolvedItems.notes,
       resolvedItems.skills,
       resolvedItems.worldInfoEntries,
+      quickPrompts,
       status,
     ],
   );
@@ -467,6 +481,18 @@ export function AgentComposerAddMenu({
                   <MenuSection title={t("assistant.composerMenu.worldInfoEntries")}>
                     <ComposerItemList
                       items={resolvedItems.worldInfoEntries}
+                      t={t}
+                      selectedIndex={selectedIndex}
+                      getSelectionIndex={getSelectionIndex}
+                      onMouseEnter={handleMouseEnter}
+                      onSelectItem={onSelectItem}
+                    />
+                  </MenuSection>
+                ) : null}
+                {quickPrompts.length > 0 ? (
+                  <MenuSection title={t("settingsExtra.quickPrompts.title")}>
+                    <ComposerItemList
+                      items={quickPrompts}
                       t={t}
                       selectedIndex={selectedIndex}
                       getSelectionIndex={getSelectionIndex}

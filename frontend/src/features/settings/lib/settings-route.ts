@@ -13,6 +13,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "summary",
   "agent-tools",
   "web-search",
+  "quick-prompts",
   "rules",
   "skills",
   "agents",

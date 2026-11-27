@@ -26,7 +26,7 @@ import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
-import { fetchAgentComposerItems } from "@/lib/api-client";
+import { fetchAgentComposerItems, fetchQuickPrompts } from "@/lib/api-client";
 import type { AgentComposerItems } from "@/lib/command.types";
 import { REASONING_EFFORT_OPTIONS } from "@/lib/reasoning-effort";
 
@@ -200,6 +200,27 @@ export function AgentInput({
     enabled: isAddMenuOpen && projectId.trim().length > 0,
     staleTime: 30 * 1000,
   });
+  const {
+    data: quickPrompts,
+    isError: isQuickPromptsError,
+    isFetching: isQuickPromptsFetching,
+  } = useQuery({
+    queryKey: ["quick-prompts", projectId],
+    queryFn: () => fetchQuickPrompts(projectId),
+    enabled: isAddMenuOpen && projectId.trim().length > 0,
+  });
+  const quickPromptItems = useMemo<
+    Extract<AgentComposerSuggestionItem, { kind: "quick_prompt" }>[]
+  >(
+    () =>
+      (quickPrompts ?? []).slice(0, 5).map((prompt) => ({
+        kind: "quick_prompt",
+        id: prompt.id,
+        name: prompt.command,
+        content: prompt.content,
+      })),
+    [quickPrompts],
+  );
   const isAddMenuDisabled =
     disabled || readOnly || bodyMode !== "composer" || isComposerLocked || !composerActions;
   const {
@@ -567,10 +588,12 @@ export function AgentInput({
               visible
               triggerRef={addMenuTriggerRef}
               items={composerItems ?? null}
+              quickPrompts={quickPromptItems}
               status={
-                isComposerItemsError
+                isComposerItemsError || isQuickPromptsError
                   ? "error"
-                  : isComposerItemsFetching && !composerItems
+                  : (isComposerItemsFetching && !composerItems) ||
+                      (isQuickPromptsFetching && !quickPrompts)
                     ? "loading"
                     : "ready"
               }

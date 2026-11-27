@@ -26,6 +26,7 @@ from app.api.exceptions import register_exception_handlers
 from app.api.routers import (
     audio,
     agent_rules,
+    quick_prompts,
     agent_definitions,
     agent_runtime,
     background,
@@ -117,6 +118,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(prompt_chains.router, prefix="/api/v1")
     test_app.include_router(agent_definitions.router, prefix="/api/v1")
     test_app.include_router(agent_rules.router, prefix="/api/v1")
+    test_app.include_router(quick_prompts.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.global_router, prefix="/api/v1")
     test_app.include_router(runtime_config.router, prefix="/api/v1")
