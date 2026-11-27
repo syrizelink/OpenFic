@@ -482,7 +482,7 @@ function AgentMessagesHistoryStatus({ context }: { context: AgentMessagesFooterC
   );
 }
 
-export function AgentMessages({
+export const AgentMessages = memo(function AgentMessages({
   messages,
   isRunning,
   isRollbacking,
@@ -1838,4 +1838,4 @@ export function AgentMessages({
       />
     </Box>
   );
-}
+});
