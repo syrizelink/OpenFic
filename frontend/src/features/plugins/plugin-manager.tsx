@@ -346,14 +346,6 @@ export function PluginManager({
               </Tooltip>
             </Flex>
           </Flex>
-          <Text
-            as="p"
-            size="1"
-            color="gray"
-            className="plugin-list-hint"
-          >
-            {t("plugins.orderHint")}
-          </Text>
           <div
             ref={listRef}
             className="plugin-list-body"

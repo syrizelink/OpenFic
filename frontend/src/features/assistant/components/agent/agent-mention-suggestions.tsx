@@ -3,6 +3,7 @@ import {
   FileText,
   Folder,
   Package,
+  PencilSparkles,
   ScrollText,
   NotebookText,
   UserRound,
@@ -32,6 +33,7 @@ interface AgentMentionSuggestionsProps {
 
 function getItemIcon(kind: AgentComposerSuggestionItem["kind"]) {
   if (kind === "skill") return <Package size={14} />;
+  if (kind === "quick_prompt") return <PencilSparkles size={14} />;
   if (kind === "volume") return <BookOpen size={14} />;
   if (kind === "note") return <NotebookText size={14} />;
   if (kind === "note_category") return <Folder size={14} />;
@@ -45,6 +47,7 @@ function getItemMeta(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   if (item.kind === "skill") return item.description;
+  if (item.kind === "quick_prompt") return item.content;
 
   const base =
     item.kind === "volume"
@@ -166,49 +169,47 @@ export function AgentMentionSuggestions({
 
   if (!visible) return null;
 
-  const hasCommandGroup = mode === "command" && status === "ready" && items.length > 0;
   const suggestionContent =
     status === "ready" && items.length > 0 ? (
       <div
         ref={listRef}
         className="agent-mention-suggestions-list"
       >
-        {hasCommandGroup && (
-          <div className="agent-command-suggestion-header">{t("assistant.commandKind.skill")}</div>
-        )}
         {items.map((item, index) => (
-          <button
-            key={`${item.kind}-${item.id}`}
-            type="button"
-            className="agent-mention-suggestion-item"
-            data-suggestion-index={index}
-            data-selected={index === selectedIndex}
-            onClick={() => onSelect(item, index)}
-            onMouseEnter={() => handleMouseEnter(index)}
-          >
-            <span
-              className="agent-mention-suggestion-icon"
-              aria-hidden="true"
+          <div key={`${item.kind}-${item.id}`}>
+            {mode === "command" && (index === 0 || items[index - 1].kind !== item.kind) && (
+              <div className="agent-command-suggestion-header">
+                {item.kind === "quick_prompt"
+                  ? t("settingsExtra.quickPrompts.title")
+                  : t("assistant.commandKind.skill")}
+              </div>
+            )}
+            <button
+              type="button"
+              className="agent-mention-suggestion-item"
+              data-suggestion-index={index}
+              data-selected={index === selectedIndex}
+              onClick={() => onSelect(item, index)}
+              onMouseEnter={() => handleMouseEnter(index)}
             >
-              {getItemIcon(item.kind)}
-            </span>
-            <span
-              className="agent-mention-suggestion-copy"
-              data-item-kind={item.kind}
-            >
-              <span className="agent-mention-suggestion-title">
-                {item.kind === "skill" ? item.name : item.title}
+              <span
+                className="agent-mention-suggestion-icon"
+                aria-hidden="true"
+              >
+                {getItemIcon(item.kind)}
               </span>
-              <span className="agent-mention-suggestion-kind">{getItemMeta(item, t)}</span>
-            </span>
-          </button>
+              <span
+                className="agent-mention-suggestion-copy"
+                data-item-kind={item.kind}
+              >
+                <span className="agent-mention-suggestion-title">
+                  {item.kind === "skill" || item.kind === "quick_prompt" ? item.name : item.title}
+                </span>
+                <span className="agent-mention-suggestion-kind">{getItemMeta(item, t)}</span>
+              </span>
+            </button>
+          </div>
         ))}
-        {hasCommandGroup && (
-          <div
-            className="agent-command-suggestion-divider"
-            aria-hidden="true"
-          />
-        )}
       </div>
     ) : (
       <div className="agent-mention-suggestion-state">{getStateMessage(status, mode, t)}</div>

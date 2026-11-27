@@ -80,10 +80,6 @@
     background-color 140ms ease,
     color 140ms ease;
 }
-.plugin-list-hint {
-  margin: 0;
-  padding: 0 12px 8px;
-}
 .plugin-list-body {
   display: flex;
   flex-direction: column;
@@ -229,7 +225,9 @@
   color: var(--gray-11);
 }
 .plugin-list-empty {
+  margin: auto;
   padding: 12px;
+  text-align: center;
 }
 .plugin-detail-panel {
   flex: 1;

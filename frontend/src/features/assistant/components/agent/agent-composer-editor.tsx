@@ -28,7 +28,7 @@ import {
   mentionTextToHtml,
   parseAssistantMarkup,
 } from "@/features/assistant/lib/mention-text";
-import { searchCommands, searchMentionCandidates } from "@/lib/api-client";
+import { fetchQuickPrompts, searchCommands, searchMentionCandidates } from "@/lib/api-client";
 import type { AssistantCommandCandidate } from "@/lib/command.types";
 
 import type { AgentInputHistoryDirection } from "../../lib/agent-input-history-state";
@@ -39,7 +39,16 @@ import type { AssistantMentionNodeAttributes } from "./extensions/mention-node";
 
 export type AgentComposerSuggestionStatus = "idle" | "loading" | "empty" | "ready";
 export type AgentComposerSuggestionMode = "mention" | "command";
-export type AgentComposerSuggestionItem = AssistantMentionCandidate | AssistantCommandCandidate;
+interface QuickPromptCandidate {
+  kind: "quick_prompt";
+  id: string;
+  name: string;
+  content: string;
+}
+export type AgentComposerSuggestionItem =
+  | AssistantMentionCandidate
+  | AssistantCommandCandidate
+  | QuickPromptCandidate;
 
 const EMPTY_SUGGESTION_ITEMS: AgentComposerSuggestionItem[] = [];
 
@@ -213,12 +222,30 @@ export function AgentComposerEditor({
     AgentComposerSuggestionItem[]
   >({
     queryKey: ["assistant-composer-candidates", projectId, mentionQuery.mode, normalizedQuery],
-    queryFn: ({ signal }): Promise<AgentComposerSuggestionItem[]> =>
-      mentionQuery.mode === "command"
-        ? searchCommands(projectId, normalizedQuery, 20, "skill", signal)
-        : searchMentionCandidates(projectId, normalizedQuery, 20, undefined, signal),
+    queryFn: async ({ signal }): Promise<AgentComposerSuggestionItem[]> => {
+      if (mentionQuery.mode !== "command")
+        return searchMentionCandidates(projectId, normalizedQuery, 20, undefined, signal);
+      const [skills, prompts] = await Promise.all([
+        searchCommands(projectId, normalizedQuery, 20, "skill", signal),
+        fetchQuickPrompts(projectId),
+      ]);
+      const query = normalizedQuery.toLocaleLowerCase();
+      return [
+        ...skills,
+        ...prompts
+          .filter((prompt) => prompt.command.toLocaleLowerCase().includes(query))
+          .map(
+            (prompt): QuickPromptCandidate => ({
+              kind: "quick_prompt",
+              id: prompt.id,
+              name: prompt.command,
+              content: prompt.content,
+            }),
+          ),
+      ];
+    },
     enabled: shouldSearchSuggestionItems,
-    staleTime: 30 * 1000,
+    staleTime: 0,
   });
   const suggestionItems = shouldSearchSuggestionItems
     ? (remoteSuggestionItems ?? EMPTY_SUGGESTION_ITEMS)
@@ -376,7 +403,16 @@ export function AgentComposerEditor({
     (candidate: AgentComposerSuggestionItem) => {
       if (!editor) return;
       const chain = editor.chain().focus();
-      if (candidate.kind === "skill") {
+      if (candidate.kind === "quick_prompt") {
+        chain
+          .command(({ tr }) => {
+            tr.insertText(candidate.content);
+            return true;
+          })
+          .run();
+        closeSuggestions();
+        return;
+      } else if (candidate.kind === "skill") {
         chain.insertAssistantCommand(createCommandNodeAttrs(candidate));
       } else {
         chain.insertAssistantMention(createMentionNodeAttrs(candidate));
@@ -403,7 +439,16 @@ export function AgentComposerEditor({
         .chain()
         .focus()
         .deleteRange({ from: mentionQuery.replaceFrom, to: currentSelectionTo });
-      if (candidate.kind === "skill") {
+      if (candidate.kind === "quick_prompt") {
+        chain
+          .command(({ tr }) => {
+            tr.insertText(candidate.content);
+            return true;
+          })
+          .run();
+        closeSuggestions();
+        return;
+      } else if (candidate.kind === "skill") {
         chain.insertAssistantCommand(createCommandNodeAttrs(candidate));
       } else {
         chain.insertAssistantMention(createMentionNodeAttrs(candidate));

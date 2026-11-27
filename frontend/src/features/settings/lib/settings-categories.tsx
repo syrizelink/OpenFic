@@ -13,6 +13,7 @@ import {
   Timer,
   Palette,
   Package,
+  PencilSparkles,
   Summary as SummaryIcon,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -36,6 +37,7 @@ export type SettingsCategory =
   | "summary"
   | "agent-tools"
   | "web-search"
+  | "quick-prompts"
   | "rules"
   | "skills"
   | "agents"
@@ -111,6 +113,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     labelKey: "settings.webSearch",
   },
   { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
+  {
+    id: "quick-prompts",
+    icon: <PencilSparkles size={16} />,
+    labelKey: "settingsExtra.quickPrompts.title",
+  },
   {
     id: "rules",
     icon: <FileText size={16} />,
