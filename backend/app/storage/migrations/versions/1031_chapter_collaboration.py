@@ -16,16 +16,17 @@ depends_on = None
 
 
 def upgrade() -> None:
-    inspector = sa.inspect(op.get_bind())
-    # Earlier experimental builds used revision 1030 for collaboration. Main now
-    # uses that number for quick prompts; complete both schemas without replacing
-    # existing CRDT identities or chapter text.
-    if not inspector.has_table("quick_prompts"):
-        import_module(
-            "app.storage.migrations.versions.1030_add_quick_prompts"
-        ).upgrade()
-    if inspector.has_table("chapter_collaboration"):
-        return
+    if not op.get_context().as_sql:
+        inspector = sa.inspect(op.get_bind())
+        # Earlier experimental builds used revision 1030 for collaboration. Main now
+        # uses that number for quick prompts; complete both schemas without replacing
+        # existing CRDT identities or chapter text.
+        if not inspector.has_table("quick_prompts"):
+            import_module(
+                "app.storage.migrations.versions.1030_add_quick_prompts"
+            ).upgrade()
+        if inspector.has_table("chapter_collaboration"):
+            return
     op.create_table(
         "chapter_collaboration",
         sa.Column("chapter_id", sa.String(), nullable=False),

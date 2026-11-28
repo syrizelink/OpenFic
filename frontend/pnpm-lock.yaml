@@ -53,9 +53,6 @@ importers:
       '@fontsource/zcool-xiaowei':
         specifier: ^5.3.0
         version: 5.3.0
-      '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(bufferutil@4.1.0)(utf-8-validate@6.0.6)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.4.0(react-hook-form@7.75.0(react@19.2.6))
@@ -215,6 +212,9 @@ importers:
       katex:
         specifier: 0.16.45
         version: 0.16.45
+      lib0:
+        specifier: ^0.2.120
+        version: 0.2.120
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
@@ -320,6 +320,9 @@ importers:
       y-indexeddb:
         specifier: ^9.0.12
         version: 9.0.12(yjs@13.6.33)
+      y-websocket:
+        specifier: ^3.0.0
+        version: 3.1.0(yjs@13.6.33)
       yjs:
         specifier: ^13.6.33
         version: 13.6.33
@@ -550,15 +553,6 @@ packages:
   '@fontsource/zcool-xiaowei@5.3.0':
     resolution: {integrity: sha512-iRuUPl9ONFbYzi6JcEshpE4VedINyzQ4hv0Z5XEt0cB0pMPiQeqc2Qvv1NwJCNzkPwG02VCdcO+cF2K8ylYn2A==}
 
-  '@hocuspocus/common@3.4.4':
-    resolution: {integrity: sha512-RykIJ0tsHHMP4Xk+4UCbc7SO5LgGxGUSTdbh6anJEsaALAyqinf1Nn5HYuMjLPolAmsar1v++m9zufR09NLpXA==}
-
-  '@hocuspocus/provider@3.4.4':
-    resolution: {integrity: sha512-KbsMAfdYcIJD8eMU/5QnpXcSOvIWAcCNI33FSRSaKCIpYBFtAwkYIwWnZJmPZ8a1BMAtqQc+uvy9+UQf7GHnGQ==}
-    peerDependencies:
-      y-protocols: ^1.0.6
-      yjs: ^13.6.8
-
   '@hookform/resolvers@5.4.0':
     resolution: {integrity: sha512-EIsqr/t/qbinPIhGjMdtvutIN1Kk4uwbROE9/UQ93CAVGR7GkA7Y92+fX80OzXi/OB67jVFYwKGO1WzkxmkFZw==}
     peerDependencies:
@@ -608,9 +602,6 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
-
-  '@lifeomic/attempt@3.1.0':
-    resolution: {integrity: sha512-QZqem4QuAnAyzfz+Gj5/+SLxqwCAw2qmt7732ZXodr6VDWGeYLG6w1i/vYLa55JQM9wRuBKLmXmiZ2P0LtE5rw==}
 
   '@mermaid-js/parser@1.1.0':
     resolution: {integrity: sha512-gxK9ZX2+Fex5zu8LhRQoMeMPEHbc73UKZ0FQ54YrQtUxE1VVhMwzeNtKRPAu5aXks4FasbMe4xB4bWrmq6Jlxw==}
@@ -4636,6 +4627,12 @@ packages:
     peerDependencies:
       yjs: ^13.0.0
 
+  y-websocket@3.1.0:
+    resolution: {integrity: sha512-ZNzwH84Ysxv7zjpFNZHjTJvrBZgcAqMljTe+6zrWciAML9LQ18aVylyPNH9faxCXqEOV8I0JY4TGtrIHFX+Xwg==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.5.6
+
   yjs@13.6.33:
     resolution: {integrity: sha512-q/UYvr1gOk4XII+Cu1CW2dINjYqJJFifTzogEaIARznrvX7uOlHsdTEXcnOBMuIsrCGEEKdNxi74kyMLZlKVfw==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
@@ -4850,22 +4847,6 @@ snapshots:
 
   '@fontsource/zcool-xiaowei@5.3.0': {}
 
-  '@hocuspocus/common@3.4.4':
-    dependencies:
-      lib0: 0.2.120
-
-  '@hocuspocus/provider@3.4.4(bufferutil@4.1.0)(utf-8-validate@6.0.6)(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)':
-    dependencies:
-      '@hocuspocus/common': 3.4.4
-      '@lifeomic/attempt': 3.1.0
-      lib0: 0.2.120
-      ws: 8.20.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
-      y-protocols: 1.0.7(yjs@13.6.33)
-      yjs: 13.6.33
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
   '@hookform/resolvers@5.4.0(react-hook-form@7.75.0(react@19.2.6))':
     dependencies:
       '@standard-schema/utils': 0.3.0
@@ -4922,8 +4903,6 @@ snapshots:
       chalk: 4.1.2
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
-
-  '@lifeomic/attempt@3.1.0': {}
 
   '@mermaid-js/parser@1.1.0':
     dependencies:
@@ -7301,9 +7280,9 @@ snapshots:
 
   eslint@10.6.0(jiti@2.7.0)(supports-color@7.2.0):
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.6.0(jiti@2.7.0))
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.6.0(jiti@2.7.0)(supports-color@7.2.0))
       '@eslint-community/regexpp': 4.12.3
-      '@eslint/config-array': 0.23.5
+      '@eslint/config-array': 0.23.5(supports-color@7.2.0)
       '@eslint/config-helpers': 0.6.0
       '@eslint/core': 1.2.1
       '@eslint/plugin-kit': 0.7.2
@@ -9382,6 +9361,12 @@ snapshots:
   y-protocols@1.0.7(yjs@13.6.33):
     dependencies:
       lib0: 0.2.120
+      yjs: 13.6.33
+
+  y-websocket@3.1.0(yjs@13.6.33):
+    dependencies:
+      lib0: 0.2.120
+      y-protocols: 1.0.7(yjs@13.6.33)
       yjs: 13.6.33
 
   yjs@13.6.33:

@@ -5,7 +5,7 @@ test("two chapter editors sync, preserve cursor and local undo, and keep editing
   request,
 }) => {
   await context.grantPermissions(["local-network-access"]);
-  const api = "http://127.0.0.1:8000/api/v1";
+  const api = `${process.env.OPENFIC_E2E_BACKEND_URL ?? "http://127.0.0.1:8000"}/api/v1`;
   const projectResponse = await request.post(`${api}/projects`, {
     multipart: { title: "Collaboration e2e" },
   });
@@ -92,6 +92,57 @@ window.__vite_plugin_react_preamble_installed__ = true;
   } finally {
     await first.close();
     await second.close();
+    await request.patch(`${api}/settings`, { data: { human_ai_collaboration: false } });
+    await request.delete(`${api}/projects/${project.id}`);
+  }
+});
+
+test("an empty collaborative chapter accepts Chinese and emoji and survives reload", async ({
+  context,
+  request,
+}) => {
+  await context.grantPermissions(["local-network-access"]);
+  const api = `${process.env.OPENFIC_E2E_BACKEND_URL ?? "http://127.0.0.1:8000"}/api/v1`;
+  const project = await (
+    await request.post(`${api}/projects`, { multipart: { title: "Empty collaboration e2e" } })
+  ).json();
+  const tree = await (await request.get(`${api}/projects/${project.id}/chapters`)).json();
+  const chapter = await (
+    await request.post(`${api}/projects/${project.id}/chapters`, {
+      data: { volume_id: tree.volumes[0].id, title: "Empty chapter", content: "" },
+    })
+  ).json();
+  await request.patch(`${api}/settings`, { data: { human_ai_collaboration: true } });
+  await context.route("**/__chapter_collaboration_fixture?*", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><div id="root"></div><script type="module">
+import RefreshRuntime from "/@react-refresh";
+RefreshRuntime.injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => type => type;
+window.__vite_plugin_react_preamble_installed__ = true;
+</script><script type="module" src="/e2e/chapter-collaboration.fixture.tsx"></script>`,
+    }),
+  );
+  const page = await context.newPage();
+  try {
+    await page.goto(`/__chapter_collaboration_fixture?chapter=${chapter.id}`);
+    const editor = page.locator(".chapter-editor-content .ProseMirror");
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await editor.click();
+    await page.keyboard.insertText("新章节🙂");
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText("第二段<不是 HTML>");
+    await expect
+      .poll(async () => (await (await request.get(`${api}/chapters/${chapter.id}`)).json()).content)
+      .toBe("新章节🙂\n第二段<不是 HTML>");
+    await page.reload();
+    await expect
+      .poll(() => editor.locator("p").allTextContents())
+      .toEqual(["新章节🙂", "第二段<不是 HTML>"]);
+  } finally {
+    await page.close();
     await request.patch(`${api}/settings`, { data: { human_ai_collaboration: false } });
     await request.delete(`${api}/projects/${project.id}`);
   }

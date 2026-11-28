@@ -365,7 +365,7 @@ function ChapterEditorContent({
             syncDirtyStateFromEditor(editor);
             onChapterUpdate?.(updatedChapter);
           }
-          collaboration.provider.sendStateless(JSON.stringify({ type: "flush" }));
+          collaboration.flush();
         } catch {
           syncDirtyStateFromEditor(editor);
         } finally {
@@ -856,9 +856,10 @@ function ChapterEditorContent({
           color="gray"
         >
           {collaboration &&
-            t(
-              `writing.${collaboration.status === "synced" ? "collaborationSynced" : collaboration.status === "offline" ? "collaborationOffline" : "collaborationPending"}`,
-            )}
+            (collaboration.error ??
+              t(
+                `writing.${collaboration.status === "synced" ? "collaborationSynced" : collaboration.status === "offline" ? "collaborationOffline" : "collaborationPending"}`,
+              ))}
           {!collaboration && saveStatus === "saving" && t("writing.saving")}
           {!collaboration && saveStatus === "saved" && t("writing.saved")}
           {!collaboration && saveStatus === "unsaved" && t("writing.unsavedChanges")}

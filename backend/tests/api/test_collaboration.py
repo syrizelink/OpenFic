@@ -97,15 +97,13 @@ async def test_legacy_stale_version_cannot_overwrite_latest_snapshot(
     assert chapter.content == "newer text"
 
 
-async def test_settings_opt_in_is_persisted_only_after_worker_starts(
-    client, monkeypatch
-):
+async def test_settings_opt_in_is_persisted_only_after_hub_starts(client, monkeypatch):
     from unittest.mock import AsyncMock
 
     initial = await client.get("/api/v1/settings")
     assert initial.json()["human_ai_collaboration"] is False
-    call = AsyncMock(side_effect=ConflictError("Node unavailable"))
-    monkeypatch.setattr(service.worker, "call", call)
+    call = AsyncMock(side_effect=ConflictError("Collaboration unavailable"))
+    monkeypatch.setattr(service.hub, "resume", call)
     rejected = await client.patch(
         "/api/v1/settings", json={"human_ai_collaboration": True}
     )
@@ -120,3 +118,19 @@ async def test_settings_opt_in_is_persisted_only_after_worker_starts(
     )
     assert enabled.status_code == 200
     assert enabled.json()["human_ai_collaboration"] is True
+
+
+def test_websocket_requires_existing_application_authentication():
+    from fastapi import FastAPI, WebSocketDisconnect
+    from fastapi.testclient import TestClient
+    from app.api.routers.collaboration import router
+    from app.auth import AuthMiddleware, AuthService
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    protected = AuthMiddleware(app, AuthService("test-password"), "/api/v1")
+    with TestClient(protected) as browser:
+        with pytest.raises(WebSocketDisconnect) as failure:
+            with browser.websocket_connect("/api/v1/collaboration/chapters/any/epoch"):
+                pass
+    assert getattr(failure.value, "status_code", None) == 401

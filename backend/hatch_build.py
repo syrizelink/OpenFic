@@ -48,20 +48,6 @@ def build_frontend_assets(backend_dir: Path, frontend_dir: Path, version: str) -
     stderr.write(f"\n### copied frontend dist to {target_dir}\n")
 
 
-def build_collaboration_assets(backend_dir: Path) -> None:
-    source_dir = backend_dir.parent / "collaboration"
-    bundle = backend_dir / "app" / "collaboration" / "server.bundle.cjs"
-    if not source_dir.exists():
-        if bundle.exists():
-            return
-        raise RuntimeError("Collaboration sources or prebuilt worker bundle are required")
-    pnpm = shutil.which("pnpm")
-    if pnpm is None:
-        raise RuntimeError("pnpm is required to build the collaboration worker")
-    subprocess.run([pnpm, "install", "--frozen-lockfile"], check=True, cwd=source_dir)
-    subprocess.run([pnpm, "build"], check=True, cwd=source_dir)
-
-
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict[str, object]) -> None:
         super().initialize(version, build_data)
@@ -71,7 +57,5 @@ class CustomBuildHook(BuildHookInterface):
             target_dir.mkdir(parents=True, exist_ok=True)
             stderr.write(">>> Skipping frontend build for editable install\n")
             return
-        build_collaboration_assets(backend_dir)
-        build_data.setdefault("artifacts", []).append("app/collaboration/server.bundle.cjs")
         frontend_dir = backend_dir.parent / "frontend"
         build_frontend_assets(backend_dir=backend_dir, frontend_dir=frontend_dir, version=version)

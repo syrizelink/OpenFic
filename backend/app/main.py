@@ -717,8 +717,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await stop_audit_queue()
         await app.state.catalog_icon_proxy_service.aclose()
         await close_checkpointer()
-        from app.collaboration.service import worker as collaboration_worker
-        await collaboration_worker.stop()
+        from app.collaboration.service import hub as collaboration_hub
+        await collaboration_hub.stop()
         await close_db()
         shutdown_telemetry()
 

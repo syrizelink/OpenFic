@@ -32,7 +32,6 @@
     "@fontsource/wdxl-lubrifont-sc": "^5.3.0",
     "@fontsource/zcool-kuaile": "^5.3.0",
     "@fontsource/zcool-xiaowei": "^5.3.0",
-    "@hocuspocus/provider": "^3.4.4",
     "@hookform/resolvers": "^5.2.2",
     "@iconify-icons/material-icon-theme": "^2.0.1",
     "@iconify/react": "^6.0.2",
@@ -86,6 +85,7 @@
     "immer": "^11.1.7",
     "js-tiktoken": "^1.0.21",
     "katex": "0.16.45",
+    "lib0": "^0.2.120",
     "lowlight": "^3.3.0",
     "lucide-react": "^1.25.0",
     "motion": "^12.38.0",
@@ -121,6 +121,7 @@
     "uuid": "^13.0.2",
     "words-count": "^2.0.2",
     "y-indexeddb": "^9.0.12",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.33",
     "zod": "^3.25.76",
     "zustand": "^5.0.13"

@@ -80,7 +80,6 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
       OPENFIC_SERVER_HOST: "127.0.0.1",
       OPENFIC_SERVER_PORT: String(options.port),
       OPENFIC_DATA_DIR: dataDir,
-      OPENFIC_NODE_BINARY: process.execPath,
       OPENFIC_SHUTDOWN_TOKEN: shutdownToken,
       PYTHONIOENCODING: "utf-8",
       PYTHONUTF8: "1",

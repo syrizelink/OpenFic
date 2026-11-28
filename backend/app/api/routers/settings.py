@@ -870,18 +870,11 @@ async def update_settings(
         await invalidate_all_long_term_summaries(session)
 
     if request.human_ai_collaboration is not None:
-        from app.collaboration.service import worker, persist_document
-        from app.core.errors import ConflictError
+        from app.collaboration.service import hub
         if request.human_ai_collaboration:
-            await worker.call("resume")
-        elif worker.process is not None:
-            snapshots = await worker.call("pause")
-            for snapshot in snapshots:
-                try:
-                    await persist_document(session, snapshot)
-                except ConflictError:
-                    # A chapter may have been deleted or moved to a new epoch.
-                    continue
+            await hub.resume()
+        else:
+            await hub.pause()
 
     # 批量更新
     if settings_to_update:

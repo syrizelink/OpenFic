@@ -1,9 +1,4 @@
-"""Hocuspocus worker lifecycle and transactional Yjs persistence.
-
-A single worker owns live Y.Docs. SQL transactions store binary state and the
-business text snapshot together; per-chapter locks serialize Agent commits and
-browser persistence. There is deliberately no fallback to whole-text writes.
-"""
+"""Yjs-compatible collaboration and transactional persistence inside FastAPI."""
 
 import asyncio
 import base64
@@ -11,10 +6,27 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from difflib import SequenceMatcher
 import json
 import os
-from pathlib import Path
-import secrets
-import shutil
 from typing import Any
+from dataclasses import dataclass, field
+
+from fastapi import WebSocket
+from pycrdt import (
+    Doc,
+    Awareness,
+    create_update_message,
+    handle_sync_message,
+    read_message,
+    write_message,
+    create_awareness_message,
+)
+
+from app.collaboration.document import (
+    new_document,
+    clone_document,
+    text_of,
+    replace_exact,
+    restore_ranges,
+)
 
 from loguru import logger
 from sqlalchemy import select
@@ -102,198 +114,251 @@ async def persist_document(
         session.info.pop("collaboration_write", None)
 
 
-class CollaborationWorker:
+@dataclass(eq=False)
+class Client:
+    socket: WebSocket
+    send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    awareness_ids: set[int] = field(default_factory=set)
+
+    async def send(self, message: bytes) -> None:
+        async with self.send_lock:
+            await asyncio.wait_for(self.socket.send_bytes(message), 5)
+
+
+@dataclass
+class Room:
+    document: Doc
+    version: int
+    clients: set[Client] = field(default_factory=set)
+    awareness: Awareness = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.awareness = Awareness(self.document)
+        self.awareness.set_local_state(None)
+
+
+def control_message(message: dict) -> bytes:
+    return b"\x04" + write_message(json.dumps(message, ensure_ascii=False).encode())
+
+
+class CollaborationHub:
+    """Own documents inside FastAPI; no subprocess, extra listener or external service."""
+
     def __init__(self) -> None:
-        self.process: asyncio.subprocess.Process | None = None
-        self.port = 0
-        self.secret = secrets.token_urlsafe(32)
-        self._start_lock = asyncio.Lock()
-        self._pending: dict[int, asyncio.Future] = {}
-        self._sequence = 0
-        self._reader: asyncio.Task | None = None
-        self._stderr: asyncio.Task | None = None
-        self._callbacks: set[asyncio.Task] = set()
-        self._ready: asyncio.Future | None = None
+        self.rooms: dict[str, Room] = {}
+        self.paused = False
+        self.started = False
         self._lease = None
 
     async def start(self) -> None:
-        async with self._start_lock:
-            if (
-                self.process is not None
-                and self.process.returncode is None
-                and self.port
-            ):
-                return
-            node = os.getenv("OPENFIC_NODE_BINARY") or shutil.which("node")
-            bundled = Path(__file__).with_name("server.bundle.cjs")
-            source = (
-                Path(__file__).resolve().parents[3] / "collaboration" / "server.mjs"
-            )
-            script = bundled if bundled.exists() else source
-            if not node or not script.exists():
-                raise ConflictError(
-                    "协同编辑需要 Node.js 22+ 和 Hocuspocus 服务，请先安装协同服务依赖"
-                )
-            if self._lease is None:
-                from app.settings import BACKEND_DATA_DIR
+        if self.started:
+            return
+        from app.settings import BACKEND_DATA_DIR
 
-                BACKEND_DATA_DIR.mkdir(parents=True, exist_ok=True)
-                lease = (BACKEND_DATA_DIR / ".collaboration.lock").open("a+b")
-                try:
-                    if os.name == "nt":
-                        import msvcrt
-
-                        lease.write(b"0")
-                        lease.flush()
-                        lease.seek(0)
-                        msvcrt.locking(lease.fileno(), msvcrt.LK_NBLCK, 1)
-                    else:
-                        import fcntl
-
-                        fcntl.flock(lease.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except OSError as exc:
-                    lease.close()
-                    raise ConflictError(
-                        "协同服务已由另一后端进程运行；实验功能只支持单进程部署"
-                    ) from exc
-                self._lease = lease
-            self.port = 0
-            self._ready = asyncio.get_running_loop().create_future()
-            self.process = await asyncio.create_subprocess_exec(
-                node,
-                str(script),
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                limit=16 * 1024 * 1024,
-                env={
-                    **os.environ,
-                    "OPENFIC_COLLABORATION_SECRET": self.secret,
-                    "ELECTRON_RUN_AS_NODE": "1",
-                },
-            )
-            self._reader = asyncio.create_task(self._read())
-            self._stderr = asyncio.create_task(self._read_stderr())
-            try:
-                await asyncio.wait_for(asyncio.shield(self._ready), 15)
-            except Exception as exc:
-                await self.stop()
-                raise ConflictError(
-                    "Hocuspocus 启动失败，请检查 Node.js 和协同服务依赖"
-                ) from exc
-
-    async def _send(self, message: dict) -> None:
-        if (
-            self.process is None
-            or self.process.stdin is None
-            or self.process.returncode is not None
-        ):
-            raise ConflictError("协同服务已断开，请重新连接")
-        self.process.stdin.write(
-            (json.dumps(message, ensure_ascii=False) + "\n").encode()
-        )
-        await self.process.stdin.drain()
-
-    async def call(self, method: str, **data: Any) -> Any:
-        await self.start()
-        self._sequence += 1
-        request_id = self._sequence
-        future = asyncio.get_running_loop().create_future()
-        self._pending[request_id] = future
+        BACKEND_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        lease = (BACKEND_DATA_DIR / ".collaboration.lock").open("a+b")
         try:
-            await self._send({"id": request_id, "method": method, **data})
-            return await asyncio.wait_for(future, 30)
-        finally:
-            self._pending.pop(request_id, None)
+            if os.name == "nt":
+                import msvcrt
 
-    async def _read(self) -> None:
-        assert self.process is not None and self.process.stdout is not None
-        try:
-            while line := await self.process.stdout.readline():
-                message = json.loads(line)
-                if message.get("ready"):
-                    self.port = message["port"]
-                    if self._ready is not None and not self._ready.done():
-                        self._ready.set_result(None)
-                elif "requestId" in message:
-                    task = asyncio.create_task(self._callback(message))
-                    self._callbacks.add(task)
-                    task.add_done_callback(self._callbacks.discard)
-                elif future := self._pending.get(message.get("id")):
-                    if not future.done():
-                        if message.get("error"):
-                            future.set_exception(ConflictError(message["error"]))
-                        else:
-                            future.set_result(message.get("result"))
-        finally:
-            self.port = 0
-            for future in [*self._pending.values(), self._ready]:
-                if future is not None and not future.done():
-                    future.set_exception(ConflictError("Hocuspocus 连接已关闭"))
-
-    async def _read_stderr(self) -> None:
-        assert self.process is not None and self.process.stderr is not None
-        while line := await self.process.stderr.readline():
-            logger.debug("Hocuspocus: {}", line.decode().strip())
-
-    async def _callback(self, message: dict) -> None:
-        from app.storage.database import create_session
-        from app.background.jobs.service import commit_and_notify
-
-        session = await create_session()
-        try:
-            if message["method"] == "load":
-                result = await load_document(session, message["room"])
+                lease.write(b"0")
+                lease.flush()
+                lease.seek(0)
+                msvcrt.locking(lease.fileno(), msvcrt.LK_NBLCK, 1)
             else:
-                async with chapter_lock(message["room"].split(":", 1)[0]):
-                    if not await is_enabled(session):
-                        raise ConflictError("协同编辑已关闭")
-                    latest = await self.call("snapshot", room=message["room"])
-                    await persist_document(session, latest)
-                    await commit_and_notify(session)
-                result = True
-            await self._send({"requestId": message["requestId"], "result": result})
-        except Exception as exc:
-            await session.rollback()
-            logger.warning("Collaboration {} failed: {}", message["method"], exc)
-            await self._send({"requestId": message["requestId"], "error": str(exc)})
-        finally:
-            await session.close()
+                import fcntl
+
+                fcntl.flock(lease.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            lease.close()
+            raise ConflictError("协同编辑只支持单个后端进程") from exc
+        self._lease = lease
+        self.started = True
+        self.paused = False
+
+    async def resume(self) -> None:
+        await self.start()
+        self.paused = False
+
+    async def pause(self) -> None:
+        self.paused = True
+        # Accepted updates are committed before broadcasting, so no flush is needed.
+        for room in list(self.rooms.values()):
+            for client in list(room.clients):
+                try:
+                    await client.socket.close(code=1012)
+                except (RuntimeError, OSError):
+                    pass
+            room.clients.clear()
+        self.rooms.clear()
 
     async def stop(self) -> None:
-        if self.process is not None and self.process.returncode is None:
-            self.process.terminate()
-            try:
-                await asyncio.wait_for(self.process.wait(), 5)
-            except TimeoutError:
-                self.process.kill()
-                await self.process.wait()
-        tasks = [
-            task
-            for task in [self._reader, self._stderr, *self._callbacks]
-            if task is not None
-        ]
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        self._callbacks.clear()
-        self.process = None
-        self.port = 0
+        await self.pause()
         if self._lease is not None:
             self._lease.close()
             self._lease = None
+        self.started = False
+
+    def get_room(self, name: str, saved: dict) -> Room:
+        if name not in self.rooms:
+            state = base64.b64decode(saved["state"]) if saved["state"] else None
+            self.rooms[name] = Room(
+                new_document(saved["content"], state), saved["version"]
+            )
+        return self.rooms[name]
+
+    def snapshot(
+        self, name: str, document: Doc | None = None, version: int | None = None
+    ) -> dict:
+        room = self.rooms[name]
+        document = document if document is not None else room.document
+        return {
+            "room": name,
+            "state": base64.b64encode(document.get_update()).decode(),
+            "content": text_of(document),
+            "version": room.version if version is None else version,
+        }
+
+    def prepare(
+        self,
+        name: str,
+        saved: dict,
+        *,
+        old_content: str | None = None,
+        new_content: str | None = None,
+        replace_all: bool = False,
+        edits: list[dict] | None = None,
+    ) -> dict:
+        if self.paused:
+            raise ConflictError("协同编辑已暂停")
+        room = self.get_room(name, saved)
+        candidate = clone_document(room.document)
+        before = text_of(candidate)
+        if edits is not None:
+            restore_ranges(candidate, edits)
+        elif old_content is not None and new_content is not None:
+            replace_exact(candidate, old_content, new_content, replace_all)
+        else:
+            raise ValueError("缺少章节编辑内容")
+        room.version += 1
+        return {**self.snapshot(name, candidate), "before": before}
+
+    async def broadcast(self, room: Room, message: bytes) -> None:
+        async def deliver(client: Client) -> None:
+            try:
+                await client.send(message)
+            except Exception:
+                room.clients.discard(client)
+                try:
+                    await client.socket.close(code=1011)
+                except (RuntimeError, OSError):
+                    pass
+
+        await asyncio.gather(*(deliver(client) for client in list(room.clients)))
+
+    async def acknowledge(self, room: Room, client: Client | None = None) -> None:
+        message = control_message(
+            {
+                "type": "saved",
+                "content": text_of(room.document),
+                "vector": list(room.document.get_state()),
+            }
+        )
+        if client is not None:
+            await client.send(message)
+        else:
+            await self.broadcast(room, message)
+
+    async def publish(self, data: dict) -> None:
+        room = self.rooms.get(data["room"])
+        if room is None:
+            # New connections load the committed state from the business database.
+            return
+        candidate = new_document(state=base64.b64decode(data["state"]))
+        update = candidate.get_update(room.document.get_state())
+        room.document.apply_update(update)
+        room.version = max(room.version, data["version"])
+        await self.broadcast(room, create_update_message(update))
+        await self.acknowledge(room)
+
+    async def evict(self, name: str) -> None:
+        room = self.rooms.pop(name, None)
+        if room is not None:
+            for client in list(room.clients):
+                try:
+                    await client.socket.close(code=1012)
+                except (RuntimeError, OSError):
+                    pass
+
+    async def handle_message(self, name: str, client: Client, message: bytes) -> None:
+        from app.storage.database import create_session
+        from app.background.jobs.service import commit_and_notify
+
+        if not message or len(message) > 8 * 1024 * 1024:
+            raise ValueError("无效或过大的协同消息")
+        async with chapter_lock(name.split(":", 1)[0]):
+            if self.paused or name not in self.rooms:
+                raise ConflictError("协同编辑已关闭")
+            room = self.rooms[name]
+            if message[0] == 1:
+                previous_ids = set(room.awareness.states)
+                room.awareness.apply_awareness_update(read_message(message[1:]), client)
+                client.awareness_ids.update(set(room.awareness.states) - previous_ids)
+                await self.broadcast(room, message)
+                return
+            if message[0] == 3:
+                await client.send(
+                    create_awareness_message(
+                        room.awareness.encode_awareness_update(
+                            list(room.awareness.states)
+                        )
+                    )
+                )
+                return
+            if message[0] == 4:
+                if json.loads(read_message(message[1:])) != {"type": "flush"}:
+                    raise ValueError("无效的协同消息")
+                await self.acknowledge(room, client)
+                return
+            if message[0] != 0 or len(message) < 2 or message[1] not in (0, 1, 2):
+                raise ValueError("无效的同步消息")
+            if message[1] == 0:
+                reply = handle_sync_message(message[1:], room.document)
+                if reply is not None:
+                    await client.send(reply)
+                return
+            candidate = clone_document(room.document)
+            handle_sync_message(message[1:], candidate)
+            text_of(candidate)
+            if candidate.get_update() == room.document.get_update():
+                await self.acknowledge(room, client)
+                return
+            data = self.snapshot(name, candidate, room.version + 1)
+            session = await create_session()
+            try:
+                if not await is_enabled(session):
+                    raise ConflictError("协同编辑已关闭")
+                await load_document(session, name)
+                await persist_document(session, data)
+                await commit_and_notify(session)
+                # Publication follows the successful binary + text snapshot transaction.
+                await self.publish(data)
+            except BaseException:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
 
 
-worker = CollaborationWorker()
+hub = CollaborationHub()
 
 
 async def edit_chapter(session: AsyncSession, chapter_id: str, **edit: Any) -> dict:
     record = await document_record(session, chapter_id)
-    # Seed Agent-only rooms directly, so loading never reads uncommitted SQL
-    # state through a second connection. Existing editors keep their live Y.Doc.
+    # The caller holds the per-chapter lock until the binary state and revision
+    # are committed. No external process or second database connection is used.
     saved = await load_document(session, room_for(record))
-    result = await worker.call("edit", room=room_for(record), seed=saved, **edit)
+    result = hub.prepare(room_for(record), saved, **edit)
     await persist_document(session, result, record_activity=False)
     session.info.setdefault("collaboration_updates", []).append(result)
     return result
@@ -302,11 +367,11 @@ async def edit_chapter(session: AsyncSession, chapter_id: str, **edit: Any) -> d
 async def publish_committed_updates(session: AsyncSession) -> None:
     for data in session.info.pop("collaboration_updates", []):
         try:
-            await worker.call("apply", room=data["room"], state=data["state"])
+            await hub.publish(data)
         except Exception:
             # SQL already owns the durable update. A fresh worker loads that state.
             logger.exception("Could not publish committed collaboration update")
-            await worker.stop()
+            await hub.evict(data["room"])
 
 
 @asynccontextmanager
@@ -374,9 +439,7 @@ async def prepare_rollback(
             )
         record = await document_record(session, chapter_id)
         saved = await load_document(session, room_for(record))
-        result = await worker.call(
-            "restore", room=room_for(record), seed=saved, edits=list(reversed(edits))
-        )
+        result = hub.prepare(room_for(record), saved, edits=list(reversed(edits)))
         results[chapter_id] = result
     # All chapter patches have been validated before changing the transaction.
     for result in results.values():

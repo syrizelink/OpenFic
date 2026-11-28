@@ -1,21 +1,23 @@
-"""Authenticated chapter sessions and same-origin Hocuspocus WebSocket proxy."""
+"""Authenticated Yjs WebSockets served by the existing FastAPI application."""
 
-import asyncio
 from contextlib import suppress
 from typing import Annotated
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from loguru import logger
+from pycrdt import create_awareness_message, create_sync_message
 from sqlalchemy.ext.asyncio import AsyncSession
-from websockets.asyncio.client import connect
-from websockets.exceptions import ConnectionClosed
 
 from app.collaboration.service import (
+    Client,
     chapter_lock,
+    control_message,
     document_record,
+    hub,
     is_enabled,
+    load_document,
+    persist_document,
     room_for,
-    worker,
 )
 from app.core.errors import ConflictError
 from app.storage.database import create_session, get_session
@@ -25,76 +27,71 @@ router = APIRouter(prefix="/collaboration", tags=["collaboration"])
 
 @router.post("/chapters/{chapter_id}/session")
 async def create_collaboration_session(
-    chapter_id: str,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    chapter_id: str, session: Annotated[AsyncSession, Depends(get_session)]
 ) -> dict:
     if not await is_enabled(session):
         raise ConflictError("实验性协同编辑未开启")
-    await worker.start()
+    await hub.start()
     async with chapter_lock(chapter_id):
         record = await document_record(session, chapter_id)
+        name = room_for(record)
+        saved = await load_document(session, name)
+        hub.get_room(name, saved)
+        # Persist seed identities once, before clients can receive any content.
+        if record.state is None:
+            await persist_document(session, hub.snapshot(name), record_activity=False)
         await session.commit()
-    return {"room": room_for(record)}
+    return {"room": name}
 
 
 @router.websocket("/chapters/{chapter_id}/{epoch}")
 async def chapter_socket(websocket: WebSocket, chapter_id: str, epoch: str) -> None:
+    name = f"{chapter_id}:{epoch}"
     session = await create_session()
     try:
-        if not await is_enabled(session):
-            await websocket.close(code=1008)
-            return
-        record = await document_record(session, chapter_id)
-        if record.epoch != epoch:
-            await websocket.close(code=1008)
-            return
-        await session.commit()
-    except Exception:
+        async with chapter_lock(chapter_id):
+            if not await is_enabled(session) or hub.paused:
+                await websocket.close(code=1008)
+                return
+            saved = await load_document(session, name)
+            await hub.start()
+            room = hub.get_room(name, saved)
+    except (ConflictError, ValueError):
         await websocket.close(code=1008)
         return
     finally:
         await session.close()
-    await worker.start()
-    room = f"{chapter_id}:{epoch}"
-    query = urlencode({"room": room, "secret": worker.secret})
     await websocket.accept()
+    client = Client(websocket)
+    room.clients.add(client)
     try:
-        async with connect(
-            f"ws://127.0.0.1:{worker.port}/?{query}", max_size=8 * 1024 * 1024
-        ) as upstream:
-
-            async def client_to_server() -> None:
-                while True:
-                    message = await websocket.receive()
-                    if message["type"] == "websocket.disconnect":
-                        return
-                    payload = message.get("bytes")
-                    if payload is None:
-                        payload = message["text"]
-                    if isinstance(payload, (bytes, str)):
-                        await upstream.send(payload)
-
-            async def server_to_client() -> None:
-                async for message in upstream:
-                    if isinstance(message, bytes):
-                        await websocket.send_bytes(message)
-                    else:
-                        await websocket.send_text(message)
-
-            tasks = [
-                asyncio.create_task(client_to_server()),
-                asyncio.create_task(server_to_client()),
-            ]
-            try:
-                done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                for task in done:
-                    task.result()
-            finally:
-                for task in tasks:
-                    task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
-    except (WebSocketDisconnect, ConnectionClosed, OSError):
+        await client.send(create_sync_message(room.document))
+        if room.awareness.states:
+            await client.send(
+                create_awareness_message(
+                    room.awareness.encode_awareness_update(list(room.awareness.states))
+                )
+            )
+        while True:
+            await hub.handle_message(name, client, await websocket.receive_bytes())
+    except WebSocketDisconnect:
         pass
-    finally:
+    except Exception as exc:
+        logger.warning("Collaboration connection failed: {}", exc)
         with suppress(RuntimeError, OSError):
-            await websocket.close(code=1012)
+            await client.send(control_message({"type": "error", "message": str(exc)}))
+            await websocket.close(code=1011)
+    finally:
+        room.clients.discard(client)
+        if client.awareness_ids:
+            room.awareness.remove_awareness_states(list(client.awareness_ids), client)
+            await hub.broadcast(
+                room,
+                create_awareness_message(
+                    room.awareness.encode_awareness_update(list(client.awareness_ids))
+                ),
+            )
+        if not room.clients:
+            async with chapter_lock(chapter_id):
+                if not room.clients and hub.rooms.get(name) is room:
+                    hub.rooms.pop(name, None)
