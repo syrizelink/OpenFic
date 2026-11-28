@@ -132,6 +132,26 @@ async def test_fetches_html_and_extracts_markdown(monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("content_type", ["text/plain", "text/markdown"])
+@respx.mock
+async def test_fetches_text_without_modifying_content(
+    monkeypatch: pytest.MonkeyPatch, content_type: str,
+) -> None:
+    monkeypatch.setattr(service, "resolve_public_addresses", _allow_public_host)
+    content = "# 标题\n\n原文 <tag> & 内容\n\n- 列表\n"
+    respx.get("https://example.com/document").mock(
+        return_value=Response(
+            200, content=content.encode(), headers={"content-type": f"{content_type}; charset=utf-8"}
+        )
+    )
+
+    result = json.loads(await _make_tool().ainvoke({"url": "https://example.com/document"}))
+
+    assert result["content"] == content
+    assert result["content_type"] == content_type
+
+
+@pytest.mark.asyncio
 @respx.mock
 async def test_follows_valid_redirect_and_reports_final_url(
     monkeypatch: pytest.MonkeyPatch,
