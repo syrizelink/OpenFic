@@ -218,6 +218,7 @@ async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Pat
 
     assert [provider.provider_type for provider in providers] == [
         "infistar",
+        "martllm",
         "nvidia-ai-endpoints",
         "ollama",
         "openai",

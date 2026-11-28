@@ -26,6 +26,7 @@ from app.models.adapters.openai_responses_compatible import OpenAIResponsesCompa
 from app.models.adapters.openrouter import OpenRouterAdapter
 from app.models.adapters.opper import OpperAdapter
 from app.models.adapters.requesty import RequestyAdapter
+from app.models.adapters.martllm import MartLLMAdapter
 
 __all__ = [
     "BaseAdapter",
@@ -47,5 +48,6 @@ __all__ = [
     "OpenRouterAdapter",
     "OpperAdapter",
     "RequestyAdapter",
+    "MartLLMAdapter",
 ]
 

@@ -44,7 +44,7 @@ class ModelProvider(SQLModel, table=True):
         description=(
             "Provider type: anthropic, openai, google-genai, ollama, groq, "
             "huggingface, mistral, nvidia-ai-endpoints, cohere, openrouter, requesty, "
-            "opper, amazon-nova, deepseek, openai-compatible, "
+            "opper, martllm, amazon-nova, deepseek, openai-compatible, "
             "openai-compatible-responses, gemini-compatible"
         ),
     )

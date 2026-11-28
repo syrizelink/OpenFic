@@ -85,6 +85,17 @@ _LOCAL_PROVIDERS: tuple[dict[str, Any], ...] = (
         "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
         "models": [],
     },
+    {
+        "provider_type": "martllm",
+        "display_name": "MartLLM",
+        "default_url": "https://api.martllm.com/v1",
+        "api": "https://api.martllm.com/v1",
+        "icon_path": "/icons/model/catalog/martllm.svg",
+        "models_dev_provider_id": None,
+        "supported_task_types": ["llm"],
+        "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
+        "models": [],
+    },
 )
 _EMBEDDING_FAMILIES = {
     "text-embedding",

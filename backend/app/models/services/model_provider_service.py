@@ -71,6 +71,8 @@ def _get_model_discovery_provider_type(provider_type: str) -> str:
         return "requesty"
     if provider_type == "opper":
         return "opper"
+    if provider_type == "martllm":
+        return "martllm"
     return "openai-compatible"
 
 

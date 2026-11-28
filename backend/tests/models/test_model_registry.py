@@ -33,6 +33,7 @@ def test_registry_lists_only_current_first_class_provider_types() -> None:
         "openrouter",
         "requesty",
         "opper",
+        "martllm",
         "amazon-nova",
         "deepseek",
         "openai-compatible",
