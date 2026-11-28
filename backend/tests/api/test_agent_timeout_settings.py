@@ -94,7 +94,7 @@ async def test_saved_timeouts_control_openai_model_and_stream(client: AsyncClien
         assert connected.is_set()
     finally:
         server.close()
-        await server.wait_closed()
         for task in list(handlers):
             task.cancel()
         await asyncio.gather(*handlers, return_exceptions=True)
+        await server.wait_closed()

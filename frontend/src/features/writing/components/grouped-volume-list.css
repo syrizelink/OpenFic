@@ -35,6 +35,15 @@
   background: var(--gray-a8);
 }
 
+.chapter-list-item-content {
+  min-width: 0;
+  padding: 12px 18px;
+}
+
+.chapter-list-item-content[data-select-mode="true"] {
+  padding-left: var(--space-4);
+}
+
 .chapter-list-item-row::after {
   content: "";
   position: absolute;

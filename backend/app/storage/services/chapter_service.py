@@ -10,16 +10,19 @@ from typing import Literal
 
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
 
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.memory.chapter.sequence import global_order_index
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
+from app.storage.models.writing_activity_event import WritingActivityEvent
 from app.storage.repos import (
     chapter_repo,
     chapter_summary_repo,
     project_repo,
+    retrieval_chapter_index_state_repo,
     volume_repo,
 )
 from app.storage.services import writing_activity_service
@@ -657,6 +660,96 @@ async def delete_chapters_in_volume(session: AsyncSession, volume_id: str) -> No
             new_word_count=0,
         )
     await _update_project_stats(session, project_id)
+
+
+async def batch_chapters(
+    session: AsyncSession,
+    project_id: str,
+    chapter_ids: list[str],
+    *,
+    target_volume_id: str | None = None,
+) -> None:
+    """批量删除章节，或将其按项目顺序追加到目标卷。"""
+    if not chapter_ids or len(set(chapter_ids)) != len(chapter_ids):
+        raise ValueError("章节列表为空或包含重复项")
+    project_chapters = await chapter_repo.list_metadata_by_project(session, project_id)
+    selected_ids = set(chapter_ids)
+    chapters = [chapter for chapter in project_chapters if chapter.id in selected_ids]
+    if len(chapters) != len(selected_ids):
+        raise NotFoundError("章节不存在或不属于该项目")
+    volumes = await volume_repo.list_by_project(session, project_id)
+    if target_volume_id is not None and not any(v.id == target_volume_id for v in volumes):
+        raise NotFoundError("目标卷不存在或不属于该项目")
+
+    if target_volume_id is not None:
+        chapters = [chapter for chapter in chapters if chapter.volume_id != target_volume_id]
+        if not chapters:
+            return
+        selected_ids = {chapter.id for chapter in chapters}
+
+    affected_volumes = {chapter.volume_id for chapter in chapters}
+    events = [
+        WritingActivityEvent(
+            project_id=project_id,
+            chapter_id=chapter.id,
+            chapter_title=chapter.title,
+            source="user",
+            operation="move_to_volume" if target_volume_id else "delete",
+            old_word_count=chapter.word_count,
+            new_word_count=chapter.word_count if target_volume_id else 0,
+            word_delta=0 if target_volume_id else -chapter.word_count,
+        )
+        for chapter in chapters
+    ]
+    from app.retrieval.chapter_index import chapter_document_id, chapter_index_key
+    from app.retrieval.index_status import schedule_emit_index_status
+
+    index_key = chapter_index_key(project_id)
+    if target_volume_id is None:
+        global_orders = global_order_index(project_chapters, volumes)
+        await chapter_summary_repo.delete_by_chapter_ids(session, list(selected_ids))
+        await chapter_summary_repo.delete_long_term_summaries_from_order(
+            session, project_id, min(global_orders[chapter.id] for chapter in chapters)
+        )
+        await retrieval_chapter_index_state_repo.delete_by_chapter_ids(session, list(selected_ids))
+        from app.retrieval.chapter_index import ChapterIndexIntegrationService
+
+        try:
+            await ChapterIndexIntegrationService().retrieval_service.delete_documents(
+                session, index_key, [chapter_document_id(chapter.id) for chapter in chapters]
+            )
+        except Exception as exc:
+            logger.bind(project_id=project_id).warning(f"delete retrieval chapter documents failed: {exc}")
+        await chapter_repo.delete_by_ids(session, list(selected_ids))
+    else:
+        start_order = max(
+            (chapter.order for chapter in project_chapters if chapter.volume_id == target_volume_id),
+            default=0,
+        )
+        await chapter_repo.move_batch(session, [chapter.id for chapter in chapters], target_volume_id, start_order)
+        await retrieval_chapter_index_state_repo.mark_chapters_stale(
+            session, project_id, index_key, list(selected_ids)
+        )
+        affected_volumes.add(target_volume_id)
+        from app.retrieval.chapter_index import safe_maybe_enqueue_auto_index
+
+        await safe_maybe_enqueue_auto_index(session, project_id=project_id)
+
+    for volume_id in affected_volumes:
+        if volume_id == target_volume_id:
+            continue
+        remaining = [
+            chapter for chapter in project_chapters
+            if chapter.volume_id == volume_id and chapter.id not in selected_ids
+        ]
+        orders = {chapter.id: index for index, chapter in enumerate(remaining, 1) if chapter.order != index}
+        await chapter_repo.update_orders(session, orders)
+    session.add_all(events)
+    await session.flush()
+    for volume_id in affected_volumes:
+        await _update_volume_stats(session, volume_id)
+    await _update_project_stats(session, project_id)
+    schedule_emit_index_status(session, project_id)
 
 
 async def reorder_chapters(

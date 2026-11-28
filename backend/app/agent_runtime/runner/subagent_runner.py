@@ -4,6 +4,7 @@ import inspect
 import asyncio
 import time
 from datetime import UTC, datetime
+from uuid import uuid4
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -474,6 +475,11 @@ class SubagentRunner:
             )
         finally:
             await _close_session(session)
+        from app.plugins.runtime import plugin_tool_names_for_agent
+
+        names.extend(
+            plugin_tool_names_for_agent(getattr(definition, "metadata", None))
+        )
         return ToolRegistry.get_tools(
             names=names,
             state=runtime_state,
@@ -536,6 +542,15 @@ class SubagentRunner:
                 inherited_config=model_config,
                 configured_reasoning_effort=definition.reasoning_effort,
             )
+            from app.plugins.runtime import dispatch as plugin_dispatch
+            event = await plugin_dispatch("agent.spawn", {"agent":row.agent_key,"agentId":row.child_thread_id,
+                                                         "projectId":self.project_id}, session,
+                                          runtime=runtime_state)
+            if event.get("deny"):
+                raise PermissionError(str(event["deny"]))
+            if event.get("model"):
+                from app.api.routers.agent_runtime import _resolve_model_config
+                model_config = await _resolve_model_config(session,event["model"])
         finally:
             await _close_session(session)
         runtime_state["model_config"] = model_config
@@ -937,6 +952,18 @@ class SubagentRunner:
             finally:
                 await _close_session(session)
 
+            from app.plugins.runtime import observe
+
+            await observe("usage.recorded", {
+                **delta_payload, "event_id": uuid4().hex,
+                "session_id": row.child_thread_id,
+                "parent_session_id": row.parent_session_id,
+                "project_id": self.project_id,
+                "revision_id": row.parent_revision_id,
+                "is_subagent": True, "model_id": payload.get("model_id"),
+                "usage_kind": payload.get("usage_kind", "model"),
+                "currency": "USD", "created_at": datetime.now(UTC).isoformat(),
+            })
             await emit(
                 "agent:task_usage_delta",
                 delta_payload,

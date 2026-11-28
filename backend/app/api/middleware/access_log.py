@@ -15,6 +15,13 @@ from starlette.responses import Response
 logging.getLogger("uvicorn.access").disabled = True
 
 
+def redact_plugin_asset_path(path: str) -> str:
+    if path.startswith("/plugin-assets/"):
+        parts = path.split("/", 3)
+        return "/plugin-assets/[ticket]/" + (parts[3] if len(parts) > 3 else "")
+    return path
+
+
 class AccessLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         started_at = time.perf_counter()
@@ -25,7 +32,9 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             duration_ms = (time.perf_counter() - started_at) * 1000
             self._log_request(request, 500, duration_ms)
             logger.opt(exception=True).debug(
-                "request failed: {} {}", request.method, request.url.path
+                "request failed: {} {}",
+                request.method,
+                redact_plugin_asset_path(request.url.path),
             )
             raise
 
@@ -36,7 +45,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
     def _log_request(
         self, request: Request, status_code: int, duration_ms: float
     ) -> None:
-        path = request.url.path
+        path = redact_plugin_asset_path(request.url.path)
         access_logger = logger.bind(
             method=request.method,
             path=path,
@@ -51,7 +60,8 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
                 )
             )
         _log_at_level(
-            access_logger, status_code,
+            access_logger,
+            status_code,
             format_access_log(request.method, path, status_code, duration_ms),
         )
 

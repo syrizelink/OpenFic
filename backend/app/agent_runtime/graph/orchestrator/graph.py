@@ -57,18 +57,26 @@ async def _primary_tool_names(
     referenced_skill_ids: tuple[str, ...] = (),
     allow_runtime_skill_references: bool = False,
 ) -> list[str]:
+    from app.plugins.runtime import plugin_tool_names_for_agent
+
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
     if db_session is None:
         names = list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
-        return [*names, *SKILL_TOOL_NAMES] if allow_runtime_skill_references else names
+        if allow_runtime_skill_references:
+            names.extend(SKILL_TOOL_NAMES)
+        return names
     definition = await load_agent_definition(db_session, agent_key)
-    return list(get_tool_names_for_categories(definition.enabled_tool_categories)) + list(
-        await skill_tool_names_for_definition(
-            definition,
-            db_session,
-            referenced_skill_ids=referenced_skill_ids,
-            allow_runtime_skill_references=allow_runtime_skill_references,
+    return (
+        plugin_tool_names_for_agent(getattr(definition, "metadata", None))
+        + list(get_tool_names_for_categories(definition.enabled_tool_categories))
+        + list(
+            await skill_tool_names_for_definition(
+                definition,
+                db_session,
+                referenced_skill_ids=referenced_skill_ids,
+                allow_runtime_skill_references=allow_runtime_skill_references,
+            )
         )
     )
 
@@ -127,10 +135,25 @@ async def _primary_build_hooks(
     ]
 
 
-async def _primary_messages(state: OrchestratorState) -> list[BaseMessage]:
+async def _primary_messages(state: OrchestratorState, session=None) -> list[BaseMessage]:
     messages = list(state.get("messages") or [])
     user_request = state.get("user_request") or ""
     attachments = state.get("user_attachments") or []
+    if user_request:
+        from app.plugins.runtime import dispatch, expand_quotes
+        user_request, quotes = expand_quotes(user_request)
+        if quotes and "<of-mention" in user_request:
+            from app.agent_runtime.context.helpers.canonical_mentions import compile_canonical_mentions
+            user_request = await compile_canonical_mentions(user_request, session)
+        rewritten = await dispatch("prompt.submit", {"text": user_request, "context": [], "quotes": quotes,
+                                                       "projectId": state.get("project_id")},
+                                    session, runtime=dict(state))
+        if rewritten.get("drop"):
+            raise PermissionError(str(rewritten["drop"]))
+        user_request = rewritten.get("text", user_request)
+        if rewritten.get("context"):
+            from langchain_core.messages import SystemMessage
+            messages.append(SystemMessage(content="\n".join(str(c) for c in rewritten["context"])))
     if user_request or attachments:
         messages.append(
             HumanMessage(
@@ -161,6 +184,19 @@ async def primary_node(
         client_model_config.update(asdict(await load_agent_timeout_settings(db_session)))
     model_config = ModelConfig(**client_model_config)
     model = create_chat_model(model_config)
+    from app.plugins.runtime import dispatch as plugin_dispatch, selected_graph
+    db_session = configurable.get("db_session")
+    plugin_event = {"sessionId": state.get("session_id"), "projectId": state.get("project_id")}
+    await plugin_dispatch("turn.start", plugin_event, db_session, runtime=dict(state))
+    custom_graph = await selected_graph(state, config, model)
+    if custom_graph is not None:
+        await custom_graph.ainvoke(
+            {"messages": await _primary_messages(state, db_session), "iteration_count": 0,
+             "is_done": False, "final_output": None},
+            config=build_child_config(config, dict(state)),
+        )
+        await plugin_dispatch("turn.complete", plugin_event, db_session, runtime=dict(state))
+        return {"is_completed": True, "active_agent": state.get("agent_key", "build")}
     agent_key = state.get("agent_key", "build")
     referenced_skill_ids = _primary_referenced_skill_ids(state)
     inject_queue = get_inject_queue(config)
@@ -206,7 +242,7 @@ async def primary_node(
     effective_state["referenced_skill_ids"] = list(referenced_skill_ids)
     await react_graph.ainvoke(
         {
-            "messages": await _primary_messages(state),
+            "messages": await _primary_messages(state, db_session),
             "iteration_count": 0,
             "is_done": False,
             "final_output": None,
@@ -214,6 +250,7 @@ async def primary_node(
         config=build_child_config(config, effective_state),
     )
 
+    await plugin_dispatch("turn.complete", plugin_event, db_session, runtime=effective_state)
     return {"is_completed": True, "active_agent": agent_key}
 
 

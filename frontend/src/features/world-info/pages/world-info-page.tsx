@@ -707,6 +707,7 @@ export function WorldInfoPage() {
       key={selectedEntry.id}
       entry={selectedEntry}
       worldInfoId={currentWorldInfoId!}
+      projectId={currentProjectId ?? undefined}
       entries={entries}
       scrollToLine={scrollToLine}
       onScrollComplete={handleScrollComplete}

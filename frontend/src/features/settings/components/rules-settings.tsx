@@ -24,7 +24,7 @@ import {
   type ContextMenuPosition,
 } from "@/components/context-menu";
 import { SimpleSelect } from "@/components/select";
-import { toast } from "@/components/toast";
+import { showErrorToast, toast } from "@/components/toast";
 import type {
   AgentRule,
   AgentRuleCreate,
@@ -233,9 +233,9 @@ export function RulesSettings({
       queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       queryClient.invalidateQueries({ queryKey: ["agent-rule-scopes"] });
       setSelectedRuleId(createdRule.id);
-      toast.success(t("settingsExtra.rules.newRule"));
+      toast.success(t("settingsExtra.rules.created"));
     },
-    onError: () => toast.error(t("common.error")),
+    onError: (error) => showErrorToast(t("settingsExtra.rules.createFailed"), error),
   });
 
   const updateMutation = useMutation({
@@ -249,8 +249,9 @@ export function RulesSettings({
           items: current.items.map((item) => (item.id === updatedRule.id ? updatedRule : item)),
         };
       });
+      toast.success(t("settingsExtra.rules.saved"));
     },
-    onError: () => toast.error(t("settings.saveFailed")),
+    onError: (error) => showErrorToast(t("settingsExtra.rules.saveFailed"), error),
   });
 
   const deleteMutation = useMutation({
@@ -260,9 +261,9 @@ export function RulesSettings({
       queryClient.invalidateQueries({ queryKey: ["agent-rule-scopes"] });
       setDeleteDialogOpen(false);
       setContextMenuRuleId(null);
-      toast.success(t("common.delete"));
+      toast.success(t("settingsExtra.rules.deleted"));
     },
-    onError: () => toast.error(t("common.error")),
+    onError: (error) => showErrorToast(t("settingsExtra.rules.deleteFailed"), error),
   });
 
   const copyMutation = useMutation({
@@ -292,7 +293,7 @@ export function RulesSettings({
       setContextMenuRuleId(null);
       toast.success(t("settingsExtra.rules.copySuccess"));
     },
-    onError: () => toast.error(t("common.error")),
+    onError: (error) => showErrorToast(t("settingsExtra.rules.copyFailed"), error),
   });
 
   const handleCreate = useCallback(() => {
@@ -804,6 +805,8 @@ function RuleEditor({ rule, onSave, isAgentSettingsLocked }: RuleEditorProps) {
     try {
       await onSave(rule.id, form);
       setLastSaved(currentJson);
+    } catch {
+      return;
     } finally {
       setIsSaving(false);
     }

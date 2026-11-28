@@ -78,6 +78,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
     llmConnectTimeout: raw.llm_connect_timeout ?? 10,
+    agentProcessDisplayMode: raw.agent_process_display_mode ?? "standard",
     llmChunkTimeout: raw.llm_chunk_timeout ?? 120,
     llmRequestTimeout: raw.llm_request_timeout ?? 600,
     autoCompactContext: raw.auto_compact_context ?? true,
@@ -119,11 +120,27 @@ export async function fetchAgentTools(): Promise<AgentToolMetadata[]> {
     Array<{
       key: string;
       is_readonly: boolean;
+      display_name?: string;
+      category?: string;
+      description?: string;
+      plugin_id?: string;
+      plugin_name?: string;
+      title?: string;
+      icon?: string;
+      detail?: string;
     }>
   >("/agent/tools");
   return response.data.map((tool) => ({
     key: tool.key,
     isReadonly: tool.is_readonly,
+    displayName: tool.display_name,
+    category: tool.category,
+    description: tool.description,
+    pluginId: tool.plugin_id,
+    pluginName: tool.plugin_name,
+    title: tool.title,
+    icon: tool.icon,
+    detail: tool.detail,
   }));
 }
 

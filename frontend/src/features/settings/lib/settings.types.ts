@@ -14,6 +14,7 @@ export type { ThemeMode } from "@/lib/theme";
 export type LanguageCode = "zh-CN" | "en";
 
 export type AgentToolPermissionMode = "allow" | "ask" | "deny";
+export type AgentProcessDisplayMode = "standard" | "detailed";
 
 export interface AgentToolPermission {
   toolName: string;
@@ -23,6 +24,14 @@ export interface AgentToolPermission {
 export interface AgentToolMetadata {
   key: string;
   isReadonly: boolean;
+  displayName?: string;
+  category?: string;
+  description?: string;
+  pluginId?: string;
+  pluginName?: string;
+  title?: string;
+  icon?: string;
+  detail?: string;
 }
 
 /** 设置数据 */
@@ -69,6 +78,7 @@ export interface Settings {
   auditPersistDetails: boolean;
   compressSystemPrompts: boolean;
   llmConnectTimeout: number;
+  agentProcessDisplayMode: AgentProcessDisplayMode;
   llmChunkTimeout: number;
   llmRequestTimeout: number;
   autoCompactContext: boolean;
@@ -135,6 +145,7 @@ export interface SettingsResponse {
   audit_persist_details: boolean;
   compress_system_prompts: boolean;
   llm_connect_timeout: number;
+  agent_process_display_mode: AgentProcessDisplayMode;
   llm_chunk_timeout: number;
   llm_request_timeout: number;
   auto_compact_context: boolean;
@@ -202,6 +213,7 @@ export interface SettingsUpdateRequest {
   audit_persist_details?: boolean;
   compress_system_prompts?: boolean;
   llm_connect_timeout?: number;
+  agent_process_display_mode?: AgentProcessDisplayMode;
   llm_chunk_timeout?: number;
   llm_request_timeout?: number;
   auto_compact_context?: boolean;

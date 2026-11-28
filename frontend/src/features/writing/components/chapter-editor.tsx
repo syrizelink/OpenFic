@@ -15,6 +15,12 @@ import {
   buildChapterMentionTag,
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { EditorPluginActions } from "@/features/plugins/editor-plugin-actions";
+import {
+  registerPluginEditor,
+  publishLocalEvent,
+  hasEditorEventConsumers,
+} from "@/features/plugins/frontend-host";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
@@ -386,6 +392,67 @@ function ChapterEditorContent({
   }, [title]);
 
   useEffect(() => {
+    if (!editor) return;
+    const read = () => ({
+      kind: "chapter" as const,
+      id: chapter.id,
+      projectId: chapter.projectId,
+      title: titleRef.current,
+      content: editor.getText({ blockSeparator: "\n" }),
+      locked: isAgentLocked,
+      selection: {
+        from: editor.state.selection.from,
+        to: editor.state.selection.to,
+        text: editor.state.doc.textBetween(
+          editor.state.selection.from,
+          editor.state.selection.to,
+          "\n",
+        ),
+      },
+    });
+    const dispose = registerPluginEditor({
+      read,
+      run: async (action, params) => {
+        if (isAgentLocked) throw new Error("Editor is locked");
+        const text = String(params.text ?? "");
+        if (text.length > MAX_EDITOR_CONTENT_CHARACTERS)
+          throw new Error("Editor content exceeds limit");
+        if (action === "save") {
+          await handleSave(true);
+          return null;
+        }
+        if (action === "focus") editor.commands.focus();
+        else if (action === "undo") editor.commands.undo();
+        else if (action === "redo") editor.commands.redo();
+        else if (action === "setSelection")
+          editor.commands.setTextSelection({ from: Number(params.from), to: Number(params.to) });
+        else if (action === "setContent") editor.commands.setContent(newlinesToHtml(text));
+        else if (action === "insert" || action === "replaceSelection") {
+          if (text) {
+            editor.commands.insertContent(
+              /[\r\n]/.test(text) ? newlinesToHtml(text) : { type: "text", text },
+            );
+          }
+        } else throw new Error(`Unsupported editor action: ${action}`);
+        return read();
+      },
+    });
+    const changed = () => {
+      if (hasEditorEventConsumers()) publishLocalEvent("editor.change", read());
+    };
+    const selectionChanged = () => {
+      if (hasEditorEventConsumers()) publishLocalEvent("editor.selection", read().selection);
+    };
+    editor.on("update", changed);
+    editor.on("selectionUpdate", selectionChanged);
+    return () => {
+      dispose();
+      editor.off("update", changed);
+      editor.off("selectionUpdate", selectionChanged);
+    };
+  }, [editor, chapter.id, chapter.projectId, isAgentLocked, handleSave]);
+
+  useEffect(() => {
     const handleManualSave = () => {
       void handleSave(true);
     };
@@ -638,6 +705,12 @@ function ChapterEditorContent({
         onOpenFind={openFind}
         onOpenReplace={openReplace}
         showChapterTools
+        toolbarActions={(placement) => (
+          <EditorPluginActions
+            placement={placement}
+            context={{ projectId: chapter.projectId, chapterId: chapter.id, kind: "chapter" }}
+          />
+        )}
       />
 
       <AnimatePresence>
@@ -683,6 +756,10 @@ function ChapterEditorContent({
           <Box
             py="5"
             ref={editorContentRef}
+            data-plugin-selection-source="chapter"
+            data-plugin-selection-id={chapter.id}
+            data-plugin-selection-project={chapter.projectId}
+            data-plugin-editor-context-menu={!isAgentLocked ? "true" : undefined}
           >
             <EditorContent
               editor={editor}

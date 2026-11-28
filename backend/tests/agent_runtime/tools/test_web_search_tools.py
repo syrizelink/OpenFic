@@ -80,6 +80,7 @@ class TestProviderRegistry:
             "searxng",
             "serper",
             "tavily",
+            "youcom",
             "zhipu",
         }
 
@@ -122,6 +123,8 @@ class TestProviderRegistry:
         ]
         assert by_name["keenable"]["requires_api_key"] is False
         assert by_name["keenable"]["fields"] == []
+        assert by_name["youcom"]["requires_api_key"] is False
+        assert by_name["youcom"]["fields"] == []
         assert by_name["searxng"]["requires_api_key"] is False
         assert by_name["zhipu"]["requires_api_key"] is True
 
@@ -544,6 +547,57 @@ class TestHttpProviders:
         request = route.calls[0].request
         assert request.headers["x-api-key"] == "test-key"
         assert request.headers["x-keenable-title"] == "OpenFic"
+        assert response.results == []
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_youcom_keyless_uses_agents_endpoint(self) -> None:
+        provider = get_provider("youcom")()
+        route = respx.post("https://api.you.com/v1/agents/search").mock(
+            return_value=Response(
+                200,
+                json={
+                    "results": {
+                        "web": [
+                            {
+                                "title": "t",
+                                "url": "https://u",
+                                "description": "line one\n\nline   two " + "x" * 400,
+                            }
+                        ]
+                    }
+                },
+            )
+        )
+        response = await provider.search(
+            "q", _provider_config(api_key="", max_results=5)
+        )
+        assert route.called
+        request = route.calls[0].request
+        assert request.headers["user-agent"] == (
+            "youdotcom-integration/syrizelink-openfic"
+        )
+        assert "x-api-key" not in request.headers
+        assert json.loads(request.content) == {"query": "q", "count": 5}
+        assert response.results[0].url == "https://u"
+        assert response.results[0].snippet.startswith("line one line two x")
+        assert len(response.results[0].snippet) == 300
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_youcom_with_api_key_uses_keyed_endpoint(self) -> None:
+        provider = get_provider("youcom")()
+        route = respx.post("https://ydc-index.io/v1/search").mock(
+            return_value=Response(200, json={"results": {"web": []}})
+        )
+        response = await provider.search("q", _provider_config())
+        assert route.called
+        request = route.calls[0].request
+        assert request.headers["x-api-key"] == "test-key"
+        assert request.headers["user-agent"] == (
+            "youdotcom-integration/syrizelink-openfic"
+        )
+        assert json.loads(request.content) == {"query": "q", "count": 8}
         assert response.results == []
 
     @pytest.mark.asyncio

@@ -62,6 +62,7 @@ _PROVIDER_DEFINITIONS: tuple[_ProviderDefinition, ...] = (
     _ProviderDefinition("cohere", "cohere"),
     _ProviderDefinition("openrouter", "openrouter"),
     _ProviderDefinition("requesty", "requesty"),
+    _ProviderDefinition("opper", "opper"),
     _ProviderDefinition("amazon-nova", "nova"),
     _ProviderDefinition("deepseek", "deepseek"),
 )

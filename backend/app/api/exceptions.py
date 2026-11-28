@@ -10,6 +10,8 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from app.api.middleware.access_log import redact_plugin_asset_path
+
 from app.core.errors import (
     ConflictError,
     NotFoundError,
@@ -32,7 +34,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理资源不存在错误。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -45,7 +47,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理项目已绑定世界书错误。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -58,7 +60,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理资源冲突错误。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -71,7 +73,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理值错误（通常是无效参数）。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -84,7 +86,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理其他 OpenFic 领域错误。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -97,7 +99,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """处理显式抛出的 HTTPException，记录 DEBUG 堆栈。"""
         logger.opt(exception=True).debug(
-            "request failed: {} {}", request.method, request.url.path
+            "request failed: {} {}", request.method, redact_plugin_asset_path(request.url.path)
         )
         return JSONResponse(
             status_code=exc.status_code,

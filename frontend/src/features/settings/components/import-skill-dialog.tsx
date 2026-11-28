@@ -62,7 +62,7 @@ export function ImportSkillDialog({
         onImported(importResult.skill);
         setStep("complete");
       } catch {
-        setError(t("settingsExtra.skills.importDialog.readFailed"));
+        setError(t("settingsExtra.skills.importDialog.importFailed"));
       } finally {
         setLoading(false);
       }

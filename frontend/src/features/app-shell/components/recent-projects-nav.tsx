@@ -13,6 +13,8 @@ interface RecentProjectsNavProps {
   ariaLabel: string;
   closeLabel: string;
   onRemove: (slot: number) => void;
+  onNavigate?: () => void;
+  atStart?: boolean;
 }
 
 interface RecentProjectNavItemProps {
@@ -21,6 +23,7 @@ interface RecentProjectNavItemProps {
   isExpanded: boolean;
   closeLabel: string;
   onRemove: (slot: number) => void;
+  onNavigate?: () => void;
 }
 
 function RecentProjectNavItem({
@@ -29,6 +32,7 @@ function RecentProjectNavItem({
   isExpanded,
   closeLabel,
   onRemove,
+  onNavigate,
 }: RecentProjectNavItemProps) {
   const link = (
     <Link
@@ -36,6 +40,7 @@ function RecentProjectNavItem({
       aria-label={project.title}
       aria-current={isActive ? "page" : undefined}
       className="app-sidebar-recent-project__link"
+      onClick={onNavigate}
     >
       <span
         aria-hidden="true"
@@ -91,6 +96,8 @@ export function RecentProjectsNav({
   ariaLabel,
   closeLabel,
   onRemove,
+  onNavigate,
+  atStart,
 }: RecentProjectsNavProps) {
   if (projects.length === 0) return null;
 
@@ -98,6 +105,7 @@ export function RecentProjectsNav({
     <nav
       aria-label={ariaLabel}
       className="app-sidebar-recent-projects"
+      data-at-start={atStart || undefined}
     >
       {projects.map((project) => (
         <RecentProjectNavItem
@@ -107,6 +115,7 @@ export function RecentProjectsNav({
           isExpanded={isExpanded}
           closeLabel={closeLabel}
           onRemove={onRemove}
+          onNavigate={onNavigate}
         />
       ))}
     </nav>

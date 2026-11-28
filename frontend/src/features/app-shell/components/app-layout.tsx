@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Outlet } from "react-router";
 
 import type { AssistantSidebarHandle } from "@/features/assistant";
+import { PluginOverlays } from "@/features/plugins/plugin-overlays";
+import { PluginRuntime } from "@/features/plugins/plugin-runtime";
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
 import type { ThemeMode, ThemeSettings } from "@/lib/theme";
@@ -105,6 +107,18 @@ export function AppLayout({
     assistantSidebarRef.current?.appendToComposer(markup);
   }, []);
 
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail.event === "assistant.fill") {
+        setIsAssistantSidebarOpen(true);
+        window.setTimeout(() => appendToAssistant(detail.data.text), 100);
+      }
+    };
+    window.addEventListener("openfic:plugin-event", listener);
+    return () => window.removeEventListener("openfic:plugin-event", listener);
+  }, [appendToAssistant]);
+
   const openAssistantSidebar = useCallback(() => setIsAssistantSidebarOpen(true), []);
   const closeAssistantSidebar = useCallback(() => setIsAssistantSidebarOpen(false), []);
 
@@ -184,6 +198,8 @@ export function AppLayout({
 
   return (
     <AppShellContext.Provider value={contextValue}>
+      <PluginRuntime />
+      <PluginOverlays />
       <div className="app-layout-root">
         <div className="app-layout-body">
           <AppSidebar

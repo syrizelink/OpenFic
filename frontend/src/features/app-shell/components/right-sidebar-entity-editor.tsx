@@ -19,6 +19,7 @@ export type SidebarEntityKind = "chapter" | "character" | "world_info_entry";
 interface SidebarEntityEditorProps {
   kind: SidebarEntityKind;
   entityId: string;
+  projectId: string;
   isAgentLocked: boolean;
   onTitleChange: (title: string) => void;
   onAddToConversation: (markup: string) => void;
@@ -85,6 +86,7 @@ function SidebarCharacterEditor({
 
 function SidebarWorldInfoEditor({
   entityId,
+  projectId,
   isAgentLocked,
   onTitleChange,
 }: SidebarEntityEditorProps) {
@@ -121,6 +123,7 @@ function SidebarWorldInfoEditor({
       key={entityId}
       entry={query.data}
       worldInfoId={query.data.worldInfoId}
+      projectId={projectId}
       entries={entriesQuery.data.items}
       isAgentLocked={isAgentLocked}
       canSave={() => !lockRef.current}

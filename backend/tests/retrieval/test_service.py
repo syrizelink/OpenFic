@@ -704,6 +704,14 @@ async def test_delete_document_removes_rows(
 
 
 @pytest.mark.asyncio
+async def test_delete_document_ignores_missing_index(session: AsyncSession) -> None:
+    service = OpenFicRetrievalService()
+
+    await service.delete_document(session, "missing-index", "chapter-1")
+    await service.delete_documents(session, "missing-index", ["chapter-1", "chapter-2"])
+
+
+@pytest.mark.asyncio
 async def test_delete_document_ignores_missing_table(
     session: AsyncSession, tmp_path: Path
 ) -> None:

@@ -2,6 +2,7 @@ import {
   Mic,
   Brain,
   Bell,
+  Blocks,
   Bot,
   Cable,
   Database,
@@ -12,6 +13,7 @@ import {
   Timer,
   Palette,
   Package,
+  PencilSparkles,
   Summary as SummaryIcon,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -35,10 +37,12 @@ export type SettingsCategory =
   | "summary"
   | "agent-tools"
   | "web-search"
+  | "quick-prompts"
   | "rules"
   | "skills"
   | "agents"
-  | "advanced";
+  | "advanced"
+  | "plugins";
 
 interface SettingsCategoryItem {
   id: SettingsCategory;
@@ -110,6 +114,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
   },
   { id: "audio", icon: <Mic size={16} />, labelKey: "speech.title" },
   {
+    id: "quick-prompts",
+    icon: <PencilSparkles size={16} />,
+    labelKey: "settingsExtra.quickPrompts.title",
+  },
+  {
     id: "rules",
     icon: <FileText size={16} />,
     labelKey: "settings.rules",
@@ -128,6 +137,12 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "tunnels",
     icon: <Network size={16} />,
     labelKey: "settings.tunnels",
+    badgeKey: "settings.experimental",
+  },
+  {
+    id: "plugins",
+    icon: <Blocks size={16} />,
+    labelKey: "plugins.management",
     badgeKey: "settings.experimental",
   },
   {

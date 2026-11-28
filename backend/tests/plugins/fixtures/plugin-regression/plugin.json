@@ -1,0 +1,35 @@
+{
+  "id": "regression-probe",
+  "name": "Regression observer",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.py",
+  "resources": [
+    "panel"
+  ],
+  "capabilities": [
+    "ui",
+    "ui.overlay",
+    "editor.read",
+    "editor.write",
+    "agent.hooks"
+  ],
+  "views": [
+    {
+      "id": "editor",
+      "title": "Regression probe",
+      "slot": "editor.toolbar",
+      "renderer": "declarative",
+      "presentation": "action",
+      "action": "open"
+    },
+    {
+      "id": "editor-panel",
+      "title": "Regression probe",
+      "entry": "panel/index.html",
+      "slot": "app.overlay",
+      "presentation": "popover",
+      "height": 80
+    }
+  ]
+}

@@ -58,6 +58,7 @@ import {
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
 import { appendLog, exportLogs } from "./logging.js";
+import { isExternalWebUrl } from "./external-links.js";
 import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
 import { isDesktopInstanceAppearance, isDownloadSourcePreference, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
@@ -395,6 +396,11 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.logFrontendDiagnostic, (_event, request: LogFrontendDiagnosticRequest) => {
     if (typeof request?.message !== "string") return;
     appendLog("connect", request.message.slice(0, 4_000));
+  });
+
+  ipcMain.handle(IpcChannels.openExternalLink, async (_event, url: unknown) => {
+    if (typeof url !== "string" || !isExternalWebUrl(url)) throw new Error("无效的外部链接");
+    await shell.openExternal(url);
   });
 
   ipcMain.on(IpcChannels.reportError, (_event, payload: ReportErrorPayload) => {

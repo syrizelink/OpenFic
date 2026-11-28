@@ -250,8 +250,8 @@ def test_postgresql_1028_offline_sql_executes_like_online_upgrade_and_downgrade(
 
 
 @pytest.mark.parametrize("database", ["sqlite", "postgresql"])
-def test_published_schema_upgrades_to_head_and_keeps_existing_data(tmp_path, database):
-    database_url = f"sqlite:///{tmp_path / 'published.db'}"
+def test_published_schema_upgrades_to_head_and_keeps_existing_data(database):
+    database_url = "sqlite:///:memory:"
     if database == "postgresql":
         database_url = os.getenv("OPENFIC_TEST_DATABASE_URL", "")
         if not database_url.startswith("postgresql"):
@@ -292,7 +292,7 @@ def test_published_schema_upgrades_to_head_and_keeps_existing_data(tmp_path, dat
                 for table_name in ("revisions", "commits", "agent_audit_logs")
             }
             command.upgrade(config, "head")
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1029"
+            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1030"
             assert connection.execute(text(
                 "SELECT response_content, has_details, detail_bytes FROM agent_audit_logs WHERE id='published-audit'"
             )).one() == (detail, True, len(detail.encode("utf-8")))

@@ -19,6 +19,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -136,10 +137,20 @@ export function RightSidebarTabs(props: RightSidebarTabsProps) {
     previousActiveIdRef.current = props.activeId;
   }, [props.activeId, props.tabs, revealActiveTab]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const list = listRef.current;
     if (!list) return;
     const updateOverflow = () => {
+      const style = getComputedStyle(list);
+      const tabs = Array.from(list.children);
+      const gap = parseFloat(style.columnGap) || 0;
+      const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const width = Math.ceil(
+        tabs.reduce((total, tab) => total + tab.getBoundingClientRect().width, 0) +
+          Math.max(0, tabs.length - 1) * gap +
+          padding,
+      );
+      if (list.style.width !== `${width}px`) list.style.width = `${width}px`;
       list.toggleAttribute("data-overflow-left", list.scrollLeft > 1);
       list.toggleAttribute(
         "data-overflow-right",

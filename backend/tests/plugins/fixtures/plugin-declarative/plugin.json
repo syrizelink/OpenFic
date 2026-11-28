@@ -1,0 +1,41 @@
+{
+  "id": "declarative-test",
+  "name": "Declarative UI fixture",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.py",
+  "resources": [
+    "panel"
+  ],
+  "capabilities": [
+    "ui",
+    "storage"
+  ],
+  "views": [
+    {
+      "id": "native",
+      "title": "Native controls",
+      "renderer": "declarative",
+      "render": "ui.render",
+      "action": "ui.action"
+    },
+    {
+      "id": "local",
+      "title": "Local controls",
+      "renderer": "declarative",
+      "render": "ui.render"
+    },
+    {
+      "id": "status",
+      "title": "Status",
+      "slot": "statusbar",
+      "presentation": "none",
+      "status": "ui.status"
+    },
+    {
+      "id": "legacy",
+      "title": "Legacy iframe",
+      "entry": "panel/index.html"
+    }
+  ]
+}

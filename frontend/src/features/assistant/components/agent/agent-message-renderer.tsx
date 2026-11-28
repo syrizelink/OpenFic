@@ -39,7 +39,7 @@ const messageComponentMap: Partial<
   agent_output: AgentOutputMessage,
 };
 
-function AgentMessageRendererView({
+function AgentMessageRendererContent({
   message,
   nodeStartedAt,
   nodeEndedAt,
@@ -87,6 +87,18 @@ function AgentMessageRendererView({
       message={message}
       onAbort={onAbortRetry}
     />
+  );
+}
+
+function AgentMessageRendererView(props: AgentMessageRendererProps) {
+  return (
+    <div
+      className="agent-selection-source"
+      data-plugin-selection-source="agent-message"
+      data-plugin-selection-id={props.message.id}
+    >
+      <AgentMessageRendererContent {...props} />
+    </div>
   );
 }
 

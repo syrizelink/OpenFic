@@ -73,9 +73,9 @@
 }
 
 .agent-message-block:hover .agent-message-block-toolbar,
-.agent-message-block:focus-within .agent-message-block-toolbar,
+.agent-message-block:has(:focus-visible) .agent-message-block-toolbar,
 .agent-message-block-stack:hover .agent-message-block-toolbar,
-.agent-message-block-stack:focus-within .agent-message-block-toolbar {
+.agent-message-block-stack:has(:focus-visible) .agent-message-block-toolbar {
   opacity: 1;
   pointer-events: auto;
 }
@@ -288,4 +288,7 @@
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
+}
+.agent-selection-source {
+  display: contents;
 }

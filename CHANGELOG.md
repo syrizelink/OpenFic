@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.14.0](https://github.com/syrizelink/OpenFic/compare/v0.13.0...v0.14.0) (2026-11-27)
+
+
+### ✨ 新功能
+
+* **plugins:** 新增实验性的插件系统 ([#504](https://github.com/syrizelink/OpenFic/issues/504)) ([799b383](https://github.com/syrizelink/OpenFic/commit/799b3833794780351b20b8bb4179cdba1506f1db))
+* 新增基于引用的快捷提示词功能 ([#511](https://github.com/syrizelink/OpenFic/issues/511)) ([e98ef58](https://github.com/syrizelink/OpenFic/commit/e98ef58033f9292ca9deaf11c851475a0fcba1fc))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 Anthropic 模型输出被截断在 4096 导致工具参数缺失的问题 ([#485](https://github.com/syrizelink/OpenFic/issues/485)) ([479a0ea](https://github.com/syrizelink/OpenFic/commit/479a0ea1ab0b8b8f62b4c65485f26b44f84780f0))
+* **backend:** 对使用 OpenAI Compatible 提供商的 Gemini 端点回传 thought_signature ([#487](https://github.com/syrizelink/OpenFic/issues/487)) ([539335a](https://github.com/syrizelink/OpenFic/commit/539335a851348fcd2a41a1cfdf73c09dac76fde4))
+* **desktop:** 修复桌面版无法打开并跳转外部链接的问题 ([#497](https://github.com/syrizelink/OpenFic/issues/497)) ([de3573e](https://github.com/syrizelink/OpenFic/commit/de3573eb90aaf88c6fb4f03a84ec81fa350b5c69))
+* **frontend:** 修复模型列表和选择器中标签位置错误的问题 ([#506](https://github.com/syrizelink/OpenFic/issues/506)) ([20743e3](https://github.com/syrizelink/OpenFic/commit/20743e33105d0f0ee800b3497c4c128c92dfa7a0))
+* **frontend:** 补充缺失的插件权限本地化映射文案 ([#508](https://github.com/syrizelink/OpenFic/issues/508)) ([c624def](https://github.com/syrizelink/OpenFic/commit/c624defc4a633ea06c6b8e5e744f2e8f79e4a232))
+* **mobile:** 修复安卓端麦克风无法录音的问题 ([#510](https://github.com/syrizelink/OpenFic/issues/510)) ([2b55403](https://github.com/syrizelink/OpenFic/commit/2b55403fa2caa699881b51732e3820201c5a812f))
+* **skills:** 修复新建和删除技能时的错误 ([#507](https://github.com/syrizelink/OpenFic/issues/507)) ([654f5ca](https://github.com/syrizelink/OpenFic/commit/654f5ca28ff38b3d81a7c273c1934ef877cb4155))
+
+
+### ⚡ 性能优化
+
+* **agent:** 减少 Agent 输入框快速输入时的重复渲染 ([#512](https://github.com/syrizelink/OpenFic/issues/512)) ([d14d5bf](https://github.com/syrizelink/OpenFic/commit/d14d5bf4b4d4e644315d4299947ef1aab84bc1b9))
+
+
+### 🔧 杂项
+
+* **agent:** 支持 Keenable 联网搜索 ([#488](https://github.com/syrizelink/OpenFic/issues/488)) ([6d7c2e0](https://github.com/syrizelink/OpenFic/commit/6d7c2e09ee33998b1b6a86ddaedafcc444d34d46))
+* **agent:** 重构 Agent 运行过程的折叠展示逻辑 ([#500](https://github.com/syrizelink/OpenFic/issues/500)) ([bd84618](https://github.com/syrizelink/OpenFic/commit/bd84618d7aafdc7ea60d0b8cfd9178b55391848b))
+* **frontend:** 允许 Max Tokens 元数据使用内置模型目录默认值 ([#496](https://github.com/syrizelink/OpenFic/issues/496)) ([947ef8b](https://github.com/syrizelink/OpenFic/commit/947ef8b22283afb5ac2b48d01b1ca5be687c85f9))
+* **frontend:** 调整编辑器和右侧边栏多标签页交互 ([#494](https://github.com/syrizelink/OpenFic/issues/494)) ([508d907](https://github.com/syrizelink/OpenFic/commit/508d907f23611a97400f47de48a50f24486bfafb))
+* **provider:** 添加 Opper 提供商 ([#459](https://github.com/syrizelink/OpenFic/issues/459)) ([63b0664](https://github.com/syrizelink/OpenFic/commit/63b06645b701287cd5e45a7dca876ad29cb6cac7))
+* **search:** 支持 you.com 联网搜索 ([#503](https://github.com/syrizelink/OpenFic/issues/503)) ([b19d2aa](https://github.com/syrizelink/OpenFic/commit/b19d2aaaa943d58afda7a5758707bcfe1d831dfe))
+* 允许多选章节以进行批量操作 ([#505](https://github.com/syrizelink/OpenFic/issues/505)) ([f332e15](https://github.com/syrizelink/OpenFic/commit/f332e15b0ef7096c272843dae969ec9cd36563cc))
+
 ## [0.13.0](https://github.com/syrizelink/OpenFic/compare/v0.12.1...v0.13.0) (2026-10-28)
 
 

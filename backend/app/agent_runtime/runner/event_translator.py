@@ -86,7 +86,15 @@ class EventTranslator:
             }
 
         if kind == "on_tool_end":
-            output = self._normalize_tool_output(event.get("data", {}).get("output"))
+            from app.agent_runtime.tools.errors import ToolResult
+
+            raw_output = event.get("data", {}).get("output")
+            output = self._normalize_tool_output(raw_output)
+            display = (
+                raw_output.payload.get("_openfic_plugin_tool")
+                if isinstance(raw_output, ToolResult)
+                else None
+            )
             tool_call_id = self._extract_tool_call_id(event) or (
                 output.get("tool_call_id") if isinstance(output, dict) else None
             )
@@ -99,6 +107,7 @@ class EventTranslator:
                     "tool": event.get("name"),
                     "input": event.get("data", {}).get("input"),
                     "output": output,
+                    **({"plugin_tool_display": display} if isinstance(display, dict) else {}),
                 },
             }
 

@@ -71,11 +71,12 @@ import {
   SYSTEM_DEFAULT_MODEL_REFERENCE,
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
-import { fetchSettings } from "../lib/settings-api";
+import { fetchAgentTools, fetchSettings } from "../lib/settings-api";
 import { AgentBrandingPicker } from "./agent-branding-picker";
 import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 
 import "./agent-definitions-settings.css";
+import { PluginSourceInfo } from "./plugin-source-info";
 
 const LIST_WIDTH = 280;
 const SUBAGENT_RESTRICTED_TOOL_CATEGORIES = new Set(["orchestration", "interaction"]);
@@ -173,6 +174,40 @@ function AgentForm({
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
   ]);
+  const [formPluginTools, setFormPluginTools] = useState<string[] | null>(null);
+  const { data: availableTools = [] } = useQuery({
+    queryKey: ["agent-tools"],
+    queryFn: fetchAgentTools,
+    staleTime: 0,
+  });
+  const pluginTools = availableTools.filter((tool) => tool.key.startsWith("plugin_"));
+  const pluginCategories = Array.from(
+    pluginTools.reduce((groups, tool) => {
+      if (tool.category) {
+        const group = groups.get(tool.category) ?? {
+          toolKeys: [],
+          sources: new Map<string, string>(),
+        };
+        group.toolKeys.push(tool.key);
+        if (tool.pluginId && tool.pluginName) group.sources.set(tool.pluginId, tool.pluginName);
+        groups.set(tool.category, group);
+      }
+      return groups;
+    }, new Map<string, { toolKeys: string[]; sources: Map<string, string> }>()),
+    ([name, group]) => ({
+      name,
+      toolKeys: group.toolKeys,
+      sources: Array.from(group.sources.values()),
+    }),
+  );
+  const configuredPluginTools = def.metadata.plugin_tools;
+  const initialPluginTools = Array.isArray(configuredPluginTools)
+    ? configuredPluginTools.filter((item): item is string => typeof item === "string")
+    : [];
+  const selectedPluginTools = formPluginTools ?? initialPluginTools;
+  const pluginToolsChanged =
+    formPluginTools !== null &&
+    JSON.stringify(formPluginTools) !== JSON.stringify(initialPluginTools);
   const [formEnabledSkills, setFormEnabledSkills] = useState<string[]>([...def.enabled_skills]);
   const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
     ...def.delegatable_agents,
@@ -211,6 +246,7 @@ function AgentForm({
       (hasDedicatedModel && formReasoningEffort !== (def.reasoning_effort ?? "medium")) ||
       JSON.stringify(formEnabledToolCategories) !==
         JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
+      pluginToolsChanged ||
       JSON.stringify(formEnabledSkills) !== JSON.stringify(def.enabled_skills) ||
       JSON.stringify(formDelegatableAgents) !== JSON.stringify(def.delegatable_agents)
     );
@@ -224,6 +260,7 @@ function AgentForm({
     formModelId,
     formReasoningEffort,
     formEnabledToolCategories,
+    pluginToolsChanged,
     formEnabledSkills,
     formDelegatableAgents,
   ]);
@@ -255,6 +292,9 @@ function AgentForm({
           formKind,
           formEnabledToolCategories,
         ),
+        ...(pluginToolsChanged
+          ? { metadata: { ...def.metadata, plugin_tools: selectedPluginTools } }
+          : {}),
         enabled_skills: formEnabledSkills,
         delegatable_agents: isPrimary ? formDelegatableAgents : [],
       });
@@ -310,6 +350,14 @@ function AgentForm({
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
   }, []);
+
+  const handleTogglePluginCategory = (keys: string[], checked: boolean) => {
+    setFormPluginTools(
+      checked
+        ? [...new Set([...selectedPluginTools, ...keys])]
+        : selectedPluginTools.filter((item) => !keys.includes(item)),
+    );
+  };
 
   const handleToggleEnabledSkill = useCallback((skillId: string) => {
     setFormEnabledSkills((prev) =>
@@ -479,7 +527,7 @@ function AgentForm({
         >
           {t("settings.agentsToolCategories")}
         </Text>
-        {selectableToolCategoryOptions.length === 0 ? (
+        {selectableToolCategoryOptions.length === 0 && pluginCategories.length === 0 ? (
           <Text
             size="2"
             color="gray"
@@ -494,16 +542,8 @@ function AgentForm({
             {selectableToolCategoryOptions.map((opt) => (
               <label
                 key={opt.key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  border: "1px solid var(--gray-a5)",
-                  cursor: isAgentSettingsLocked ? "not-allowed" : "pointer",
-                  fontSize: "var(--font-size-md)",
-                }}
+                className="agent-definition-tool-option"
+                data-disabled={isAgentSettingsLocked || undefined}
               >
                 <Checkbox
                   checked={formEnabledToolCategories.includes(opt.key)}
@@ -513,6 +553,31 @@ function AgentForm({
                 />
                 {opt.name}
               </label>
+            ))}
+            {pluginCategories.map((category) => (
+              <div
+                key={`plugin-category:${category.name}`}
+                className="agent-definition-tool-option"
+                data-disabled={isAgentSettingsLocked || undefined}
+              >
+                <label className="agent-definition-tool-option-label">
+                  <Checkbox
+                    checked={
+                      category.toolKeys.every((key) => selectedPluginTools.includes(key))
+                        ? true
+                        : category.toolKeys.some((key) => selectedPluginTools.includes(key))
+                          ? "indeterminate"
+                          : false
+                    }
+                    disabled={isAgentSettingsLocked}
+                    onCheckedChange={(checked) =>
+                      handleTogglePluginCategory(category.toolKeys, checked === true)
+                    }
+                  />
+                  {category.name}
+                </label>
+                <PluginSourceInfo names={category.sources} />
+              </div>
             ))}
           </Flex>
         )}

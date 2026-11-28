@@ -41,6 +41,35 @@ export const apiClient = axios.create({
   },
 });
 
+export interface QuickPrompt {
+  id: string;
+  command: string;
+  content: string;
+  scope: "global" | "project";
+  project_id: string | null;
+}
+
+export async function fetchQuickPrompts(projectId?: string): Promise<QuickPrompt[]> {
+  const response = await apiClient.get<QuickPrompt[]>("/quick-prompts", {
+    params: projectId ? { project_id: projectId } : undefined,
+  });
+  return response.data;
+}
+
+export async function saveQuickPrompt(
+  prompt: Omit<QuickPrompt, "id">,
+  id?: string,
+): Promise<QuickPrompt> {
+  const response = id
+    ? await apiClient.put<QuickPrompt>(`/quick-prompts/${id}`, prompt)
+    : await apiClient.post<QuickPrompt>("/quick-prompts", prompt);
+  return response.data;
+}
+
+export async function deleteQuickPrompt(id: string): Promise<void> {
+  await apiClient.delete(`/quick-prompts/${id}`);
+}
+
 let isAuthenticationRedirecting = false;
 
 export function handleAuthenticationFailure(): void {
@@ -62,6 +91,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
     if (error.response?.status === 401 && !isAuthenticationRequest(error.config?.url)) {
       handleAuthenticationFailure();
     }
@@ -594,8 +624,11 @@ function transformSkillReferenceDoc(raw: Record<string, unknown>): SkillReferenc
   };
 }
 
-export async function fetchSkillReferenceDocs(skillDbId: string): Promise<SkillReferenceDoc[]> {
-  const response = await apiClient.get(`/skills/${skillDbId}/reference-docs`);
+export async function fetchSkillReferenceDocs(
+  skillDbId: string,
+  signal?: AbortSignal,
+): Promise<SkillReferenceDoc[]> {
+  const response = await apiClient.get(`/skills/${skillDbId}/reference-docs`, { signal });
   return (response.data as Record<string, unknown>[]).map(transformSkillReferenceDoc);
 }
 
@@ -1028,6 +1061,21 @@ export async function updateChapter(chapterId: string, data: ChapterUpdate): Pro
  */
 export async function deleteChapter(chapterId: string): Promise<void> {
   await apiClient.delete(`/chapters/${chapterId}`);
+}
+
+export async function deleteChapters(projectId: string, chapterIds: string[]): Promise<void> {
+  await apiClient.post(`/projects/${projectId}/chapters/batch-delete`, { chapter_ids: chapterIds });
+}
+
+export async function moveChaptersToVolume(
+  projectId: string,
+  chapterIds: string[],
+  volumeId: string,
+): Promise<void> {
+  await apiClient.post(`/projects/${projectId}/chapters/batch-move`, {
+    chapter_ids: chapterIds,
+    volume_id: volumeId,
+  });
 }
 
 /**

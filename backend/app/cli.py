@@ -434,6 +434,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     migrate_parser.set_defaults(handler=handle_db_migrate)
 
+    plugin_parser = subparsers.add_parser("plugin", help="插件检查与打包")
+    plugin_commands = plugin_parser.add_subparsers(dest="plugin_command", required=True)
+    def plugin_handler(args):
+        from app.plugin_cli import handle_plugin
+        return handle_plugin(args)
+    for name in ("check", "pack"):
+        command = plugin_commands.add_parser(name)
+        command.add_argument("source", help="插件源码目录（check 也支持 ZIP）")
+        command.add_argument("--ui", action="append", default=[], help="额外声明式 UI JSON fixture")
+        command.add_argument("--run-checks", action="store_true", help="执行项目 lint/type-check 脚本和 Ruff；不会自动安装依赖")
+        command.add_argument("--strict", action="store_true", help="将诊断警告和未执行的检查视为失败")
+        command.add_argument("--json", action="store_true", help="输出机器可读诊断")
+        if name == "pack":
+            command.add_argument("--output", required=True, help="输出 ZIP 路径")
+        command.set_defaults(handler=plugin_handler)
     return parser
 
 

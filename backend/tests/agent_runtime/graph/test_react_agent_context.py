@@ -1,7 +1,9 @@
 import asyncio
+import json
 from collections import deque
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+from urllib.parse import quote
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -870,6 +872,38 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
         isinstance(message, HumanMessage) and message.content == "补充要求"
         for message in observed_messages
     )
+
+
+def test_injected_quote_is_expanded_before_model_call() -> None:
+    config = ReactAgentConfig(
+        name="writer", tools=[_NoopTool()],
+        termination=TerminationCondition(mode="no_tool_call"), max_iterations=1,
+    )
+    quote_data = {"text": "正文", "prompt": "分析", "pluginId": "quote-test", "source": {"kind": "chapter"}}
+    metadata = {key: value for key, value in quote_data.items() if key != "text"}
+    encoded = quote(json.dumps(metadata, ensure_ascii=False))
+    markup = f'<of-mention kind="selection" label="引用" plugin_data="{encoded}">正文</of-mention>'
+    queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
+    queue.put_nowait(("pending", "user", markup))
+    observed = []
+
+    async def invoke(_model, messages, **_kwargs):
+        observed.extend(messages)
+        return AIMessage(content="done")
+
+    host = SimpleNamespace(plugins={"quote-test": SimpleNamespace(enabled=True, registration=SimpleNamespace(hooks={}))})
+    with patch("app.plugins.host.active_host", return_value=host), patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=invoke
+    ):
+        model = Mock()
+        model.bind_tools.return_value = model
+        graph = create_react_agent(config, model=model, inject_queue=queue)
+        asyncio.run(graph.ainvoke(
+            {"messages": [HumanMessage(content="initial")], "iteration_count": 0, "is_done": False, "final_output": None},
+            config={"configurable": {"inject_message_consumed_sink": AsyncMock(return_value=True)}},
+        ))
+    expected = "分析\n\n@selection:引用\n```\n正文\n```\n"
+    assert any(isinstance(message, HumanMessage) and message.content == expected for message in observed)
 
 
 def test_resumption_prompt_is_model_only_and_not_graph_history() -> None:

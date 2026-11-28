@@ -198,7 +198,7 @@ def test_handle_serve_sets_auth_password_environment(monkeypatch) -> None:
 @pytest.fixture(scope="module")
 def cli_database_template(tmp_path_factory):
     """Reuse the empty schema without sharing connections or mutable test data."""
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine, event
     from sqlmodel import SQLModel
     from tests.model_registry import register_sqlmodel_models
 
@@ -208,6 +208,7 @@ def cli_database_template(tmp_path_factory):
         "model_providers", "model_provider_oauth_registrations",
     )]
     engine = create_engine(f"sqlite:///{path}")
+    event.listen(engine, "connect", lambda conn, _: conn.execute("PRAGMA synchronous=OFF"))
     try:
         with engine.begin() as connection:
             SQLModel.metadata.create_all(connection, tables=required_tables)
@@ -220,7 +221,7 @@ def cli_database_template(tmp_path_factory):
 @pytest.mark.parametrize("connected", [False, True])
 @pytest.mark.parametrize("reauthorize", [False, True])
 @pytest.mark.parametrize("first_exchange_fails", [False, True])
-def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch, tmp_path, cli_database_template, reauthorize, first_exchange_fails, missing_scope, connected):
+def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch, tmp_path, cli_database_template, fast_checkpoint_sqlite, reauthorize, first_exchange_fails, missing_scope, connected):
     import app.models.services.openai_codex_service as plan
     from app.storage import database
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -360,7 +361,7 @@ def test_openai_codex_cli_auth_keeps_callback_path_and_registration(monkeypatch,
 
 @pytest.mark.parametrize("imported_refresh", ["rotated", "old"])
 @pytest.mark.parametrize("concurrent_rotation", [False, True])
-def test_cli_import_preserves_existing_rotated_credentials(monkeypatch, tmp_path, cli_database_template, imported_refresh, concurrent_rotation):
+def test_cli_import_preserves_existing_rotated_credentials(monkeypatch, tmp_path, cli_database_template, fast_checkpoint_sqlite, imported_refresh, concurrent_rotation):
     from dataclasses import replace
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from app.core.encryption import EncryptionService
@@ -405,28 +406,36 @@ def test_cli_import_preserves_existing_rotated_credentials(monkeypatch, tmp_path
     args = cli.build_parser().parse_args(["openai-codex", "import", "--input", str(source)])
     child = None
     if concurrent_rotation:
+        import hashlib
+        import json
         import subprocess
 
+        key = hashlib.sha256(json.dumps([plan.OPENAI_CODEX_ISSUER, credentials.client_id, credentials.subject]).encode()).hexdigest()
+        lock_dir = tmp_path / "openai-codex-locks"
+        lock_dir.mkdir(exist_ok=True)
         script = '''
-import asyncio
-from pathlib import Path
+import os
 import sqlite3
 import sys
-import app.models.services.openai_codex_service as plan
-
-async def main():
-    plan.BACKEND_DATA_DIR = Path(sys.argv[1])
-    async with plan.openai_codex_credential_lock("oaiapp_import", "subject"):
-        print("locked", flush=True)
-        encrypted = await asyncio.to_thread(sys.stdin.readline)
-        with sqlite3.connect(plan.BACKEND_DATA_DIR / "cli.db") as connection:
-            connection.execute("UPDATE model_providers SET credentials_encrypted=? WHERE id=?",
-                (encrypted.strip(), "import-provider"))
-
-asyncio.run(main())
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+try:
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    print("locked", flush=True)
+    encrypted = sys.stdin.readline().strip()
+    with sqlite3.connect(sys.argv[2]) as connection:
+        connection.execute("PRAGMA synchronous=OFF")
+        connection.execute("UPDATE model_providers SET credentials_encrypted=? WHERE id=?",
+            (encrypted, "import-provider"))
+finally:
+    os.close(fd)
 '''
         child = subprocess.Popen(
-            ["uv", "run", "python", "-c", script, str(tmp_path)],
+            ["uv", "run", "python", "-c", script, str(lock_dir / f"{key}.lock"), str(tmp_path / "cli.db")],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
         assert child.stdout.readline() == "locked\n"

@@ -1,5 +1,6 @@
 import time
 from dataclasses import dataclass, field
+from uuid import UUID
 
 import socketio  # type: ignore[import-untyped]
 from loguru import logger
@@ -43,6 +44,11 @@ class ConnectionState:
 
 
 _state = ConnectionState()
+PLUGIN_INSTALL_ROOM_PREFIX = "plugins:install:"
+PLUGIN_INSTALL_PROGRESS_EVENT = "plugins:install-progress"
+PLUGIN_LOGS_ROOM = "plugins:logs"
+PLUGIN_LOGS_EVENT = "plugins:logs-changed"
+plugin_install_snapshots: dict[UUID, dict[str, str | int] | None] = {}
 
 
 def get_connection_state() -> ConnectionState:
@@ -86,6 +92,33 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
     @sio.on("heartbeat")
     async def heartbeat(sid: str, data: dict | None = None) -> None:
         _state.on_heartbeat()
+
+    @sio.on("plugins:watch-logs")
+    async def watch_plugin_logs(sid: str, enabled: object = None) -> None:
+        if enabled is True:
+            await sio.enter_room(sid, PLUGIN_LOGS_ROOM)
+        elif enabled is False:
+            await sio.leave_room(sid, PLUGIN_LOGS_ROOM)
+
+    @sio.on("plugins:watch-install")
+    async def watch_plugin_install(sid: str, operation: object = None) -> None:
+        operation_id = None
+        if operation is not None:
+            if not isinstance(operation, str) or len(operation) != 36:
+                return
+            try:
+                operation_id = UUID(operation)
+            except ValueError:
+                return
+        room = f"{PLUGIN_INSTALL_ROOM_PREFIX}{operation_id}" if operation_id else None
+        for previous in sio.rooms(sid):
+            if previous.startswith(PLUGIN_INSTALL_ROOM_PREFIX) and previous != room:
+                await sio.leave_room(sid, previous)
+        if room and operation_id:
+            await sio.enter_room(sid, room)
+            snapshot = plugin_install_snapshots.get(operation_id)
+            if snapshot is not None:
+                await sio.emit(PLUGIN_INSTALL_PROGRESS_EVENT, snapshot, to=sid)
 
     @sio.on("agent:join")
     async def agent_join(sid: str, data: dict | None = None) -> None:
@@ -136,7 +169,10 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         if not isinstance(child_thread_id, str) or not child_thread_id:
             await sio.emit(
                 "agent:error",
-                {"type": "invalid_child_thread", "reason": "child_thread_id is required"},
+                {
+                    "type": "invalid_child_thread",
+                    "reason": "child_thread_id is required",
+                },
                 to=sid,
             )
             return

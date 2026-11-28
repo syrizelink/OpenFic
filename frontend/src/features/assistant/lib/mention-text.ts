@@ -12,7 +12,8 @@ export type AssistantMentionKind =
   | "note"
   | "note_category"
   | "world_info_entry"
-  | "character";
+  | "character"
+  | "selection";
 
 export interface AssistantMentionToken {
   markup: "mention";
@@ -20,6 +21,13 @@ export interface AssistantMentionToken {
   kind: AssistantMentionKind;
   attrs: Record<string, string>;
   body: string;
+}
+
+export interface AssistantPluginQuote {
+  pluginId: string;
+  prompt: string;
+  source: { kind: string; id?: string; projectId?: string };
+  target: { projectId: string; tabId: string; taskId: string | null };
 }
 
 export type AssistantMarkupSegment = string | AssistantMentionToken | AssistantCommandToken;
@@ -30,6 +38,7 @@ const MARKUP_RE =
 const ATTR_RE = /([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"/g;
 
 function inferMentionKind(attrs: Record<string, string>): AssistantMentionKind {
+  if (attrs.kind === "selection") return "selection";
   if (attrs.volume_id?.trim()) return "volume";
   if (attrs.chapter_id?.trim()) return "chapter";
   if (attrs.note_id?.trim()) return "note";
@@ -334,6 +343,48 @@ export function buildLineRangeMentionTag({
     `<of-mention chapter_id="${escapeMentionAttribute(chapterId)}" line_start="${startLine}" ` +
     `line_end="${endLine}" label="${escapeMentionAttribute(label)}">${escapeMentionEntities(snapshotText)}</of-mention>`
   );
+}
+
+export function buildSelectionMentionTag(text: string, quote: AssistantPluginQuote): string {
+  const label = `引用：${text.replace(/\s+/g, " ").slice(0, 40)}`;
+  const chapter =
+    quote.source.kind === "chapter" && quote.source.id
+      ? ` chapter_id="${escapeMentionAttribute(quote.source.id)}"`
+      : "";
+  return `<of-mention kind="selection" label="${escapeMentionAttribute(label)}"${chapter} plugin_data="${encodeURIComponent(JSON.stringify(quote))}">${escapeMentionEntities(text)}</of-mention>`;
+}
+
+export function getMentionPluginQuote(token: AssistantMentionToken): AssistantPluginQuote | null {
+  if (token.kind !== "selection" || !token.attrs.plugin_data) return null;
+  try {
+    const value: unknown = JSON.parse(decodeURIComponent(token.attrs.plugin_data));
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("pluginId" in value) ||
+      typeof value.pluginId !== "string" ||
+      !("prompt" in value) ||
+      typeof value.prompt !== "string" ||
+      !("source" in value) ||
+      !value.source ||
+      typeof value.source !== "object" ||
+      !("kind" in value.source) ||
+      typeof value.source.kind !== "string" ||
+      !("target" in value) ||
+      !value.target ||
+      typeof value.target !== "object" ||
+      !("projectId" in value.target) ||
+      typeof value.target.projectId !== "string" ||
+      !("tabId" in value.target) ||
+      typeof value.target.tabId !== "string" ||
+      !("taskId" in value.target) ||
+      (typeof value.target.taskId !== "string" && value.target.taskId !== null)
+    )
+      return null;
+    return value as AssistantPluginQuote;
+  } catch {
+    return null;
+  }
 }
 
 export function appendMentionMarkup(currentText: string, mentionMarkup: string): string {

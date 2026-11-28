@@ -834,16 +834,26 @@ async def _launch_continuation_task_replacing_current(
         raise RuntimeError("failed to replace current agent task")
 
 
-@router.get("/tools", response_model=list[AgentToolMetadataResponse])
+@router.get("/tools", response_model=list[AgentToolMetadataResponse], response_model_exclude_none=True)
 async def list_agent_tools() -> list[AgentToolMetadataResponse]:
+    from app.plugins.agent_tool import PluginAgentTool
+
     items_by_key: dict[str, AgentToolMetadataResponse] = {}
 
     for tool in ToolRegistry.get_tools(state={"session_id": "", "project_id": ""}):
-        if tool.name not in TOOL_DISPLAY_ORDER:
+        if tool.name not in TOOL_DISPLAY_ORDER and not tool.name.startswith("plugin_"):
             continue
         items_by_key[tool.name] = AgentToolMetadataResponse(
             key=tool.name,
             is_readonly=tool.access_level == "readonly",
+            display_name=tool.display_name if isinstance(tool, PluginAgentTool) else None,
+            category=tool.category if isinstance(tool, PluginAgentTool) else None,
+            description=tool.description if isinstance(tool, PluginAgentTool) else None,
+            plugin_id=tool.plugin_id if isinstance(tool, PluginAgentTool) else None,
+            plugin_name=tool.host.get(tool.plugin_id).manifest.name if isinstance(tool, PluginAgentTool) else None,
+            title=tool.title if isinstance(tool, PluginAgentTool) else None,
+            icon=tool.icon if isinstance(tool, PluginAgentTool) else None,
+            detail=tool.message_detail if isinstance(tool, PluginAgentTool) else None,
         )
 
     return sorted(items_by_key.values(), key=lambda item: TOOL_DISPLAY_ORDER.get(item.key, 999))
@@ -896,6 +906,10 @@ async def create_agent_session(
         )
         _SESSION_RUNNERS[session_id] = runner
         await session.commit()
+        from app.plugins.runtime import dispatch as plugin_dispatch
+        await plugin_dispatch("session.start", {"sessionId":session_id, "projectId":request.project_id}, session,
+                              runtime={"session_id":session_id,"project_id":request.project_id,
+                                       "task_id":task.id,"model_config":model_config})
         return AgentSessionCreateResponse(
             session_id=session_id,
             project_id=request.project_id,
@@ -2059,6 +2073,12 @@ async def cancel_agent_session(
             request_task = asyncio.current_task()
             if request_task is not None and request_task.cancelling():
                 raise
+    from app.plugins.runtime import dispatch as plugin_dispatch
+    try:
+        await plugin_dispatch("session.end", {"sessionId":session_id,"projectId":runner.project_id,"reason":"cancel"}, session,
+                              runtime={"session_id":session_id,"project_id":runner.project_id})
+    except Exception as error:
+        logger.warning("Plugin session.end handler failed: {}", error)
     return AgentCancelResponse(
         success=True,
         session_id=session_id,

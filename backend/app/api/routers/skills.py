@@ -62,6 +62,7 @@ async def create_skill(
             summary=data.summary,
             content=data.content,
             is_enabled=data.is_enabled,
+            allow_incomplete=True,
         )
         return _to_response(skill)
     except skill_service.SkillValidationError as exc:

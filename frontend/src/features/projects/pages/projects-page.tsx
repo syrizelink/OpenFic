@@ -1,10 +1,9 @@
+import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
 /**
  * ProjectsPage Component
  *
  * 项目列表主页面，整合所有项目管理功能。
  */
-
-import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";

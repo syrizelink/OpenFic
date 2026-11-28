@@ -4,6 +4,7 @@ import { BarChart3, BookOpenText, ListTree } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Tabs } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 
@@ -190,54 +191,49 @@ export function DashboardPage() {
             <h1 className="dashboard-title">{t("dashboard.title")}</h1>
           </div>
         </header>
-
-        <nav
-          className="dashboard-tab-nav"
-          role="tablist"
-          aria-label={t("dashboard.navLabel")}
+        <Tabs.Root
+          className="dashboard-tabs"
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as DashboardTab)}
         >
-          {tabs.map((tab) => {
-            const TabIcon = tab.icon;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                className="dashboard-tab-button"
-                data-active={activeTab === tab.value}
-                role="tab"
-                aria-selected={activeTab === tab.value}
-                onClick={() => setActiveTab(tab.value)}
-              >
-                <TabIcon
-                  size={16}
-                  className="dashboard-tab-icon"
-                  aria-hidden="true"
-                />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {isWritingTab ? (
-          <WritingDashboardTab
-            heroData={writingHeroData}
-            yearsData={writingYearsData}
-            detailData={writingDetailData}
-            isDetailLoading={isWritingDetailFetching}
-            selectedYear={writingYear}
-            onSelectedYearChange={setWritingYear}
-            filtersSlot={filters}
-          />
-        ) : null}
-        {isLlmTab ? (
-          <LlmDashboardTab
-            data={llmStatsData}
-            isLoading={isLlmStatsFetching}
-          />
-        ) : null}
-        {isRecordsTab ? (
-          <>
+          <Tabs.List aria-label={t("dashboard.navLabel")}>
+            {tabs.map((tab) => {
+              const TabIcon = tab.icon;
+              return (
+                <Tabs.Trigger
+                  key={tab.value}
+                  value={tab.value}
+                >
+                  <TabIcon
+                    size={16}
+                    aria-hidden="true"
+                  />
+                  {tab.label}
+                </Tabs.Trigger>
+              );
+            })}
+          </Tabs.List>
+          <Tabs.Content value="writing">
+            <WritingDashboardTab
+              heroData={writingHeroData}
+              yearsData={writingYearsData}
+              detailData={writingDetailData}
+              isDetailLoading={isWritingDetailFetching}
+              selectedYear={writingYear}
+              onSelectedYearChange={setWritingYear}
+              filtersSlot={filters}
+            />
+          </Tabs.Content>
+          <Tabs.Content value="llm">
+            <LlmDashboardTab
+              data={llmStatsData}
+              isLoading={isLlmStatsFetching}
+            />
+          </Tabs.Content>
+          <Tabs.Content
+            value="records"
+            className="dashboard-records-content"
+          >
             {filters}
             <DashboardRecordsTab
               data={llmRecordsData}
@@ -246,8 +242,8 @@ export function DashboardPage() {
               isLoading={isLlmRecordsFetching}
               updateQuery={updateLlmQuery}
             />
-          </>
-        ) : null}
+          </Tabs.Content>
+        </Tabs.Root>
       </div>
     </Box>
   );

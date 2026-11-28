@@ -15,6 +15,7 @@ from app.agent_runtime.tools.impls.web_search.providers.perplexity import (
 from app.agent_runtime.tools.impls.web_search.providers.searxng import SearxngProvider
 from app.agent_runtime.tools.impls.web_search.providers.serper import SerperProvider
 from app.agent_runtime.tools.impls.web_search.providers.tavily import TavilyProvider
+from app.agent_runtime.tools.impls.web_search.providers.youcom import YouComProvider
 from app.agent_runtime.tools.impls.web_search.providers.zhipu import ZhipuProvider
 
 PROVIDERS: dict[str, type[WebSearchProvider]] = {
@@ -30,6 +31,7 @@ PROVIDERS: dict[str, type[WebSearchProvider]] = {
         SearxngProvider,
         SerperProvider,
         TavilyProvider,
+        YouComProvider,
         ZhipuProvider,
     )
 }
@@ -51,7 +53,7 @@ ZHIPU_SEARCH_ENGINES = (
 )
 
 PROVIDER_REQUIRES_API_KEY: frozenset[str] = frozenset(
-    name for name in PROVIDERS if name not in {"ddgs", "keenable", "searxng"}
+    name for name in PROVIDERS if name not in {"ddgs", "keenable", "searxng", "youcom"}
 )
 
 DDGS_BACKENDS = (
@@ -76,6 +78,7 @@ _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], .
     "searxng": (("searxng_base_url", "text", True, ()),),
     "serper": (),
     "tavily": (),
+    "youcom": (),
     "zhipu": (
         ("zhipu_search_engine", "select", False, ZHIPU_SEARCH_ENGINES),
     ),

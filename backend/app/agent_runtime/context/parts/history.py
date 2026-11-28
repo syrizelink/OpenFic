@@ -73,6 +73,12 @@ async def build_history(
             and ("<of-mention" in content or "<of-skill" in content)
         ):
             content = await compile_canonical_mentions(content, db_session)
+        if role == "user" and isinstance(content, str) and "plugin_data=" in content:
+            from app.plugins.runtime import expand_quotes
+
+            content, quotes = expand_quotes(content, require_enabled=False)
+            if quotes and "<of-mention" in content:
+                content = await compile_canonical_mentions(content, db_session)
         additional_kwargs = (
             raw.get("additional_kwargs") if isinstance(raw.get("additional_kwargs"), dict) else None
         )

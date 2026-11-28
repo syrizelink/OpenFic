@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { ContextMenu, type ContextMenuItem } from "@/components";
 import { buildVolumeMentionTag } from "@/features/assistant/lib/mention-text";
+import { usePluginMenuItems } from "@/features/plugins/menu-items";
 import type { VolumeWithChapters } from "@/lib/chapter.types";
 
 const MotionBox = motion.create(Box);
@@ -120,6 +121,11 @@ export function VolumeHeader({
 }: VolumeHeaderProps) {
   const { t } = useTranslation();
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const pluginMenuItems = usePluginMenuItems(
+    contextMenuPos && !isAgentLocked
+      ? { kind: "menu.volume", ids: [volume.id], projectId: volume.projectId }
+      : null,
+  );
 
   const openMenu = useCallback(
     (position: { x: number; y: number }) => {
@@ -349,7 +355,7 @@ export function VolumeHeader({
 
       <ContextMenu
         position={contextMenuPos}
-        items={menuItems}
+        items={[...menuItems, ...pluginMenuItems]}
         onClose={() => setContextMenuPos(null)}
       />
     </>

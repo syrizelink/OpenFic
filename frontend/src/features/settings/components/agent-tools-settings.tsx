@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { LabeledSelect, type SelectOption } from "@/components/select";
 
 import type { AgentToolMetadata, AgentToolPermissionMode, Settings } from "../lib/settings.types";
+import { PluginSourceInfo } from "./plugin-source-info";
 
 interface AgentToolsSettingsProps {
   settings: Settings;
@@ -275,7 +276,10 @@ export function AgentToolsSettings({
     () => new Map(settings.agentToolPermissions.map((item) => [item.toolName, item.mode])),
     [settings.agentToolPermissions],
   );
-  const displayTools = useMemo(() => tools.filter((tool) => TOOL_DISPLAY_KEYS[tool.key]), [tools]);
+  const displayTools = useMemo(
+    () => tools.filter((tool) => TOOL_DISPLAY_KEYS[tool.key] || tool.key.startsWith("plugin_")),
+    [tools],
+  );
 
   const handlePermissionChange = (toolName: string, mode: string) => {
     const nextMode = mode as AgentToolPermissionMode;
@@ -283,6 +287,8 @@ export function AgentToolsSettings({
       ...item,
       mode: item.toolName === toolName ? nextMode : item.mode,
     }));
+    if (!nextPermissions.some((item) => item.toolName === toolName))
+      nextPermissions.push({ toolName, mode: nextMode });
 
     onSettingsChange({
       ...settings,
@@ -342,23 +348,33 @@ export function AgentToolsSettings({
                 gap="1"
                 style={{ minWidth: 0, flex: 1 }}
               >
-                <Text
-                  size="2"
-                  weight="medium"
+                <Flex
+                  align="center"
+                  gap="1"
                 >
-                  {t(TOOL_DISPLAY_KEYS[tool.key].name)}
-                </Text>
+                  <Text
+                    size="2"
+                    weight="medium"
+                  >
+                    {TOOL_DISPLAY_KEYS[tool.key]
+                      ? t(TOOL_DISPLAY_KEYS[tool.key].name)
+                      : (tool.displayName ?? tool.key)}
+                  </Text>
+                  {tool.pluginName && <PluginSourceInfo names={[tool.pluginName]} />}
+                </Flex>
                 <Text
                   size="2"
                   color="gray"
                   style={{ lineHeight: 1.5 }}
                 >
-                  {t(TOOL_DISPLAY_KEYS[tool.key].description)}
+                  {TOOL_DISPLAY_KEYS[tool.key]
+                    ? t(TOOL_DISPLAY_KEYS[tool.key].description)
+                    : tool.description}
                 </Text>
               </Flex>
 
               <LabeledSelect
-                value={permissionMap.get(tool.key) ?? "ask"}
+                value={permissionMap.get(tool.key) ?? (tool.isReadonly ? "allow" : "ask")}
                 options={permissionOptions}
                 onChange={(value) => handlePermissionChange(tool.key, value)}
                 disabled={isSaving}

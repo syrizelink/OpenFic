@@ -13,10 +13,12 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "summary",
   "agent-tools",
   "web-search",
+  "quick-prompts",
   "rules",
   "skills",
   "agents",
   "advanced",
+  "plugins",
 ] as const;
 
 export const MODEL_SETTINGS_TABS = ["llm", "embedding", "rerank"] as const;

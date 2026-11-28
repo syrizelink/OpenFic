@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
+import { usePortalContainer } from "@/components/portal-container";
 import { useAppShell } from "@/features/app-shell/components/app-shell-context";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
@@ -109,8 +110,12 @@ function formatModelPriceLine(
 }
 
 function ToolCallWarningBadge({ message }: { message: string }) {
+  const portalContainer = usePortalContainer();
   return (
-    <Tooltip content={message}>
+    <Tooltip
+      container={portalContainer}
+      content={message}
+    >
       <Box
         aria-label={message}
         role="img"
@@ -158,6 +163,7 @@ export function ModelIdSelect({
   triggerClassName,
   contentClassName,
 }: ModelIdSelectProps) {
+  const portalContainer = usePortalContainer();
   const { t } = useTranslation();
   const { isMobile } = useAppShell();
   const [open, setOpen] = useState(false);
@@ -596,14 +602,13 @@ export function ModelIdSelect({
                     >
                       <Flex
                         align="start"
-                        justify="between"
                         gap="2"
                         style={{ minWidth: 0 }}
                       >
                         <Flex
                           align="center"
                           gap="1"
-                          style={{ minWidth: 0, flex: "1 1 auto" }}
+                          style={{ minWidth: 0, flex: "0 1 auto" }}
                         >
                           {compact && model.providerIconPath ? (
                             <ProviderIcon
@@ -617,7 +622,7 @@ export function ModelIdSelect({
                             weight="medium"
                             style={{
                               minWidth: 0,
-                              flex: "1 1 auto",
+                              flex: "0 1 auto",
                               color: showToolCallWarning ? "#c64545" : undefined,
                             }}
                           >
@@ -632,8 +637,7 @@ export function ModelIdSelect({
                             align="center"
                             gap="1"
                             wrap="wrap"
-                            justify="end"
-                            style={{ marginLeft: "auto", flexShrink: 0 }}
+                            style={{ flexShrink: 0 }}
                           >
                             {capabilityKeys.map((capability) => (
                               <CapabilityIcon
@@ -700,6 +704,7 @@ export function ModelIdSelect({
     >
       <Popover.Trigger>{trigger}</Popover.Trigger>
       <Popover.Content
+        container={portalContainer}
         className={contentClassName}
         onOpenAutoFocus={(event) => {
           if (isMobile) event.preventDefault();

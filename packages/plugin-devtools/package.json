@@ -1,0 +1,16 @@
+{
+  "name": "@openfic/plugin-devtools",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "OpenFic shared declarative CSS compiler and plugin diagnostics CLI",
+  "bin": { "openfic-plugin-ui": "./cli.mjs" },
+  "exports": { "./css": { "types": "./css.d.mts", "default": "./css.mjs" } },
+  "files": ["cli.mjs", "css.mjs", "css.d.mts", "README.md"],
+  "dependencies": {
+    "postcss": "^8.5.30",
+    "postcss-nesting": "^14.0.3",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0"
+  }
+}
