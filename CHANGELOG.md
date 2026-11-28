@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/syrizelink/OpenFic/compare/v0.14.0...v0.14.1) (2026-11-28)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 web_fetch 工具拒绝 text/* 类型内容的问题 ([#513](https://github.com/syrizelink/OpenFic/issues/513)) ([9d7376e](https://github.com/syrizelink/OpenFic/commit/9d7376e9814846135323a52ef34b350c73625185))
+
 ## [0.14.0](https://github.com/syrizelink/OpenFic/compare/v0.13.0...v0.14.0) (2026-11-27)
 
 
