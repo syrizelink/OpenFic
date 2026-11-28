@@ -1,4 +1,4 @@
-"""异步下载静态网页并使用 Trafilatura 提取正文。"""
+"""异步下载网页或文本，并提取正文。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,8 @@ FALLBACK_USER_AGENT = (
 )
 MAX_RAW_HTML_BYTES = 5 * 1024 * 1024
 MAX_REDIRECTS = 5
-ALLOWED_CONTENT_TYPES = frozenset({"text/html", "application/xhtml+xml"})
+TEXT_CONTENT_TYPES = frozenset({"text/plain", "text/markdown"})
+ALLOWED_CONTENT_TYPES = frozenset({"text/html", "application/xhtml+xml"}) | TEXT_CONTENT_TYPES
 TEREDO_NETWORK = ipaddress.ip_network("2001::/32")
 INLINE_ELEMENTS = frozenset(
     {"a", "abbr", "b", "code", "em", "i", "kbd", "mark", "q", "s", "small", "span", "strong"}
@@ -274,7 +275,7 @@ async def fetch_html(
     async with httpx.AsyncClient(
         timeout=DEFAULT_HTTP_TIMEOUT,
         follow_redirects=False,
-        headers={"Accept": "text/html,application/xhtml+xml"},
+        headers={"Accept": "text/html,application/xhtml+xml,text/plain,text/markdown"},
         trust_env=trust_env,
     ) as client:
         request_headers = {"User-Agent": DEFAULT_USER_AGENT}
@@ -342,7 +343,7 @@ async def fetch_html(
                         )
                 html = await asyncio.to_thread(_decode_html, bytes(body), response.encoding)
                 if not html.strip():
-                    raise ToolExecutionError("网页没有可读取的 HTML 内容")
+                    raise ToolExecutionError("网页没有可读取的内容")
                 return FetchedPage(
                     final_url=current_url,
                     status_code=response.status_code,
@@ -424,5 +425,15 @@ async def fetch_and_extract(
         trust_env=trust_env,
         bypass_ssrf_protection=bypass_ssrf_protection,
     )
-    extracted = await asyncio.to_thread(extract_html, page.html, page.final_url)
+    if page.content_type in TEXT_CONTENT_TYPES:
+        extracted = ExtractedPage(
+            markdown=page.html,
+            title="",
+            author=None,
+            date=None,
+            site_name=None,
+            language=None,
+        )
+    else:
+        extracted = await asyncio.to_thread(extract_html, page.html, page.final_url)
     return page, extracted
