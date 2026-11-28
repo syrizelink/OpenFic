@@ -14,6 +14,9 @@ from app.agent_runtime.tools.impls.web_search.providers.perplexity import (
 )
 from app.agent_runtime.tools.impls.web_search.providers.searxng import SearxngProvider
 from app.agent_runtime.tools.impls.web_search.providers.serper import SerperProvider
+from app.agent_runtime.tools.impls.web_search.providers.specstream import (
+    SpecStreamProvider,
+)
 from app.agent_runtime.tools.impls.web_search.providers.tavily import TavilyProvider
 from app.agent_runtime.tools.impls.web_search.providers.youcom import YouComProvider
 from app.agent_runtime.tools.impls.web_search.providers.zhipu import ZhipuProvider
@@ -30,6 +33,7 @@ PROVIDERS: dict[str, type[WebSearchProvider]] = {
         PerplexityProvider,
         SearxngProvider,
         SerperProvider,
+        SpecStreamProvider,
         TavilyProvider,
         YouComProvider,
         ZhipuProvider,
@@ -77,6 +81,7 @@ _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], .
     "perplexity": (),
     "searxng": (("searxng_base_url", "text", True, ()),),
     "serper": (),
+    "specstream": (),
     "tavily": (),
     "youcom": (),
     "zhipu": (

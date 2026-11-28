@@ -79,6 +79,7 @@ class TestProviderRegistry:
             "perplexity",
             "searxng",
             "serper",
+            "specstream",
             "tavily",
             "youcom",
             "zhipu",
@@ -126,6 +127,8 @@ class TestProviderRegistry:
         assert by_name["youcom"]["requires_api_key"] is False
         assert by_name["youcom"]["fields"] == []
         assert by_name["searxng"]["requires_api_key"] is False
+        assert by_name["specstream"]["requires_api_key"] is True
+        assert by_name["specstream"]["fields"] == []
         assert by_name["zhipu"]["requires_api_key"] is True
 
         searxng_fields = {field["key"]: field for field in by_name["searxng"]["fields"]}
@@ -602,6 +605,67 @@ class TestHttpProviders:
 
     @pytest.mark.asyncio
     @respx.mock
+    async def test_specstream_sends_bearer_and_maps_sources(self) -> None:
+        provider = get_provider("specstream")()
+        route = respx.post("https://api.specstream.ai/v1/web-search").mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": {
+                        "answer": "  ",
+                        "sources": [
+                            {
+                                "title": "t",
+                                "url": "https://u",
+                                "site": "u",
+                                "snippet": "line one\n\nline   two " + "x" * 400,
+                            },
+                            "not a source",
+                        ],
+                    }
+                },
+            )
+        )
+        response = await provider.search("q", _provider_config(max_results=5))
+        assert route.called
+        request = route.calls[0].request
+        assert request.headers["authorization"] == "Bearer test-key"
+        assert json.loads(request.content) == {"q": "q", "num": 5}
+        assert response.answer is None
+        assert len(response.results) == 1
+        assert response.results[0].url == "https://u"
+        assert response.results[0].snippet.startswith("line one line two x")
+        assert len(response.results[0].snippet) == 300
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_specstream_keeps_answer(self) -> None:
+        provider = get_provider("specstream")()
+        respx.post("https://api.specstream.ai/v1/web-search").mock(
+            return_value=Response(
+                200,
+                json={"data": {"answer": "Canberra", "sources": []}},
+            )
+        )
+        response = await provider.search("q", _provider_config())
+        assert response.answer == "Canberra"
+        assert response.results == []
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_specstream_refused_key_reports_status(self) -> None:
+        provider = get_provider("specstream")()
+        respx.post("https://api.specstream.ai/v1/web-search").mock(
+            return_value=Response(
+                401,
+                json={"error": {"code": "invalid_token", "message": "bad key"}},
+            )
+        )
+        with pytest.raises(ToolExecutionError, match="SpecStream 返回 HTTP 401"):
+            await provider.search("q", _provider_config())
+
+    @pytest.mark.asyncio
+    @respx.mock
     async def test_http_error_wraps_status(self) -> None:
         provider = get_provider("brave")()
         respx.get(
@@ -791,7 +855,7 @@ class TestProviderKeyValidation:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "name",
-        ["brave", "exa", "jina", "perplexity", "serper", "tavily", "zhipu"],
+        ["brave", "exa", "jina", "perplexity", "serper", "specstream", "tavily", "zhipu"],
     )
     async def test_providers_require_api_key(self, name: str) -> None:
         provider = get_provider(name)()
